@@ -1,0 +1,89 @@
+version: '3'
+
+services:
+  bento:
+    build: .
+    env_file:
+      - .env
+    volumes:
+      - ./config.yaml:/app/config.yaml
+    networks:
+      - bento-network
+    depends_on:
+      - redis
+      - minio
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - bento-network
+
+  minio:
+    image: minio/minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    command: server --console-address ":9001" /data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - bento-network
+
+  streamlit:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    ports:
+      - "8501:8501"
+    environment:
+      - MINIO_URL=http://minio:9000
+      - REDIS_URL=redis://redis:6379
+      - SPIN_API_URL=http://spin:3000
+    volumes:
+      - ./app:/app
+      - duckdb_data:/data
+    networks:
+      - bento-network
+    depends_on:
+      - minio
+      - redis
+      - spin
+
+  spin:
+    build:
+      context: ./spin
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - ./spin/apps:/apps
+      - ./spin/config:/config
+    networks:
+      - bento-network
+    depends_on:
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  bento-network:
+    driver: bridge
+
+volumes:
+  minio_data:
+  duckdb_data:

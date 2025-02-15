@@ -1,0 +1,71 @@
+<style>
+    /* Your existing CSS */
+    
+    /* Enhanced Alert Cards */
+    .alert-card {
+        padding: 1rem;
+        border-radius: 0.75rem;
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+        transition: transform 0.2s;
+    }
+    
+    .alert-card:hover {
+        transform: translateX(5px);
+    }
+    
+    .alert-warning {
+        background-color: #fff7ed;
+        border: 1px solid #ffedd5;
+    }
+    
+    .alert-success {
+        background-color: #f0fdf4;
+        border: 1px solid #dcfce7;
+    }
+    
+    .alert-info {
+        background-color: #eff6ff;
+        border: 1px solid #dbeafe;
+    }
+    
+    .priority-badge {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+    
+    .priority-High {
+        background-color: #fef2f2;
+        color: #dc2626;
+    }
+    
+    .priority-Medium {
+        background-color: #fff7ed;
+        color: #d97706;
+    }
+    
+    .priority-Low {
+        background-color: #f0f9ff;
+        color: #0369a1;
+    }
+    
+    /* Page Headers */
+    .page-header {
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    
+    /* Filters Section */
+    .filters-section {
+        background: white;
+        padding: 1rem;
+        border-radius: 0.75rem;
+        margin-bottom: 1.5rem;
+    }
+</style>
