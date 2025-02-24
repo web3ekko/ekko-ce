@@ -1,6 +1,27 @@
 <style>
-    /* Your existing CSS */
     
+    /* Wallet Grid Layout */
+    .wallet-grid {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    }
+    
+    .wallet-card {
+        padding: 1rem;
+        border-radius: 0.75rem;
+        background-color: #eff6ff;
+        border: 1px solid #dbeafe;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        transition: transform 0.2s;
+    }
+    
+    .wallet-card:hover {
+        transform: translateX(5px);
+    }
+
     /* Enhanced Alert Cards */
     .alert-card {
         padding: 1rem;

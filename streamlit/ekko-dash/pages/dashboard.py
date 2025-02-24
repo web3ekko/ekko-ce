@@ -1,4 +1,5 @@
 import streamlit as st
+from utils.alerts import show_enhanced_alert
 
 def show_dashboard():
     st.markdown('<h1 class="page-header">Dashboard</h1>', unsafe_allow_html=True)
