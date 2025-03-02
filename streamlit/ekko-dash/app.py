@@ -14,7 +14,8 @@ from views.about import show_about
 # Set page configuration
 st.set_page_config(
     page_title="Ekko Dashboard",
-    page_icon="🔔",
+    # page_icon="🔔",
+    page_icon="static/icons/avax.svg",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -43,7 +44,7 @@ with st.sidebar:
         menu_title=None,
         options=["Home", "Wallets", "Alerts", "Workflows", "Agents", "Settings", "About"], 
         icons=["house", "wallet", "bell", "briefcase", "robot", "gear", "info"],
-        menu_icon="circle",
+        menu_icon="static/icons/avax.svg",
         default_index=0    
     )
 

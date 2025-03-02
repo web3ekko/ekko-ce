@@ -16,6 +16,7 @@ class Database:
         self.create_alert_table()
         self.create_workflow_table()
         self.create_agent_table()
+        self.create_settings_table()
 
     def populate_blockchain_table(self):
         # Check if the table is empty
@@ -110,6 +111,13 @@ class Database:
         )
         """
         self.con.execute(query)
+
+    def create_settings_table(self):
+        query = """
+    CREATE TABLE IF NOT EXISTS settings(
+        id UUID PRIMARY KEY
+    )
+    """
 
 class Blockchain:
     def __init__(self, db):
