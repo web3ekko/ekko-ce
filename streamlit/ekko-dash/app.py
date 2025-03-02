@@ -40,15 +40,18 @@ elif selected == "Wallets":
 elif selected == "Alerts":
     st.write("You selected Alerts")
     st.write("Alerts page is under construction")
+    show_alerts()
 
 elif selected == "Workflows":
     st.write("You selected Workflows")
     st.write("Workflows page is under construction")
+    show=show_workflows()
 
 elif selected == "Agents":
     st.write("You selected Agents")
     st.write("Agents page is under construction")
-
+    show_agents()
+    
 elif selected == "Settings":
     st.write("You selected Settings")
     st.write("Settings page is under construction")
