@@ -1,60 +1,64 @@
 import streamlit as st
 from streamlit_option_menu import option_menu
+import os
+
+# Import view functions
 from views.wallets import show_wallets
 from views.alerts import show_alerts
 from views.workflows import show_workflows
 from views.agents import show_agents
 from views.home import show_dashboard
-from views.alerts import show_alerts
-# from views.settings import show_settings
-# from views.about import show_about
+from views.settings import show_settings
+from views.about import show_about
 
+# Set page configuration
+st.set_page_config(
+    page_title="Ekko Dashboard",
+    page_icon="🔔",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-st.title("Ekko Dashboard Application, world")
-st.write("This is a demo app")
+# Load and apply custom CSS
+def load_css(css_file):
+    with open(css_file, 'r') as f:
+        st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
 
+# Try to load the CSS file
+try:
+    load_css(os.path.join('utils', 'style.css'))
+except Exception as e:
+    st.warning(f"Could not load CSS file: {str(e)}")
+
+# Sidebar navigation
 with st.sidebar:
+    st.markdown("""
+    <div class="ekko-title">
+        <span class="ekko-icon">🔔</span>
+        <span class="ekko-name">Ekko</span>
+    </div>
+    """, unsafe_allow_html=True)
+    
     selected = option_menu(
         menu_title=None,
-        options=["Home",  "Wallets", "Alerts", "Workflows", "Agents", "Settings", "About",], 
-        icons=["house", "wallet", "bell", "briefcase", "robot", "gear", "info",],
+        options=["Home", "Wallets", "Alerts", "Workflows", "Agents", "Settings", "About"], 
+        icons=["house", "wallet", "bell", "briefcase", "robot", "gear", "info"],
         menu_icon="circle",
         default_index=0    
     )
 
 # Main content area
 if selected == "Home":
-    st.write("You selected Home")
-    st.write('This is the home page')
     show_dashboard()
 elif selected == "About":
-    st.write("You selected About")
-    st.write(f'Ekko Dashboard Application, world')
-
+    show_about()
 elif selected == "Wallets":
-    # Call the show_wallets function from the wallets page
-    # The function expects a blockchain_symbol parameter, but it doesn't seem to use it
-    # So we'll pass None for now - you may need to adjust this
     show_wallets(blockchain_symbol=None)
-
 elif selected == "Alerts":
-    st.write("You selected Alerts")
-    st.write("Alerts page is under construction")
     show_alerts()
-
 elif selected == "Workflows":
-    st.write("You selected Workflows")
-    st.write("Workflows page is under construction")
-    show=show_workflows()
-
+    show_workflows()
 elif selected == "Agents":
-    st.write("You selected Agents")
-    st.write("Agents page is under construction")
     show_agents()
-    
 elif selected == "Settings":
-    st.write("You selected Settings")
-    st.write("Settings page is under construction")
-
-else:
-    st.write("Please select an option")
+    show_settings()

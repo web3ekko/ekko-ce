@@ -1,14 +1,12 @@
 import streamlit as st
 from utils.models import Database, Alert, Cache
+from utils.alerts import show_enhanced_alerts
 from datetime import datetime
 
 # Initialize database and models
 db = Database()
 alert_model = Alert(db)
 cache = Cache()
-
-
-
 
 def show_alerts():
     st.markdown('<h1 class="page-header">Alerts</h1>', unsafe_allow_html=True)
@@ -40,7 +38,7 @@ def show_alerts():
                 'message': condition,
                 'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                 'status': 'warning',  # Default status, change as needed
-                'icon': '',  # Default icon, change as needed
+                'icon': '⚠️',  # Added default icon
                 'priority': priority
             }
             alert_model.insert(alert_data)
@@ -52,43 +50,25 @@ def show_alerts():
                 except Exception as e:
                     st.error(f"Failed to cache alert: {str(e)}")
             else:
-                st.error("Failed to connect to Redis. Alert caching is disabled.")
+                st.warning("Redis cache is not connected. Alert created but not cached.")
+                st.success("Alert created successfully!")
     
     # Alert List
     fetched_alerts = alert_model.get_all()
-    for alert in fetched_alerts:
-        show_enhanced_alerts(alert)
-
-# Enhanced Alert Display
-def show_enhanced_alerts(alert):
-    """
-    Display an enhanced alert card with styling
-    
-    Args:
-        alert (dict): Alert data dictionary containing type, message, status, etc.
-    """
-    st.markdown(f"""
-        <div class="alert-card alert-{alert['status']}">
-            <div style="font-size: 1.5rem;">{alert.get('icon', '')}</div>
-            <div style="flex-grow: 1;">
-                <div style="display: flex; justify-content: space-between; align-items: start;">
-                    <div>
-                        <div style="font-weight: 500; margin-bottom: 0.25rem;">
-                            {alert.get('type', 'Alert')}
-                        </div>
-                        <div style="color: #64748b;">
-                            {alert.get('message', '')}
-                        </div>
-                    </div>
-                    <div style="text-align: right;">
-                        <span class="priority-badge priority-{alert.get('priority', 'Medium')}">
-                            {alert.get('priority', 'Medium')}
-                        </span>
-                        <div style="color: #64748b; font-size: 0.875rem; margin-top: 0.5rem;">
-                            {alert.get('time', '')}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
+    if fetched_alerts:
+        for alert in fetched_alerts:
+            # Convert database row to dictionary if needed
+            if not isinstance(alert, dict):
+                alert_dict = {
+                    'type': alert[1],
+                    'message': alert[2],
+                    'time': alert[3],
+                    'status': alert[4],
+                    'icon': alert[5] or '⚠️',  # Default icon if not provided
+                    'priority': alert[6]
+                }
+                show_enhanced_alerts(alert_dict)
+            else:
+                show_enhanced_alerts(alert)
+    else:
+        st.info("No alerts found. Create a new alert to get started.")
