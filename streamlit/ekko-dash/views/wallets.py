@@ -111,10 +111,12 @@ def generate_dummy_wallets(count=9):
         # Sort transactions by date (newest first)
         transactions.sort(key=lambda x: x['timestamp'], reverse=True)
         
+        blockchain_name = {"ETH": "Ethereum", "AVAX": "Avalanche", "MATIC": "Polygon", "BTC": "Bitcoin"}[blockchain_symbol]
+        
         dummy_wallets.append({
             'id': i + 1,
             'blockchain_symbol': blockchain_symbol,
-            'blockchain_name': {"ETH": "Ethereum", "AVAX": "Avalanche", "MATIC": "Polygon", "BTC": "Bitcoin"}[blockchain_symbol],
+            'blockchain_name': blockchain_name,
             'address': addresses[i % len(addresses)],
             'name': f"{wallet_names[i % len(wallet_names)]} {i+1}",
             'balance': balance,
@@ -125,592 +127,6 @@ def generate_dummy_wallets(count=9):
         })
     
     return dummy_wallets
-
-# Add common CSS for wallet pages
-def add_wallet_css():
-    st.markdown("""
-    <style>
-        .wallet-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 1rem;
-            margin-top: 1.5rem;
-        }
-        
-        .wallet-card {
-            background-color: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-            padding: 1.25rem;
-            transition: all 0.3s ease;
-            border: 1px solid #f0f0f0;
-            position: relative;
-            overflow: hidden;
-            cursor: pointer;
-        }
-        
-        .wallet-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-        }
-        
-        .wallet-header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 1rem;
-        }
-        
-        .wallet-logo {
-            width: 40px;
-            height: 40px;
-            margin-right: 12px;
-            border-radius: 8px;
-            padding: 6px;
-            background-color: #f8f9fa;
-        }
-        
-        .wallet-name {
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: #333;
-            flex-grow: 1;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        
-        .wallet-status {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            margin-left: 8px;
-        }
-        
-        .status-active {
-            background-color: #10b981;
-            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
-        }
-        
-        .status-inactive {
-            background-color: #9ca3af;
-            box-shadow: 0 0 0 3px rgba(156, 163, 175, 0.2);
-        }
-        
-        .wallet-address {
-            background-color: #f8f9fa;
-            padding: 0.5rem 0.75rem;
-            border-radius: 8px;
-            font-family: monospace;
-            font-size: 0.9rem;
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        
-        .wallet-copy {
-            cursor: pointer;
-            color: #6b7280;
-            transition: color 0.2s ease;
-        }
-        
-        .wallet-copy:hover {
-            color: #4b5563;
-        }
-        
-        .wallet-balance {
-            font-size: 1.5rem;
-            font-weight: 700;
-            margin-bottom: 0.25rem;
-            color: #1f2937;
-        }
-        
-        .wallet-blockchain {
-            color: #6b7280;
-            font-size: 0.875rem;
-            margin-bottom: 1rem;
-        }
-        
-        .wallet-activity {
-            font-size: 0.875rem;
-            color: #6b7280;
-            margin-bottom: 1.25rem;
-        }
-        
-        .wallet-actions {
-            display: flex;
-            justify-content: flex-end;
-        }
-        
-        .action-button {
-            background-color: #f3f4f6;
-            color: #374151;
-            border: none;
-            border-radius: 8px;
-            padding: 0.5rem 1rem;
-            font-size: 0.875rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .action-button:hover {
-            background-color: #e5e7eb;
-        }
-        
-        .action-button.primary {
-            background-color: #eff6ff;
-            color: #1e40af;
-        }
-        
-        .action-button.primary:hover {
-            background-color: #dbeafe;
-        }
-        
-        .add-wallet-card {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            background-color: #f9fafb;
-            border: 2px dashed #e5e7eb;
-            border-radius: 12px;
-            padding: 2rem 1.5rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            height: 100%;
-        }
-        
-        .add-wallet-card:hover {
-            background-color: #f3f4f6;
-            border-color: #d1d5db;
-        }
-        
-        .add-icon {
-            width: 48px;
-            height: 48px;
-            border-radius: 50%;
-            background-color: #e5e7eb;
-            color: #6b7280;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 1rem;
-            font-size: 1.5rem;
-        }
-        
-        .add-wallet-text {
-            font-weight: 500;
-            color: #6b7280;
-        }
-        
-        /* Wallet detail styles */
-        .wallet-detail-header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 2rem;
-            padding-bottom: 1rem;
-            border-bottom: 1px solid #f0f0f0;
-        }
-        
-        .wallet-detail-back {
-            margin-right: 1rem;
-            padding: 0.5rem;
-            background-color: #f3f4f6;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        
-        .wallet-detail-back:hover {
-            background-color: #e5e7eb;
-        }
-        
-        .wallet-detail-info {
-            flex-grow: 1;
-        }
-        
-        .wallet-detail-name {
-            font-size: 1.5rem;
-            font-weight: 600;
-            margin-bottom: 0.25rem;
-        }
-        
-        .wallet-detail-address {
-            font-family: monospace;
-            color: #6b7280;
-            background-color: #f8f9fa;
-            padding: 0.25rem 0.5rem;
-            border-radius: 4px;
-            font-size: 0.875rem;
-            display: inline-flex;
-            align-items: center;
-        }
-        
-        .wallet-detail-balance {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background-color: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-            padding: 1.5rem;
-            margin-bottom: 2rem;
-        }
-        
-        .balance-amount {
-            font-size: 2.5rem;
-            font-weight: 700;
-            color: #1f2937;
-        }
-        
-        .balance-token {
-            color: #6b7280;
-            font-size: 1rem;
-            margin-left: 0.5rem;
-        }
-        
-        .wallet-detail-actions {
-            display: flex;
-            gap: 0.75rem;
-        }
-        
-        .wallet-tabs {
-            margin-bottom: 2rem;
-        }
-        
-        .transaction-list {
-            background-color: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-            overflow: hidden;
-        }
-        
-        .transaction-item {
-            display: flex;
-            align-items: center;
-            padding: 1rem 1.5rem;
-            border-bottom: 1px solid #f3f4f6;
-            transition: background-color 0.2s ease;
-        }
-        
-        .transaction-item:hover {
-            background-color: #f9fafb;
-        }
-        
-        .transaction-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background-color: #f3f4f6;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-right: 1rem;
-        }
-        
-        .transaction-send {
-            color: #ef4444;
-        }
-        
-        .transaction-receive {
-            color: #10b981;
-        }
-        
-        .transaction-swap {
-            color: #6366f1;
-        }
-        
-        .transaction-stake {
-            color: #f59e0b;
-        }
-        
-        .transaction-info {
-            flex-grow: 1;
-        }
-        
-        .transaction-type {
-            font-weight: 600;
-            color: #1f2937;
-            margin-bottom: 0.25rem;
-        }
-        
-        .transaction-date {
-            font-size: 0.875rem;
-            color: #6b7280;
-        }
-        
-        .transaction-amount {
-            text-align: right;
-        }
-        
-        .transaction-value {
-            font-weight: 600;
-            color: #1f2937;
-            margin-bottom: 0.25rem;
-        }
-        
-        .transaction-fee {
-            font-size: 0.75rem;
-            color: #9ca3af;
-        }
-        
-        .transaction-status {
-            padding: 0.25rem 0.5rem;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 500;
-            margin-left: 1rem;
-        }
-        
-        .status-confirmed {
-            background-color: #ecfdf5;
-            color: #10b981;
-        }
-        
-        .status-pending {
-            background-color: #fffbeb;
-            color: #f59e0b;
-        }
-        
-        .status-failed {
-            background-color: #fef2f2;
-            color: #ef4444;
-        }
-        
-        .empty-state {
-            text-align: center;
-            padding: 4rem 2rem;
-            color: #6b7280;
-        }
-        
-        .empty-state-icon {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-            color: #d1d5db;
-        }
-        
-        .empty-state-message {
-            font-size: 1.1rem;
-            font-weight: 500;
-            margin-bottom: 0.5rem;
-        }
-        
-        .empty-state-suggestion {
-            font-size: 0.9rem;
-        }
-    </style>
-    """, unsafe_allow_html=True)
-
-# Display wallet overview (grid view)
-def show_wallet_overview(wallets):
-    st.markdown('<div class="wallet-grid">', unsafe_allow_html=True)
-    
-    # Loop through each wallet and create a card
-    for wallet in wallets:
-        blockchain_logo = get_blockchain_logo(wallet['blockchain_symbol'])
-        truncated_addr = truncate_address(wallet['address'])
-        time_ago = get_time_ago(wallet['updated_at'])
-        status_class = "status-active" if wallet['status'] == "active" else "status-inactive"
-        
-        # Create a clickable wallet card
-        wallet_card = f"""
-            <div class="wallet-card" onclick="
-                // Use a workaround to send the wallet ID to Streamlit
-                // We'll create a hidden button with the wallet ID and click it
-                document.getElementById('select-wallet-{wallet['id']}').click()
-            ">
-                <div class="wallet-header">
-                    <div class="wallet-logo">
-                        <img src="data:image/svg+xml;base64,{blockchain_logo}" width="28" height="28">
-                    </div>
-                    <div class="wallet-name">{wallet['name']}</div>
-                    <div class="wallet-status {status_class}" title="{wallet['status'].capitalize()}"></div>
-                </div>
-                
-                <div class="wallet-address">
-                    <span>{truncated_addr}</span>
-                    <span class="wallet-copy" title="Copy to clipboard">📋</span>
-                </div>
-                
-                <div class="wallet-balance">{wallet['balance']} {wallet['blockchain_symbol']}</div>
-                <div class="wallet-blockchain">{wallet['blockchain_name']} Network</div>
-                
-                <div class="wallet-activity">Last activity: {time_ago}</div>
-                
-                <div class="wallet-actions">
-                    <button class="action-button primary">
-                        <span>View Details</span>
-                        <span>→</span>
-                    </button>
-                </div>
-            </div>
-        """
-        
-        st.markdown(wallet_card, unsafe_allow_html=True)
-        
-        # Hidden button to capture the click event
-        if st.button("Select", key=f"select-wallet-{wallet['id']}", help=f"View details for {wallet['name']}", 
-                    type="secondary", use_container_width=True):
-            st.session_state['wallet_view'] = 'detail'
-            st.session_state['selected_wallet_id'] = wallet['id']
-            st.rerun()
-            
-        # Hide the button with CSS (we'll use JavaScript to click it)
-        st.markdown(f"""
-            <style>
-                div[data-testid="stButton"] button[kind="secondary"][aria-describedby*="View details for {wallet['name']}"] {{
-                    display: none;
-                }}
-            </style>
-        """, unsafe_allow_html=True)
-    
-    # Add the "Add Wallet" card at the end
-    st.markdown(f"""
-        <div class="add-wallet-card" onclick="document.querySelector('button[aria-label=\"Add New Wallet\"]').click()">
-            <div class="add-icon">+</div>
-            <div class="add-wallet-text">Add New Wallet</div>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    # Close the grid container
-    st.markdown('</div>', unsafe_allow_html=True)
-
-# Display wallet detail view
-def show_wallet_detail(wallet_id, wallets):
-    # Find the selected wallet
-    wallet = next((w for w in wallets if w['id'] == wallet_id), None)
-    
-    if not wallet:
-        st.error("Wallet not found")
-        return
-    
-    blockchain_logo = get_blockchain_logo(wallet['blockchain_symbol'])
-    
-    # Back button to return to wallet grid
-    if st.button("← Back to Wallets", use_container_width=False):
-        st.session_state['wallet_view'] = 'grid'
-        st.rerun()
-    
-    # Wallet header with name, address, and logo
-    col1, col2 = st.columns([3, 1])
-    
-    with col1:
-        st.markdown(f"""
-            <div class="wallet-detail-header">
-                <div class="wallet-logo" style="width: 48px; height: 48px;">
-                    <img src="data:image/svg+xml;base64,{blockchain_logo}" width="36" height="36">
-                </div>
-                <div class="wallet-detail-info">
-                    <div class="wallet-detail-name">{wallet['name']}</div>
-                    <div class="wallet-detail-address">
-                        {wallet['address']}
-                        <span class="wallet-copy" style="margin-left: 8px;" title="Copy to clipboard">📋</span>
-                    </div>
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
-    
-    # Wallet balance card
-    st.markdown(f"""
-        <div class="wallet-detail-balance">
-            <div>
-                <div style="color: #6b7280; font-size: 0.875rem; margin-bottom: 0.5rem;">Current Balance</div>
-                <div>
-                    <span class="balance-amount">{wallet['balance']}</span>
-                    <span class="balance-token">{wallet['blockchain_symbol']}</span>
-                </div>
-            </div>
-            <div class="wallet-detail-actions">
-                <button class="action-button">
-                    <span>Send</span>
-                </button>
-                <button class="action-button">
-                    <span>Receive</span>
-                </button>
-                <button class="action-button">
-                    <span>Swap</span>
-                </button>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    # Transactions and other tabs
-    tab1, tab2, tab3 = st.tabs(["Transactions", "Assets", "Analytics"])
-    
-    with tab1:
-        # Transactions list
-        if wallet.get('transactions'):
-            st.markdown('<div class="transaction-list">', unsafe_allow_html=True)
-            
-            for tx in wallet['transactions']:
-                # Set icon class based on transaction type
-                icon_class = ""
-                if tx['type'] == "Send":
-                    icon_class = "transaction-send"
-                elif tx['type'] == "Receive":
-                    icon_class = "transaction-receive"
-                elif tx['type'] == "Swap":
-                    icon_class = "transaction-swap"
-                elif tx['type'] in ["Stake", "Unstake"]:
-                    icon_class = "transaction-stake"
-                
-                # Format date
-                date_str = tx['timestamp'].strftime("%b %d, %Y at %H:%M")
-                
-                # Set status class
-                status_class = ""
-                if tx['status'] == "Confirmed":
-                    status_class = "status-confirmed"
-                elif tx['status'] == "Pending":
-                    status_class = "status-pending"
-                elif tx['status'] == "Failed":
-                    status_class = "status-failed"
-                
-                # Display transaction item
-                st.markdown(f"""
-                    <div class="transaction-item">
-                        <div class="transaction-icon {icon_class}">
-                            {'↑' if tx['type'] == 'Send' else '↓' if tx['type'] == 'Receive' else '⇄' if tx['type'] == 'Swap' else '★'}
-                        </div>
-                        <div class="transaction-info">
-                            <div class="transaction-type">{tx['type']}</div>
-                            <div class="transaction-date">{date_str}</div>
-                        </div>
-                        <div class="transaction-amount">
-                            <div class="transaction-value">
-                                {'-' if tx['type'] == 'Send' else '+' if tx['type'] == 'Receive' else '↔'}
-                                {tx['amount']} {wallet['blockchain_symbol']}
-                            </div>
-                            <div class="transaction-fee">Fee: {tx['fee']} {wallet['blockchain_symbol']}</div>
-                        </div>
-                        <div class="transaction-status {status_class}">
-                            {tx['status']}
-                        </div>
-                    </div>
-                """, unsafe_allow_html=True)
-            
-            st.markdown('</div>', unsafe_allow_html=True)
-        else:
-            # Empty state
-            st.markdown("""
-                <div class="empty-state">
-                    <div class="empty-state-icon">📃</div>
-                    <div class="empty-state-message">No transactions yet</div>
-                    <div class="empty-state-suggestion">Transactions will appear here once you start using this wallet.</div>
-                </div>
-            """, unsafe_allow_html=True)
-    
-    with tab2:
-        # Assets tab (placeholder)
-        st.info("Assets feature coming soon")
-    
-    with tab3:
-        # Analytics tab (placeholder)
-        st.info("Analytics feature coming soon")
 
 # Add wallet form
 def show_add_wallet_form():
@@ -771,6 +187,169 @@ def show_add_wallet_form():
                 else:
                     st.error("Please enter a wallet address")
 
+# Display wallet detail view
+def show_wallet_detail(wallet_id, wallets):
+    # Find the selected wallet
+    wallet = next((w for w in wallets if w['id'] == wallet_id), None)
+    
+    if not wallet:
+        st.error("Wallet not found")
+        return
+    
+    blockchain_logo = get_blockchain_logo(wallet['blockchain_symbol'])
+    
+    # Back button to return to wallet grid
+    if st.button("← Back to Wallets", use_container_width=False):
+        st.session_state['wallet_view'] = 'grid'
+        st.rerun()
+    
+    # Wallet header with name and blockchain
+    st.subheader(wallet['name'])
+    st.caption(f"{wallet['blockchain_name']} Network")
+    
+    # Wallet address
+    st.code(wallet['address'], language=None)
+    
+    # Wallet balance in a metrics display
+    st.metric(label="Balance", value=f"{wallet['balance']} {wallet['blockchain_symbol']}")
+    
+    # Status indicator
+    status = "🟢 Active" if wallet['status'] == "active" else "⚪ Inactive"
+    st.info(f"Status: {status} | Last activity: {get_time_ago(wallet['updated_at'])}")
+    
+    # Action buttons in columns
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.button("Send", use_container_width=True)
+    with col2:
+        st.button("Receive", use_container_width=True) 
+    with col3:
+        st.button("Swap", use_container_width=True)
+    
+    # Transactions and other tabs
+    tab1, tab2, tab3 = st.tabs(["Transactions", "Assets", "Analytics"])
+    
+    with tab1:
+        # Transactions list
+        if hasattr(wallet, 'transactions') and wallet.get('transactions'):
+            for tx in wallet['transactions']:
+                # Create a nice transaction card
+                with st.container():
+                    col1, col2, col3 = st.columns([1, 2, 1])
+                    
+                    # Transaction type and icon
+                    with col1:
+                        icon = "↑" if tx['type'] == 'Send' else "↓" if tx['type'] == 'Receive' else "⇄" if tx['type'] == 'Swap' else "★"
+                        st.markdown(f"### {icon} {tx['type']}")
+                        st.caption(tx['timestamp'].strftime("%b %d, %Y at %H:%M"))
+                    
+                    # Transaction details
+                    with col2:
+                        st.markdown(f"**Amount:** {'- ' if tx['type'] == 'Send' else '+ ' if tx['type'] == 'Receive' else ''}{tx['amount']} {wallet['blockchain_symbol']}")
+                        st.caption(f"Fee: {tx['fee']} {wallet['blockchain_symbol']}")
+                    
+                    # Transaction status
+                    with col3:
+                        status_color = "green" if tx['status'] == "Confirmed" else "orange" if tx['status'] == "Pending" else "red"
+                        st.markdown(f"<span style='color: {status_color};'>{tx['status']}</span>", unsafe_allow_html=True)
+                    
+                    # Divider
+                    st.divider()
+        else:
+            # Empty state
+            st.info("No transactions found for this wallet.")
+    
+    with tab2:
+        # Assets tab (placeholder)
+        st.info("Assets feature coming soon")
+    
+    with tab3:
+        # Analytics tab (placeholder)
+        st.info("Analytics feature coming soon")
+
+# Display wallet grid with Streamlit native elements
+def show_wallet_grid(wallets):
+    # Calculate how many rows we need (3 wallets per row)
+    wallet_count = len(wallets)
+    row_count = (wallet_count + 2) // 3  # +2 to account for possible Add Wallet card
+    
+    # Custom CSS for some styling elements we can't do natively
+    st.markdown("""
+    <style>
+        /* Status dots */
+        .status-active {
+            color: green;
+            font-size: 16px;
+        }
+        .status-inactive {
+            color: gray;
+            font-size: 16px;
+        }
+        /* Card wrapper to add some spacing */
+        .wallet-wrapper {
+            padding: 5px;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    for row in range(row_count):
+        # Create a row with 3 columns
+        cols = st.columns(3)
+        
+        # Fill the columns with wallet cards
+        for col_idx in range(3):
+            wallet_idx = row * 3 + col_idx
+            
+            # Add Wallet card as the last item
+            if wallet_idx == wallet_count:
+                with cols[col_idx]:
+                    # Create an "Add Wallet" card
+                    with st.container():
+                        # Style to make it visually distinct
+                        st.markdown('<div class="wallet-wrapper">', unsafe_allow_html=True)
+                        
+                        # Empty container with border styling
+                        with st.container():
+                            st.markdown("##### Add New Wallet")
+                            st.markdown("➕")
+                            st.button("Add Wallet", key="add_wallet_grid", use_container_width=True, 
+                                     on_click=lambda: setattr(st.session_state, 'add_wallet_form_open', True))
+                        
+                        st.markdown('</div>', unsafe_allow_html=True)
+            
+            # Display a wallet if we have one for this position
+            elif wallet_idx < wallet_count:
+                wallet = wallets[wallet_idx]
+                with cols[col_idx]:
+                    # Wrapper for consistent spacing
+                    st.markdown('<div class="wallet-wrapper">', unsafe_allow_html=True)
+                    
+                    # Create a card-like container with border and padding
+                    with st.container():
+                        # Wallet name and status
+                        status_icon = "🟢" if wallet['status'] == "active" else "⚪"
+                        st.markdown(f"{wallet['name']} {status_icon}")
+                        
+                        # Blockchain info with logo
+                        st.caption(f"{wallet['blockchain_name']} Network")
+                        
+                        # Wallet address
+                        st.code(truncate_address(wallet['address']), language=None)
+                        
+                        # Balance
+                        st.markdown(f"### {wallet['balance']} {wallet['blockchain_symbol']}")
+                        
+                        # Last activity
+                        st.caption(f"Last activity: {get_time_ago(wallet['updated_at'])}")
+                        
+                        # View details button
+                        if st.button("View Details", key=f"view_{wallet['id']}", use_container_width=True):
+                            st.session_state['wallet_view'] = 'detail'
+                            st.session_state['selected_wallet_id'] = wallet['id']
+                            st.rerun()
+                    
+                    st.markdown('</div>', unsafe_allow_html=True)
+
 # Main wallet display function
 def show_wallets(blockchain_symbol):
     # Initialize session state for wallet navigation
@@ -781,33 +360,54 @@ def show_wallets(blockchain_symbol):
     if 'add_wallet_form_open' not in st.session_state:
         st.session_state['add_wallet_form_open'] = False
     
-    # Add common CSS styles
-    add_wallet_css()
-    
     # Page title based on current view
     if st.session_state['wallet_view'] == 'grid':
-        st.markdown('<h1 class="page-header">Wallets</h1>', unsafe_allow_html=True)
+        st.markdown('# Wallets')
     else:
-        st.markdown('<h1 class="page-header">Wallet Details</h1>', unsafe_allow_html=True)
+        st.markdown('# Wallet Details')
     
-    # Fetch wallets from database
-    fetched_wallets = wallet_model.get_all()
-    
-    # Format the fetched wallets
-    wallets = []
-    if fetched_wallets:
-        for wallet in fetched_wallets:
-            wallets.append({
-                'id': wallet[0],
-                'blockchain_symbol': wallet[1],
-                'blockchain_name': wallet[7],  # From the JOIN with blockchain table
-                'address': wallet[2],
-                'name': wallet[3] or f"Wallet {wallet[0]}",
-                'balance': wallet[4] or 0,
-                'created_at': wallet[5],
-                'updated_at': wallet[6],
-                'status': "active" if (wallet[6] and (datetime.datetime.now() - wallet[6]).days < 30) else "inactive"
-            })
+    # Get wallets data
+    try:
+        # Attempt to fetch wallets from database
+        db_wallets = wallet_model.get_all()
+        
+        # Process the data safely without index assumptions
+        wallets = []
+        
+        if db_wallets:
+            for wallet_data in db_wallets:
+                # Create dictionary with safe default values
+                wallet = {
+                    'id': str(wallet_data[0]) if len(wallet_data) > 0 else "unknown",
+                    'blockchain_symbol': str(wallet_data[1]) if len(wallet_data) > 1 else "unknown",
+                    'address': str(wallet_data[2]) if len(wallet_data) > 2 else "unknown",
+                    'name': str(wallet_data[3] or f"Wallet") if len(wallet_data) > 3 else "Unnamed Wallet",
+                    'balance': float(wallet_data[4] or 0) if len(wallet_data) > 4 else 0,
+                    'created_at': wallet_data[5] if len(wallet_data) > 5 else None,
+                    'updated_at': wallet_data[6] if len(wallet_data) > 6 else None,
+                    'status': "active"  # Default status
+                }
+                
+                # Try to get blockchain name if available
+                try:
+                    wallet['blockchain_name'] = str(wallet_data[8]) if len(wallet_data) > 8 else wallet['blockchain_symbol']
+                except:
+                    # Fallback to using the symbol as the name
+                    wallet['blockchain_name'] = wallet['blockchain_symbol']
+                
+                # Set status based on updated_at if available
+                if wallet['updated_at']:
+                    try:
+                        days_inactive = (datetime.datetime.now() - wallet['updated_at']).days
+                        wallet['status'] = "active" if days_inactive < 30 else "inactive"
+                    except:
+                        pass  # Keep default status if calculation fails
+                
+                wallets.append(wallet)
+    except Exception as e:
+        # If there's any error fetching or processing wallet data, use dummy data
+        st.warning(f"Using sample data. Database error: {str(e)}")
+        wallets = []
     
     # If fewer than 9 wallets, add dummy wallets to fill the grid
     if len(wallets) < 9:
@@ -815,15 +415,16 @@ def show_wallets(blockchain_symbol):
         needed_dummy_count = 9 - len(wallets)
         # Generate dummy wallets with high IDs to avoid conflicts with real ones
         dummy_wallets = generate_dummy_wallets(count=needed_dummy_count)
-        starting_id = 10000  # High starting ID to avoid conflicts
         
+        # Use high starting ID to avoid conflicts
+        starting_id = 10000
         for i, dummy_wallet in enumerate(dummy_wallets):
             dummy_wallet['id'] = starting_id + i
             wallets.append(dummy_wallet)
     
     # Show appropriate view based on session state
     if st.session_state['wallet_view'] == 'grid':
-        # Add New Wallet Button (only in grid view)
+        # Header section
         col1, col2 = st.columns([3, 1])
         
         with col1:
@@ -832,9 +433,7 @@ def show_wallets(blockchain_symbol):
         
         with col2:
             st.write("")  # Add some space
-            st.write("")  # Add more space to align the button
-            if st.button("➕ Add New Wallet", use_container_width=True, key="add_new_wallet", 
-                        help="Connect a new wallet"):
+            if st.button("➕ Add New Wallet", use_container_width=True, key="add_new_wallet_header"):
                 st.session_state['add_wallet_form_open'] = True
                 st.rerun()
         
@@ -842,8 +441,8 @@ def show_wallets(blockchain_symbol):
         if st.session_state.get('add_wallet_form_open', False):
             show_add_wallet_form()
         
-        # Show wallet grid with all wallets
-        show_wallet_overview(wallets)
+        # Show wallet grid
+        show_wallet_grid(wallets)
     
     elif st.session_state['wallet_view'] == 'detail':
         # Show wallet detail view for the selected wallet
