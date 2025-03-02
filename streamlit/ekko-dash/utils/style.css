@@ -1,92 +1,129 @@
-<style>
-    
-    /* Wallet Grid Layout */
-    .wallet-grid {
-        display: grid;
-        gap: 1rem;
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    }
-    
-    .wallet-card {
-        padding: 1rem;
-        border-radius: 0.75rem;
-        background-color: #eff6ff;
-        border: 1px solid #dbeafe;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        transition: transform 0.2s;
-    }
-    
-    .wallet-card:hover {
-        transform: translateX(5px);
-    }
+/* Main app styling */
+.stApp {
+    background-color: white;
+}
 
-    /* Enhanced Alert Cards */
-    .alert-card {
-        padding: 1rem;
-        border-radius: 0.75rem;
-        margin-bottom: 0.75rem;
-        display: flex;
-        align-items: flex-start;
-        gap: 1rem;
-        transition: transform 0.2s;
-    }
-    
-    .alert-card:hover {
-        transform: translateX(5px);
-    }
-    
-    .alert-warning {
-        background-color: #fff7ed;
-        border: 1px solid #ffedd5;
-    }
-    
-    .alert-success {
-        background-color: #f0fdf4;
-        border: 1px solid #dcfce7;
-    }
-    
-    .alert-info {
-        background-color: #eff6ff;
-        border: 1px solid #dbeafe;
-    }
-    
-    .priority-badge {
-        display: inline-block;
-        padding: 0.25rem 0.5rem;
-        border-radius: 9999px;
-        font-size: 0.75rem;
-        font-weight: 500;
-    }
-    
-    .priority-High {
-        background-color: #fef2f2;
-        color: #dc2626;
-    }
-    
-    .priority-Medium {
-        background-color: #fff7ed;
-        color: #d97706;
-    }
-    
-    .priority-Low {
-        background-color: #f0f9ff;
-        color: #0369a1;
-    }
-    
-    /* Page Headers */
-    .page-header {
-        margin-bottom: 2rem;
-        padding-bottom: 1rem;
-        border-bottom: 1px solid #e2e8f0;
-    }
-    
-    /* Filters Section */
-    .filters-section {
-        background: white;
-        padding: 1rem;
-        border-radius: 0.75rem;
-        margin-bottom: 1.5rem;
-    }
-</style>
+/* Remove default Streamlit elements */
+#MainMenu {visibility: hidden !important;}
+header {visibility: hidden !important;}
+footer {visibility: hidden !important;}
+
+/* Hide Streamlit file navigation in sidebar */
+section[data-testid="stSidebar"] > div > div:first-child {
+    display: none !important;
+}
+
+/* Hide Streamlit collapse control */
+[data-testid="collapsedControl"] {
+    display: none !important;
+}
+
+/* Wallet Grid Layout */
+.wallet-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+}
+
+.wallet-card {
+    padding: 1rem;
+    border-radius: 0.75rem;
+    background-color: #eff6ff;
+    border: 1px solid #dbeafe;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: transform 0.2s;
+}
+
+.wallet-card:hover {
+    transform: translateX(5px);
+}
+
+/* Enhanced Alert Cards */
+.alert-card {
+    padding: 1rem;
+    border-radius: 0.75rem;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    transition: transform 0.2s;
+}
+
+.alert-card:hover {
+    transform: translateX(5px);
+}
+
+.alert-warning {
+    background-color: #fff7ed;
+    border: 1px solid #ffedd5;
+}
+
+.alert-success {
+    background-color: #f0fdf4;
+    border: 1px solid #dcfce7;
+}
+
+.alert-info {
+    background-color: #eff6ff;
+    border: 1px solid #dbeafe;
+}
+
+.priority-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.priority-High {
+    background-color: #fef2f2;
+    color: #dc2626;
+}
+
+.priority-Medium {
+    background-color: #fff7ed;
+    color: #d97706;
+}
+
+.priority-Low {
+    background-color: #f0f9ff;
+    color: #0369a1;
+}
+
+/* Page Headers */
+.page-header {
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+/* Filters Section */
+.filters-section {
+    background: white;
+    padding: 1rem;
+    border-radius: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+/* Custom Ekko Styling */
+.ekko-title {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding: 1rem;
+    background-color: #f8f9fa;
+    border-radius: 0.5rem;
+}
+
+.ekko-icon {
+    font-size: 24px;
+    margin-right: 8px;
+}
+
+.ekko-name {
+    font-size: 24px;
+    font-weight: bold;
+}

@@ -1,12 +1,14 @@
 import streamlit as st
 from utils.models import Database, Alert, Cache
-from utils.alerts import show_enhanced_alert
 from datetime import datetime
 
 # Initialize database and models
 db = Database()
 alert_model = Alert(db)
 cache = Cache()
+
+
+
 
 def show_alerts():
     st.markdown('<h1 class="page-header">Alerts</h1>', unsafe_allow_html=True)
@@ -42,10 +44,45 @@ def show_alerts():
                 'priority': priority
             }
             alert_model.insert(alert_data)
-            cache.cache_alert(alert_data)
-            st.success("Alert created successfully!")
+            
+            if cache.is_connected():
+                try:
+                    cache.cache_alert(alert_data)
+                    st.success("Alert created successfully!")
+                except Exception as e:
+                    st.error(f"Failed to cache alert: {str(e)}")
+            else:
+                st.error("Failed to connect to Redis. Alert caching is disabled.")
     
     # Alert List
     fetched_alerts = alert_model.get_all()
     for alert in fetched_alerts:
-        show_enhanced_alert(alert)
+        show_enhanced_alerts(alert)
+
+# Enhanced Alert Display
+def show_enhanced_alerts(alert):
+    st.markdown(f"""
+        <div class="alert-card alert-{alert['status']}">
+            <div style="font-size: 1.5rem;">{alert['icon']}</div>
+            <div style="flex-grow: 1;">
+                <div style="display: flex; justify-content: space-between; align-items: start;">
+                    <div>
+                        <div style="font-weight: 500; margin-bottom: 0.25rem;">
+                            {alert['type']}
+                        </div>
+                        <div style="color: #64748b;">
+                            {alert['message']}
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <span class="priority-badge priority-{alert['priority']}">
+                            {alert['priority']}
+                        </span>
+                        <div style="color: #64748b; font-size: 0.875rem; margin-top: 0.5rem;">
+                            {alert['time']}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
