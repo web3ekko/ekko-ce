@@ -269,9 +269,9 @@ def show_wallet_detail(wallet_id, wallets):
 
 # Display wallet grid with Streamlit native elements
 def show_wallet_grid(wallets):
-    # Calculate how many rows we need (3 wallets per row)
+    # Calculate how many rows we need (5 wallets per row)
     wallet_count = len(wallets)
-    row_count = (wallet_count + 2) // 3  # +2 to account for possible Add Wallet card
+    row_count = (wallet_count + 4) // 5  # +4 to account for possible Add Wallet card
     
     # Custom CSS for some styling elements we can't do natively
     st.markdown("""
@@ -287,18 +287,18 @@ def show_wallet_grid(wallets):
         }
         /* Card wrapper to add some spacing */
         .wallet-wrapper {
-            padding: 5px;
+            padding: 3px;
         }
     </style>
     """, unsafe_allow_html=True)
     
     for row in range(row_count):
-        # Create a row with 3 columns
-        cols = st.columns(3)
+        # Create a row with 5 columns
+        cols = st.columns(5)
         
         # Fill the columns with wallet cards
-        for col_idx in range(3):
-            wallet_idx = row * 3 + col_idx
+        for col_idx in range(5):
+            wallet_idx = row * 5 + col_idx
             
             # Add Wallet card as the last item
             if wallet_idx == wallet_count:
@@ -409,10 +409,10 @@ def show_wallets(blockchain_symbol):
         st.warning(f"Using sample data. Database error: {str(e)}")
         wallets = []
     
-    # If fewer than 9 wallets, add dummy wallets to fill the grid
-    if len(wallets) < 9:
+    # If fewer than 10 wallets, add dummy wallets to fill the grid
+    if len(wallets) < 10:
         # Calculate how many dummy wallets we need
-        needed_dummy_count = 9 - len(wallets)
+        needed_dummy_count = 10 - len(wallets)
         # Generate dummy wallets with high IDs to avoid conflicts with real ones
         dummy_wallets = generate_dummy_wallets(count=needed_dummy_count)
         
