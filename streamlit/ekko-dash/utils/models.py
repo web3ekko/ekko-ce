@@ -17,6 +17,7 @@ class Database:
         self.create_workflow_table()
         self.create_agent_table()
         self.create_settings_table()
+        self.install_extensions()
 
     def populate_blockchain_table(self):
         # Check if the table is empty
@@ -41,7 +42,7 @@ class Database:
 
     def create_blockchain_table(self):
         query = """
-        CREATE TABLE IF NOT EXISTS blockchain (
+        CREATE TABLE IF NOT EXISTS blockchains (
             id UUID PRIMARY KEY,
             name VARCHAR,
             symbol VARCHAR UNIQUE,
@@ -52,7 +53,7 @@ class Database:
 
     def create_wallet_table(self):
         query = """
-        CREATE TABLE IF NOT EXISTS wallet (
+        CREATE TABLE IF NOT EXISTS wallets (
             id UUID PRIMARY KEY,
             blockchain_symbol VARCHAR,
             address VARCHAR,
@@ -67,7 +68,7 @@ class Database:
 
     def create_alert_table(self):
         query = """
-        CREATE TABLE IF NOT EXISTS alert (
+        CREATE TABLE IF NOT EXISTS alerts (
             id UUID PRIMARY KEY,
             type VARCHAR,
             message TEXT,
@@ -83,7 +84,7 @@ class Database:
 
     def create_workflow_table(self):
         query = """
-        CREATE TABLE IF NOT EXISTS workflow (
+        CREATE TABLE IF NOT EXISTS workflows (
             id UUID PRIMARY KEY,
             name VARCHAR,
             description TEXT,
@@ -99,7 +100,7 @@ class Database:
 
     def create_agent_table(self):
         query = """
-        CREATE TABLE IF NOT EXISTS agent (
+        CREATE TABLE IF NOT EXISTS agents (
             id UUID PRIMARY KEY,
             name VARCHAR,
             agent_type VARCHAR,
@@ -114,10 +115,20 @@ class Database:
 
     def create_settings_table(self):
         query = """
-    CREATE TABLE IF NOT EXISTS settings(
+        CREATE TABLE IF NOT EXISTS settings(
         id UUID PRIMARY KEY
-    )
-    """
+        )
+        """
+        self.con.execute(query)
+
+    def install_extensions(self):
+        query = """
+        INSTALL json;
+        LOAD json;
+
+        INSTALL tsid FROM community;
+        LOAD tsid;
+        """
 
 class Blockchain:
     def __init__(self, db):

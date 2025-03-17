@@ -90,6 +90,18 @@ def get_time_ago(timestamp_str):
 
 # Function to show alert form
 def show_create_alert_form():
+    # Add warm background styling to form
+    st.markdown("""
+    <style>
+        div[data-testid="stForm"] {
+            background-color: #FFF8E1;
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #FFE082;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+    
     with st.form("create_alert_form"):
         st.subheader("Create New Alert")
         
@@ -167,15 +179,29 @@ def show_alert_grid(alerts):
         "success": "✅"
     }
     
-    # Add some CSS for alert styling
+    # Add CSS for alert styling with fixed heights and better alignment
     st.markdown("""
     <style>
-        /* Card wrapper for consistent spacing */
-        .alert-wrapper {
-            padding: 3px;
+        /* Fix for the grid layout and card alignment */
+        div.row-widget.stHorizontal > div {
+            padding: 0 3px;
+            box-sizing: border-box;
+            margin-bottom: 8px;
         }
         
-        /* Priority tag styles */
+        /* Target each alert card container specifically */
+        div.element-container div.stVerticalBlock {
+            height: 165px;
+            background-color: #FFF8E1;
+            border-radius: 10px;
+            padding: 12px;
+            border: 1px solid #FFE082;
+            margin-bottom: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* Style for the priority tag */
         .priority-tag {
             display: inline-block;
             padding: 2px 8px;
@@ -198,80 +224,82 @@ def show_alert_grid(alerts):
             background-color: #eff6ff;
             color: #3b82f6;
         }
+        
+        /* Remove margins that cause misalignment */
+        div.element-container div.stVerticalBlock div {
+            margin-top: 0 !important;
+            margin-bottom: 0 !important;
+        }
+        
+        /* Make buttons appear at the bottom */
+        div.element-container div.stVerticalBlock div.stButton {
+            position: absolute;
+            bottom: 12px;
+            left: 12px;
+            right: 12px;
+        }
+        
+        /* Fix message height to exactly 2 lines */
+        .alert-message {
+            height: 40px !important;
+            line-height: 20px !important;
+            overflow: hidden !important;
+            display: -webkit-box !important;
+            -webkit-line-clamp: 2 !important;
+            -webkit-box-orient: vertical !important;
+            margin-bottom: 10px !important;
+        }
     </style>
     """, unsafe_allow_html=True)
     
-    # Calculate how many rows we need (4 alerts per row)
-    alert_count = len(alerts)
-    row_count = (alert_count + 3) // 4  # +3 to account for possible Add Alert card
+    # Create rows of alerts, 4 per row
+    total_alerts = len(alerts)
     
-    for row in range(row_count):
-        # Create a row with 4 columns
+    # Use evenly spaced grid layout
+    for i in range(0, total_alerts, 4):
+        # Create a new row
         cols = st.columns(4)
         
-        # Fill the columns with alert cards
-        for col_idx in range(4):
-            alert_idx = row * 4 + col_idx
-            
-            # Add "Create Alert" card as the last item
-            if alert_idx == alert_count:
-                with cols[col_idx]:
-                    # Wrapper for consistent spacing
-                    st.markdown('<div class="alert-wrapper">', unsafe_allow_html=True)
+        # Fill the row with alert cards (up to 4)
+        for j in range(4):
+            idx = i + j
+            if idx < total_alerts:
+                alert = alerts[idx]
+                with cols[j]:
+                    # Title with icon and alert type
+                    icon = alert.get('icon', status_icons.get(alert.get('status', 'info'), 'ℹ️'))
+                    st.markdown(f"<strong>{icon} {alert['type']}</strong>", unsafe_allow_html=True)
                     
-                    # Create card with button
-                    with st.container():
-                        st.markdown("##### Create New Alert")
-                        st.markdown("➕")
-                        st.button("Add Alert", key="add_alert_grid", use_container_width=True,
-                                 on_click=lambda: setattr(st.session_state, 'create_alert_form_open', True))
+                    # Alert message (always 2 lines with CSS control)
+                    message = alert['message']
+                    if len(message) > 65:  # Slightly longer to fill 2 lines
+                        message = message[:62] + "..."
+                        
+                    # Use a special class to ensure 2-line height
+                    st.markdown(f'<div class="alert-message">{message}</div>', unsafe_allow_html=True)
                     
-                    st.markdown('</div>', unsafe_allow_html=True)
-            
-            # Display an alert if we have one for this position
-            elif alert_idx < alert_count:
-                alert = alerts[alert_idx]
-                
-                with cols[col_idx]:
-                    # Wrapper for consistent spacing
-                    st.markdown('<div class="alert-wrapper">', unsafe_allow_html=True)
+                    # Time ago and priority in columns
+                    col1, col2 = st.columns([3, 2])
+                    with col1:
+                        time_ago = get_time_ago(alert.get('created_at') or alert.get('time'))
+                        st.caption(f"{time_ago}")
                     
-                    # Create a card-like container
-                    with st.container():
-                        # Title with icon and alert type
-                        icon = alert.get('icon', status_icons.get(alert.get('status', 'info'), 'ℹ️'))
-                        st.markdown(f"{icon} **{alert['type']}**")
-                        
-                        # Alert message (truncated if too long)
-                        message = alert['message']
-                        if len(message) > 60:
-                            message = message[:57] + "..."
-                        st.write(message)
-                        
-                        # Time ago and priority in columns
-                        time_col, priority_col = st.columns([3, 2])
-                        
-                        with time_col:
-                            time_ago = get_time_ago(alert.get('created_at') or alert.get('time'))
-                            st.caption(f"{time_ago}")
-                        
-                        with priority_col:
-                            priority = alert.get('priority', 'Medium')
-                            priority_color = priority_colors.get(priority, "#6b7280")
-                            st.markdown(f"""
-                            <span class="priority-tag priority-{priority}">
-                                {priority}
-                            </span>
-                            """, unsafe_allow_html=True)
-                        
-                        # View button
-                        if st.button("View Details", key=f"view_alert_{alert['id']}", use_container_width=True):
-                            # In a real implementation, this would show alert details
-                            st.session_state['selected_alert_id'] = alert['id']
-                            st.session_state['alert_view'] = 'detail'
-                            st.rerun()
+                    with col2:
+                        priority = alert.get('priority', 'Medium')
+                        st.markdown(f"""
+                        <span class="priority-tag priority-{priority}">
+                            {priority}
+                        </span>
+                        """, unsafe_allow_html=True)
                     
-                    st.markdown('</div>', unsafe_allow_html=True)
+                    # Create a unique key for each button
+                    button_key = f"view_alert_{alert['id']}"
+                    
+                    # View details button with click handler
+                    if st.button("View Details", key=button_key, use_container_width=True):
+                        st.session_state['selected_alert_id'] = alert['id']
+                        st.session_state['alert_view'] = 'detail'
+                        st.rerun()
 
 # Alert detail view
 def show_alert_detail(alert_id, alerts):
@@ -281,6 +309,19 @@ def show_alert_detail(alert_id, alerts):
     if not alert:
         st.error("Alert not found")
         return
+    
+    # Apply warm styling to detail view
+    st.markdown("""
+    <style>
+        div.element-container div.stVerticalBlock {
+            background-color: #FFF8E1;
+            border-radius: 10px;
+            padding: 15px;
+            border: 1px solid #FFE082;
+            margin-bottom: 15px;
+        }
+    </style>
+    """, unsafe_allow_html=True)
     
     # Back button
     if st.button("← Back to Alerts", use_container_width=False):
@@ -367,12 +408,10 @@ def show_alerts():
         st.warning(f"Using sample data. Database error: {str(e)}")
         alerts = []
     
-    # If fewer than 8 alerts, add dummy alerts
-    if len(alerts) < 8:
-        # Calculate how many dummy alerts we need
-        needed_dummy_count = 8 - len(alerts)
+    # If no alerts found, add dummy alerts
+    if not alerts:
         # Generate dummy alerts with high IDs to avoid conflicts with real ones
-        dummy_alerts = generate_dummy_alerts(count=needed_dummy_count)
+        dummy_alerts = generate_dummy_alerts(count=12)  # A nice multiple of 4 for the grid
         
         # Use high starting ID to avoid conflicts
         starting_id = 10000
