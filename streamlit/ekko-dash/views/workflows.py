@@ -1,10 +1,12 @@
 import streamlit as st
 from utils.models import Database, Workflow, Cache
+from src.config.settings import Settings
 from datetime import datetime, timedelta
 import random
 
-# Initialize database and models
-db = Database()
+# Initialize settings and database
+settings = Settings()
+db = Database(settings)
 workflow_model = Workflow(db)
 cache = Cache()
 

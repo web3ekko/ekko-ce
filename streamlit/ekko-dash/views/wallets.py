@@ -1,12 +1,14 @@
 import streamlit as st
 from utils.models import Database, Wallet, Cache, Blockchain
+from src.config.settings import Settings
 import datetime
 import os
 import random
 import base64
 
-# Initialize database and models
-db = Database()
+# Initialize settings and database
+settings = Settings()
+db = Database(settings)
 wallet_model = Wallet(db)
 cache = Cache()
 

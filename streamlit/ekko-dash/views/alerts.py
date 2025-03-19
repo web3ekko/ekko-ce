@@ -1,10 +1,12 @@
 import streamlit as st
 from utils.models import Database, Alert, Cache
+from src.config.settings import Settings
 from datetime import datetime, timedelta
 import random
 
-# Initialize database and models
-db = Database()
+# Initialize settings and database
+settings = Settings()
+db = Database(settings)
 alert_model = Alert(db)
 cache = Cache()
 

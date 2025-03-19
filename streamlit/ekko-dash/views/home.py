@@ -1,10 +1,6 @@
 import streamlit as st
 from utils.alerts import show_enhanced_alerts
-from utils.models import Database, Alert
-
-# Initialize database
-db = Database()
-alert_model = Alert(db)
+from utils.db import db, alert_model
 
 def show_dashboard():
     st.markdown('<h1 class="page-header">Dashboard</h1>', unsafe_allow_html=True)

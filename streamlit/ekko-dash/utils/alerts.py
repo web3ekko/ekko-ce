@@ -1,11 +1,6 @@
 import streamlit as st
-from utils.models import Database, Alert, Cache
 from datetime import datetime
-
-# Initialize database and models
-db = Database()
-alert_model = Alert(db)
-cache = Cache()
+from utils.db import db, alert_model, cache
 
 
 

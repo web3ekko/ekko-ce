@@ -1,8 +1,10 @@
 import streamlit as st
 from utils.models import Database, Agent, Cache
+from src.config.settings import Settings
 
-# Initialize database and models
-db = Database()
+# Initialize settings and database
+settings = Settings()
+db = Database(settings)
 agent_model = Agent(db)
 cache = Cache()
 

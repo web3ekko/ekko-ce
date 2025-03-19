@@ -1,6 +1,14 @@
+import os
 import streamlit as st
 from streamlit_option_menu import option_menu
-import os
+
+# Set page configuration - must be the first Streamlit command
+st.set_page_config(
+    page_title="Ekko Dashboard",
+    page_icon="static/icons/avax.svg",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
 # Import view functions
 from views.wallets import show_wallets
@@ -10,15 +18,6 @@ from views.agents import show_agents
 from views.home import show_dashboard
 from views.settings import show_settings
 from views.about import show_about
-
-# Set page configuration
-st.set_page_config(
-    page_title="Ekko Dashboard",
-    # page_icon="🔔",
-    page_icon="static/icons/avax.svg",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
 
 # Load and apply custom CSS
 def load_css(css_file):
