@@ -1,12 +1,9 @@
 import streamlit as st
-from utils.models import Database, Agent, Cache
-from src.config.settings import Settings
+from utils.db import db, agent_model, cache
+from utils.styles import apply_cell_style, inject_custom_css, get_status_color
 
-# Initialize settings and database
-settings = Settings()
-db = Database(settings)
-agent_model = Agent(db)
-cache = Cache()
+# Inject custom CSS
+inject_custom_css()
 
 def show_agents():
     st.markdown('<h1 class="page-header">AI Agents</h1>', unsafe_allow_html=True)
@@ -39,25 +36,37 @@ def show_agents():
             else:
                 st.error("Failed to connect to Redis. Agent caching is disabled.")
     
-    # Active Agents
-    agents = [
-        {"name": "Gas Price Monitor", "status": "Active", "type": "Monitor"},
-        {"name": "DEX Arbitrage", "status": "Paused", "type": "Trade"}
-    ]
+    # Display Agents
+    st.markdown('<h2 class="section-header">Active Agents</h2>', unsafe_allow_html=True)
     
-    for agent in agents:
-        st.markdown(f"""
-            <div class="alert-card alert-info">
-                <div style="display: flex; justify-content: space-between;">
-                    <div>
-                        <div style="font-weight: 500;">{agent['name']}</div>
-                        <div style="color: #64748b;">Type: {agent['type']}</div>
-                    </div>
-                    <div>
-                        <span class="priority-badge priority-Medium">
-                            {agent['status']}
-                        </span>
-                    </div>
+    # Get agents from database
+    agents = agent_model.get_all()
+    
+    if not agents:
+        st.info("No agents found")
+        return
+        
+    # Create grid layout
+    cols = st.columns(3)
+    for i, agent in enumerate(agents):
+        with cols[i % 3]:
+            status = agent.get('status', 'inactive')
+            agent_type = agent.get('type', 'Unknown')
+            
+            st.markdown(f"""
+            <div style="{apply_cell_style(status)}">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                    <h4 style="margin: 0;">🤖 {agent['name']}</h4>
+                    <span class="status-badge" style="background-color: {get_status_color(status)}">
+                        {status.title()}
+                    </span>
+                </div>
+                <p style="margin: 0.5rem 0;">Type: {agent_type}</p>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem;">
+                    <small>Budget: ${agent.get('max_budget', 0):,.2f}</small>
+                    <button onclick="None" style="padding: 0.25rem 0.5rem; border-radius: 0.25rem; border: none; background-color: #E3E3E3; cursor: pointer;">
+                        {"Pause" if status == "active" else "Start"}
+                    </button>
                 </div>
             </div>
-        """, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)

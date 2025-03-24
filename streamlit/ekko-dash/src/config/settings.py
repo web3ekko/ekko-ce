@@ -22,7 +22,7 @@ class Settings:
         self._settings = {
             'database': {
                 'host': 'localhost',  # For remote database connections
-                'path': str(self.base_dir / 'ekko.db'),
+                'path': str(self.base_dir / 'data/ekko.db'),
                 'pool_size': 5
             },
             'redis': {
@@ -33,6 +33,17 @@ class Settings:
             'cache': {
                 'enabled': True,
                 'ttl': 300  # 5 minutes
+            },
+            'app': {
+                'theme': 'Light',
+                'notifications_enabled': True,
+                'auto_refresh': True,
+                'cache_duration': 15,  # minutes
+                'refresh_interval': 60  # seconds
+            },
+            'api': {
+                'key': '',
+                'endpoint': 'https://api.ekko.io/v1'
             }
         }
         

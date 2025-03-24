@@ -3,6 +3,8 @@ import uuid
 from datetime import datetime
 import redis
 import streamlit as st
+from typing import Optional, Dict, Any
+from src.config.settings import Settings
 from typing import Optional, Dict, Any, List
 
 class Database:
@@ -520,10 +522,12 @@ def get_redis_connection(host="localhost", port=6379, db=0):
 
 class Cache:
     _instance: Optional['Cache'] = None
+    _settings: Optional[Settings] = None
     
     def __new__(cls) -> 'Cache':
         if cls._instance is None:
             cls._instance = super(Cache, cls).__new__(cls)
+            cls._settings = Settings()
             cls._instance._init_cache()
         return cls._instance
     
@@ -534,8 +538,8 @@ class Cache:
             st.warning("Redis cache is not available. Some features may be slower.")
         
         # Only enable caching if configured
-        self.enabled = settings.cache.get('enabled', False)
-        self.ttl = settings.cache.get('ttl', 300)  # Default 5 minutes
+        self.enabled = self._settings.cache.get('enabled', False)
+        self.ttl = self._settings.cache.get('ttl', 300)  # Default 5 minutes
     
     def is_connected(self):
         """Check if Redis connection is active"""

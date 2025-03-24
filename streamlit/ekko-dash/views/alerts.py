@@ -1,14 +1,11 @@
 import streamlit as st
-from utils.models import Database, Alert, Cache
-from src.config.settings import Settings
 from datetime import datetime, timedelta
 import random
+from utils.db import db, alert_model, cache
+from utils.styles import apply_cell_style, inject_custom_css, get_status_color
 
-# Initialize settings and database
-settings = Settings()
-db = Database(settings)
-alert_model = Alert(db)
-cache = Cache()
+# Inject custom CSS
+inject_custom_css()
 
 # Generate dummy alerts for display purposes
 def generate_dummy_alerts(count=10):

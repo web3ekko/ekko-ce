@@ -1,0 +1,13 @@
+database:
+  host: localhost  # Change this for remote database connections
+  path: ekko.db
+  pool_size: 5
+
+redis:
+  host: localhost  # Change this for remote Redis server
+  port: 6379
+  db: 0
+
+cache:
+  enabled: true
+  ttl: 300  # 5 minutes
