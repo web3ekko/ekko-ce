@@ -1,0 +1,25 @@
+version: '3'
+
+services:
+  streamlit:
+    build:
+      context: ./streamlit/ekko-dash
+      dockerfile: Dockerfile
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - MINIO_URL=http://minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
+      - SPIN_API_URL=http://spin:3000
+    volumes:
+      - ./streamlit/ekko-dash:/app
+      - duckdb_data:/data
+    ports:
+      - "8501:8501"
+    networks:
+      - bento-network
+    depends_on:
+      - redis
+      - minio
+      - spin
+      - bento
