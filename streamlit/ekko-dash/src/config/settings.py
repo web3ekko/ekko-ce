@@ -21,14 +21,20 @@ class Settings:
         # Default settings
         self._settings = {
             'database': {
-                'host': 'localhost',  # For remote database connections
-                'path': str(self.base_dir / 'data/ekko.db'),
+                'host': 'localhost',
+                'path': '/data/ekko.db',  # Docker volume mount point
                 'pool_size': 5
             },
             'redis': {
-                'host': 'localhost',
-                'port': 6379,
+                'url': 'redis://localhost:6379',  # Will be overridden by REDIS_URL
                 'db': 0
+            },
+            'minio': {
+                'url': 'http://localhost:9000',  # Will be overridden by MINIO_URL
+                'access_key': 'minioadmin',
+                'secret_key': 'minioadmin',
+                'secure': False,
+                'bucket': 'ekko-data'
             },
             'cache': {
                 'enabled': True,
@@ -43,7 +49,7 @@ class Settings:
             },
             'api': {
                 'key': '',
-                'endpoint': 'https://api.ekko.io/v1'
+                'endpoint': 'http://spin:3000'  # Default to Spin API service
             }
         }
         
@@ -67,12 +73,27 @@ class Settings:
     
     def _apply_env_overrides(self):
         """Apply environment variable overrides to settings."""
+        # Docker environment variables take precedence
+        if redis_url := os.getenv('REDIS_URL'):
+            self._settings['redis']['url'] = redis_url
+            
+        if minio_url := os.getenv('MINIO_URL'):
+            self._settings['minio']['url'] = minio_url
+            
+        if minio_access := os.getenv('MINIO_ACCESS_KEY'):
+            self._settings['minio']['access_key'] = minio_access
+            
+        if minio_secret := os.getenv('MINIO_SECRET_KEY'):
+            self._settings['minio']['secret_key'] = minio_secret
+            
+        if spin_url := os.getenv('SPIN_API_URL'):
+            self._settings['api']['endpoint'] = spin_url
+            
+        # Legacy environment variables
         env_mappings = {
             'EKKO_DB_HOST': ('database', 'host'),
             'EKKO_DB_PATH': ('database', 'path'),
             'EKKO_DB_POOL_SIZE': ('database', 'pool_size', int),
-            'EKKO_REDIS_HOST': ('redis', 'host'),
-            'EKKO_REDIS_PORT': ('redis', 'port', int),
             'EKKO_REDIS_DB': ('redis', 'db', int),
             'EKKO_CACHE_ENABLED': ('cache', 'enabled', lambda x: x.lower() == 'true'),
             'EKKO_CACHE_TTL': ('cache', 'ttl', int)
