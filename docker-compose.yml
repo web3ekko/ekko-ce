@@ -2,21 +2,31 @@ version: '3'
 
 services:
   bento:
-    build: .
+    build:
+      context: ./bento
+      dockerfile: Dockerfile
     env_file:
       - .env
     volumes:
-      - ./config.yaml:/app/config.yaml
+      - ./bento/config.yaml:/app/config.yaml
     networks:
       - bento-network
     depends_on:
       - redis
       - minio
+    environment:
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
+      - MINIO_BUCKET=transactions
+      - AVAX_WEBSOCKET_URL=${AVAX_WEBSOCKET_URL}
 
   redis:
     image: redis:alpine
     ports:
       - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
     networks:
       - bento-network
 
@@ -41,44 +51,25 @@ services:
 
   streamlit:
     build:
-      context: ./app
+      context: ./streamlit/ekko-dash
       dockerfile: Dockerfile
     ports:
       - "8501:8501"
     environment:
       - MINIO_URL=http://minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
+      - MINIO_BUCKET=transactions
       - REDIS_URL=redis://redis:6379
-      - SPIN_API_URL=http://spin:3000
+      - DUCKDB_PATH=/data/ekko.db
     volumes:
-      - ./app:/app
+      - ./streamlit/ekko-dash:/app
       - duckdb_data:/data
     networks:
       - bento-network
     depends_on:
       - minio
       - redis
-      - spin
-
-  spin:
-    build:
-      context: ./spin
-      dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
-    environment:
-      - REDIS_URL=redis://redis:6379
-    volumes:
-      - ./spin/apps:/apps
-      - ./spin/config:/config
-    networks:
-      - bento-network
-    depends_on:
-      - redis
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
 networks:
   bento-network:
@@ -87,3 +78,4 @@ networks:
 volumes:
   minio_data:
   duckdb_data:
+  redis_data:

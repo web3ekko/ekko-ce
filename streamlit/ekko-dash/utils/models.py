@@ -163,13 +163,15 @@ class Database:
             CREATE TABLE IF NOT EXISTS alert (
                 id UUID PRIMARY KEY,
                 wallet_id UUID NOT NULL,
+                blockchain_symbol VARCHAR NOT NULL,
                 type VARCHAR NOT NULL,
                 condition VARCHAR NOT NULL,
                 threshold DECIMAL(24,8),
                 status VARCHAR DEFAULT 'active',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 last_triggered TIMESTAMP,
-                FOREIGN KEY (wallet_id) REFERENCES wallet(id)
+                FOREIGN KEY (wallet_id) REFERENCES wallet(id),
+                FOREIGN KEY (blockchain_symbol) REFERENCES blockchain(symbol)
             )
             """
             self.get_connection().execute(query)
@@ -359,18 +361,29 @@ class Alert:
         self.db = db
 
     def insert(self, alert_data: Dict[str, Any]) -> None:
-        query = """
-        INSERT INTO alert (id, wallet_id, type, condition, threshold, status)
-        VALUES (?, ?, ?, ?, ?, ?)
-        """
-        self.db.get_connection().execute(query, [
-            uuid.uuid4(),  # UUID type, not string
-            alert_data['wallet_id'],  # Should be UUID from wallet table
-            alert_data['type'],
-            alert_data['condition'],
-            alert_data.get('threshold'),
-            alert_data.get('status', 'active')
-        ])
+        """Insert a new alert"""
+        try:
+            alert_data['id'] = str(uuid.uuid4())
+            alert_data['created_at'] = datetime.now()
+            
+            query = """
+            INSERT INTO alert (id, wallet_id, blockchain_symbol, type, condition, threshold, status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """
+            
+            self.db.execute(query, [
+                alert_data['id'],
+                alert_data['wallet_id'],
+                alert_data['blockchain_symbol'],
+                alert_data['type'],
+                alert_data['condition'],
+                alert_data.get('threshold'),
+                alert_data.get('status', 'active'),
+                alert_data['created_at']
+            ])
+        except Exception as e:
+            st.error(f"Failed to insert alert: {str(e)}")
+            raise
 
     def get_all(self) -> List[Dict[str, Any]]:
         result = self.db.get_connection().execute("""
@@ -562,12 +575,12 @@ class Cache:
             return False
 
     def cache_alert(self, alert_data):
-        """Cache alert data in Redis"""
+        """Cache alert data in Redis using format alert:blockchain_symbol:wallet_id"""
         if not self.is_connected():
             return False
             
         try:
-            key = f"alerts:{alert_data['id']}".lower()
+            key = f"alert:{alert_data['blockchain_symbol'].lower()}:{alert_data['wallet_id']}"
             return self.redis.hset(key, mapping=alert_data)
         except Exception as e:
             st.error(f"Error caching alert: {str(e)}")
