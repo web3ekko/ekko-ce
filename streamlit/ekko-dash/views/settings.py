@@ -140,19 +140,18 @@ def show_settings():
     </div>
     """, unsafe_allow_html=True)
     
-    with db_tabs[0]:
-        db_path = st.text_input("Database Path", value="ekko.db")
-        st.button("Backup Database")
-    
-    with db_tabs[1]:
-        redis_host = st.text_input("Redis Host", value="localhost")
-        redis_port = st.number_input("Redis Port", value=6379)
-        redis_db = st.number_input("Redis DB", value=0)
-        redis_password = st.text_input("Redis Password", type="password")
-        
-        if st.button("Test Redis Connection"):
-            st.success("Redis connection successful!")
-    
     # Save Settings
     if st.button("Save Settings"):
+        # Save the updated settings
+        settings._settings['database']['path'] = settings.get('database', 'path', '/data/ekko.db')
+        settings._settings['redis']['url'] = settings.get('redis', 'url', 'redis://redis:6379')
+        settings._settings['app']['theme'] = settings.get('app', 'theme', 'Light')
+        settings._settings['app']['notifications_enabled'] = settings.get('app', 'notifications_enabled', True)
+        settings._settings['app']['auto_refresh'] = settings.get('app', 'auto_refresh', True)
+        settings._settings['app']['cache_duration'] = settings.get('app', 'cache_duration', 15)
+        
+        # Save to config file
+        with open(settings.config_file, 'w') as f:
+            yaml.dump(settings._settings, f, default_flow_style=False)
+            
         st.success("Settings saved successfully!")

@@ -10,7 +10,7 @@ services:
       - MINIO_URL=http://minio:9000
       - MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
       - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
-      - SPIN_API_URL=http://spin:3000
+      - BENTO_API_URL=http://bento:8000
     volumes:
       - ./streamlit/ekko-dash:/app
       - duckdb_data:/data
@@ -21,5 +21,4 @@ services:
     depends_on:
       - redis
       - minio
-      - spin
       - bento

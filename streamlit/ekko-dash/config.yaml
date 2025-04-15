@@ -11,3 +11,13 @@ redis:
 cache:
   enabled: true
   ttl: 300  # 5 minutes
+
+api:
+  endpoint: http://bento:8000
+  key: ''
+
+app:
+  theme: Light
+  notifications_enabled: true
+  auto_refresh: true
+  cache_duration: 15

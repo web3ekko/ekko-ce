@@ -170,6 +170,7 @@ class Database:
                 status VARCHAR DEFAULT 'active',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 last_triggered TIMESTAMP,
+                notification_topic VARCHAR,
                 FOREIGN KEY (wallet_id) REFERENCES wallet(id),
                 FOREIGN KEY (blockchain_symbol) REFERENCES blockchain(symbol)
             )
@@ -367,8 +368,8 @@ class Alert:
             alert_data['created_at'] = datetime.now()
             
             query = """
-            INSERT INTO alert (id, wallet_id, blockchain_symbol, type, condition, threshold, status, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO alert (id, wallet_id, blockchain_symbol, type, condition, threshold, status, created_at, notification_topic)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """
             
             self.db.execute(query, [
@@ -379,7 +380,8 @@ class Alert:
                 alert_data['condition'],
                 alert_data.get('threshold'),
                 alert_data.get('status', 'active'),
-                alert_data['created_at']
+                alert_data['created_at'],
+                alert_data.get('notification_topic')
             ])
         except Exception as e:
             st.error(f"Failed to insert alert: {str(e)}")

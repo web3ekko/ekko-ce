@@ -110,7 +110,7 @@ def show_create_alert_form():
             condition = st.text_area("Condition/Message", placeholder="E.g., Alert me when ETH price drops below $2,000")
         with col2:
             priority = st.selectbox("Priority", ["High", "Medium", "Low"])
-            notification_channels = st.multiselect("Notification Channels", ["Email", "Push", "Discord"])
+            notification_topic = st.text_input("Notification Topic", placeholder="Enter ntfy topic for notifications")
         
         # Form submission buttons
         col1, col2 = st.columns(2)
@@ -138,7 +138,8 @@ def show_create_alert_form():
                         'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                         'status': status_map.get(priority, "warning"),
                         'icon': icon_map.get(alert_type, "ℹ️"),
-                        'priority': priority
+                        'priority': priority,
+                        'notification_topic': notification_topic if notification_topic else None
                     }
                     
                     # Insert alert into database

@@ -49,7 +49,7 @@ class Settings:
             },
             'api': {
                 'key': '',
-                'endpoint': 'http://spin:3000'  # Default to Spin API service
+                'endpoint': 'http://bento:8000'  # Default to Bento API service
             }
         }
         
@@ -86,8 +86,8 @@ class Settings:
         if minio_secret := os.getenv('MINIO_SECRET_KEY'):
             self._settings['minio']['secret_key'] = minio_secret
             
-        if spin_url := os.getenv('SPIN_API_URL'):
-            self._settings['api']['endpoint'] = spin_url
+        if bento_url := os.getenv('BENTO_API_URL'):
+            self._settings['api']['endpoint'] = bento_url
             
         # Legacy environment variables
         env_mappings = {
@@ -138,6 +138,16 @@ class Settings:
     def cache(self) -> Dict[str, Any]:
         """Get cache settings."""
         return self._settings['cache'].copy()
+
+    @property
+    def app(self) -> Dict[str, Any]:
+        """Get application settings."""
+        return self._settings['app'].copy()
+
+    @property
+    def api(self) -> Dict[str, Any]:
+        """Get API settings."""
+        return self._settings['api'].copy()
 
 # Global settings instance
 settings = Settings()

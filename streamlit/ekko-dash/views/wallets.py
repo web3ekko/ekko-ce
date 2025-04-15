@@ -353,7 +353,7 @@ def show_wallet_grid(wallets):
                     st.markdown('</div>', unsafe_allow_html=True)
 
 # Main wallet display function
-def show_wallets(blockchain_symbol):
+def show_wallets(blockchain_symbol='AVAX'):
     # Initialize session state for wallet navigation
     if 'wallet_view' not in st.session_state:
         st.session_state['wallet_view'] = 'grid'
