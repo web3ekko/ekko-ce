@@ -1,0 +1,21 @@
+input:
+  websocket_server:
+    path: /ws
+    
+pipeline:
+  processors:
+    - analyze_transaction:
+        chain: ethereum
+    
+output:
+  s3:
+    bucket: transactions
+    path: ${! meta("chain") }/${! timestamp_unix() | date_format("2006/01/02") }/${! json("hash") }.json
+    endpoint: http://minio:9000
+    credentials:
+      id: ${MINIO_ACCESS_KEY}
+      secret: ${MINIO_SECRET_KEY}
+    
+logger:
+  level: INFO
+  format: json

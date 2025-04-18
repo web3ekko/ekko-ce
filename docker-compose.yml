@@ -74,10 +74,6 @@ services:
       - redis
       - bento
 
-networks:
-  bento-network:
-    driver: bridge
-
   ntfy:
     image: binwiederhier/ntfy
     ports:
@@ -99,6 +95,10 @@ networks:
       interval: 30s
       timeout: 10s
       retries: 3
+
+networks:
+  bento-network:
+    driver: bridge
 
 volumes:
   minio_data:

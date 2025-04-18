@@ -1,0 +1,80 @@
+input:
+  broker:
+    inputs:
+      # Ethereum WebSocket input
+      - websocket_server:
+          path: /ws/eth
+          metadata:
+            chain: ethereum
+      
+      # Avalanche WebSocket input
+      - websocket_server:
+          path: /ws/avax
+          metadata:
+            chain: avalanche
+
+pipeline:
+  processors:
+    # Route based on chain
+    - switch:
+        - check: ${! meta("chain") == "ethereum" }
+          processors:
+            - branch:
+                processors:
+                  # Ethereum token transfers
+                  - eth_token_transfer: {}
+                  # Ethereum DEX swaps
+                  - eth_dex_swap: {}
+        
+        - check: ${! meta("chain") == "avalanche" }
+          processors:
+            - branch:
+                processors:
+                  # Avalanche C-Chain token transfers
+                  - avax_token_transfer:
+                      network: c-chain
+                  # Avalanche X-Chain token transfers
+                  - avax_token_transfer:
+                      network: x-chain
+                  # Avalanche DEX swaps
+                  - avax_dex_swap:
+                      network: c-chain
+    
+    # Add timestamp
+    - metadata:
+        operator: set
+        key: timestamp
+        value: ${!timestamp_unix()}
+
+output:
+  broker:
+    pattern: fan_out
+    outputs:
+      # Store in MinIO with chain-specific paths
+      - s3:
+          bucket: transactions
+          path: ${!meta("chain")}/${!timestamp_unix() | date_format("2006/01/02")}/${!json("hash")}.json
+          endpoint: http://minio:9000
+          credentials:
+            id: ${MINIO_ACCESS_KEY}
+            secret: ${MINIO_SECRET_KEY}
+      
+      # Publish to Redis with chain-specific channels
+      - redis_pubsub:
+          url: ${REDIS_URL:redis://localhost:6379}
+          channel: ${!meta("chain")}_transactions
+
+metrics:
+  prometheus:
+    push_url: ""
+    push_interval: ""
+    push_job_name: benthos_processors
+
+logger:
+  level: INFO
+  format: json
+
+tracer:
+  jaeger:
+    agent_address: ""
+    service_name: benthos_processors
