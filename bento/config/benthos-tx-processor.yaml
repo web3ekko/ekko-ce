@@ -1,0 +1,61 @@
+http:
+  enabled: true
+  address: 0.0.0.0:4195
+
+input:
+  websocket:
+    url: ${AVAX_C_WEBSOCKET_URL}
+    payload: |
+      {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "eth_subscribe",
+        "params": ["newHeads"]
+      }
+
+buffer:
+  memory:
+    limit: 10_000_000 # 10MB
+
+pipeline:
+  processors:
+    - decode_tx:
+        redis_url: ${REDIS_URL}
+
+    # Branch to handle unknown ABIs
+    - branch:
+        processors:
+          - catch:
+              pattern: "unknown_abi"
+              processors:
+                - redis_streams:
+                    url: ${REDIS_URL}
+                    stream: abi_requests
+                    max_length: 1000
+                    key: ${!json("contract_address")}
+                    value: ${!json("contract_address")}
+
+    # Template natural language description
+    - bloblang: |
+        root = match {
+          this.nl_template = @templates.get(this.function_sig) -> this
+          _ -> this.merge({"nl": "Unknown transaction"})
+        }
+        nl = @templates.get(this.function_sig).format(this.args)
+
+output:
+  redis_pubsub:
+    url: ${REDIS_URL}
+    channel: tx_plain_english
+
+metrics:
+  prometheus:
+    prefix: benthos_tx_processor_
+    push_url: ""
+    push_interval: ""
+
+tracer:
+  jaeger:
+    agent_address: ""
+    collector_url: ""
+    service_name: benthos-tx-processor

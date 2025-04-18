@@ -1,0 +1,21 @@
+{
+  "transfer(address,uint256)": "Transfer {args[1]} {token_symbol} from {from} to {args[0]}",
+  "transferFrom(address,address,uint256)": "Transfer {args[2]} {token_symbol} from {args[0]} to {args[1]}",
+  "approve(address,uint256)": "Approve {args[1]} {token_symbol} spending for {args[0]}",
+  "mint(address,uint256)": "Mint {args[1]} {token_symbol} to {args[0]}",
+  "burn(uint256)": "Burn {args[0]} {token_symbol}",
+  "swap(uint256,uint256,address,bytes)": "Swap {args[0]} tokens for {args[1]} tokens on {contract}",
+  "swapExactTokensForTokens(uint256,uint256,address[],address)": "Swap exactly {args[0]} tokens for at least {args[1]} tokens through path {args[2]} for {args[3]}",
+  "swapExactAVAXForTokens(uint256,address[],address)": "Swap exactly {value_avax} AVAX for at least {args[0]} tokens through path {args[1]} for {args[2]}",
+  "swapExactTokensForAVAX(uint256,uint256,address[],address)": "Swap exactly {args[0]} tokens for at least {args[1]} AVAX through path {args[2]} for {args[3]}",
+  "addLiquidity(address,address,uint256,uint256,uint256,uint256)": "Add liquidity with {args[2]} of {args[0]} and {args[3]} of {args[1]} (min: {args[4]}/{args[5]})",
+  "addLiquidityAVAX(address,uint256,uint256,uint256)": "Add liquidity with {value_avax} AVAX and {args[1]} of {args[0]} (min: {args[2]}/{args[3]})",
+  "removeLiquidity(address,address,uint256,uint256,uint256)": "Remove {args[2]} liquidity from {args[0]}/{args[1]} pool (min: {args[3]}/{args[4]})",
+  "removeLiquidityAVAX(address,uint256,uint256,uint256)": "Remove {args[1]} liquidity from {args[0]}/AVAX pool (min: {args[2]} tokens, {args[3]} AVAX)",
+  "deposit()": "Deposit {value_avax} AVAX",
+  "withdraw(uint256)": "Withdraw {args[0]} AVAX",
+  "stake(uint256)": "Stake {args[0]} {token_symbol}",
+  "unstake(uint256)": "Unstake {args[0]} {token_symbol}",
+  "claim()": "Claim rewards",
+  "claimRewards()": "Claim rewards"
+}

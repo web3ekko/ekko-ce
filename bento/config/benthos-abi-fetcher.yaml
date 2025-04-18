@@ -1,0 +1,77 @@
+http:
+  enabled: true
+  address: 0.0.0.0:4195
+
+input:
+  redis_streams:
+    url: ${REDIS_URL}
+    streams: [ abi_requests ]
+    body_key: contract_address
+    client_id: benthos_abi_fetcher
+    consumer_group: abi_fetchers
+    limit: 1
+    checkpoint_limit: 1
+    commit_period: 1s
+    start_from_oldest: true
+
+pipeline:
+  processors:
+    # Fetch ABI from Snowtrace
+    - http:
+        url: https://api.snowtrace.io/api?module=contract&action=getabi&address=${!json("contract_address")}
+        verb: GET
+        rate_limit: 5-S
+        retry_period: 1s
+        max_retry_backoff: 300s
+        backoff_on:
+          - 429  # Rate limit
+          - 5XX  # Server errors
+        drop_on:
+          - 404  # Contract not found
+        successful_on: [ 200 ]
+
+    # Parse response and extract ABI
+    - bloblang: |
+        root = match {
+          this.status == "1" -> {
+            "contract_address": meta("contract_address"),
+            "abi": this.result,
+            "timestamp": now()
+          }
+        }
+
+    # Store ABI in Redis (no TTL)
+    - redis:
+        url: ${REDIS_URL}
+        command: set
+        key: ${!json("contract_address")}
+        value: ${!json("abi")}
+
+    # Store versioned copy in MinIO
+    - aws_s3:
+        bucket: ${MINIO_BUCKET}
+        endpoint: ${MINIO_ENDPOINT}
+        credentials:
+          id: ${MINIO_ACCESS_KEY}
+          secret: ${MINIO_SECRET_KEY}
+        region: us-east-1
+        path: abi/${!json("contract_address")}/${!json("timestamp")}.json
+        force_path_style_urls: true
+
+    # Notify tx processor that ABI is ready
+    - redis_pubsub:
+        url: ${REDIS_URL}
+        channel: abi_ready
+        message: ${!json("contract_address")}
+
+metrics:
+  prometheus:
+    prefix: benthos_abi_fetcher_
+    push_url: ""
+    push_interval: ""
+
+tracer:
+  jaeger:
+    agent_address: ""
+    collector_url: ""
+    service_name: benthos-abi-fetcher

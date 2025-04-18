@@ -1,28 +1,47 @@
 version: '3'
 
+networks:
+  bento-network:
+    driver: bridge
+
+volumes:
+  minio_data:
+  redis_data:
+  grafana_data:
+  loki_data:
+  duckdb_data:
+
+
 services:
   bento:
     build:
       context: ./bento
       dockerfile: Dockerfile
-    env_file:
-      - .env
+    ports:
+      - "4195:4195"  # HTTP API + Prometheus metrics
     volumes:
-      - ./bento/config.yaml:/app/config.yaml
+      - ./bento/config/bento.yaml:/app/config.yaml:ro
+      - ./bento/templates.json:/app/templates.json:ro
+    environment:
+      - AVAX_C_WEBSOCKET_URL=wss://api.avax.network/ext/bc/C/ws
+      - SNOWTRACE_API_KEY=${SNOWTRACE_API_KEY}
+      - REDIS_URL=redis://redis:6379
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
     networks:
       - bento-network
     depends_on:
       - redis
       - minio
-    environment:
-      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
-      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
-      - MINIO_BUCKET=transactions
-      - AVAX_C_WEBSOCKET_URL=${AVAX_C_WEBSOCKET_URL}
-      - AVAX_P_WEBSOCKET_URL=${AVAX_P_WEBSOCKET_URL}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4195/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   redis:
-    image: redis:alpine
+    image: redis:6-alpine
     ports:
       - "6379:6379"
     volumes:
@@ -30,12 +49,17 @@ services:
     command: redis-server --appendonly yes
     networks:
       - bento-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   minio:
-    image: minio/minio
+    image: minio/minio:latest
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "9000:9000"  # API
+      - "9001:9001"  # Console
     volumes:
       - minio_data:/data
     environment:
@@ -52,57 +76,59 @@ services:
 
   streamlit:
     build:
-      context: ./streamlit/ekko-dash
+      context: ./dashboard
       dockerfile: Dockerfile
     ports:
       - "8501:8501"
     environment:
-      - MINIO_URL=http://minio:9000
+      - REDIS_URL=redis://redis:6379
+      - MINIO_ENDPOINT=minio:9000
       - MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
       - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
-      - MINIO_BUCKET=transactions
-      - REDIS_URL=redis://redis:6379
-      - DUCKDB_PATH=/data/ekko.db
-      - BENTO_API_URL=http://bento:8000
-    volumes:
-      - ./streamlit/ekko-dash:/app
-      - duckdb_data:/data
     networks:
       - bento-network
     depends_on:
-      - minio
       - redis
-      - bento
+      - minio
 
-  ntfy:
-    image: binwiederhier/ntfy
+  grafana:
+    image: grafana/grafana:latest
     ports:
-      - "8070:80"      # HTTP port
-      - "8071:443"     # HTTPS port
+      - "3000:3000"
     volumes:
-      - ntfy_cache:/var/cache/ntfy
-      - ntfy_data:/var/lib/ntfy
-    environment:
-      - NTFY_BASE_URL=http://localhost:8070
-      - NTFY_CACHE_FILE=/var/cache/ntfy/cache.db
-      - NTFY_AUTH_FILE=/var/lib/ntfy/user.db
-      - NTFY_BEHIND_PROXY=false
-      - NTFY_LOG_LEVEL=info
+      - grafana_data:/var/lib/grafana
     networks:
       - bento-network
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80/v1/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:3000/healthz"]
       interval: 30s
       timeout: 10s
       retries: 3
 
-networks:
-  bento-network:
-    driver: bridge
+  loki:
+    image: grafana/loki:2.9.4
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - loki_data:/loki
+      - ./loki-config.yaml:/etc/loki/local-config.yaml:ro
+    networks:
+      - bento-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:3100/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
-volumes:
-  minio_data:
-  duckdb_data:
-  redis_data:
-  ntfy_cache:
-  ntfy_data:
+  promtail:
+    image: grafana/promtail:2.9.4
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/log:/var/log:ro
+      - ./promtail-config.yaml:/etc/promtail/config.yaml:ro
+    command: -config.file=/etc/promtail/config.yaml
+    networks:
+      - bento-network

@@ -27,6 +27,7 @@ type TokenTransfer struct {
 type SwapEvent struct {
 	Transaction
 	Protocol     string `json:"protocol"`      // Uniswap, Trader Joe, etc.
+	EventType    string `json:"event_type"`    // swap, increasePosition, decreasePosition
 	TokenIn      string `json:"token_in"`      // Input token address
 	TokenOut     string `json:"token_out"`     // Output token address
 	AmountIn     string `json:"amount_in"`     // Input amount
