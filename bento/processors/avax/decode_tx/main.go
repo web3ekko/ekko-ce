@@ -3,27 +3,28 @@ package main
 import (
 	"context"
 	"fmt"
+
 	"github.com/benthosdev/benthos/v4/public/service"
 	"github.com/go-redis/redis/v8"
 )
 
 func init() {
 	configSpec := service.NewConfigSpec().
-		Summary("Decodes Avalanche C-Chain transaction data using ABIs and templates from Redis").
-		Field(service.NewStringField("redis_url").
-			Description("Redis connection URL").
-			Default("redis://localhost:6379"))
+		Summary("Decodes Avalanche C-Chain transaction data using ABIs and templates from Valkey").
+		Field(service.NewStringField("valkey_url").
+			Description("Valkey connection URL").
+			Default("valkey://valkey:6379"))
 
 	err := service.RegisterProcessor("decode_tx", configSpec,
 		func(conf *service.ParsedConfig, res *service.Resources) (service.Processor, error) {
-			redisURL, err := conf.FieldString("redis_url")
+			valkeyURL, err := conf.FieldString("valkey_url")
 			if err != nil {
 				return nil, err
 			}
 
-			opts, err := redis.ParseURL(redisURL)
+			opts, err := redis.ParseURL(valkeyURL)
 			if err != nil {
-				return nil, fmt.Errorf("failed to parse Redis URL: %v", err)
+				return nil, fmt.Errorf("failed to parse Valkey URL: %v", err)
 			}
 
 			rdb := redis.NewClient(opts)

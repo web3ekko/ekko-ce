@@ -17,15 +17,16 @@ Ekko is an **open-source blockchain monitoring and automation platform** that he
 - **Multi-Chain Support:** Monitor transactions across Avalanche C-Chain (EVM) and P-Chain (Platform)
 - **Real-Time Alerts:** Set up custom alerts for transactions, wallet balances, and smart contract events
 - **Wallet Management:** Track and manage multiple wallets across different chains
-- **Transaction Monitoring:** Real-time transaction monitoring with customizable filters
-- **Workflow Automation:** Create automated workflows triggered by blockchain events
-- **Agent System:** Deploy autonomous agents for automated trading and monitoring
-- **Data Storage:** Hybrid storage system using DuckDB and Redis for optimal performance
+- **Transaction Monitoring:** Real-time transaction monitoring with customizable filters (via Pulsar topics)
+- **Workflow Automation:** Create automated workflows triggered by blockchain events (via Pulsar topics)
+- **Agent System:** Deploy autonomous agents for automated trading and monitoring (with Pulsar integration)
+- **Data Storage and Messaging:** Hybrid system using DuckDB, Valkey, and Pulsar for optimal performance
 - **Modular Architecture:**
   - **Bento:** Real-time transaction processing and alert engine
   - **Streamlit:** Modern, responsive web interface
-  - **Redis:** High-performance caching and real-time data streaming
-  - **MinIO:** Scalable object storage for transaction data
+  - **Valkey:** High-performance caching and real-time data streaming
+  - **Pulsar:** Distributed messaging and event streaming
+  - **Pulsar:** Distributed messaging and event streaming for transaction data
 
 ## Quickstart
 
@@ -51,8 +52,8 @@ Ekko is built with a modular architecture focusing on real-time processing and s
 
 - **Bento Service:** Processes blockchain transactions and manages alerts
 - **Streamlit Dashboard:** Provides the user interface and data visualization
-- **Redis:** Handles caching and real-time data streaming
-- **MinIO:** Stores historical transaction data
+- **Valkey:** Handles caching and real-time data streaming
+- **Pulsar:** Handles distributed messaging and event streaming
 - **DuckDB:** Manages structured data for wallets, alerts, and workflows
 
 ## Documentation

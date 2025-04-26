@@ -3,11 +3,6 @@ server:
   http_listen_port: 3100
   grpc_listen_port: 9096
   log_level: info
-  chunk_target_size: 1048576
-  max_chunk_age: 1h
-  table_manager:
-    retention_deletes_enabled: true
-    retention_period: 168h
 schema_config:
   configs:
     - from: 2020-10-24

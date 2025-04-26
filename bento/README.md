@@ -25,11 +25,11 @@ Bento is a modular, chain-agnostic transaction decoding engine. Each Bento insta
  │   ╰────────────╯                                                                               │ │
  │        │ len(input)==0?                                                                        │ │
  │        ├─ yes ─► render “Transfer X <symbol> from A → B” ─► PUBLISH to                         │ │
- │        │                                                   Redis channel                       │ │
+ │        │                                                   Valkey channel                       │ │
  │        │                                                   tx_plain_english:${CHAIN}           │ │
  │        └─ no                                                                                   │ │
  │             │                                                                                  │ │
- │             ▼ ② lookup Redis key  ${CHAIN}:abi:${addr}                                         │ │
+ │             ▼ ② lookup Valkey key  ${CHAIN}:abi:${addr}                                         │ │
  │          hit?                                                                                  │ │
  │             ├─ yes ─► decode + render NL ─► PUBLISH                                             │ │
  │             └─ no                                                                               │ │
@@ -39,11 +39,11 @@ Bento is a modular, chain-agnostic transaction decoding engine. Each Bento insta
  │                  └─ yes                                                                         │ │
  │                        │ ④ set metadata abi_miss=true                                          │ │
  │                        ▼                                                                        │ │
- │                branch pushes addr to Redis Stream                                               │ │
- │                abi_requests:${CHAIN}                                                            │ │
+ │                branch pushes addr to Valkey Stream                                               │ │
+ │                - VALKEY_URL=valkey://valkey:6379${CHAIN}                                                            │ │
  ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
                                    ▲                                           ▲                      
-                                   │ Redis Stream per‑chain                    │
+                                   │ Valkey Stream per‑chain                    │
                                    │                                           │
                                    ▼                                           ▼
                         ╭────────────────────────────╮             (same worker code,
@@ -53,12 +53,12 @@ Bento is a modular, chain-agnostic transaction decoding engine. Each Bento insta
                                       │
                                       ├─ store ABI  → HSET  ${CHAIN}:abi:${addr}
                                       │
-                                      ├─ write ABI file → MinIO path
-                                      │   abi/<chain>/<addr>/<ts>.json
+                                      ├─ publish ABI file → Pulsar topic
+                                      │   (topic: ${PULSAR_TOPIC})
                                       │
                                       ├─ generate template map
                                       │   HSET  ${CHAIN}:tmpl:${addr}
-                                      │   + MinIO  abi-templates/<chain>/<addr>/<ts>.json
+                                      │   + publish to Pulsar topic (abi-templates)
                                       │
                                       ╰─ (next time the Bento instance
                                          processes a tx for this contract,
@@ -70,11 +70,14 @@ Bento is a modular, chain-agnostic transaction decoding engine. Each Bento insta
 1. Set environment variables in `.env`:
 
 ```bash
-MINIO_ROOT_USER=admin
-MINIO_ROOT_PASSWORD=password123
+PULSAR_URL=pulsar://pulsar:6650
+PULSAR_TOPIC=transactions
 #SNOWTRACE_API_KEY=your_api_key
 # Set to 'true' to enable ABI fetching, defaults to 'false' if unset
 FETCH_ABI_ENABLED=false
+# Pulsar configuration
+PULSAR_URL=pulsar://pulsar:6650
+PULSAR_TOPIC=transactions
 ```
 
 2. Start the services:

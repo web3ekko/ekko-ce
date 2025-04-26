@@ -3,6 +3,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+#proj specific
+bento/vendor
+streamlit/ekko-dash/data
+
 # C extensions
 *.so
 

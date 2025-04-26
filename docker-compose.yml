@@ -5,14 +5,26 @@ networks:
     driver: bridge
 
 volumes:
-  minio_data:
-  redis_data:
+  pulsar_data:
+  valkey_data:
   grafana_data:
   loki_data:
   duckdb_data:
 
 
 services:
+  benthos-evm:
+    image: jeffail/benthos:4
+    container_name: benthos-evm
+    volumes:
+      - ./bento/config/evm_decode_pipeline.yaml:/benthos.yaml:ro
+      - ./bento/plugins/evm_decode_fast.so:/bento/plugins/evm_decode_fast.so:ro
+    env_file:
+      - .env
+    command: ["-c", "/benthos.yaml"]
+    depends_on:
+      - valkey
+      - pulsar
   bento:
     build:
       context: ./bento
@@ -25,54 +37,59 @@ services:
     environment:
       - AVAX_C_WEBSOCKET_URL=wss://api.avax.network/ext/bc/C/ws
       - SNOWTRACE_API_KEY=${SNOWTRACE_API_KEY}
-      - REDIS_URL=redis://redis:6379
-      - MINIO_ENDPOINT=minio:9000
-      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
-      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
+      - VALKEY_URL=valkey://valkey:6379
+      - PULSAR_URL=pulsar://pulsar:6650
+      - PULSAR_TOPIC=transactions
+
+
     networks:
       - bento-network
     depends_on:
-      - redis
-      - minio
+      - valkey
+      - pulsar
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4195/ping"]
       interval: 30s
       timeout: 10s
       retries: 3
 
-  redis:
-    image: redis:6-alpine
+  valkey:
+    image: valkey/valkey:8-alpine3.21
     ports:
       - "6379:6379"
     volumes:
-      - redis_data:/data
-    command: redis-server --appendonly yes
+      - valkey_data:/data
+    command: valkey-server --appendonly yes
     networks:
       - bento-network
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "valkey-cli", "ping"]
       interval: 30s
       timeout: 10s
       retries: 3
 
-  minio:
-    image: minio/minio:latest
-    ports:
-      - "9000:9000"  # API
-      - "9001:9001"  # Console
-    volumes:
-      - minio_data:/data
+  pulsar:
+    image: apachepulsar/pulsar:3.1.0
+    container_name: pulsar
+    command:
+      - "bash"
+      - "-c"
+      - |
+        bin/pulsar standalone \
+          --no-functions-worker   \
+          --wipe-data             # start with a clean ZK/BK each run
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-    command: server --console-address ":9001" /data
+      PULSAR_MEM: "-Xms1g -Xmx1g -XX:MaxDirectMemorySize=512m"
+    ports:
+      - "6650:6650"   # binary protocol
+      - "8080:8080"   # REST + Prometheus /metrics
+    networks:
+      - bento-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/admin/v2/clusters"]
       interval: 30s
       timeout: 20s
       retries: 3
-    networks:
-      - bento-network
 
   streamlit:
     build:
@@ -81,15 +98,16 @@ services:
     ports:
       - "8501:8501"
     environment:
-      - REDIS_URL=redis://redis:6379
-      - MINIO_ENDPOINT=minio:9000
-      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
-      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
+      - VALKEY_URL=valkey://valkey:6379
+      - PULSAR_URL=pulsar://pulsar:6650
+      - PULSAR_TOPIC=transactions
+
+
     networks:
       - bento-network
     depends_on:
-      - redis
-      - minio
+      - valkey
+      - pulsar
 
   grafana:
     image: grafana/grafana:latest
@@ -132,3 +150,5 @@ services:
     command: -config.file=/etc/promtail/config.yaml
     networks:
       - bento-network
+    depends_on:
+      - loki
