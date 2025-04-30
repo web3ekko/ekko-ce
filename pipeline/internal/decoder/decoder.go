@@ -115,13 +115,12 @@ func (d *Decoder) decodeCalldata(tx *blockchain.Transaction, sig SignatureEntry)
 	// Create params map
 	params := make(map[string]interface{}, len(sig.Inputs))
 	for i, input := range sig.Inputs {
-		if input.Type.T == abi.AddressTy {
-			if addr, ok := args[i].(common.Address); ok {
-				params[input.Name] = strings.ToLower(addr.Hex())
-				continue
-			}
+		switch v := args[i].(type) {
+		case common.Address:
+			params[input.Name] = strings.ToLower(v.Hex())
+		default:
+			params[input.Name] = v
 		}
-		params[input.Name] = args[i]
 	}
 
 	// Set decoded call
