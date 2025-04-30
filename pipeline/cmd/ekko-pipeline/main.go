@@ -7,7 +7,9 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/web3ekko/ekko-ce/pipeline/internal/config"
+	"github.com/web3ekko/ekko-ce/pipeline/internal/decoder"
 	"github.com/web3ekko/ekko-ce/pipeline/internal/pipeline"
 )
 
@@ -18,8 +20,19 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
+	// Create Redis adapter
+	opt, err := redis.ParseURL(cfg.RedisURL)
+	if err != nil {
+		opt = &redis.Options{
+			Addr: cfg.RedisURL,
+		}
+	}
+	redisClient := redis.NewClient(opt)
+	redisClientAdapter := decoder.NewRedisClientAdapter(redisClient)
+	redisAdapter := decoder.NewRedisAdapter(redisClientAdapter)
+
 	// Create pipeline
-	p, err := pipeline.NewPipeline(cfg)
+	p, err := pipeline.NewPipeline(redisAdapter, cfg)
 	if err != nil {
 		log.Fatalf("Failed to create pipeline: %v", err)
 	}

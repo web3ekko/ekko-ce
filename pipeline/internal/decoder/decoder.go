@@ -65,14 +65,14 @@ func (d *Decoder) tryDecode(ctx context.Context, tx *blockchain.Transaction, sel
 		key = fmt.Sprintf("sel:%s:%s", d.chainID, selector)
 	}
 
-	// Get signature from cache
-	sigJSON, err := d.cache.Get(ctx, key)
+	// Get template from cache or load from file
+	template, err := d.cache.GetString(ctx, key)
 	if err != nil {
 		return fmt.Errorf("signature not found: %w", err)
 	}
 
 	var sig SignatureEntry
-	if err := json.Unmarshal([]byte(sigJSON), &sig); err != nil {
+	if err := json.Unmarshal([]byte(template), &sig); err != nil {
 		return fmt.Errorf("invalid signature format: %w", err)
 	}
 

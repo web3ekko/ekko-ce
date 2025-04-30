@@ -7,9 +7,11 @@ toolchain go1.24.2
 require (
 	github.com/apache/pulsar-client-go v0.14.0
 	github.com/ethereum/go-ethereum v1.15.10
+	github.com/go-redis/redismock/v9 v9.2.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/redis/go-redis/v9 v9.7.3
 	github.com/reugn/go-streams v0.12.0
+	github.com/stretchr/testify v1.10.0
 )
 
 require (
@@ -22,6 +24,7 @@ require (
 	github.com/bits-and-blooms/bitset v1.17.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/danieljoos/wincred v1.1.2 // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/dvsekhvalnov/jose2go v1.6.0 // indirect
@@ -42,6 +45,7 @@ require (
 	github.com/mtibben/percent v0.2.1 // indirect
 	github.com/pierrec/lz4 v2.0.5+incompatible // indirect
 	github.com/pkg/errors v0.9.1 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_golang v1.14.0 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.37.0 // indirect
@@ -58,4 +62,5 @@ require (
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20231016165738-49dd2c1f3d0b // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

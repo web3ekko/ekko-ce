@@ -3,9 +3,9 @@ package decoder
 import (
 	"context"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/redis/go-redis/v9"
@@ -15,15 +15,18 @@ import (
 type RedisClient interface {
 	Get(ctx context.Context, key string) *redis.StringCmd
 	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.StatusCmd
+	GetCmd(ctx context.Context, key string) *redis.StringCmd
+	SetCmd(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.StatusCmd
+	Close() error
 }
 
 // Template represents a transaction decoding template
 type Template struct {
-	Name      string         `json:"name"`
-	ABI       string         `json:"abi"`
-	Selectors []string      `json:"selectors"`
-	Methods   []abi.Method  `json:"methods"`
-	Filters   []FilterRule  `json:"filters"`
+	Name      string       `json:"name"`
+	ABI       string       `json:"abi"`
+	Selectors []string     `json:"selectors"`
+	Methods   []abi.Method `json:"methods"`
+	Filters   []FilterRule `json:"filters"`
 }
 
 // FilterRule defines a rule for filtering transactions
@@ -35,9 +38,9 @@ type FilterRule struct {
 
 // SelectorEntry represents a cached ABI selector
 type SelectorEntry struct {
-	Name    string         `json:"name"`
-	Inputs  []abi.Argument `json:"inputs"`
-	Method  *abi.Method   `json:"-"`
+	Name   string         `json:"name"`
+	Inputs []abi.Argument `json:"inputs"`
+	Method *abi.Method    `json:"-"`
 }
 
 // DecodedCall represents a decoded transaction call

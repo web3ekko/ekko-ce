@@ -43,6 +43,9 @@ github.com/cespare/xxhash/v2
 # github.com/danieljoos/wincred v1.1.2
 ## explicit; go 1.13
 github.com/danieljoos/wincred
+# github.com/davecgh/go-spew v1.1.1
+## explicit
+github.com/davecgh/go-spew/spew
 # github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1
 ## explicit; go 1.16
 github.com/decred/dcrd/dcrec/secp256k1/v4
@@ -73,6 +76,9 @@ github.com/ethereum/go-ethereum/crypto/secp256k1/libsecp256k1/src
 github.com/ethereum/go-ethereum/crypto/secp256k1/libsecp256k1/src/modules/recovery
 github.com/ethereum/go-ethereum/rlp
 github.com/ethereum/go-ethereum/rlp/internal/rlpstruct
+# github.com/go-redis/redismock/v9 v9.2.0
+## explicit; go 1.18
+github.com/go-redis/redismock/v9
 # github.com/godbus/dbus v0.0.0-20190726142602-4481cbc300e2
 ## explicit; go 1.12
 github.com/godbus/dbus
@@ -136,6 +142,9 @@ github.com/pierrec/lz4/internal/xxh32
 # github.com/pkg/errors v0.9.1
 ## explicit
 github.com/pkg/errors
+# github.com/pmezard/go-difflib v1.0.0
+## explicit
+github.com/pmezard/go-difflib/difflib
 # github.com/prometheus/client_golang v1.14.0
 ## explicit; go 1.17
 github.com/prometheus/client_golang/prometheus
@@ -172,6 +181,10 @@ github.com/sirupsen/logrus
 # github.com/spaolacci/murmur3 v1.1.0
 ## explicit
 github.com/spaolacci/murmur3
+# github.com/stretchr/testify v1.10.0
+## explicit; go 1.17
+github.com/stretchr/testify/assert
+github.com/stretchr/testify/assert/yaml
 # go.uber.org/atomic v1.7.0
 ## explicit; go 1.13
 go.uber.org/atomic
@@ -241,3 +254,6 @@ google.golang.org/protobuf/runtime/protoimpl
 google.golang.org/protobuf/types/descriptorpb
 google.golang.org/protobuf/types/gofeaturespb
 google.golang.org/protobuf/types/known/timestamppb
+# gopkg.in/yaml.v3 v3.0.1
+## explicit
+gopkg.in/yaml.v3

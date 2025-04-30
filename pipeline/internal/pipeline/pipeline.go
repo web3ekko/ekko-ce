@@ -14,152 +14,125 @@ import (
 	"github.com/web3ekko/ekko-ce/pipeline/internal/decoder"
 )
 
-// SubnetPipeline represents a pipeline for a single Avalanche subnet
+// SubnetPipeline represents a pipeline for a single subnet
 type SubnetPipeline struct {
-	config   config.SubnetConfig
-	source   *blockchain.WebSocketSource
-	decoder  *decoder.Decoder
-	sink     *PulsarSink
-	flow     streams.Flow
-	nodeIdx  int // Current node index for failover
+	config  config.SubnetConfig
+	source  *blockchain.WebSocketSource
+	sink    *PulsarSink
+	nodeIdx int // Current node index for failover
 }
 
 // Pipeline represents the main data processing pipeline
 type Pipeline struct {
-	config   *config.Config
-	subnets  []*SubnetPipeline
-	cache    decoder.Cache
-	workers  int
+	subnets   map[string]*SubnetPipeline
+	decoder   *decoder.Decoder
+	manager   *decoder.TemplateManager
+	batchSize int
+	workers   int
 }
 
-// NewPipeline creates a new processing pipeline
-func NewPipeline(cfg *config.Config) (*Pipeline, error) {
-	// Create cache based on configuration
-	var cache decoder.Cache
-	if cfg.CacheType == "redis" {
-		cache = decoder.NewRedisCache(cfg.RedisURL)
-	} else {
-		cache = decoder.NewMemoryCache()
-	}
-
-	// Create subnet pipelines
-	subnets := make([]*SubnetPipeline, 0, len(cfg.Subnets))
-	for _, subnetCfg := range cfg.Subnets {
-		// Determine node URLs for this subnet
-		nodeURLs := subnetCfg.NodeURLs
-		if len(nodeURLs) == 0 {
-			// Use base nodes if no subnet-specific nodes are configured
-			nodeURLs = cfg.BaseNodeURLs
+// NewPipeline creates a new pipeline
+func NewPipeline(redis *decoder.RedisAdapter, cfg *config.Config) (*Pipeline, error) {
+	// Convert subnet configs to subnet pipelines
+	subnetPipelines := make(map[string]*SubnetPipeline)
+	for _, subnet := range cfg.Subnets {
+		subnetPipelines[subnet.Name] = &SubnetPipeline{
+			config: subnet,
 		}
-
-		if len(nodeURLs) == 0 {
-			return nil, fmt.Errorf("no nodes available for subnet %s", subnetCfg.Name)
-		}
-
-		// Create WebSocket source with the first node
-		source := blockchain.NewWebSocketSource(
-			getWebSocketURL(nodeURLs[0], subnetCfg),
-			getHTTPURL(nodeURLs[0], subnetCfg),
-		)
-
-		// Create decoder
-		dec := decoder.NewDecoder(cache, subnetCfg.ChainID)
-
-		// Create Pulsar sink
-		sink, err := NewPulsarSink(cfg.PulsarURL, subnetCfg.PulsarTopic)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create sink for subnet %s: %w", subnetCfg.Name, err)
-		}
-
-		subnets = append(subnets, &SubnetPipeline{
-			config:  subnetCfg,
-			source:  source,
-			decoder: dec,
-			sink:    sink,
-			nodeIdx: 0,
-		})
 	}
 
 	return &Pipeline{
-		config:  cfg,
-		subnets: subnets,
-		cache:   cache,
-		workers: cfg.DecoderWorkers,
+		subnets:    subnetPipelines,
+		decoder:    decoder.NewDecoder(redis, "default"),
+		manager:    decoder.NewTemplateManager(redis),
+		batchSize:  100,
+		workers:    cfg.DecoderWorkers,
 	}, nil
 }
 
-// decodeTransactionsParallel decodes transactions in parallel using a worker pool
-func (p *Pipeline) decodeTransactionsParallel(ctx context.Context, block *blockchain.Block, dec *decoder.Decoder) {
-	if len(block.Transactions) == 0 {
-		return
-	}
-
-	// Create work channels
-	jobs := make(chan int, len(block.Transactions))
-	wg := sync.WaitGroup{}
-
+// processBlock processes a block and its transactions
+func (p *Pipeline) processBlock(ctx context.Context, block *blockchain.Block) error {
 	// Start workers
+	var wg sync.WaitGroup
+	jobs := make(chan int, len(block.Transactions))
+
+	// Start worker goroutines
 	for i := 0; i < p.workers; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for idx := range jobs {
-				if err := dec.DecodeTransaction(ctx, &block.Transactions[idx]); err != nil {
-					// Log error but continue processing
-					continue
+			for job := range jobs {
+				tx := &block.Transactions[job]
+				if err := p.decoder.DecodeTransaction(ctx, tx); err != nil {
+					log.Printf("Failed to decode transaction %d: %v", job, err)
 				}
 			}
 		}()
 	}
 
-	// Send jobs to workers
+	// Send jobs
 	for i := range block.Transactions {
 		jobs <- i
 	}
 	close(jobs)
 
-	// Wait for all workers to finish
+	// Wait for completion
 	wg.Wait()
+
+	return nil
 }
 
 // Start starts all subnet pipelines
 func (p *Pipeline) Start(ctx context.Context) error {
 	// Start each subnet pipeline
 	for _, subnet := range p.subnets {
-		// Create source with retry and failover
-		source := p.createSourceWithFailover(subnet)
-
-		// Store source for cleanup
-		subnet.source = source.(*blockchain.WebSocketSource)
-
-		// Start the source
-		if err := subnet.source.Start(); err != nil {
-			return fmt.Errorf("failed to start source for subnet %s: %v", subnet.config.Name, err)
+		// Determine node URLs for this subnet
+		nodeURLs := subnet.config.NodeURLs
+		if len(nodeURLs) == 0 {
+			// If no specific nodes are configured, use base nodes
+			nodeURLs = []string{"https://api.avax.network"} // default node URL
 		}
 
-		// Start processing blocks
-		go func() {
-			for item := range source.Out() {
-				// Decode transactions
-				block := item.(*blockchain.Block)
-				p.decodeTransactionsParallel(ctx, block, subnet.decoder)
+		if len(nodeURLs) == 0 {
+			return fmt.Errorf("no nodes available for subnet %s", subnet.config.Name)
+		}
 
-				// Send to Pulsar with retry
-				for attempt := 0; attempt <= p.config.MaxRetries; attempt++ {
-					if err := subnet.sink.Write(ctx, block); err == nil {
-						break
+		// Create WebSocket source with the first node
+		source := blockchain.NewWebSocketSource(
+			getWebSocketURL(nodeURLs[0], subnet.config),
+			getHTTPURL(nodeURLs[0], subnet.config),
+		)
+
+		// Create Pulsar sink
+		sink, err := NewPulsarSink("pulsar://localhost:6650", subnet.config.PulsarTopic)
+		if err != nil {
+			return fmt.Errorf("failed to create sink for subnet %s: %w", subnet.config.Name, err)
+		}
+
+		// Store source and sink
+		subnet.source = source
+		subnet.sink = sink
+
+		// Start processing
+		go func(subnet *SubnetPipeline) {
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case block := <-subnet.source.Out():
+					if err := p.processBlock(ctx, block.(*blockchain.Block)); err != nil {
+						log.Printf("Error processing block: %v", err)
+						continue
 					}
-					if attempt < p.config.MaxRetries {
-						time.Sleep(p.config.RetryDelay)
+					if err := subnet.sink.Write(ctx, block.(*blockchain.Block)); err != nil {
+						log.Printf("Error sending block: %v", err)
 					}
 				}
 			}
-		}()
-
-
+		}(subnet)
 	}
 
-	// Wait for context cancellation
+	<-ctx.Done()
 	return ctx.Err()
 }
 

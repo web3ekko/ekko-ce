@@ -9,10 +9,10 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// Cache interface for storing ABI signatures
+// Cache interface for storing and retrieving values
 type Cache interface {
-	Get(ctx context.Context, key string) (string, error)
-	Set(ctx context.Context, key string, value string) error
+	GetString(ctx context.Context, key string) (string, error)
+	SetString(ctx context.Context, key string, value string, expiration time.Duration) error
 }
 
 // MemoryCache implements an in-memory cache with TTL
@@ -33,8 +33,8 @@ func NewMemoryCache() *MemoryCache {
 	}
 }
 
-// Get retrieves a value from memory cache
-func (c *MemoryCache) Get(ctx context.Context, key string) (string, error) {
+// GetString retrieves a value from memory cache
+func (c *MemoryCache) GetString(ctx context.Context, key string) (string, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -49,48 +49,66 @@ func (c *MemoryCache) Get(ctx context.Context, key string) (string, error) {
 	return item.value, nil
 }
 
-// Set stores a value in memory cache with 24h TTL
-func (c *MemoryCache) Set(ctx context.Context, key string, value string) error {
+// SetString stores a value in memory cache with specified TTL
+func (c *MemoryCache) SetString(ctx context.Context, key string, value string, expiration time.Duration) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	c.items[key] = &cacheItem{
 		value:     value,
-		expiresAt: time.Now().Add(24 * time.Hour),
+		expiresAt: time.Now().Add(expiration),
 	}
 	return nil
 }
 
-// RedisCache implements a Redis-backed cache
-type RedisCache struct {
-	client *redis.Client
+// RedisAdapter implements both Cache and RedisClient interfaces
+type RedisAdapter struct {
+	client RedisClient
 }
 
-// NewRedisCache creates a new Redis cache
-func NewRedisCache(url string) *RedisCache {
-	opt, err := redis.ParseURL(url)
-	if err != nil {
-		opt = &redis.Options{
-			Addr: url,
-		}
-	}
-	
-	return &RedisCache{
-		client: redis.NewClient(opt),
+// SetClient sets the Redis client - used for testing
+func (c *RedisAdapter) SetClient(client RedisClient) {
+	c.client = client
+}
+
+// NewRedisAdapter creates a new Redis adapter
+func NewRedisAdapter(client RedisClient) *RedisAdapter {
+	return &RedisAdapter{
+		client: client,
 	}
 }
 
-// Get retrieves a value from Redis
-func (c *RedisCache) Get(ctx context.Context, key string) (string, error) {
-	return c.client.Get(ctx, key).Result()
+// Get implements both Cache.Get and RedisClient.Get
+func (c *RedisAdapter) Get(ctx context.Context, key string) *redis.StringCmd {
+	return c.client.GetCmd(ctx, key)
 }
 
-// Set stores a value in Redis with 24h TTL
-func (c *RedisCache) Set(ctx context.Context, key string, value string) error {
-	return c.client.Set(ctx, key, value, 24*time.Hour).Err()
+// GetString implements Cache.Get by returning the string value
+func (c *RedisAdapter) GetString(ctx context.Context, key string) (string, error) {
+	return c.Get(ctx, key).Result()
+}
+
+// Set implements both Cache.Set and RedisClient.Set
+func (c *RedisAdapter) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.StatusCmd {
+	return c.client.SetCmd(ctx, key, value, expiration)
+}
+
+// SetString implements Cache.Set by returning just the error
+func (c *RedisAdapter) SetString(ctx context.Context, key string, value string, expiration time.Duration) error {
+	return c.Set(ctx, key, value, expiration).Err()
+}
+
+// GetCmd implements RedisClient.GetCmd
+func (c *RedisAdapter) GetCmd(ctx context.Context, key string) *redis.StringCmd {
+	return c.client.GetCmd(ctx, key)
+}
+
+// SetCmd implements RedisClient.SetCmd
+func (c *RedisAdapter) SetCmd(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.StatusCmd {
+	return c.client.SetCmd(ctx, key, value, expiration)
 }
 
 // Close closes the Redis connection
-func (c *RedisCache) Close() error {
+func (c *RedisAdapter) Close() error {
 	return c.client.Close()
 }
