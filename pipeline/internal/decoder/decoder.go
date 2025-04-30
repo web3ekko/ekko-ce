@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/web3ekko/ekko-ce/pipeline/internal/blockchain"
 )
 
@@ -33,16 +34,22 @@ func NewDecoder(cache Cache, chainID string) *Decoder {
 
 // DecodeTransaction attempts to decode a transaction using cached ABI signatures
 func (d *Decoder) DecodeTransaction(ctx context.Context, tx *blockchain.Transaction) error {
-	// Skip if no input data or too short
-	if len(tx.Input) < 10 {
+	// Skip decoding for contract creation and simple value transfer
+	if tx.To == "" || len(tx.Input) == 0 || tx.Input == "0x" {
 		return nil
+	}
+
+	// Skip if input data too short
+	if len(tx.Input) < 10 {
+		return fmt.Errorf("input data too short")
 	}
 
 	// Extract function selector (first 4 bytes)
 	selector := strings.ToLower(tx.Input[:10])
 	
 	// Try decoding with global selector
-	if err := d.tryDecode(ctx, tx, selector, ""); err == nil {
+	err := d.tryDecode(ctx, tx, selector, "")
+	if err == nil {
 		return nil
 	}
 
@@ -53,7 +60,7 @@ func (d *Decoder) DecodeTransaction(ctx context.Context, tx *blockchain.Transact
 		}
 	}
 
-	return nil // Not an error if we can't decode
+	return err
 }
 
 // tryDecode attempts to decode a transaction with a specific selector
@@ -108,6 +115,12 @@ func (d *Decoder) decodeCalldata(tx *blockchain.Transaction, sig SignatureEntry)
 	// Create params map
 	params := make(map[string]interface{}, len(sig.Inputs))
 	for i, input := range sig.Inputs {
+		if input.Type.T == abi.AddressTy {
+			if addr, ok := args[i].(common.Address); ok {
+				params[input.Name] = strings.ToLower(addr.Hex())
+				continue
+			}
+		}
 		params[input.Name] = args[i]
 	}
 
