@@ -7,41 +7,25 @@ networks:
 volumes:
   pulsar_data:
   valkey_data:
-  grafana_data:
-  loki_data:
   duckdb_data:
 
-
 services:
-  benthos-evm:
-    image: jeffail/benthos:4
-    container_name: benthos-evm
-    volumes:
-      - ./bento/config/evm_decode_pipeline.yaml:/benthos.yaml:ro
-      - ./bento/plugins/evm_decode_fast.so:/bento/plugins/evm_decode_fast.so:ro
-    env_file:
-      - .env
-    command: ["-c", "/benthos.yaml"]
-    depends_on:
-      - valkey
-      - pulsar
   bento:
     build:
       context: ./bento
       dockerfile: Dockerfile
     ports:
       - "4195:4195"  # HTTP API + Prometheus metrics
-    volumes:
-      - ./bento/config/bento.yaml:/app/config.yaml:ro
-      - ./bento/templates.json:/app/templates.json:ro
-    environment:
-      - AVAX_C_WEBSOCKET_URL=wss://api.avax.network/ext/bc/C/ws
-      - SNOWTRACE_API_KEY=${SNOWTRACE_API_KEY}
-      - VALKEY_URL=valkey://valkey:6379
-      - PULSAR_URL=pulsar://pulsar:6650
-      - PULSAR_TOPIC=transactions
-
-
+    # environment:
+    #   - VALKEY_URL=valkey:6379
+    #   - PULSAR_URL=pulsar://pulsar:6650
+    #   - PULSAR_TOPIC=transactions
+    #   - SNOWTRACE_API_KEY=${SNOWTRACE_API_KEY}
+    #   - CHAIN_ID=${CHAIN_ID}
+    env_file: ".env"
+    restart: unless-stopped
+    # Keep container running even if service fails
+    entrypoint: ["/bin/sh", "-c", "trap : TERM INT; (benthos -c /app/config/avax_pipeline.yaml || true) & sleep infinity & wait"]
     networks:
       - bento-network
     depends_on:
@@ -76,13 +60,13 @@ services:
       - "-c"
       - |
         bin/pulsar standalone \
-          --no-functions-worker   \
-          --wipe-data             # start with a clean ZK/BK each run
+          --no-functions-worker \
+          --wipe-data
     environment:
       PULSAR_MEM: "-Xms1g -Xmx1g -XX:MaxDirectMemorySize=512m"
     ports:
-      - "6650:6650"   # binary protocol
-      - "8080:8080"   # REST + Prometheus /metrics
+      - "6650:6650"   # Pulsar binary protocol
+      - "8080:8080"   # Pulsar REST API
     networks:
       - bento-network
     healthcheck:
@@ -98,57 +82,16 @@ services:
     ports:
       - "8501:8501"
     environment:
-      - VALKEY_URL=valkey://valkey:6379
+      - VALKEY_URL=valkey:6379
       - PULSAR_URL=pulsar://pulsar:6650
       - PULSAR_TOPIC=transactions
-
-
+      - BENTO_API_URL=http://bento:4195
+    volumes:
+      - ./streamlit/ekko-dash:/app
+      - duckdb_data:/data
     networks:
       - bento-network
     depends_on:
       - valkey
       - pulsar
-
-  grafana:
-    image: grafana/grafana:latest
-    ports:
-      - "3000:3000"
-    volumes:
-      - grafana_data:/var/lib/grafana
-    networks:
-      - bento-network
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/healthz"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  loki:
-    image: grafana/loki:2.9.4
-    ports:
-      - "3100:3100"
-    command: -config.file=/etc/loki/local-config.yaml
-    volumes:
-      - loki_data:/loki
-      - ./loki-config.yaml:/etc/loki/local-config.yaml:ro
-    networks:
-      - bento-network
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "http://localhost:3100/ready"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  promtail:
-    image: grafana/promtail:2.9.4
-    volumes:
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - /var/log:/var/log:ro
-      - ./promtail-config.yaml:/etc/promtail/config.yaml:ro
-    command: -config.file=/etc/promtail/config.yaml
-    networks:
-      - bento-network
-    depends_on:
-      - loki
+      - bento
