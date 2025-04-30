@@ -80,7 +80,7 @@ func NewRedisAdapter(client RedisClient) *RedisAdapter {
 
 // Get implements both Cache.Get and RedisClient.Get
 func (c *RedisAdapter) Get(ctx context.Context, key string) *redis.StringCmd {
-	return c.client.GetCmd(ctx, key)
+	return c.client.Get(ctx, key)
 }
 
 // GetString implements Cache.Get by returning the string value
@@ -90,7 +90,7 @@ func (c *RedisAdapter) GetString(ctx context.Context, key string) (string, error
 
 // Set implements both Cache.Set and RedisClient.Set
 func (c *RedisAdapter) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.StatusCmd {
-	return c.client.SetCmd(ctx, key, value, expiration)
+	return c.client.Set(ctx, key, value, expiration)
 }
 
 // SetString implements Cache.Set by returning just the error
@@ -98,15 +98,7 @@ func (c *RedisAdapter) SetString(ctx context.Context, key string, value string, 
 	return c.Set(ctx, key, value, expiration).Err()
 }
 
-// GetCmd implements RedisClient.GetCmd
-func (c *RedisAdapter) GetCmd(ctx context.Context, key string) *redis.StringCmd {
-	return c.client.GetCmd(ctx, key)
-}
 
-// SetCmd implements RedisClient.SetCmd
-func (c *RedisAdapter) SetCmd(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.StatusCmd {
-	return c.client.SetCmd(ctx, key, value, expiration)
-}
 
 // Close closes the Redis connection
 func (c *RedisAdapter) Close() error {

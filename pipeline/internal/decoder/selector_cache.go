@@ -34,7 +34,7 @@ func (c *SelectorCache) GetSelector(ctx context.Context, selector string) (*Sele
 
 	// Try Redis
 	key := getRedisKey("sel", c.chainID, selector)
-	data, err := c.redis.GetCmd(ctx, key).Result()
+	data, err := c.redis.Get(ctx, key).Result()
 	if err != nil {
 		return nil, fmt.Errorf("redis get failed: %w", err)
 	}
@@ -59,7 +59,7 @@ func (c *SelectorCache) GetSelector(ctx context.Context, selector string) (*Sele
 // GetSelectorByAddress tries to get a selector specific to an address
 func (c *SelectorCache) GetSelectorByAddress(ctx context.Context, address, selector string) (*SelectorEntry, error) {
 	key := getRedisKey("sel", c.chainID, address, selector)
-	data, err := c.redis.GetCmd(ctx, key).Result()
+	data, err := c.redis.Get(ctx, key).Result()
 	if err != nil {
 		return nil, fmt.Errorf("redis get failed: %w", err)
 	}

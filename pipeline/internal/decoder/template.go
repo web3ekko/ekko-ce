@@ -26,7 +26,7 @@ func NewTemplateManager(redis RedisClient) *TemplateManager {
 // GetTemplate retrieves a template by name
 func (tm *TemplateManager) GetTemplate(ctx context.Context, name string) (*Template, error) {
 	key := getRedisKey("template", name)
-	data, err := tm.redis.GetCmd(ctx, key).Result()
+	data, err := tm.redis.Get(ctx, key).Result()
 	if err != nil {
 		return nil, fmt.Errorf("redis get failed: %w", err)
 	}
@@ -59,7 +59,7 @@ func (tm *TemplateManager) SaveTemplate(ctx context.Context, template *Template)
 		return fmt.Errorf("marshal failed: %w", err)
 	}
 
-	if err := tm.redis.SetCmd(ctx, key, data, 24*time.Hour).Err(); err != nil {
+	if err := tm.redis.Set(ctx, key, data, 24*time.Hour).Err(); err != nil {
 		return fmt.Errorf("redis set failed: %w", err)
 	}
 
