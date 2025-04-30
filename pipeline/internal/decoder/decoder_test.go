@@ -74,7 +74,7 @@ func TestDecoder_DecodeTransaction(t *testing.T) {
 			tx: &blockchain.Transaction{
 				To:    "0xb794f5ea0ba39494ce839613fffba74279579268",
 				Input: "0x",                // Empty input data for simple value transfer
-				Value: "0xde0b6b3a7640000", // 1 ETH in hex
+				Value: "0xde0b6b3a7640000", // 1 AVAX in hex
 			},
 			wantErr: false, // Simple value transfer should not be considered an error
 		},
