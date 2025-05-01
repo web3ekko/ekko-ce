@@ -65,8 +65,12 @@ func (p *Pipeline) processBlock(ctx context.Context, block *blockchain.Block) er
 			defer wg.Done()
 			for job := range jobs {
 				tx := &block.Transactions[job]
+				// Log transaction handling
+				log.Printf("Processing tx %s from block %s", tx.Hash, block.Hash)
 				if err := p.decoder.DecodeTransaction(ctx, tx); err != nil {
-					log.Printf("Failed to decode transaction %d: %v", job, err)
+					log.Printf("Failed to decode tx %s from block %s: %v", tx.Hash, block.Hash, err)
+				} else {
+					log.Printf("Decoded tx %s from block %s", tx.Hash, block.Hash)
 				}
 			}
 		}()
@@ -103,6 +107,10 @@ func (p *Pipeline) Start(ctx context.Context) error {
 			httpURL = getHTTPURL(nodeURLs[0], subnet.config)
 		}
 		source := blockchain.NewWebSocketSource(wsURL, httpURL)
+		// Initiate WebSocket connection and subscription
+		if err := source.Start(); err != nil {
+			return fmt.Errorf("failed to start WebSocket source for subnet %s: %w", subnet.config.Name, err)
+		}
 
 		// Create Pulsar sink
 		sink, err := NewPulsarSink(p.pulsarURL, subnet.config.PulsarTopic)
@@ -120,13 +128,20 @@ func (p *Pipeline) Start(ctx context.Context) error {
 				select {
 				case <-ctx.Done():
 					return
-				case block := <-subnet.source.Out():
-					if err := p.processBlock(ctx, block.(*blockchain.Block)); err != nil {
-						log.Printf("Error processing block: %v", err)
+				case raw := <-subnet.source.Out():
+					blk := raw.(*blockchain.Block)
+					// Log receipt of block
+					log.Printf("Subnet %s: received block %s with %d transactions", subnet.config.Name, blk.Hash, len(blk.Transactions))
+					// Process block
+					if err := p.processBlock(ctx, blk); err != nil {
+						log.Printf("Subnet %s: error processing block %s: %v", subnet.config.Name, blk.Hash, err)
 						continue
 					}
-					if err := subnet.sink.Write(ctx, block.(*blockchain.Block)); err != nil {
-						log.Printf("Error sending block: %v", err)
+					// Send to Pulsar
+					if err := subnet.sink.Write(ctx, blk); err != nil {
+						log.Printf("Subnet %s: error sending block %s: %v", subnet.config.Name, blk.Hash, err)
+					} else {
+						log.Printf("Subnet %s: sent block %s to topic %s", subnet.config.Name, blk.Hash, subnet.config.PulsarTopic)
 					}
 				}
 			}

@@ -74,6 +74,9 @@ func (s *WebSocketSource) getBlock(hash string) (*Block, error) {
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 
+	// Log outgoing HTTP request for block data
+	log.Printf("WebSocketSource: HTTP request for block %s to %s", hash, s.httpURL)
+
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(httpReq)
 	if err != nil {
@@ -111,6 +114,8 @@ func (s *WebSocketSource) Start() error {
 		return fmt.Errorf("websocket dial failed: %w", err)
 	}
 	s.conn = conn
+	// Log successful connection
+	log.Printf("WebSocketSource: connected to %s", s.url)
 
 	// Subscribe to new blocks
 	subscribeMsg := map[string]interface{}{
@@ -122,6 +127,7 @@ func (s *WebSocketSource) Start() error {
 	if err := conn.WriteJSON(subscribeMsg); err != nil {
 		return fmt.Errorf("subscription failed: %w", err)
 	}
+	log.Printf("WebSocketSource: subscribed to newHeads on %s", s.url)
 
 	// Start processing in background
 	go func() {
@@ -139,6 +145,8 @@ func (s *WebSocketSource) Start() error {
 					log.Printf("read failed: %v", err)
 					return
 				}
+				// Log raw WS message
+				log.Printf("WebSocketSource: raw message: %s", string(message))
 
 				// Parse subscription response
 				var response struct {
@@ -152,6 +160,8 @@ func (s *WebSocketSource) Start() error {
 					log.Printf("unmarshal failed: %v", err)
 					continue
 				}
+				// Log parsed new head
+				log.Printf("WebSocketSource: new head hash %s", response.Params.Result.Hash)
 
 				// Get full block
 				block, err := s.getBlock(response.Params.Result.Hash)

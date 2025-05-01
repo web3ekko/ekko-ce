@@ -2,8 +2,8 @@ subnets:
   - name: mainnet
     chain_id: 43114
     vm_type: subnet-evm
-    websocket_url: "${MAINNET_WEBSOCKET_URL}"
-    http_url:      "${MAINNET_HTTP_URL}"
+    websocket_url: "${AVAX_WEBSOCKET_URL}"
+    http_url:      "${AVAX_HTTP_URL}"
   # - name: fuji
   #   chain_id: 43113
   #   vm_type: subnet-evm

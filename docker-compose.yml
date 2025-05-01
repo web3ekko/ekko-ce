@@ -53,7 +53,7 @@ services:
       retries: 3
 
   pulsar:
-    image: apachepulsar/pulsar:3.1.0
+    image: apachepulsar/pulsar:4.0.4
     container_name: pulsar
     command:
       - "bash"
@@ -69,6 +69,8 @@ services:
       - "8080:8080"   # Pulsar REST API
     networks:
       - pipeline-network
+    logging:
+      driver: "none"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/admin/v2/clusters"]
       interval: 30s
@@ -94,3 +96,24 @@ services:
       - valkey
       - pulsar
       - pipeline
+
+  # pulsar-manager:
+  #   image: apachepulsar/pulsar-manager:v0.2.0
+  #   ports:
+  #     - "7750:7750"    # Manager UI
+  #     - "9527:9527"    # Manager API
+  #   environment:
+  #     - SPRING_PROFILES_ACTIVE=h2
+  #     - PULSAR_MANAGER_PULSAR_SERVICE_URL=pulsar://pulsar:6650
+  #     - PULSAR_MANAGER_PULSAR_ADMIN_URL=http://pulsar:8080
+  #     - REDIRECT_HOST=0.0.0.0
+  #     - REDIRECT_PORT=9527
+  #     - DRIVER_CLASS_NAME=org.h2.Driver
+  #     - URL=jdbc:h2:mem:testdb
+  #     - USERNAME=sa
+  #     - PASSWORD=
+  #     - LOG_LEVEL=INFO
+  #   networks:
+  #     - pipeline-network
+  #   depends_on:
+  #     - pulsar
