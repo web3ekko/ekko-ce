@@ -1,0 +1,11 @@
+subnets:
+  - name: mainnet
+    chain_id: 43114
+    vm_type: subnet-evm
+    websocket_url: "${MAINNET_WEBSOCKET_URL}"
+    http_url:      "${MAINNET_HTTP_URL}"
+  # - name: fuji
+  #   chain_id: 43113
+  #   vm_type: subnet-evm
+  #   websocket_url: "${FUJI_WEBSOCKET_URL}"
+  #   http_url:      "${FUJI_HTTP_URL}"

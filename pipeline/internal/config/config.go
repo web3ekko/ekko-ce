@@ -6,16 +6,19 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"gopkg.in/yaml.v3"
 )
 
 // SubnetConfig holds configuration for an Avalanche subnet
 type SubnetConfig struct {
-	Name         string            // Subnet name (e.g., "mainnet", "fuji", "wagmi")
+	Name         string            `yaml:"name"`          // Subnet name (e.g., "mainnet", "fuji", "wagmi")
 	ChainID      string            // Chain ID for the subnet
 	VMType       string            // VM type (e.g., "evm", "subnet-evm")
-	NodeURLs     []string          // List of node URLs for redundancy
-	PulsarTopic  string            // Pulsar topic for this subnet
-	CustomParams map[string]string // Additional subnet-specific parameters
+	NodeURLs     []string          `yaml:"node_urls,omitempty"`
+	PulsarTopic  string            `yaml:"pulsar_topic,omitempty"`
+	CustomParams map[string]string `yaml:"custom_params,omitempty"`
+	WebSocketURL string            `yaml:"websocket_url,omitempty"` // Optional override for WS endpoint
+	HTTPURL      string            `yaml:"http_url,omitempty"`      // Optional override for HTTP endpoint
 }
 
 // NodeEndpoints represents WebSocket and HTTP endpoints for a node
@@ -29,11 +32,8 @@ type Config struct {
 	// Network type (e.g., "mainnet", "testnet")
 	NetworkType string
 
-	// Base Avalanche node configuration
-	BaseNodeURLs []string
-
 	// Subnet configurations
-	Subnets []SubnetConfig
+	Subnets []SubnetConfig `yaml:"subnets"`
 
 	// Pulsar configuration
 	PulsarURL string
@@ -55,13 +55,6 @@ type Config struct {
 func LoadFromEnv() (*Config, error) {
 	// Load network type
 	networkType := getEnvWithDefault("AVAX_NETWORK", "mainnet")
-
-	// Load base node URLs
-	baseNodesStr := os.Getenv("AVAX_BASE_NODES")
-	if baseNodesStr == "" {
-		return nil, fmt.Errorf("AVAX_BASE_NODES is required (comma-separated list of node URLs)")
-	}
-	baseNodes := strings.Split(baseNodesStr, ",")
 
 	// Load subnet configurations
 	subnetsStr := os.Getenv("AVAX_SUBNETS")
@@ -102,7 +95,12 @@ func LoadFromEnv() (*Config, error) {
 			}
 		}
 
-		pulsarTopic := getEnvWithDefault(prefix+"_PULSAR_TOPIC", name+"_transactions")
+		// Load per-subnet Pulsar topic, no default
+		pulsarTopic := os.Getenv(prefix + "_PULSAR_TOPIC")
+
+		// Optional overrides for RPC URLs
+		wsURL := os.Getenv(prefix + "_WEBSOCKET_URL")
+		httpURL := os.Getenv(prefix + "_HTTP_URL")
 
 		subnets = append(subnets, SubnetConfig{
 			Name:         name,
@@ -111,7 +109,15 @@ func LoadFromEnv() (*Config, error) {
 			NodeURLs:     nodeURLs,
 			PulsarTopic:  pulsarTopic,
 			CustomParams: customParams,
+			WebSocketURL: wsURL,
+			HTTPURL:      httpURL,
 		})
+	}
+	// Default topic to subnet name if still unset
+	for i := range subnets {
+		if subnets[i].PulsarTopic == "" {
+			subnets[i].PulsarTopic = subnets[i].Name
+		}
 	}
 
 	// Load other configurations
@@ -131,7 +137,6 @@ func LoadFromEnv() (*Config, error) {
 
 	return &Config{
 		NetworkType:    networkType,
-		BaseNodeURLs:   baseNodes,
 		Subnets:        subnets,
 		PulsarURL:      pulsarURL,
 		CacheType:      cacheType,
@@ -141,6 +146,37 @@ func LoadFromEnv() (*Config, error) {
 		RetryDelay:     retryDelay,
 		RequestTimeout: requestTimeout,
 	}, nil
+}
+
+// Load reads a YAML config file (path), falls back to environment loader on error
+func Load(path string) (*Config, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return LoadFromEnv()
+	}
+	var fileCfg struct { Subnets []SubnetConfig `yaml:"subnets"` }
+	if err := yaml.Unmarshal(data, &fileCfg); err != nil {
+		return nil, fmt.Errorf("failed to parse config file %s: %w", path, err)
+	}
+	// Expand env in URLs
+	for i := range fileCfg.Subnets {
+		sc := &fileCfg.Subnets[i]
+		sc.WebSocketURL = os.ExpandEnv(sc.WebSocketURL)
+		sc.HTTPURL = os.ExpandEnv(sc.HTTPURL)
+	}
+	// Load base config (env or defaults) then override subnets entirely from YAML
+	cfg, err := LoadFromEnv()
+	if err != nil {
+		return nil, err
+	}
+	cfg.Subnets = fileCfg.Subnets
+	// Default topic to subnet name if not set in YAML
+	for i := range cfg.Subnets {
+		if cfg.Subnets[i].PulsarTopic == "" {
+			cfg.Subnets[i].PulsarTopic = cfg.Subnets[i].Name
+		}
+	}
+	return cfg, nil
 }
 
 // getEnvWithDefault returns environment variable value or default if not set

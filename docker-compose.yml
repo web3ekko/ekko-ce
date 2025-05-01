@@ -1,7 +1,7 @@
 version: '3'
 
 networks:
-  bento-network:
+  pipeline-network:
     driver: bridge
 
 volumes:
@@ -10,9 +10,9 @@ volumes:
   duckdb_data:
 
 services:
-  bento:
+  pipeline:
     build:
-      context: ./bento
+      context: ./pipeline
       dockerfile: Dockerfile
     ports:
       - "4195:4195"  # HTTP API + Prometheus metrics
@@ -23,11 +23,11 @@ services:
     #   - SNOWTRACE_API_KEY=${SNOWTRACE_API_KEY}
     #   - CHAIN_ID=${CHAIN_ID}
     env_file: ".env"
+    volumes:
+      - ./config.yaml:/app/config.yaml
     restart: unless-stopped
-    # Keep container running even if service fails
-    entrypoint: ["/bin/sh", "-c", "trap : TERM INT; (benthos -c /app/config/avax_pipeline.yaml || true) & sleep infinity & wait"]
     networks:
-      - bento-network
+      - pipeline-network
     depends_on:
       - valkey
       - pulsar
@@ -45,7 +45,7 @@ services:
       - valkey_data:/data
     command: valkey-server --appendonly yes
     networks:
-      - bento-network
+      - pipeline-network
     healthcheck:
       test: ["CMD", "valkey-cli", "ping"]
       interval: 30s
@@ -68,7 +68,7 @@ services:
       - "6650:6650"   # Pulsar binary protocol
       - "8080:8080"   # Pulsar REST API
     networks:
-      - bento-network
+      - pipeline-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/admin/v2/clusters"]
       interval: 30s
@@ -85,13 +85,12 @@ services:
       - VALKEY_URL=valkey:6379
       - PULSAR_URL=pulsar://pulsar:6650
       - PULSAR_TOPIC=transactions
-      - BENTO_API_URL=http://bento:4195
     volumes:
       - ./streamlit/ekko-dash:/app
       - duckdb_data:/data
     networks:
-      - bento-network
+      - pipeline-network
     depends_on:
       - valkey
       - pulsar
-      - bento
+      - pipeline

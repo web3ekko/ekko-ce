@@ -29,6 +29,7 @@ type Pipeline struct {
 	manager   *decoder.TemplateManager
 	batchSize int
 	workers   int
+	pulsarURL string
 }
 
 // NewPipeline creates a new pipeline
@@ -47,6 +48,7 @@ func NewPipeline(redis *decoder.RedisAdapter, cfg *config.Config) (*Pipeline, er
 		manager:    decoder.NewTemplateManager(redis),
 		batchSize:  100,
 		workers:    cfg.DecoderWorkers,
+		pulsarURL:  cfg.PulsarURL,
 	}, nil
 }
 
@@ -86,25 +88,24 @@ func (p *Pipeline) processBlock(ctx context.Context, block *blockchain.Block) er
 func (p *Pipeline) Start(ctx context.Context) error {
 	// Start each subnet pipeline
 	for _, subnet := range p.subnets {
-		// Determine node URLs for this subnet
-		nodeURLs := subnet.config.NodeURLs
-		if len(nodeURLs) == 0 {
-			// If no specific nodes are configured, use base nodes
-			nodeURLs = []string{"https://api.avax.network"} // default node URL
+		// Determine WS and HTTP URLs, allow override via config.WebSocketURL/HTTPURL
+		var wsURL, httpURL string
+		if subnet.config.WebSocketURL != "" && subnet.config.HTTPURL != "" {
+			wsURL = subnet.config.WebSocketURL
+			httpURL = subnet.config.HTTPURL
+		} else {
+			nodeURLs := subnet.config.NodeURLs
+			if len(nodeURLs) == 0 {
+				// fallback to default base node
+				nodeURLs = []string{"https://api.avax.network"}
+			}
+			wsURL = getWebSocketURL(nodeURLs[0], subnet.config)
+			httpURL = getHTTPURL(nodeURLs[0], subnet.config)
 		}
-
-		if len(nodeURLs) == 0 {
-			return fmt.Errorf("no nodes available for subnet %s", subnet.config.Name)
-		}
-
-		// Create WebSocket source with the first node
-		source := blockchain.NewWebSocketSource(
-			getWebSocketURL(nodeURLs[0], subnet.config),
-			getHTTPURL(nodeURLs[0], subnet.config),
-		)
+		source := blockchain.NewWebSocketSource(wsURL, httpURL)
 
 		// Create Pulsar sink
-		sink, err := NewPulsarSink("pulsar://localhost:6650", subnet.config.PulsarTopic)
+		sink, err := NewPulsarSink(p.pulsarURL, subnet.config.PulsarTopic)
 		if err != nil {
 			return fmt.Errorf("failed to create sink for subnet %s: %w", subnet.config.Name, err)
 		}
@@ -183,50 +184,59 @@ func (s *FailoverSource) run() {
 		case <-s.ctx.Done():
 			return
 		default:
-			// Try to connect to current node
-			nodeURLs := s.subnet.config.NodeURLs
-			if len(nodeURLs) == 0 {
-				nodeURLs = s.config.BaseNodeURLs
+			// Determine source URL: support per-subnet overrides
+			if s.subnet.config.WebSocketURL != "" && s.subnet.config.HTTPURL != "" {
+				s.subnet.source = blockchain.NewWebSocketSource(
+					s.subnet.config.WebSocketURL,
+					s.subnet.config.HTTPURL,
+				)
+			} else {
+				// Fallback to configured nodes or default
+				nodeURLs := s.subnet.config.NodeURLs
+				if len(nodeURLs) == 0 {
+					nodeURLs = []string{"https://api.avax.network"}
+				}
+				current := nodeURLs[s.subnet.nodeIdx]
+				s.subnet.source = blockchain.NewWebSocketSource(
+					getWebSocketURL(current, s.subnet.config),
+					getHTTPURL(current, s.subnet.config),
+				)
 			}
-
-			// Update source with current node
-			currentNode := nodeURLs[s.subnet.nodeIdx]
-			s.subnet.source = blockchain.NewWebSocketSource(
-				getWebSocketURL(currentNode, s.subnet.config),
-				getHTTPURL(currentNode, s.subnet.config),
-			)
-
-
 
 			// Process blocks directly from source
 			for block := range s.subnet.source.Out() {
 				s.outCh <- block
 			}
 
-			// Try next node on error
-			s.subnet.nodeIdx = (s.subnet.nodeIdx + 1) % len(nodeURLs)
-			time.Sleep(s.config.RetryDelay)
+			// If override used, do not retry other nodes
+			if !(s.subnet.config.WebSocketURL != "" && s.subnet.config.HTTPURL != "") {
+				// Try next node on error
+				addrs := s.subnet.config.NodeURLs
+				if len(addrs) == 0 {
+					addrs = []string{"https://api.avax.network"}
+				}
+				s.subnet.nodeIdx = (s.subnet.nodeIdx + 1) % len(addrs)
+				time.Sleep(s.config.RetryDelay)
+			}
 		}
 	}
 }
 
 // createSourceWithFailover creates a source that automatically fails over to another node
 func (p *Pipeline) createSourceWithFailover(subnet *SubnetPipeline) streams.Source {
-	// Get node URLs
+	// If overrides provided, use them
+	if subnet.config.WebSocketURL != "" && subnet.config.HTTPURL != "" {
+		return blockchain.NewWebSocketSource(subnet.config.WebSocketURL, subnet.config.HTTPURL)
+	}
+	// Fallback to first node
 	nodeURLs := subnet.config.NodeURLs
 	if len(nodeURLs) == 0 {
 		log.Printf("No nodes configured for subnet %s", subnet.config.Name)
 		return nil
 	}
-
-	// Create WebSocket source with first node
-	baseURL := nodeURLs[0]
-	wsURL := getWebSocketURL(baseURL, subnet.config)
-	httpURL := baseURL
-	source := blockchain.NewWebSocketSource(wsURL, httpURL)
-
-	// Return source
-	return source
+	wsURL := getWebSocketURL(nodeURLs[0], subnet.config)
+	httpURL := getHTTPURL(nodeURLs[0], subnet.config)
+	return blockchain.NewWebSocketSource(wsURL, httpURL)
 }
 
 // getWebSocketURL constructs the WebSocket URL for a node

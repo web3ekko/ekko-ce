@@ -4,6 +4,8 @@ go 1.23.0
 
 toolchain go1.24.2
 
+// toolchain go1.24.2
+
 require (
 	github.com/apache/pulsar-client-go v0.14.0
 	github.com/ethereum/go-ethereum v1.15.10
@@ -12,6 +14,7 @@ require (
 	github.com/redis/go-redis/v9 v9.7.3
 	github.com/reugn/go-streams v0.12.0
 	github.com/stretchr/testify v1.10.0
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -62,5 +65,4 @@ require (
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20231016165738-49dd2c1f3d0b // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

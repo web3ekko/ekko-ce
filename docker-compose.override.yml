@@ -9,15 +9,13 @@ services:
       - VALKEY_URL=valkey://valkey:6379
       - PULSAR_URL=pulsar://pulsar:6650
       - PULSAR_TOPIC=transactions
-      - BENTO_API_URL=http://bento:8000
     volumes:
       - ./streamlit/ekko-dash:/app
       - duckdb_data:/data
     ports:
       - "8501:8501"
     networks:
-      - bento-network
+      - pipeline-network
     depends_on:
       - valkey
       - pulsar
-      - bento

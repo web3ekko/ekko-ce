@@ -6,7 +6,7 @@ __pycache__/
 #proj specific
 bento/vendor
 streamlit/ekko-dash/data
-pipeling/vendor
+pipeline/vendor
 # C extensions
 *.so
 

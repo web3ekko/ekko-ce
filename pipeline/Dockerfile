@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.20 AS builder
+FROM golang:1.24 AS builder
 
 WORKDIR /build
 
@@ -17,22 +17,23 @@ COPY . .
 
 # Build the application with optimizations
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-    go build -ldflags="-w -s" -o pipeline ./cmd/pipeline
+    go build -ldflags="-w -s" -o pipeline ./cmd/ekko-pipeline
 
-# Final stage
-FROM alpine:3.18
+# Final stage (Debian-based runtime)
+FROM golang:1.24
 
 # Create non-root user
-RUN addgroup -S ekko && adduser -S ekko -G ekko
+RUN groupadd -r ekko && useradd -r -g ekko ekko
 
 WORKDIR /app
 
 # Install runtime dependencies
-RUN apk add --no-cache \
+RUN apt-get update && apt-get install -y \
     netcat-openbsd \
     bash \
     ca-certificates \
-    tzdata
+    tzdata \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy binary from builder and set permissions
 COPY --from=builder /build/pipeline /app/

@@ -14,8 +14,8 @@ import (
 )
 
 func main() {
-	// Load configuration
-	cfg, err := config.LoadFromEnv()
+	// Load configuration (YAML overrides fall back to env)
+	cfg, err := config.Load("config.yaml")
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
