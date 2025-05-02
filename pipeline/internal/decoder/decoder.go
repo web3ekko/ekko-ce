@@ -34,8 +34,29 @@ func NewDecoder(cache Cache, chainID string) *Decoder {
 
 // DecodeTransaction attempts to decode a transaction using cached ABI signatures
 func (d *Decoder) DecodeTransaction(ctx context.Context, tx *blockchain.Transaction) error {
-	// Skip decoding for contract creation and simple value transfer
+	// Handle simple value transfers and contract creations
 	if tx.To == "" || len(tx.Input) == 0 || tx.Input == "0x" {
+		// Wallet-to-wallet transfer (no contract call)
+		if len(tx.Input) == 0 || tx.Input == "0x" {
+			tx.DecodedCall = &blockchain.DecodedCall{
+				Function: "transfer",
+				Params: map[string]interface{}{
+					"from":  tx.From,
+					"to":    tx.To,
+					"value": tx.Value,
+				},
+			}
+		} else if tx.To == "" {
+			// Contract creation transaction
+			tx.DecodedCall = &blockchain.DecodedCall{
+				Function: "contract_creation",
+				Params: map[string]interface{}{
+					"from":      tx.From,
+					"value":     tx.Value,
+					"init_code": tx.Input,
+				},
+			}
+		}
 		return nil
 	}
 

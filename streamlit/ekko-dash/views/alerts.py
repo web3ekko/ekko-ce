@@ -3,6 +3,27 @@ from datetime import datetime, timedelta
 import random
 from utils.db import db, alert_model, cache
 from utils.styles import apply_cell_style, inject_custom_css, get_status_color
+import os
+import openai
+
+# Configure OpenAI API key
+openai.api_key = os.getenv("OPENAI_API_KEY")
+
+# Helper to convert NL query to Polars condition via OpenAI
+def llm_to_polars(nl_query: str) -> str:
+    prompt = """
+You are an assistant that converts natural language queries about blockchain transactions into a Polars expression against a DataFrame named df. Return only the expression without explanation.
+Example: "Find all ETH transfers above 1 ETH" -> "df.filter(pl.col('value').cast(pl.UInt64)/1e18 > 1).shape[0] > 0"
+"""
+    response = openai.ChatCompletion.create(
+        model="gpt-4",
+        messages=[
+            {"role": "system", "content": prompt},
+            {"role": "user", "content": nl_query},
+        ],
+        temperature=0,
+    )
+    return response.choices[0].message.content.strip()
 
 # Inject custom CSS
 inject_custom_css()
@@ -106,11 +127,17 @@ def show_create_alert_form():
         
         col1, col2 = st.columns(2)
         with col1:
-            alert_type = st.selectbox("Alert Type", ["Price Alert", "Workflow Alert", "Smart Contract Alert", "Security Alert", "Wallet Alert"])
-            condition = st.text_area("Condition/Message", placeholder="E.g., Alert me when ETH price drops below $2,000")
+            alert_type = st.selectbox(
+                "Alert Type", ["Price Alert", "Workflow Alert", "Smart Contract Alert", "Security Alert", "Wallet Alert"]
+            )
+            nl_query = st.text_area(
+                "Natural Language Query", placeholder="E.g., Alert me when ETH price drops below $2,000", height=100
+            )
         with col2:
             priority = st.selectbox("Priority", ["High", "Medium", "Low"])
-            notification_topic = st.text_input("Notification Topic", placeholder="Enter ntfy topic for notifications")
+            notification_topic = st.text_input(
+                "Notification Topic", placeholder="Enter ntfy topic for notifications"
+            )
         
         # Form submission buttons
         col1, col2 = st.columns(2)
@@ -120,47 +147,49 @@ def show_create_alert_form():
                 st.rerun()
         
         with col2:
-            if st.form_submit_button("Create Alert", use_container_width=True):
-                if condition:
-                    # Prepare alert data
-                    status_map = {"High": "error", "Medium": "warning", "Low": "info"}
-                    icon_map = {
-                        "Price Alert": "📊",
-                        "Workflow Alert": "🔄",
-                        "Smart Contract Alert": "📝",
-                        "Security Alert": "🔐",
-                        "Wallet Alert": "👛"
-                    }
-                    
-                    alert_data = {
-                        'type': alert_type,
-                        'message': condition,
-                        'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                        'status': status_map.get(priority, "warning"),
-                        'icon': icon_map.get(alert_type, "ℹ️"),
-                        'priority': priority,
-                        'notification_topic': notification_topic if notification_topic else None
-                    }
-                    
-                    # Insert alert into database
+            submit = st.form_submit_button("Create Alert", use_container_width=True)
+        
+        if submit:
+            if not nl_query:
+                st.error("Please enter a natural language query for your alert.")
+            else:
+                with st.spinner("Generating Polars query..."):
                     try:
-                        alert_model.insert(alert_data)
-                        
-                        if cache.is_connected():
-                            try:
-                                cache.cache_alert(alert_data)
-                            except Exception as e:
-                                st.warning(f"Alert created but not cached: {str(e)}")
-                        
-                        st.success("Alert created successfully!")
+                        condition = llm_to_polars(nl_query)
                     except Exception as e:
-                        st.error(f"Failed to create alert: {str(e)}")
-                    
-                    # Close the form
-                    st.session_state['create_alert_form_open'] = False
-                    st.rerun()
-                else:
-                    st.error("Please enter an alert condition/message")
+                        st.error(f"Failed to generate query: {e}")
+                        return
+        
+                status_map = {"High": "error", "Medium": "warning", "Low": "info"}
+                icon_map = {
+                    "Price Alert": "📊", "Workflow Alert": "🔄",
+                    "Smart Contract Alert": "📝", "Security Alert": "🔐",
+                    "Wallet Alert": "👛"
+                }
+                alert_data = {
+                    'type': alert_type,
+                    'message': nl_query,
+                    'condition': condition,
+                    'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    'status': status_map.get(priority, "warning"),
+                    'icon': icon_map.get(alert_type, "ℹ️"),
+                    'priority': priority,
+                    'notification_topic': notification_topic or None
+                }
+        
+                try:
+                    alert_model.insert(alert_data)
+                    if cache.is_connected():
+                        try:
+                            cache.cache_alert(alert_data)
+                        except Exception as e:
+                            st.warning(f"Alert created but not cached: {e}")
+                    st.success("Alert created successfully!")
+                except Exception as e:
+                    st.error(f"Failed to create alert: {e}")
+        
+                st.session_state['create_alert_form_open'] = False
+                st.rerun()
 
 # Function to display alert grid
 def show_alert_grid(alerts):

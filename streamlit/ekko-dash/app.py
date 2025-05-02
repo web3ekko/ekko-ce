@@ -12,12 +12,12 @@ st.set_page_config(
 
 # Import view functions
 from views.wallets import show_wallets
-from views.alerts import show_alerts
 from views.workflows import show_workflows
 from views.agents import show_agents
 from views.home import show_dashboard
 from views.settings import show_settings
 from views.about import show_about
+import views.alerts as alerts_view
 
 # Load and apply custom CSS
 def load_css(css_file):
@@ -55,7 +55,7 @@ elif selected == "About":
 elif selected == "Wallets":
     show_wallets(blockchain_symbol=None)
 elif selected == "Alerts":
-    show_alerts()
+    alerts_view.show_alerts()
 elif selected == "Workflows":
     show_workflows()
 elif selected == "Agents":
