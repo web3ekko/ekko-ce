@@ -5,6 +5,9 @@ import datetime
 import os
 import random
 import base64
+import pandas as pd
+import requests
+import duckdb
 
 # Initialize settings and database
 settings = Settings()
@@ -63,73 +66,6 @@ def get_blockchain_logo(blockchain_symbol):
         <circle cx="12" cy="12" r="10" fill="#E0E0E0"/>
         </svg>'''.encode()).decode()
 
-# Generate dummy wallet data for display
-def generate_dummy_wallets(count=9):
-    blockchain_symbols = ["ETH", "AVAX", "MATIC", "BTC"]
-    wallet_names = ["Main Portfolio", "Trading Account", "Cold Storage", "DeFi Wallet", "NFT Collection"]
-    addresses = [
-        "0x71C7656EC7ab88b098defB751B7401B5f6d8976F",
-        "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc",
-        "0x976EA74026E726554dB657fA54763abd0C3a0aa9",
-        "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
-        "0x14723A09ACff6D2A60DcdF7aA4AFf308FDDC160C"
-    ]
-    
-    dummy_wallets = []
-    now = datetime.datetime.now()
-    
-    for i in range(count):  # Generate the specified number of dummy wallets
-        blockchain_symbol = random.choice(blockchain_symbols)
-        balance = round(random.uniform(0.1, 10), 4)
-        
-        # Randomize the last activity time
-        days_ago = random.randint(0, 60)
-        last_activity = now - datetime.timedelta(days=days_ago)
-        
-        # Generate random transactions for each wallet
-        num_transactions = random.randint(3, 12)
-        transactions = []
-        
-        for j in range(num_transactions):
-            tx_type = random.choice(["Send", "Receive", "Swap", "Stake", "Unstake"])
-            amount = round(random.uniform(0.01, 1), 4)
-            fee = round(random.uniform(0.001, 0.01), 4)
-            days_ago_tx = random.randint(0, days_ago)
-            tx_date = now - datetime.timedelta(days=days_ago_tx)
-            
-            # Generate random addresses
-            to_address = addresses[random.randint(0, len(addresses)-1)]
-            
-            transactions.append({
-                'hash': f"0x{os.urandom(16).hex()}",
-                'type': tx_type,
-                'amount': amount,
-                'fee': fee,
-                'timestamp': tx_date,
-                'to_address': to_address,
-                'status': random.choice(["Confirmed", "Pending", "Failed"]) if random.random() < 0.1 else "Confirmed"
-            })
-        
-        # Sort transactions by date (newest first)
-        transactions.sort(key=lambda x: x['timestamp'], reverse=True)
-        
-        blockchain_name = {"ETH": "Ethereum", "AVAX": "Avalanche", "MATIC": "Polygon", "BTC": "Bitcoin"}[blockchain_symbol]
-        
-        dummy_wallets.append({
-            'id': i + 1,
-            'blockchain_symbol': blockchain_symbol,
-            'blockchain_name': blockchain_name,
-            'address': addresses[i % len(addresses)],
-            'name': f"{wallet_names[i % len(wallet_names)]} {i+1}",
-            'balance': balance,
-            'created_at': now - datetime.timedelta(days=random.randint(60, 120)),
-            'updated_at': last_activity,
-            'status': "active" if days_ago < 30 else "inactive",
-            'transactions': transactions
-        })
-    
-    return dummy_wallets
-
 # Add wallet form
 def show_add_wallet_form():
     with st.form("add_wallet_form"):
@@ -171,13 +107,34 @@ def show_add_wallet_form():
         with col2:
             if st.form_submit_button("Connect Wallet", use_container_width=True):
                 if wallet_address:
-                    # Insert new wallet into database
+                    # Lookup balance for AVAX
+                    balance = 0
+                    if selected_chain == 'AVAX':
+                        avax_url = os.getenv('AVAX_HTTP_URL')
+                        try:
+                            resp = requests.post(avax_url, json={
+                                'jsonrpc':'2.0','method':'eth_getBalance',
+                                'params':[wallet_address,'latest'],'id':1
+                            })
+                            result = resp.json().get('result','0x0')
+                            balance = int(result,16) / 1e18
+                        except Exception as e:
+                            st.warning(f'Failed to fetch AVAX balance: {e}')
                     wallet_data = {
                         'blockchain_symbol': selected_chain,
                         'address': wallet_address,
-                        'name': wallet_name
+                        'name': wallet_name,
+                        'balance': balance
                     }
-                    wallet_model.insert(wallet_data)
+                    # Insert new wallet into database with duplicate guard
+                    try:
+                        wallet_model.insert(wallet_data)
+                    except duckdb.ConstraintException:
+                        st.error("This wallet already exists.")
+                        return
+                    except Exception as e:
+                        st.error(f"Failed to add wallet: {e}")
+                        return
                     
                     if cache.is_connected():
                         try:
@@ -207,8 +164,8 @@ def show_wallet_detail(wallet_id, wallets):
     blockchain_logo = get_blockchain_logo(wallet['blockchain_symbol'])
     
     # Back button to return to wallet grid
-    if st.button("← Back to Wallets", use_container_width=False):
-        st.session_state['wallet_view'] = 'grid'
+    if st.button("← Back to Wallets", use_container_width=False, key="back_to_wallets_detail"):
+        st.session_state['selected_wallet_id'] = None
         st.rerun()
     
     # Wallet header with name and blockchain
@@ -275,182 +232,96 @@ def show_wallet_detail(wallet_id, wallets):
         # Analytics tab (placeholder)
         st.info("Analytics feature coming soon")
 
-# Display wallet grid with Streamlit native elements
-def show_wallet_grid(wallets):
-    # Calculate how many rows we need (5 wallets per row)
-    wallet_count = len(wallets)
-    row_count = (wallet_count + 4) // 5  # +4 to account for possible Add Wallet card
-    
-    # Custom CSS for some styling elements we can't do natively
-    st.markdown("""
-    <style>
-        /* Status dots */
-        .status-active {
-            color: green;
-            font-size: 16px;
-        }
-        .status-inactive {
-            color: gray;
-            font-size: 16px;
-        }
-        /* Card wrapper to add some spacing */
-        .wallet-wrapper {
-            padding: 3px;
-        }
-    </style>
-    """, unsafe_allow_html=True)
-    
-    for row in range(row_count):
-        # Create a row with 5 columns
-        cols = st.columns(5)
-        
-        # Fill the columns with wallet cards
-        for col_idx in range(5):
-            wallet_idx = row * 5 + col_idx
-            
-            # Add Wallet card as the last item
-            if wallet_idx == wallet_count:
-                with cols[col_idx]:
-                    # Create an "Add Wallet" card
-                    with st.container():
-                        # Style to make it visually distinct
-                        st.markdown('<div class="wallet-wrapper">', unsafe_allow_html=True)
-                        
-                        # Empty container with border styling
-                        with st.container():
-                            st.markdown("##### Add New Wallet")
-                            st.markdown("➕")
-                            st.button("Add Wallet", key="add_wallet_grid", use_container_width=True, 
-                                     on_click=lambda: setattr(st.session_state, 'add_wallet_form_open', True))
-                        
-                        st.markdown('</div>', unsafe_allow_html=True)
-            
-            # Display a wallet if we have one for this position
-            elif wallet_idx < wallet_count:
-                wallet = wallets[wallet_idx]
-                with cols[col_idx]:
-                    # Wrapper for consistent spacing
-                    st.markdown('<div class="wallet-wrapper">', unsafe_allow_html=True)
-                    
-                    # Create a card-like container with border and padding
-                    with st.container():
-                        # Wallet name and status
-                        status_icon = "🟢" if wallet['status'] == "active" else "⚪"
-                        st.markdown(f"{wallet['name']} {status_icon}")
-                        
-                        # Blockchain info with logo
-                        st.caption(f"{wallet['blockchain_name']} Network")
-                        
-                        # Wallet address
-                        st.code(truncate_address(wallet['address']), language=None)
-                        
-                        # Balance
-                        st.markdown(f"### {wallet['balance']} {wallet['blockchain_symbol']}")
-                        
-                        # Last activity
-                        st.caption(f"Last activity: {get_time_ago(wallet['updated_at'])}")
-                        
-                        # View details button
-                        if st.button("View Details", key=f"view_{wallet['id']}", use_container_width=True):
-                            st.session_state['wallet_view'] = 'detail'
-                            st.session_state['selected_wallet_id'] = wallet['id']
-                            st.rerun()
-                    
-                    st.markdown('</div>', unsafe_allow_html=True)
-
 # Main wallet display function
 def show_wallets(blockchain_symbol='AVAX'):
-    # Initialize session state for wallet navigation
-    if 'wallet_view' not in st.session_state:
-        st.session_state['wallet_view'] = 'grid'
-    if 'selected_wallet_id' not in st.session_state:
-        st.session_state['selected_wallet_id'] = None
+    # Toggle add-wallet form
     if 'add_wallet_form_open' not in st.session_state:
         st.session_state['add_wallet_form_open'] = False
-    
-    # Page title based on current view
-    if st.session_state['wallet_view'] == 'grid':
-        st.markdown('# Wallets')
-    else:
-        st.markdown('# Wallet Details')
-    
-    # Get wallets data
+
+    # Fetch wallets from DB
     try:
-        # Attempt to fetch wallets from database
-        db_wallets = wallet_model.get_all()
-        
-        # Process the data safely without index assumptions
+        raw = wallet_model.get_all()
         wallets = []
-        
-        if db_wallets:
-            for wallet_data in db_wallets:
-                # Create dictionary with safe default values
-                wallet = {
-                    'id': str(wallet_data[0]) if len(wallet_data) > 0 else "unknown",
-                    'blockchain_symbol': str(wallet_data[1]) if len(wallet_data) > 1 else "unknown",
-                    'address': str(wallet_data[2]) if len(wallet_data) > 2 else "unknown",
-                    'name': str(wallet_data[3] or f"Wallet") if len(wallet_data) > 3 else "Unnamed Wallet",
-                    'balance': float(wallet_data[4] or 0) if len(wallet_data) > 4 else 0,
-                    'created_at': wallet_data[5] if len(wallet_data) > 5 else None,
-                    'updated_at': wallet_data[6] if len(wallet_data) > 6 else None,
-                    'status': "active"  # Default status
-                }
-                
-                # Try to get blockchain name if available
-                try:
-                    wallet['blockchain_name'] = str(wallet_data[8]) if len(wallet_data) > 8 else wallet['blockchain_symbol']
-                except:
-                    # Fallback to using the symbol as the name
-                    wallet['blockchain_name'] = wallet['blockchain_symbol']
-                
-                # Set status based on updated_at if available
-                if wallet['updated_at']:
-                    try:
-                        days_inactive = (datetime.datetime.now() - wallet['updated_at']).days
-                        wallet['status'] = "active" if days_inactive < 30 else "inactive"
-                    except:
-                        pass  # Keep default status if calculation fails
-                
-                wallets.append(wallet)
+        for r in raw:
+            # Build wallet dict with additional fields for detail view
+            wallets.append({
+                'id': str(r[0]),
+                'blockchain_symbol': r[1],
+                'address': r[2],
+                'name': str(r[3] or 'Unnamed'),
+                'balance': float(r[4] or 0),
+                'created_at': r[5],
+                'updated_at': r[6],
+                'blockchain_name': r[7],
+                'status': 'active' if r[6] and (datetime.datetime.now() - r[6]).days < 30 else 'inactive'
+            })
     except Exception as e:
-        # If there's any error fetching or processing wallet data, use dummy data
-        st.warning(f"Using sample data. Database error: {str(e)}")
-        wallets = []
-    
-    # If fewer than 10 wallets, add dummy wallets to fill the grid
-    if len(wallets) < 10:
-        # Calculate how many dummy wallets we need
-        needed_dummy_count = 10 - len(wallets)
-        # Generate dummy wallets with high IDs to avoid conflicts with real ones
-        dummy_wallets = generate_dummy_wallets(count=needed_dummy_count)
-        
-        # Use high starting ID to avoid conflicts
-        starting_id = 10000
-        for i, dummy_wallet in enumerate(dummy_wallets):
-            dummy_wallet['id'] = starting_id + i
-            wallets.append(dummy_wallet)
-    
-    # Show appropriate view based on session state
-    if st.session_state['wallet_view'] == 'grid':
-        # Header section
-        col1, col2 = st.columns([3, 1])
-        
-        with col1:
-            st.subheader("Wallet Dashboard")
-            st.write("Manage and monitor all your blockchain wallets in one place.")
-        
-        with col2:
-            if st.button("➕ Add New Wallet", use_container_width=True, key="add_new_wallet_header"):
-                st.session_state['add_wallet_form_open'] = True
-                st.rerun()
-        
-        # Show Add Wallet Form if the button was clicked
-        if st.session_state.get('add_wallet_form_open', False):
-            show_add_wallet_form()
-        
-        # Show wallet grid
-        show_wallet_grid(wallets)
-    
-    elif st.session_state['wallet_view'] == 'detail':
-        # Show wallet detail view for the selected wallet
+        st.error(f"Error loading wallets: {e}")
+        return
+
+    # Initialize detail view state
+    if 'selected_wallet_id' not in st.session_state:
+        st.session_state['selected_wallet_id'] = None
+
+    # If a wallet is selected, show its detail page exclusively
+    if st.session_state['selected_wallet_id']:
         show_wallet_detail(st.session_state['selected_wallet_id'], wallets)
+        if st.button('← Back to Wallets', key='back_to_wallets_main'):
+            st.session_state['selected_wallet_id'] = None
+            st.rerun()
+        return
+
+    st.subheader('Wallets')
+    col1, col2 = st.columns([3,1])
+    with col1:
+        chains = sorted({w['blockchain_symbol'] for w in wallets})
+        chain_filter = st.selectbox('Filter by chain', ['All'] + chains)
+    with col2:
+        if st.button('➕ Add New Wallet', key='add_wallet_main'):
+            st.session_state['add_wallet_form_open'] = True
+            st.rerun()
+
+    if st.session_state['add_wallet_form_open']:
+        show_add_wallet_form()
+        return
+
+    # Apply chain filter
+    if chain_filter != 'All':
+        wallets = [w for w in wallets if w['blockchain_symbol'] == chain_filter]
+
+    # Summary metrics grid
+    total_balance = sum(w['balance'] for w in wallets)
+    total_wallets = len(wallets)
+    distinct_chains = len({w['blockchain_symbol'] for w in wallets})
+    avg_balance = total_balance / total_wallets if total_wallets else 0
+    mcol1, mcol2, mcol3, mcol4 = st.columns(4)
+    mcol1.metric("Total Balance", f"{total_balance:.4f}")
+    mcol2.metric("Wallets", total_wallets)
+    mcol3.metric("Chains Connected", distinct_chains)
+    mcol4.metric("Avg Balance", f"{avg_balance:.4f}")
+
+    # Inject CSS for table styling
+    st.markdown("""
+    <style>
+    .wallet-header div { background: #f1f3f5; padding: 8px; font-weight: 600; border-radius: 4px; }
+    .wallet-row div { padding: 6px 8px; }
+    </style>
+    """, unsafe_allow_html=True)
+
+    headers = ['Name','Chain','Address','Balance','Action']
+    col_widths = [2,1,2,1,1]
+    # Render header
+    hdr_cols = st.columns(col_widths)
+    for i, h in enumerate(headers):
+        hdr_cols[i].markdown(f"<div class='wallet-header'>{h}</div>", unsafe_allow_html=True)
+
+    # Render rows
+    for w in wallets:
+        row_cols = st.columns(col_widths)
+        row_cols[0].markdown(f"<div class='wallet-row'>{w['name']}</div>", unsafe_allow_html=True)
+        row_cols[1].markdown(f"<div class='wallet-row'>{w['blockchain_symbol']}</div>", unsafe_allow_html=True)
+        row_cols[2].markdown(f"<div class='wallet-row' style='font-family: monospace'>{truncate_address(w['address'])}</div>", unsafe_allow_html=True)
+        row_cols[3].markdown(f"<div class='wallet-row' style='color: #2a9d8f'>{w['balance']:.4f}</div>", unsafe_allow_html=True)
+        if row_cols[4].button('View Details', key=f"view_{w['id']}", use_container_width=True):
+            st.session_state['selected_wallet_id'] = w['id']
+            st.rerun()

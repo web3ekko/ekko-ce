@@ -5,10 +5,8 @@ services:
     build:
       context: ./streamlit/ekko-dash
       dockerfile: Dockerfile
-    environment:
-      - VALKEY_URL=valkey://valkey:6379
-      - PULSAR_URL=pulsar://pulsar:6650
-      - PULSAR_TOPIC=transactions
+    env_file:
+      - .env
     volumes:
       - ./streamlit/ekko-dash:/app
       - duckdb_data:/data

@@ -4,34 +4,74 @@ import random
 from utils.db import db, alert_model, cache
 from utils.styles import apply_cell_style, inject_custom_css, get_status_color
 import os
-import openai
+from openai import OpenAI
+import requests
 
-# Configure LLM provider (local LMStudio or remote OpenAI)
+# Configure LLM provider (local LMStudio or remote OpenAI) via env vars
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai").lower()
 if LLM_PROVIDER == "local":
-    openai.api_base = os.getenv("LMSTUDIO_API_BASE", "http://localhost:8000/v1")
-    openai.api_key = os.getenv("LMSTUDIO_API_KEY", "")
+    os.environ["OPENAI_API_BASE"] = os.getenv("LMSTUDIO_API_BASE", "http://host.docker.internal:1234/v1")
+    os.environ["OPENAI_API_KEY"] = os.getenv("LMSTUDIO_API_KEY", "")
 else:
-    openai.api_base = os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
-    openai.api_key = os.getenv("OPENAI_API_KEY", "")
+    os.environ["OPENAI_API_BASE"] = os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
+    os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY", "")
+
+client = OpenAI()
 
 # Helper to convert NL query to Polars condition via OpenAI
 def llm_to_polars(nl_query: str) -> str:
     prompt = """
-You are an assistant that converts natural language queries about blockchain transactions into a Polars expression against a DataFrame named df. Return only the expression without explanation.
-Example: "Find all ETH transfers above 1 ETH" -> "df.filter(pl.col('value').cast(pl.UInt64)/1e18 > 1).shape[0] > 0"
+Generate a Polars expression on DataFrame df for **wallet transfers only**.
+Assume df has:
+- 'type' (transaction type),
+- 'value' (in wei).
+Start with df.filter(pl.col('type') == 'transfer') and add conditions from the user query.
+Return only the final expression, no explanation.
+Example:
+df.filter((pl.col('type') == 'transfer') & (pl.col('value').cast(pl.UInt64)/1e9 > 1)).shape[0] > 0
 """
     # Select model based on provider
     model_name = os.getenv("LMSTUDIO_MODEL", "gpt4all") if LLM_PROVIDER == "local" else os.getenv("OPENAI_MODEL", "gpt-4")
-    response = openai.ChatCompletion.create(
+    
+    # Local LMStudio via direct HTTP
+    if LLM_PROVIDER == "local":
+        base = os.getenv("LMSTUDIO_API_BASE", os.getenv("OPENAI_API_BASE", "http://host.docker.internal:1234/v1"))
+        url = base.rstrip("/") + "/chat/completions"
+        payload = {
+            "model": model_name,
+            "messages": [
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": nl_query},
+            ],
+            "temperature": 0,
+            "max_tokens": 64,
+        }
+        resp = requests.post(url, json=payload)
+        resp.raise_for_status()
+        raw = resp.json()["choices"][0]["message"]["content"].strip()
+        # Extract only the expression starting with df.filter
+        start = raw.find("df.filter")
+        if start != -1:
+            expr = raw[start:].splitlines()[0].strip()
+            return expr
+        return raw
+    # Remote OpenAI
+    response = client.chat.completions.create(
         model=model_name,
         messages=[
             {"role": "system", "content": prompt},
             {"role": "user", "content": nl_query},
         ],
         temperature=0,
+        max_tokens=64,
     )
-    return response.choices[0].message.content.strip()
+    raw = response.choices[0].message.content.strip()
+    # Extract only the expression starting with df.filter
+    start = raw.find("df.filter")
+    if start != -1:
+        expr = raw[start:].splitlines()[0].strip()
+        return expr
+    return raw
 
 # Inject custom CSS
 inject_custom_css()
@@ -127,8 +167,9 @@ def show_create_alert_form():
         if nl:
             try:
                 st.session_state['alert_condition'] = llm_to_polars(nl)
-            except Exception:
+            except Exception as e:
                 st.session_state['alert_condition'] = ""
+                st.error(f"Error generating condition: {e}")
         else:
             st.session_state['alert_condition'] = ""
     
@@ -159,8 +200,19 @@ def show_create_alert_form():
                 placeholder="E.g., Alert me when ETH price drops below $2,000",
                 height=100
             )
-            # Update condition on rerun since forms don't allow callbacks
-            update_alert_condition()
+            # Wallet selection
+            wallets_raw = db.get_connection().execute(
+                "SELECT id, address, blockchain_symbol FROM wallet"
+            ).fetchall()
+            wallets = [dict(r) for r in wallets_raw]
+            if not wallets:
+                st.error("No wallets found. Please add a wallet first.")
+                return
+            wallet_options = [f"{w['blockchain_symbol']}:{w['address']}" for w in wallets]
+            wallet_choice = st.selectbox("Wallet", wallet_options)
+            selected_wallet = wallets[wallet_options.index(wallet_choice)]
+            wallet_id = selected_wallet["id"]
+            blockchain_symbol = selected_wallet["blockchain_symbol"]
         with form_col2:
             priority = st.selectbox("Priority", ["High","Medium","Low"])
             st.text_area(
@@ -185,11 +237,18 @@ def show_create_alert_form():
             submit = st.form_submit_button("Create Alert", use_container_width=True)
         
         if submit:
-            if not st.session_state.get('nl_query_input','').strip():
+            nlq = st.session_state.get('nl_query_input','').strip()
+            if not nlq:
                 st.error("Please enter a natural language query for your alert.")
             else:
-                # Use precomputed condition
-                condition = st.session_state.get('alert_condition','')
+                # Generate condition via LLM
+                with st.spinner("Generating condition..."):
+                    try:
+                        condition = llm_to_polars(nlq)
+                        st.session_state['alert_condition'] = condition
+                    except Exception as e:
+                        st.error(f"Error generating condition: {e}")
+                        return
                 if not condition:
                     st.error("Failed to generate condition.")
                     return
@@ -197,6 +256,8 @@ def show_create_alert_form():
                 status_map = {"High":"error","Medium":"warning","Low":"info"}
                 icon_map = {"Price Alert":"📊","Workflow Alert":"🔄","Smart Contract Alert":"📝","Security Alert":"🔐","Wallet Alert":"👛"}
                 alert_data = {
+                    'wallet_id': wallet_id,
+                    'blockchain_symbol': blockchain_symbol,
                     'type': alert_type,
                     'message': st.session_state['nl_query_input'],
                     'condition': condition,
