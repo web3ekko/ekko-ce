@@ -1,5 +1,0 @@
-streamlit
-pytest
-duckdb
-streamlit-option-menu
-streamlit-extras

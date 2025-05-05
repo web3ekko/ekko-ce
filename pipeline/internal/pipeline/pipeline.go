@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -90,6 +91,13 @@ func (p *Pipeline) processBlock(ctx context.Context, block *blockchain.Block) er
 
 // Start starts all subnet pipelines
 func (p *Pipeline) Start(ctx context.Context) error {
+	// Skip pipeline if websocket events are disabled
+	if strings.ToLower(os.Getenv("ENABLE_WEBSOCKET_EVENTS")) == "false" {
+		log.Println("Websocket events disabled; skipping pipeline execution.")
+		<-ctx.Done()
+		return ctx.Err()
+	}
+
 	// Start each subnet pipeline
 	for _, subnet := range p.subnets {
 		// Determine WS and HTTP URLs, allow override via config.WebSocketURL/HTTPURL

@@ -6,8 +6,14 @@ from utils.styles import apply_cell_style, inject_custom_css, get_status_color
 import os
 import openai
 
-# Configure OpenAI API key
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# Configure LLM provider (local LMStudio or remote OpenAI)
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai").lower()
+if LLM_PROVIDER == "local":
+    openai.api_base = os.getenv("LMSTUDIO_API_BASE", "http://localhost:8000/v1")
+    openai.api_key = os.getenv("LMSTUDIO_API_KEY", "")
+else:
+    openai.api_base = os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
+    openai.api_key = os.getenv("OPENAI_API_KEY", "")
 
 # Helper to convert NL query to Polars condition via OpenAI
 def llm_to_polars(nl_query: str) -> str:
@@ -15,8 +21,10 @@ def llm_to_polars(nl_query: str) -> str:
 You are an assistant that converts natural language queries about blockchain transactions into a Polars expression against a DataFrame named df. Return only the expression without explanation.
 Example: "Find all ETH transfers above 1 ETH" -> "df.filter(pl.col('value').cast(pl.UInt64)/1e18 > 1).shape[0] > 0"
 """
+    # Select model based on provider
+    model_name = os.getenv("LMSTUDIO_MODEL", "gpt4all") if LLM_PROVIDER == "local" else os.getenv("OPENAI_MODEL", "gpt-4")
     response = openai.ChatCompletion.create(
-        model="gpt-4",
+        model=model_name,
         messages=[
             {"role": "system", "content": prompt},
             {"role": "user", "content": nl_query},
@@ -110,6 +118,20 @@ def get_time_ago(timestamp_str):
 
 # Function to show alert form
 def show_create_alert_form():
+    # Initialize dynamic condition state
+    if 'alert_condition' not in st.session_state:
+        st.session_state['alert_condition'] = ""
+    # Callback to update condition from NL query
+    def update_alert_condition():
+        nl = st.session_state.get('nl_query_input', '').strip()
+        if nl:
+            try:
+                st.session_state['alert_condition'] = llm_to_polars(nl)
+            except Exception:
+                st.session_state['alert_condition'] = ""
+        else:
+            st.session_state['alert_condition'] = ""
+    
     # Add warm background styling to form
     st.markdown("""
     <style>
@@ -124,57 +146,65 @@ def show_create_alert_form():
     
     with st.form("create_alert_form"):
         st.subheader("Create New Alert")
+        st.caption("Define your alert conditions and notification preferences.")
         
-        col1, col2 = st.columns(2)
-        with col1:
+        form_col1, form_col2 = st.columns([1,1])
+        with form_col1:
             alert_type = st.selectbox(
-                "Alert Type", ["Price Alert", "Workflow Alert", "Smart Contract Alert", "Security Alert", "Wallet Alert"]
+                "Alert Type", ["Price Alert","Workflow Alert","Smart Contract Alert","Security Alert","Wallet Alert"]
             )
             nl_query = st.text_area(
-                "Natural Language Query", placeholder="E.g., Alert me when ETH price drops below $2,000", height=100
+                "Natural Language Query", 
+                key="nl_query_input",
+                placeholder="E.g., Alert me when ETH price drops below $2,000",
+                height=100
             )
-        with col2:
-            priority = st.selectbox("Priority", ["High", "Medium", "Low"])
-            notification_topic = st.text_input(
-                "Notification Topic", placeholder="Enter ntfy topic for notifications"
+            # Update condition on rerun since forms don't allow callbacks
+            update_alert_condition()
+        with form_col2:
+            priority = st.selectbox("Priority", ["High","Medium","Low"])
+            st.text_area(
+                "Condition", 
+                value=st.session_state.get('alert_condition',''),
+                height=100,
+                disabled=True
             )
         
+        # Review section
+        st.caption("Review inputs before submitting.")
+        st.divider()
+        
         # Form submission buttons
-        col1, col2 = st.columns(2)
-        with col1:
+        col_cancel, col_submit = st.columns(2)
+        with col_cancel:
             if st.form_submit_button("Cancel", use_container_width=True):
                 st.session_state['create_alert_form_open'] = False
                 st.rerun()
         
-        with col2:
+        with col_submit:
             submit = st.form_submit_button("Create Alert", use_container_width=True)
         
         if submit:
-            if not nl_query:
+            if not st.session_state.get('nl_query_input','').strip():
                 st.error("Please enter a natural language query for your alert.")
             else:
-                with st.spinner("Generating Polars query..."):
-                    try:
-                        condition = llm_to_polars(nl_query)
-                    except Exception as e:
-                        st.error(f"Failed to generate query: {e}")
-                        return
+                # Use precomputed condition
+                condition = st.session_state.get('alert_condition','')
+                if not condition:
+                    st.error("Failed to generate condition.")
+                    return
         
-                status_map = {"High": "error", "Medium": "warning", "Low": "info"}
-                icon_map = {
-                    "Price Alert": "📊", "Workflow Alert": "🔄",
-                    "Smart Contract Alert": "📝", "Security Alert": "🔐",
-                    "Wallet Alert": "👛"
-                }
+                status_map = {"High":"error","Medium":"warning","Low":"info"}
+                icon_map = {"Price Alert":"📊","Workflow Alert":"🔄","Smart Contract Alert":"📝","Security Alert":"🔐","Wallet Alert":"👛"}
                 alert_data = {
                     'type': alert_type,
-                    'message': nl_query,
+                    'message': st.session_state['nl_query_input'],
                     'condition': condition,
                     'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                    'status': status_map.get(priority, "warning"),
-                    'icon': icon_map.get(alert_type, "ℹ️"),
+                    'status': status_map.get(priority,"warning"),
+                    'icon': icon_map.get(alert_type,"ℹ️"),
                     'priority': priority,
-                    'notification_topic': notification_topic or None
+                    'notification_topic': None
                 }
         
                 try:
@@ -405,101 +435,155 @@ def show_alerts():
     if 'create_alert_form_open' not in st.session_state:
         st.session_state['create_alert_form_open'] = False
     
-    # Page title based on current view
+    # Fetch alerts from db
+    with st.spinner("Loading alerts..."):
+        try:
+            raw = alert_model.get_all()
+            alerts = []
+            for r in raw:
+                alerts.append({
+                    'id': r[0], 'type': r[1], 'message': r[2], 'time': r[3],
+                    'status': r[4], 'icon': r[5] or 'ℹ️', 'priority': r[6],
+                    'created_at': r[7], 'last_triggered': r[8]
+                })
+        except Exception as e:
+            st.warning(f"Using sample alerts: {str(e)}")
+            alerts = generate_dummy_alerts(count=10)
+    
+    # Page header and Add New Alert button
+    header_col1, header_col2 = st.columns([3,1])
+    with header_col1:
+        st.subheader("Alerts Dashboard")
+        st.write("Manage and monitor all your alerts in one place.")
+    with header_col2:
+        if st.button("➕ Add New Alert", use_container_width=True, key="header_add_alert"):
+            st.session_state['create_alert_form_open'] = True
+            st.session_state['alert_view'] = 'grid'
+            st.rerun()
+    
+    # Show create-alert form if open
+    if st.session_state.get('create_alert_form_open'):
+        show_create_alert_form()
+    
+    # Search Alerts
+    search_text = st.text_input("Search Alerts", placeholder="Type to search...", key="alert_search")
+    
+    # Metrics Summary
+    st.markdown(f'<h1 class="page-header">Alerts</h1>', unsafe_allow_html=True)
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Total Alerts", len(alerts))
+    cutoff = datetime.now() - timedelta(hours=1)
+    recent = sum(1 for a in alerts if a.get('last_triggered') and a['last_triggered'] >= cutoff)
+    col2.metric("Triggered Last 1h", recent)
+    col3.metric("Avg Resolution", "N/A")
+    
     if st.session_state['alert_view'] == 'grid':
-        st.markdown('<h1 class="page-header">Alerts</h1>', unsafe_allow_html=True)
+        # Apply search filter
+        alerts_filtered = alerts
+        if search_text:
+            alerts_filtered = [a for a in alerts_filtered if search_text.lower() in a['message'].lower()]
+        show_alert_grid(alerts_filtered)
     else:
-        st.markdown('<h1 class="page-header">Alert Details</h1>', unsafe_allow_html=True)
-    
-    # Try to fetch alerts from database
-    try:
-        fetched_alerts = alert_model.get_all()
-        
-        # Process fetched alerts safely
-        alerts = []
-        if fetched_alerts:
-            for alert_data in fetched_alerts:
-                # Create dictionary with safe defaults
-                alert = {
-                    'id': str(alert_data[0]) if len(alert_data) > 0 else "unknown",
-                    'type': str(alert_data[1]) if len(alert_data) > 1 else "Alert",
-                    'message': str(alert_data[2]) if len(alert_data) > 2 else "",
-                    'time': str(alert_data[3]) if len(alert_data) > 3 else "",
-                    'status': str(alert_data[4]) if len(alert_data) > 4 else "info",
-                    'icon': str(alert_data[5]) if len(alert_data) > 5 and alert_data[5] else "ℹ️",
-                    'priority': str(alert_data[6]) if len(alert_data) > 6 else "Medium",
-                    'created_at': alert_data[7] if len(alert_data) > 7 else None,
-                    'updated_at': alert_data[8] if len(alert_data) > 8 else None
-                }
-                alerts.append(alert)
-    except Exception as e:
-        # If there's any error fetching or processing alert data
-        st.warning(f"Using sample data. Database error: {str(e)}")
-        alerts = []
-    
-    # If no alerts found, add dummy alerts
+        # Detail view with tabs
+        tabs = st.tabs(["Overview", "History", "Related Data"])
+        with tabs[0]:
+            show_alert_detail(st.session_state['selected_alert_id'], alerts)
+        with tabs[1]:
+            st.info("Alert history will appear here.")
+        with tabs[2]:
+            st.info("Related chain data will appear here.")
+
+def show_alert_grid(alerts):
     if not alerts:
-        # Generate dummy alerts with high IDs to avoid conflicts with real ones
-        dummy_alerts = generate_dummy_alerts(count=12)  # A nice multiple of 4 for the grid
-        
-        # Use high starting ID to avoid conflicts
-        starting_id = 10000
-        for i, dummy_alert in enumerate(dummy_alerts):
-            dummy_alert['id'] = starting_id + i
-            alerts.append(dummy_alert)
+        st.info("No alerts found. Create your first alert!")
+        return
+    for alert in alerts:
+        # Render alert card with action toggle
+        col_content, col_action = st.columns([6, 1], gap="small")
+        with col_content:
+            st.markdown(f"""
+            <div style="{apply_cell_style(alert['status'])}">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <strong>{alert['icon']} {alert['message']}</strong><br/>
+                        <small>{alert['time']} ({get_time_ago(alert.get('created_at') or alert['time'])})</small>
+                    </div>
+                    <div>
+                        <span class="status-badge" style="background-color:{get_status_color(alert['status'])}; color:#fff;">
+                            {alert['status'].title()}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        with col_action:
+            # Toggle active/inactive status
+            label = "Deactivate" if alert['status'] == "active" else "Activate"
+            new_status = "inactive" if alert['status'] == "active" else "active"
+            if st.button(label, key=f"alert_toggle_{alert['id']}"):
+                alert_model.update_status(alert['id'], new_status)
+                st.experimental_rerun()
+
+def show_alert_detail(alert_id, alerts):
+    # Find the selected alert
+    alert = next((a for a in alerts if a['id'] == alert_id), None)
     
-    # Show appropriate view based on session state
-    if st.session_state['alert_view'] == 'grid':
-        # Filters section
-        st.markdown('<div style="background-color: #f9fafb; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">', unsafe_allow_html=True)
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            filter_type = st.selectbox("Filter by Type", ["All Types", "Price Alert", "Workflow Alert", "Smart Contract Alert", "Security Alert", "Wallet Alert"])
-        
-        with col2:
-            filter_priority = st.selectbox("Filter by Priority", ["All Priorities", "High", "Medium", "Low"])
-        
-        with col3:
-            sort_order = st.selectbox("Sort by", ["Newest First", "Oldest First", "Priority (High to Low)"])
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # Add New Alert Button
-        col1, col2 = st.columns([3, 1])
-        
-        with col1:
-            st.subheader("Alert Dashboard")
-            st.write("Monitor and manage your blockchain alerts.")
-        
-        with col2:
-            st.write("")  # Add some space
-            if st.button("➕ Add New Alert", use_container_width=True, key="add_new_alert_header"):
-                st.session_state['create_alert_form_open'] = True
-                st.rerun()
-        
-        # Show Create Alert Form if the button was clicked
-        if st.session_state.get('create_alert_form_open', False):
-            show_create_alert_form()
-        
-        # Apply filters (if not "All")
-        if filter_type != "All Types":
-            alerts = [a for a in alerts if a['type'] == filter_type]
-        
-        if filter_priority != "All Priorities":
-            alerts = [a for a in alerts if a['priority'] == filter_priority]
-        
-        # Apply sorting
-        if sort_order == "Newest First":
-            alerts.sort(key=lambda x: x.get('created_at') or x.get('time', ''), reverse=True)
-        elif sort_order == "Oldest First":
-            alerts.sort(key=lambda x: x.get('created_at') or x.get('time', ''))
-        elif sort_order == "Priority (High to Low)":
-            priority_order = {"High": 0, "Medium": 1, "Low": 2}
-            alerts.sort(key=lambda x: priority_order.get(x.get('priority', 'Medium'), 1))
-        
-        # Show alert grid
-        show_alert_grid(alerts)
+    if not alert:
+        st.error("Alert not found")
+        return
     
-    elif st.session_state['alert_view'] == 'detail':
-        # Show alert detail view for the selected alert
-        show_alert_detail(st.session_state['selected_alert_id'], alerts)
+    # Apply warm styling to detail view
+    st.markdown("""
+    <style>
+        div.element-container div.stVerticalBlock {
+            background-color: #FFF8E1;
+            border-radius: 10px;
+            padding: 15px;
+            border: 1px solid #FFE082;
+            margin-bottom: 15px;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # Back button
+    if st.button("← Back to Alerts", use_container_width=False):
+        st.session_state['alert_view'] = 'grid'
+        st.rerun()
+    
+    # Alert header
+    st.subheader(f"{alert.get('icon', '')} {alert['type']}")
+    
+    # Priority indicator
+    priority = alert.get('priority', 'Medium')
+    if priority == "High":
+        st.error(f"Priority: {priority}")
+    elif priority == "Medium":
+        st.warning(f"Priority: {priority}")
+    else:
+        st.info(f"Priority: {priority}")
+    
+    # Alert message
+    st.markdown("### Message")
+    st.write(alert['message'])
+    
+    # Time information
+    st.markdown("### Time")
+    time_str = alert.get('time', '')
+    time_ago = get_time_ago(alert.get('created_at') or time_str)
+    st.write(f"{time_str} ({time_ago})")
+    
+    # Action buttons
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.button("Mark as Resolved", use_container_width=True)
+    
+    with col2:
+        st.button("Snooze Alert", use_container_width=True)
+    
+    with col3:
+        st.button("Delete", use_container_width=True, type="primary")
+    
+    # Additional information (placeholder)
+    st.markdown("### Related Information")
+    st.info("This is a placeholder for additional information related to this alert.")

@@ -87,6 +87,9 @@ class Database:
             st.write("Creating settings table...")
             self.create_settings_table()
             
+            st.write("Creating notification services table...")
+            self.create_notification_service_table()
+            
             st.write("All tables created successfully!")
         except Exception as e:
             st.error(f"Failed to create tables: {str(e)}")
@@ -239,6 +242,22 @@ class Database:
             st.error(f"Failed to create settings table: {str(e)}")
             raise
 
+    def create_notification_service_table(self) -> None:
+        """Create notification_service table to store user endpoints"""
+        try:
+            query = """
+            CREATE TABLE IF NOT EXISTS notification_service (
+                id UUID PRIMARY KEY,
+                type VARCHAR NOT NULL,
+                url VARCHAR NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+            self.get_connection().execute(query)
+        except Exception as e:
+            st.error(f"Failed to create notification_service table: {str(e)}")
+            raise
+
     def install_extensions(self) -> None:
         """Install and load required DuckDB extensions"""
         conn = self.get_connection()
@@ -290,10 +309,10 @@ class Blockchain:
         ])
 
     def get_all(self) -> List[Dict[str, Any]]:
-        result = self.db.get_connection().execute(
+        # Return raw rows for blockchain list
+        return self.db.get_connection().execute(
             "SELECT * FROM blockchain ORDER BY name"
         ).fetchall()
-        return [dict(row) for row in result]
     
     def get_by_symbol(self, symbol: str) -> Optional[Dict[str, Any]]:
         result = self.db.get_connection().execute(
@@ -319,13 +338,13 @@ class Wallet:
         ])
 
     def get_all(self) -> List[Dict[str, Any]]:
-        result = self.db.get_connection().execute("""
+        # Return raw rows for wallet list
+        return self.db.get_connection().execute("""
             SELECT w.*, b.name as blockchain_name 
             FROM wallet w 
             JOIN blockchain b ON w.blockchain_symbol = b.symbol
             ORDER BY w.created_at DESC
         """).fetchall()
-        return [dict(row) for row in result]
     
     def get_by_blockchain(self, blockchain_symbol: str) -> List[Dict[str, Any]]:
         result = self.db.get_connection().execute("""
@@ -441,19 +460,19 @@ class Workflow:
         ])
 
     def get_all(self) -> List[Dict[str, Any]]:
-        result = self.db.get_connection().execute("""
+        # Return raw rows for workflow list
+        return self.db.get_connection().execute("""
             SELECT * FROM workflow
             ORDER BY created_at DESC
         """).fetchall()
-        return [dict(row) for row in result]
     
     def get_active(self) -> List[Dict[str, Any]]:
-        result = self.db.get_connection().execute("""
+        # Return raw rows for active workflows
+        return self.db.get_connection().execute("""
             SELECT * FROM workflow
             WHERE status = 'active'
             ORDER BY created_at DESC
         """).fetchall()
-        return [dict(row) for row in result]
     
     def update_status(self, workflow_id: str, status: str) -> None:
         self.db.get_connection().execute("""
@@ -481,19 +500,16 @@ class Agent:
         ])
 
     def get_all(self) -> List[Dict[str, Any]]:
-        result = self.db.get_connection().execute("""
-            SELECT * FROM agent
-            ORDER BY created_at DESC
-        """).fetchall()
-        return [dict(row) for row in result]
+        # Return raw rows for active agents
+        return self.db.get_connection().execute(
+            "SELECT * FROM agent WHERE status = 'active' ORDER BY created_at DESC"
+        ).fetchall()
     
     def get_active(self) -> List[Dict[str, Any]]:
-        result = self.db.get_connection().execute("""
-            SELECT * FROM agent
-            WHERE status = 'active'
-            ORDER BY created_at DESC
-        """).fetchall()
-        return [dict(row) for row in result]
+        # Return raw rows for active agents
+        return self.db.get_connection().execute(
+            "SELECT * FROM agent WHERE status = 'active' ORDER BY created_at DESC"
+        ).fetchall()
     
     def update_status(self, agent_id: str, status: str) -> None:
         self.db.get_connection().execute("""
@@ -501,6 +517,28 @@ class Agent:
             SET status = ?, last_active = CURRENT_TIMESTAMP
             WHERE id = ?
         """, [status, agent_id])
+
+class NotificationService:
+    """Model for storing notification endpoints"""
+    def __init__(self, db: Database):
+        self.conn = db.get_connection()
+
+    def get_all(self) -> List[Dict[str, Any]]:
+        rows = self.conn.execute("SELECT id, type, url FROM notification_service").fetchall()
+        # Map each row tuple (id, type, url) to a dict
+        return [
+            {"id": r[0], "type": r[1], "url": r[2]}
+            for r in rows
+        ]
+
+    def add(self, type: str, url: str) -> None:
+        self.conn.execute(
+            "INSERT INTO notification_service(id, type, url) VALUES (?, ?, ?)",
+            [uuid.uuid4(), type, url],
+        )
+
+    def delete_all(self) -> None:
+        self.conn.execute("DELETE FROM notification_service")
 
 @st.cache_resource
 def get_redis_connection(host="localhost", port=6379, db=0):

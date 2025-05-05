@@ -1,6 +1,9 @@
 import streamlit as st
 from src.config.settings import Settings
 from utils.styles import apply_cell_style, inject_custom_css, get_status_color
+import yaml
+from utils.db import db
+from utils.models import NotificationService
 
 def show_settings():
     # Inject custom CSS
@@ -140,6 +143,28 @@ def show_settings():
     </div>
     """, unsafe_allow_html=True)
     
+    # Notification Services
+    st.markdown('<h2 class="section-header">Notification Services</h2>', unsafe_allow_html=True)
+    ns_model = NotificationService(db)
+    services = ns_model.get_all()
+    defaults_apprise = [s['url'] for s in services if s['type']=='apprise']
+    defaults_ntfy = [s['url'] for s in services if s['type']=='ntfy']
+    # Notification Service URLs
+    telegram_icon = 'https://upload.wikimedia.org/wikipedia/commons/8/82/Telegram_logo.svg'
+    email_icon = 'https://upload.wikimedia.org/wikipedia/commons/4/4e/Mail_%28iOS%29.svg'
+    discord_icon = 'https://framerusercontent.com/images/bNFbhQDDwQmCY7yqwJ3QM4BUTU.svg'
+    slack_icon = 'https://upload.wikimedia.org/wikipedia/commons/d/d5/Slack_icon_2019.svg'
+    logo_html = (
+        f'<img src="{telegram_icon}" width="20" style="margin-right:4px;"/>'
+        f'<img src="{email_icon}" width="20" style="margin-right:4px;"/>'
+        f'<img src="{discord_icon}" width="20" style="margin-right:4px;"/>'
+        f'<img src="{slack_icon}" width="20" style="margin-right:4px;"/>'
+    )
+    st.markdown(f'{logo_html} **Notification Service URLs (one per line)**', unsafe_allow_html=True)
+    apprise_urls = st.text_area('', '\n'.join(defaults_apprise), label_visibility='collapsed')
+    # ntfy Service URLs
+    ntfy_urls = st.text_area('ntfy Service URLs (one per line)', '\n'.join(defaults_ntfy))
+    
     # Save Settings
     if st.button("Save Settings"):
         # Save the updated settings
@@ -154,4 +179,12 @@ def show_settings():
         with open(settings.config_file, 'w') as f:
             yaml.dump(settings._settings, f, default_flow_style=False)
             
-        st.success("Settings saved successfully!")
+        # Persist notification services to DB
+        ns_model.delete_all()
+        # Save apprise services
+        for url in apprise_urls.splitlines():
+            if url.strip(): ns_model.add('apprise', url.strip())
+        # Save ntfy services
+        for url in ntfy_urls.splitlines():
+            if url.strip(): ns_model.add('ntfy', url.strip())
+        st.success("Settings and notification services saved successfully!")

@@ -97,6 +97,22 @@ services:
       - pulsar
       - pipeline
 
+  ekko-processor:
+    build:
+      context: ./streamlit/ekko-dash
+      dockerfile: Dockerfile
+    command: python alert_processor_service.py
+    env_file: .env
+    volumes:
+      - ./streamlit/ekko-dash:/app
+    restart: unless-stopped
+    networks:
+      - pipeline-network
+    depends_on:
+      - valkey
+      - pulsar
+      - streamlit
+
   # pulsar-manager:
   #   image: apachepulsar/pulsar-manager:v0.2.0
   #   ports:

@@ -38,7 +38,6 @@ def inject_custom_css():
             border-radius: 0.5rem;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
-        
         /* Status badge styles */
         .status-badge {
             padding: 0.25rem 0.5rem;
@@ -46,19 +45,35 @@ def inject_custom_css():
             font-size: 0.8rem;
             font-weight: 500;
         }
-        
         /* Page header styles */
         .page-header {
             margin-bottom: 2rem;
             color: #1E1E1E;
             font-weight: 600;
         }
-        
         /* Section header styles */
         .section-header {
             margin: 1.5rem 0 1rem;
             color: #4A4A4A;
             font-weight: 500;
+        }
+        /* Dark mode support */
+        @media (prefers-color-scheme: dark) {
+            body {
+                background-color: #121212 !important;
+                color: #e0e0e0 !important;
+            }
+            div[data-testid="stHorizontalBlock"] > div {
+                background-color: #1e1e1e !important;
+                box-shadow: 0 1px 3px rgba(255,255,255,0.1) !important;
+            }
+            .ekko-title .ekko-name,
+            .page-header {
+                color: #ffffff !important;
+            }
+            .status-badge {
+                color: #000000 !important;
+            }
         }
         </style>
     """, unsafe_allow_html=True)

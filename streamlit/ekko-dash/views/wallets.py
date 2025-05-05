@@ -151,9 +151,15 @@ def show_add_wallet_form():
             if not blockchain_options:  # If no blockchains in DB, use defaults
                 blockchain_options = {"ETH": "Ethereum", "AVAX": "Avalanche", "MATIC": "Polygon", "BTC": "Bitcoin"}
             
-            selected_chain = st.selectbox("Blockchain", list(blockchain_options.keys()), format_func=lambda x: blockchain_options[x])
-            st.write("")  # Add some space
-            st.write("")  # Add more space
+            # Chain selection with default AVAX
+            options = list(blockchain_options.keys())
+            default_idx = options.index('AVAX') if 'AVAX' in options else 0
+            selected_chain = st.selectbox(
+                "Blockchain", options, index=default_idx,
+                format_func=lambda x: f"{blockchain_options[x]} ({x})"
+            )
+            st.caption("Select the network for this wallet.")
+            st.divider()
         
         # Buttons for submitting or canceling the form
         col1, col2 = st.columns(2)
@@ -434,7 +440,6 @@ def show_wallets(blockchain_symbol='AVAX'):
             st.write("Manage and monitor all your blockchain wallets in one place.")
         
         with col2:
-            st.write("")  # Add some space
             if st.button("➕ Add New Wallet", use_container_width=True, key="add_new_wallet_header"):
                 st.session_state['add_wallet_form_open'] = True
                 st.rerun()
