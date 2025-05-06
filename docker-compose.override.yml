@@ -9,7 +9,6 @@ services:
       - .env
     volumes:
       - ./streamlit/ekko-dash:/app
-      - duckdb_data:/data
     ports:
       - "8501:8501"
     networks:

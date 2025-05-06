@@ -22,4 +22,4 @@ minio:
   url: http://localhost:9000
 redis:
   db: 0
-  url: redis://localhost:6379
+  url: redis://valkey:6379

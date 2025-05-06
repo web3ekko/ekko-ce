@@ -391,7 +391,8 @@ class Alert:
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """
             
-            self.db.execute(query, [
+            # Use connection from Database to execute
+            self.db.get_connection().execute(query, [
                 alert_data['id'],
                 alert_data['wallet_id'],
                 alert_data['blockchain_symbol'],
@@ -406,7 +407,7 @@ class Alert:
             st.error(f"Failed to insert alert: {str(e)}")
             raise
 
-    def get_all(self) -> List[Dict[str, Any]]:
+    def get_all(self) -> List[tuple]:
         result = self.db.get_connection().execute("""
             SELECT 
                 a.id, a.wallet_id, a.type, a.condition, a.threshold,
@@ -416,7 +417,8 @@ class Alert:
             JOIN wallet w ON a.wallet_id = w.id
             ORDER BY a.created_at DESC
         """).fetchall()
-        return [dict(row) for row in result]
+        # Return raw rows for index-based consumption in views
+        return result
     
     def get_by_wallet(self, wallet_id: str) -> List[Dict[str, Any]]:
         result = self.db.get_connection().execute("""

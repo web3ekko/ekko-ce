@@ -8,6 +8,7 @@ import base64
 import pandas as pd
 import requests
 import duckdb
+from utils.styles import inject_custom_css, get_status_color
 
 # Initialize settings and database
 settings = Settings()
@@ -65,6 +66,41 @@ def get_blockchain_logo(blockchain_symbol):
     return base64.b64encode('''<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <circle cx="12" cy="12" r="10" fill="#E0E0E0"/>
         </svg>'''.encode()).decode()
+
+# Function to display wallets in a card grid
+def show_wallet_grid(wallets, cols=3):
+    # CSS for grid layout and styling
+    st.markdown("""
+    <style>
+    div.row-widget.stHorizontal > div { padding:0 8px; box-sizing:border-box; }
+    div.element-container div.stVerticalBlock {
+        background-color: #FFF8E1;
+        border-radius: 10px;
+        padding: 16px;
+        margin-bottom: 16px;
+        border: 1px solid #FFE082;
+    }
+    .wallet-logo { width:32px; height:32px; margin-bottom:8px; }
+    .wallet-card-title { font-weight:600; font-size:1.1rem; margin-bottom:4px; }
+    .wallet-card-detail { font-size:0.875rem; color:#64748b; margin-bottom:4px; }
+    .status-active { color:#10b981; font-weight:500; margin-top:4px; }
+    .status-inactive { color:#ef4444; font-weight:500; margin-top:4px; }
+    </style>
+    """, unsafe_allow_html=True)
+    for i in range(0, len(wallets), cols):
+        cols_widgets = st.columns(cols)
+        for w, col in zip(wallets[i:i+cols], cols_widgets):
+            with col:
+                logo = get_blockchain_logo(w['blockchain_symbol'])
+                st.markdown(f"<img class='wallet-logo' src='data:image/svg+xml;base64,{logo}'/>", unsafe_allow_html=True)
+                st.markdown(f"<div class='wallet-card-title'>{w['name']}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='wallet-card-detail'>{truncate_address(w['address'])}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='wallet-card-detail'>Balance: {w['balance']:.4f}</div>", unsafe_allow_html=True)
+                status_cls = 'active' if w.get('status') == 'active' else 'inactive'
+                st.markdown(f"<div class='status-{status_cls}'>{status_cls.title()}</div>", unsafe_allow_html=True)
+                if st.button('View Details', key=f"view_{w['id']}", use_container_width=True):
+                    st.session_state['selected_wallet_id'] = w['id']
+                    st.rerun()
 
 # Add wallet form
 def show_add_wallet_form():
@@ -163,36 +199,34 @@ def show_wallet_detail(wallet_id, wallets):
     
     blockchain_logo = get_blockchain_logo(wallet['blockchain_symbol'])
     
-    # Back button to return to wallet grid
-    if st.button("← Back to Wallets", use_container_width=False, key="back_to_wallets_detail"):
-        st.session_state['selected_wallet_id'] = None
-        st.rerun()
-    
-    # Wallet header with name and blockchain
-    st.subheader(wallet['name'])
-    st.caption(f"{wallet['blockchain_name']} Network")
-    
-    # Wallet address
-    st.code(wallet['address'], language=None)
-    
-    # Wallet balance in a metrics display
-    st.metric(label="Balance", value=f"{wallet['balance']} {wallet['blockchain_symbol']}")
-    
-    # Status indicator
-    status = "🟢 Active" if wallet['status'] == "active" else "⚪ Inactive"
-    st.info(f"Status: {status} | Last activity: {get_time_ago(wallet['updated_at'])}")
-    
-    # Action buttons in columns
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.button("Send", use_container_width=True)
-    with col2:
-        st.button("Receive", use_container_width=True) 
-    with col3:
-        st.button("Swap", use_container_width=True)
-    
-    # Transactions and other tabs
-    tab1, tab2, tab3 = st.tabs(["Transactions", "Assets", "Analytics"])
+    # Apply custom CSS
+    inject_custom_css()
+
+    # Header: back button, logo, title
+    hcol1, hcol2, hcol3 = st.columns([1,1,6])
+    with hcol1:
+        if st.button("← Wallets", key="back_to_wallets_detail", use_container_width=True):
+            st.session_state['selected_wallet_id'] = None
+            st.rerun()
+    with hcol2:
+        st.markdown(f'<img src="data:image/svg+xml;base64,{blockchain_logo}" width="48"/>', unsafe_allow_html=True)
+    with hcol3:
+        st.markdown(f"## {wallet['name']}", unsafe_allow_html=True)
+        st.caption(f"{wallet['blockchain_name']} Network")
+
+    # Address display
+    st.markdown(f'<div style="font-family: monospace; color:#555;">{wallet["address"]}</div>', unsafe_allow_html=True)
+
+    # Metrics row: Balance, Status, Last Activity
+    mcol1, mcol2, mcol3 = st.columns([2,1,1])
+    mcol1.metric("Balance", f"{wallet['balance']:.4f} {wallet['blockchain_symbol']}")
+    status_color = get_status_color(wallet['status'])
+    status_label = "Active" if wallet['status']=="active" else "Inactive"
+    mcol2.markdown(f'<div class="status-badge" style="background-color:{status_color};">{status_label}</div>', unsafe_allow_html=True)
+    mcol3.metric("Last Activity", get_time_ago(wallet['updated_at']))
+
+    # Transactions and Analytics tabs
+    tab1, tab2 = st.tabs(["Transactions", "Analytics"])
     
     with tab1:
         # Transactions list
@@ -225,10 +259,6 @@ def show_wallet_detail(wallet_id, wallets):
             st.info("No transactions found for this wallet.")
     
     with tab2:
-        # Assets tab (placeholder)
-        st.info("Assets feature coming soon")
-    
-    with tab3:
         # Analytics tab (placeholder)
         st.info("Analytics feature coming soon")
 
@@ -300,28 +330,5 @@ def show_wallets(blockchain_symbol='AVAX'):
     mcol3.metric("Chains Connected", distinct_chains)
     mcol4.metric("Avg Balance", f"{avg_balance:.4f}")
 
-    # Inject CSS for table styling
-    st.markdown("""
-    <style>
-    .wallet-header div { background: #f1f3f5; padding: 8px; font-weight: 600; border-radius: 4px; }
-    .wallet-row div { padding: 6px 8px; }
-    </style>
-    """, unsafe_allow_html=True)
-
-    headers = ['Name','Chain','Address','Balance','Action']
-    col_widths = [2,1,2,1,1]
-    # Render header
-    hdr_cols = st.columns(col_widths)
-    for i, h in enumerate(headers):
-        hdr_cols[i].markdown(f"<div class='wallet-header'>{h}</div>", unsafe_allow_html=True)
-
-    # Render rows
-    for w in wallets:
-        row_cols = st.columns(col_widths)
-        row_cols[0].markdown(f"<div class='wallet-row'>{w['name']}</div>", unsafe_allow_html=True)
-        row_cols[1].markdown(f"<div class='wallet-row'>{w['blockchain_symbol']}</div>", unsafe_allow_html=True)
-        row_cols[2].markdown(f"<div class='wallet-row' style='font-family: monospace'>{truncate_address(w['address'])}</div>", unsafe_allow_html=True)
-        row_cols[3].markdown(f"<div class='wallet-row' style='color: #2a9d8f'>{w['balance']:.4f}</div>", unsafe_allow_html=True)
-        if row_cols[4].button('View Details', key=f"view_{w['id']}", use_container_width=True):
-            st.session_state['selected_wallet_id'] = w['id']
-            st.rerun()
+    # Display wallets in a card grid
+    show_wallet_grid(wallets, cols=3)

@@ -6,6 +6,11 @@ from utils.styles import apply_cell_style, inject_custom_css, get_status_color
 import os
 from openai import OpenAI
 import requests
+import logging
+logger = logging.getLogger('alerts_form')
+import re
+import polars as pl
+from typing import Optional
 
 # Configure LLM provider (local LMStudio or remote OpenAI) via env vars
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai").lower()
@@ -73,16 +78,53 @@ df.filter((pl.col('type') == 'transfer') & (pl.col('value').cast(pl.UInt64)/1e9 
         return expr
     return raw
 
+# Rule-based NL→Polars parser
+def nl_to_polars(nl: str) -> Optional[str]:
+    expr = "df.filter(pl.col('type')=='transfer')"
+    # Above threshold
+    m = re.search(r"(?:above|over)\s*\$?(\d+(?:\.\d+)?)", nl, re.I)
+    if m:
+        expr += f" & (pl.col('value').cast(pl.UInt64)/1e9 > {float(m.group(1))})"
+    # Below threshold
+    m = re.search(r"(?:below|under|less than)\s*\$?(\d+(?:\.\d+)?)", nl, re.I)
+    if m:
+        expr += f" & (pl.col('value').cast(pl.UInt64)/1e9 < {float(m.group(1))})"
+    # Gas price filters
+    m = re.search(r"gas (?:above|over|below|under)\s*(\d+)", nl, re.I)
+    if m:
+        op = ">" if "above" in m.group(0).lower() or "over" in m.group(0).lower() else "<"
+        expr += f" & (pl.col('gas_price'){op}{int(m.group(1))})"
+    # From/To address
+    m = re.search(r"(?:to|from)\s*(0x[a-fA-F0-9]{40})", nl)
+    if m:
+        col = 'to' if m.group(0).lower().startswith('to') else 'from'
+        expr += f" & (pl.col('{col}')=='{m.group(1).lower()}')"
+    # Time-window filter
+    m = re.search(r"in the last\s*(\d+)\s*(minute|hour|day)s?", nl, re.I)
+    if m:
+        num, unit = int(m.group(1)), m.group(2)
+        if 'minute' in unit:
+            expr += f" & (pl.col('created_at') >= datetime.now() - timedelta(minutes={num}))"
+        elif 'hour' in unit:
+            expr += f" & (pl.col('created_at') >= datetime.now() - timedelta(hours={num}))"
+        elif 'day' in unit:
+            expr += f" & (pl.col('created_at') >= datetime.now() - timedelta(days={num}))"
+    # Count-based transfers
+    m = re.search(r"more than\s*(\d+)\s*transfers", nl, re.I)
+    if m:
+        return f"{expr}.shape[0] > {int(m.group(1))}"
+    # Fallback if only basic filter
+    if expr == "df.filter(pl.col('type')=='transfer')":
+        return None
+    return expr
+
 # Inject custom CSS
 inject_custom_css()
 
 # Generate dummy alerts for display purposes
 def generate_dummy_alerts(count=10):
-    alert_types = ["Price Alert", "Workflow Alert", "Smart Contract Alert", "Security Alert", "Wallet Alert"]
+    alert_types = ["Wallet Alert", "Price Alert", "Workflow Alert", "Smart Contract Alert", "Security Alert"]
     alert_messages = [
-        "ETH price dropped below $2,000",
-        "BTC price increased by 5% in the last hour",
-        "Workflow 'Portfolio Rebalance' completed successfully",
         "Smart contract approval detected for token XYZ",
         "Suspicious transaction detected in wallet",
         "Gas prices are unusually high right now",
@@ -158,6 +200,7 @@ def get_time_ago(timestamp_str):
 
 # Function to show alert form
 def show_create_alert_form():
+    logger.debug("show_create_alert_form called, session_state: %s", dict(st.session_state))
     # Initialize dynamic condition state
     if 'alert_condition' not in st.session_state:
         st.session_state['alert_condition'] = ""
@@ -166,7 +209,13 @@ def show_create_alert_form():
         nl = st.session_state.get('nl_query_input', '').strip()
         if nl:
             try:
-                st.session_state['alert_condition'] = llm_to_polars(nl)
+                # Try rule-based first, else LLM
+                condition = nl_to_polars(nl)
+                if condition is None:
+                    logger.debug("No rule match, falling back to LLM")
+                    condition = llm_to_polars(nl)
+                st.session_state['alert_condition'] = condition
+                logger.debug("condition generated: %s", condition)
             except Exception as e:
                 st.session_state['alert_condition'] = ""
                 st.error(f"Error generating condition: {e}")
@@ -202,13 +251,18 @@ def show_create_alert_form():
             )
             # Wallet selection
             wallets_raw = db.get_connection().execute(
-                "SELECT id, address, blockchain_symbol FROM wallet"
+                "SELECT id, address, blockchain_symbol, name FROM wallet"
             ).fetchall()
-            wallets = [dict(r) for r in wallets_raw]
+            wallets = [
+                {'id': r[0], 'address': r[1], 'blockchain_symbol': r[2], 'name': r[3]}
+                for r in wallets_raw
+            ]
+            logger.debug("create_alert_form fetched wallets: %s", wallets)
             if not wallets:
                 st.error("No wallets found. Please add a wallet first.")
                 return
-            wallet_options = [f"{w['blockchain_symbol']}:{w['address']}" for w in wallets]
+            # Show name (or address) and blockchain symbol
+            wallet_options = [f"{w['name'] or w['address']} ({w['blockchain_symbol']})" for w in wallets]
             wallet_choice = st.selectbox("Wallet", wallet_options)
             selected_wallet = wallets[wallet_options.index(wallet_choice)]
             wallet_id = selected_wallet["id"]
@@ -221,6 +275,10 @@ def show_create_alert_form():
                 height=100,
                 disabled=True
             )
+            # Show full condition for debugging
+            if st.session_state.get('alert_condition'):
+                with st.expander("Full Condition", expanded=False):
+                    st.code(st.session_state.get('alert_condition',''), language='python')
         
         # Review section
         st.caption("Review inputs before submitting.")
@@ -235,17 +293,25 @@ def show_create_alert_form():
         
         with col_submit:
             submit = st.form_submit_button("Create Alert", use_container_width=True)
+            logger.debug("create_alert_form submit clicked: %s", submit)
         
         if submit:
+            logger.info("create_alert_form: submit branch entered")
             nlq = st.session_state.get('nl_query_input','').strip()
+            logger.debug("nlq value: %s", nlq)
             if not nlq:
                 st.error("Please enter a natural language query for your alert.")
             else:
                 # Generate condition via LLM
                 with st.spinner("Generating condition..."):
                     try:
-                        condition = llm_to_polars(nlq)
+                        # Try rule-based first, else LLM
+                        condition = nl_to_polars(nlq)
+                        if condition is None:
+                            logger.debug("No rule match, falling back to LLM")
+                            condition = llm_to_polars(nlq)
                         st.session_state['alert_condition'] = condition
+                        logger.debug("condition generated: %s", condition)
                     except Exception as e:
                         st.error(f"Error generating condition: {e}")
                         return
@@ -267,6 +333,7 @@ def show_create_alert_form():
                     'priority': priority,
                     'notification_topic': None
                 }
+                logger.debug("create_alert_form alert_data: %s", alert_data)
         
                 try:
                     alert_model.insert(alert_data)
@@ -276,8 +343,10 @@ def show_create_alert_form():
                         except Exception as e:
                             st.warning(f"Alert created but not cached: {e}")
                     st.success("Alert created successfully!")
+                    logger.info("create_alert_form: Alert inserted successfully: %s", alert_data.get('id'))
                 except Exception as e:
                     st.error(f"Failed to create alert: {e}")
+                    logger.error("create_alert_form: Failed to create alert: %s", e)
         
                 st.session_state['create_alert_form_open'] = False
                 st.rerun()
@@ -297,6 +366,14 @@ def show_alert_grid(alerts):
         "error": "🚨",
         "info": "ℹ️",
         "success": "✅"
+    }
+    # Map alert types to icons
+    type_icons = {
+        "Price Alert": "💲",
+        "Workflow Alert": "🔄",
+        "Smart Contract Alert": "📜",
+        "Security Alert": "🔒",
+        "Wallet Alert": "👛",
     }
     
     # Add CSS for alert styling with fixed heights and better alignment
@@ -387,8 +464,8 @@ def show_alert_grid(alerts):
                 alert = alerts[idx]
                 with cols[j]:
                     # Title with icon and alert type
-                    icon = alert.get('icon', status_icons.get(alert.get('status', 'info'), 'ℹ️'))
-                    st.markdown(f"<strong>{icon} {alert['type']}</strong>", unsafe_allow_html=True)
+                    icon_html = type_icons.get(alert['type'], 'ℹ️')
+                    st.markdown(f"<strong>{icon_html} {alert['type']}</strong>", unsafe_allow_html=True)
                     
                     # Alert message (always 2 lines with CSS control)
                     message = alert['message']
@@ -502,10 +579,28 @@ def show_alerts():
             raw = alert_model.get_all()
             alerts = []
             for r in raw:
+                created = r[6]
+                if isinstance(created, str):
+                    try:
+                        created = datetime.fromisoformat(created)
+                    except ValueError:
+                        created = datetime.strptime(created, '%Y-%m-%d %H:%M:%S')
+                last = r[7]
+                if last and isinstance(last, str):
+                    try:
+                        last = datetime.fromisoformat(last)
+                    except ValueError:
+                        last = datetime.strptime(last, '%Y-%m-%d %H:%M:%S')
                 alerts.append({
-                    'id': r[0], 'type': r[1], 'message': r[2], 'time': r[3],
-                    'status': r[4], 'icon': r[5] or 'ℹ️', 'priority': r[6],
-                    'created_at': r[7], 'last_triggered': r[8]
+                    'id': r[0],
+                    'type': r[2],
+                    'message': r[3],
+                    'time': created,
+                    'status': r[5] or 'inactive',
+                    'icon': r[2] or 'ℹ️',
+                    'priority': r[4],
+                    'created_at': created,
+                    'last_triggered': last
                 })
         except Exception as e:
             st.warning(f"Using sample alerts: {str(e)}")
@@ -558,17 +653,25 @@ def show_alert_grid(alerts):
     if not alerts:
         st.info("No alerts found. Create your first alert!")
         return
+    # Map alert types to icons
+    type_icons = {
+        "Price Alert": "💲",
+        "Workflow Alert": "🔄",
+        "Smart Contract Alert": "📜",
+        "Security Alert": "🔒",
+        "Wallet Alert": "👛",
+    }
     for alert in alerts:
         # Render alert card with action toggle
         col_content, col_action = st.columns([6, 1], gap="small")
         with col_content:
+            icon_html = type_icons.get(alert['type'], 'ℹ️')
             st.markdown(f"""
             <div style="{apply_cell_style(alert['status'])}">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <div>
-                        <strong>{alert['icon']} {alert['message']}</strong><br/>
-                        <small>{alert['time']} ({get_time_ago(alert.get('created_at') or alert['time'])})</small>
-                    </div>
+                <div style="display:flex; flex-direction:column; gap:4px;">
+                    <div><strong>{icon_html} {alert['type']}</strong></div>
+                    <div style="color:#64748b; font-size:0.875rem;">{alert['message']}</div>
+                    <div><small>{alert['time']} ({get_time_ago(alert.get('created_at') or alert['time'])})</small></div>
                     <div>
                         <span class="status-badge" style="background-color:{get_status_color(alert['status'])}; color:#fff;">
                             {alert['status'].title()}
@@ -583,68 +686,8 @@ def show_alert_grid(alerts):
             new_status = "inactive" if alert['status'] == "active" else "active"
             if st.button(label, key=f"alert_toggle_{alert['id']}"):
                 alert_model.update_status(alert['id'], new_status)
-                st.experimental_rerun()
-
-def show_alert_detail(alert_id, alerts):
-    # Find the selected alert
-    alert = next((a for a in alerts if a['id'] == alert_id), None)
-    
-    if not alert:
-        st.error("Alert not found")
-        return
-    
-    # Apply warm styling to detail view
-    st.markdown("""
-    <style>
-        div.element-container div.stVerticalBlock {
-            background-color: #FFF8E1;
-            border-radius: 10px;
-            padding: 15px;
-            border: 1px solid #FFE082;
-            margin-bottom: 15px;
-        }
-    </style>
-    """, unsafe_allow_html=True)
-    
-    # Back button
-    if st.button("← Back to Alerts", use_container_width=False):
-        st.session_state['alert_view'] = 'grid'
-        st.rerun()
-    
-    # Alert header
-    st.subheader(f"{alert.get('icon', '')} {alert['type']}")
-    
-    # Priority indicator
-    priority = alert.get('priority', 'Medium')
-    if priority == "High":
-        st.error(f"Priority: {priority}")
-    elif priority == "Medium":
-        st.warning(f"Priority: {priority}")
-    else:
-        st.info(f"Priority: {priority}")
-    
-    # Alert message
-    st.markdown("### Message")
-    st.write(alert['message'])
-    
-    # Time information
-    st.markdown("### Time")
-    time_str = alert.get('time', '')
-    time_ago = get_time_ago(alert.get('created_at') or time_str)
-    st.write(f"{time_str} ({time_ago})")
-    
-    # Action buttons
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.button("Mark as Resolved", use_container_width=True)
-    
-    with col2:
-        st.button("Snooze Alert", use_container_width=True)
-    
-    with col3:
-        st.button("Delete", use_container_width=True, type="primary")
-    
-    # Additional information (placeholder)
-    st.markdown("### Related Information")
-    st.info("This is a placeholder for additional information related to this alert.")
+                # Safely rerun if supported
+                try:
+                    st.experimental_rerun()
+                except AttributeError:
+                    pass

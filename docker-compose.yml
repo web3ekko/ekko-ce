@@ -103,6 +103,8 @@ services:
       dockerfile: Dockerfile
     command: python alert_processor_service.py
     env_file: .env
+    environment:
+      - DUCKDB_PATH=/data/ekko.db
     volumes:
       - ./streamlit/ekko-dash:/app
     restart: unless-stopped
