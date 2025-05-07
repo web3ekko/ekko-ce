@@ -8,6 +8,7 @@ volumes:
   pulsar_data:
   valkey_data:
   duckdb_data:
+  nats_data:
 
 services:
   pipeline:
@@ -20,6 +21,7 @@ services:
     #   - VALKEY_URL=valkey:6379
     #   - PULSAR_URL=pulsar://pulsar:6650
     #   - PULSAR_TOPIC=transactions
+    #   - NATS_URL=nats://nats:4222
     #   - SNOWTRACE_API_KEY=${SNOWTRACE_API_KEY}
     #   - CHAIN_ID=${CHAIN_ID}
     env_file: ".env"
@@ -31,6 +33,7 @@ services:
     depends_on:
       - valkey
       - pulsar
+      - nats
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4195/ping"]
       interval: 30s
@@ -76,6 +79,24 @@ services:
       interval: 30s
       timeout: 20s
       retries: 3
+      
+  nats:
+    image: nats:2.10-alpine
+    container_name: nats
+    command: -js -m 8222
+    ports:
+      - "4222:4222"   # NATS client connections
+      - "8222:8222"   # HTTP monitoring
+    volumes:
+      - nats_data:/data
+    networks:
+      - pipeline-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8222/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   streamlit:
     build:
@@ -87,6 +108,7 @@ services:
       - VALKEY_URL=valkey:6379
       - PULSAR_URL=pulsar://pulsar:6650
       - PULSAR_TOPIC=transactions
+      - NATS_URL=nats://nats:4222
     volumes:
       - ./streamlit/ekko-dash:/app
       - duckdb_data:/data
@@ -95,6 +117,7 @@ services:
     depends_on:
       - valkey
       - pulsar
+      - nats
       - pipeline
 
   ekko-processor:
@@ -113,6 +136,7 @@ services:
     depends_on:
       - valkey
       - pulsar
+      - nats
       - streamlit
 
   # pulsar-manager:
