@@ -278,7 +278,7 @@ def show_create_alert_form():
             nl_query = st.text_area(
                 "Natural Language Query", 
                 key="nl_query_input",
-                placeholder="E.g., Alert me when ETH price drops below $2,000",
+                placeholder="E.g., Alert me when AVAX price drops below $20",
                 height=100
             )
             # Wallet selection
@@ -523,6 +523,17 @@ def show_alert_grid(alerts):
                             {priority}
                         </span>
                         """, unsafe_allow_html=True)
+                        # Status tag
+                        status_txt = alert.get('status', '').capitalize()
+                        status_color = {
+                            'Active': '#22c55e',
+                            'Triggered': '#ef4444',
+                            'Inactive': '#9ca3af'
+                        }.get(status_txt, '#6b7280')
+                        st.markdown(
+                            f"<span style='font-size:12px; font-weight:600; color:{status_color};'>Status: {status_txt}</span>",
+                            unsafe_allow_html=True,
+                        )
                     
                     # View details button with click handler
                     button_key = f"view_alert_{alert['id']}"
@@ -585,6 +596,15 @@ def show_alert_detail(alert_id, alerts):
     else:
         st.info(f"Priority: {priority}")
     
+    # Status indicator
+    status_val = alert.get('status', '').capitalize()
+    if status_val.lower() == 'triggered':
+        st.error(f"Status: {status_val}")
+    elif status_val.lower() == 'active':
+        st.success(f"Status: {status_val}")
+    else:
+        st.info(f"Status: {status_val}")
+    
     # Alert message
     st.markdown("### Message")
     st.write(alert['message'])
@@ -621,76 +641,60 @@ def show_alerts():
     if 'create_alert_form_open' not in st.session_state:
         st.session_state['create_alert_form_open'] = False
     
-    # Fetch alerts from cache (preferred) or DB
+    # Fetch alerts from DB first (authoritative record)
     with st.spinner("Loading alerts..."):
         alerts = []
         try:
-            if cache.is_connected():
-                # Redis structure: alert:<chain>:<wallet_id>
-                alert_keys = list(cache.redis.scan_iter(match="alert:*"))
-                for key in alert_keys:
-                    data = cache.get_cached_data(key) or {}
-                    if not data:
+            raw = alert_model.get_all()
+
+            # Helper to safely parse timestamps
+            def _parse_dt(val):
+                if not val:
+                    return None
+                if isinstance(val, datetime):
+                    return val
+                for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S"):
+                    try:
+                        return datetime.strptime(val, fmt)
+                    except ValueError:
                         continue
-                    # Helper to safely parse timestamps
-                    def _parse_dt(val):
-                        if not val:
-                            return None
-                        if isinstance(val, datetime):
-                            return val
-                        for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S"):
-                            try:
-                                return datetime.strptime(val, fmt)
-                            except ValueError:
-                                continue
-                        try:
-                            return datetime.fromisoformat(val)
-                        except Exception:
-                            return None
-                    created = _parse_dt(data.get('created_at')) or datetime.now()
-                    last = _parse_dt(data.get('last_triggered'))
-                    alerts.append({
-                        'id': data.get('id'),
-                        'wallet_id': data.get('wallet_id'),
-                        'blockchain_symbol': data.get('blockchain_symbol'),
-                        'type': data.get('type'),
-                        'message': data.get('message'),
-                        'time': created,
-                        'status': data.get('status', 'inactive'),
-                        'icon': data.get('icon', 'ℹ️'),
-                        'priority': data.get('priority', 'Medium'),
-                        'created_at': created,
-                        'last_triggered': last,
-                    })
-            # Fallback to DB if cache empty or disabled
-            if not alerts:
-                raw = alert_model.get_all()
-                for r in raw:
-                    created = r[6]
-                    if isinstance(created, str):
-                        try:
-                            created = datetime.fromisoformat(created)
-                        except ValueError:
-                            created = datetime.strptime(created, '%Y-%m-%d %H:%M:%S')
-                    last = r[7]
-                    if last and isinstance(last, str):
-                        try:
-                            last = datetime.fromisoformat(last)
-                        except ValueError:
-                            last = datetime.strptime(last, '%Y-%m-%d %H:%M:%S')
-                    alerts.append({
-                        'id': r[0],
-                        'wallet_id': r[1],
-                        'blockchain_symbol': r[2],
-                        'type': r[2],
-                        'message': r[3],
-                        'time': created,
-                        'status': r[5] or 'inactive',
-                        'icon': r[2] or 'ℹ️',
-                        'priority': r[4],
-                        'created_at': created,
-                        'last_triggered': last
-                    })
+                try:
+                    return datetime.fromisoformat(val)
+                except Exception:
+                    return None
+
+            for r in raw:
+                created = _parse_dt(r[6]) or datetime.now()
+                last = _parse_dt(r[7])
+
+                # Base record from DB
+                alert_rec = {
+                    'id': r[0],
+                    'wallet_id': r[1],
+                    'blockchain_symbol': r[9],
+                    'type': r[2],
+                    'message': r[3],
+                    'time': created,
+                    'status': r[5] or 'inactive',
+                    'icon': r[2] or 'ℹ️',
+                    'priority': r[4] or 'Medium',
+                    'created_at': created,
+                    'last_triggered': last,
+                }
+
+                # Overlay status/last_triggered from Redis (if available)
+                if cache.is_connected():
+                    key = f"alert:{alert_rec['blockchain_symbol'].lower()}:{alert_rec['wallet_id']}"
+                    cached = cache.get_cached_data(key) or {}
+                    if cached:
+                        alert_rec['status'] = cached.get('status', alert_rec['status'])
+                        lt = _parse_dt(cached.get('last_triggered'))
+                        if lt:
+                            alert_rec['last_triggered'] = lt
+                            # Use last_triggered as primary timestamp for display metrics
+                            alert_rec['time'] = lt
+
+                alerts.append(alert_rec)
         except Exception as e:
             st.warning(f"Using sample alerts: {str(e)}")
             alerts = generate_dummy_alerts(count=10)
@@ -781,4 +785,10 @@ def show_alert_grid_legacy(alerts):
             if st.button("Delete", key=f"alert_delete_{alert['id']}"):
                 alert_model.delete(alert['id'])
                 cache.delete_alert(alert['blockchain_symbol'], alert['wallet_id'])
+                st.rerun()
+            
+            # View details button with click handler
+            if st.button("View Details", key=f"view_alert_{alert['id']}", use_container_width=True):
+                st.session_state['selected_alert_id'] = alert['id']
+                st.session_state['alert_view'] = 'detail'
                 st.rerun()
