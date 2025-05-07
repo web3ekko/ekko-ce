@@ -1,44 +1,81 @@
 import time
 from datetime import datetime
 from typing import Dict, Any, List
-import duckdb
+# import duckdb
 import schedule
 import pulsar
 import json
 import polars as pl
 import os
-from .models import Alert
+from .models import Cache
 from .notifications import send_ntfy_notification
 import logging
 logger = logging.getLogger('alert_processor')
 
 class AlertProcessor:
-    def __init__(self, db_path: str):
+    def __init__(self):
         """
-        Initialize the alert processor.
+        Initialize the alert processor using Redis/Cache.
+        """
+        self.cache = Cache()
+        if not self.cache.is_connected():
+            logger.warning("Redis cache is not available. Alert processing may not work as expected.")
         
-        Args:
-            db_path (str): Path to the DuckDB database
-        """
-        self.db_path = db_path
-        self.conn = duckdb.connect(db_path)
-        logger.info("Connected to DuckDB at %s", db_path)
+        # Database connection for status updates
+        try:
+            from utils.db import db  # local import to avoid circular deps
+            self.db = db
+            self.conn = db.get_connection()
+        except Exception as e:
+            logger.error("Failed to initialise DB connection in AlertProcessor: %s", e)
+            self.db = None
+            self.conn = None
     
     def get_active_alerts(self) -> List[Dict[str, Any]]:
-        """Get all active alerts"""
-        query = """
-        SELECT 
-            a.id, a.wallet_id, a.type, a.condition, a.threshold,
-            a.status, a.created_at, a.last_triggered, a.notification_topic,
-            w.address, w.blockchain_symbol, w.name as wallet_name
-        FROM alert a
-        JOIN wallet w ON a.wallet_id = w.id
-        WHERE a.status = 'active'
-        """
-        logger.debug("Executing active alerts query")
-        result = self.conn.execute(query).fetchall()
-        logger.info("Fetched %d active alerts", len(result))
-        return [dict(row) for row in result]
+        """Get all active alerts from Redis"""
+        if not self.cache.is_connected():
+            logger.warning("Redis cache is not available. Returning empty alert list.")
+            return []
+        try:
+            # Scan for all alert keys: alert:<blockchain_symbol>:<wallet_id>
+            alert_keys = list(self.cache.redis.scan_iter(match="alert:*"))
+            logger.debug("Found %d alert keys in Redis: %s", len(alert_keys), alert_keys)
+            alerts = []
+            for key in alert_keys:
+                alert_data = self.cache.get_cached_data(key)
+                logger.debug("Fetched data for key %s: %s", key, alert_data)
+                if not alert_data:
+                    logger.debug("No data returned for key %s, skipping", key)
+                    continue
+                # Only include active alerts
+                status = alert_data.get('status', 'active')
+                if status != 'active':
+                    logger.debug("Skipping alert %s because status is %s", alert_data.get('id'), status)
+                    continue
+                # Ensure required fields (match old SQL output)
+                alert = {
+                    'id': alert_data.get('id'),
+                    'wallet_id': alert_data.get('wallet_id'),
+                    'type': alert_data.get('type'),
+                    'condition': alert_data.get('condition'),
+                    'threshold': alert_data.get('threshold'),
+                    'status': alert_data.get('status'),
+                    'created_at': alert_data.get('created_at'),
+                    'last_triggered': alert_data.get('last_triggered'),
+                    'notification_topic': alert_data.get('notification_topic'),
+                    'address': alert_data.get('address'),
+                    'blockchain_symbol': alert_data.get('blockchain_symbol'),
+                    'wallet_name': alert_data.get('wallet_name'),
+                    # Add any extra fields as needed
+                    'priority': alert_data.get('priority', 'Medium'),
+                    'message': alert_data.get('message', ''),
+                }
+                alerts.append(alert)
+            logger.info("Fetched %d active alerts from Redis", len(alerts))
+            return alerts
+        except Exception as e:
+            logger.error(f"Error fetching alerts from Redis: {e}")
+            return []
     
     def check_alert_condition(self, alert: Dict[str, Any]) -> bool:
         """
@@ -75,33 +112,69 @@ class AlertProcessor:
 
             # 2. Build Polars DataFrame
             df = pl.DataFrame(tx_list)
+            logger.debug("Alert %s – built DataFrame with %d tx rows and columns: %s", alert.get('id'), df.height, df.columns)
+
+            if df.height == 0:
+                logger.debug("No transactions fetched – skipping condition evaluation for alert %s", alert.get('id'))
+                return False
+
+            if 'type' not in df.columns:
+                logger.debug("'type' column missing in DataFrame for alert %s. Columns present: %s", alert.get('id'), df.columns)
+                return False
 
             # 3. Evaluate stored Polars condition
             result = eval(condition, {'df': df, 'pl': pl})
+
+            # Attempt to compute matched row count if the expression uses df.filter
+            try:
+                if '.filter(' in condition:
+                    filter_part = condition.split('.shape')[0] if '.shape' in condition else condition
+                    filtered_df = eval(filter_part, {'df': df, 'pl': pl})
+                    match_count = getattr(filtered_df, 'height', None)
+                    if match_count is not None:
+                        logger.debug("Alert %s – filter matched %d rows", alert.get('id'), match_count)
+            except Exception as fe:
+                logger.debug("Alert %s – unable to determine matched rows: %s", alert.get('id'), fe)
+
+            logger.debug("Alert %s – condition evaluated to %s", alert.get('id'), result)
             return bool(result)
         except Exception as e:
             logger.error("Error checking alert condition for %s: %s", alert.get('id'), e)
             return False
     
-    def update_alert_status(self, alert_id: str, triggered: bool):
-        """Update alert status after checking"""
-        status = 'triggered' if triggered else 'active'
-        logger.debug("Updating alert %s status to %s", alert_id, status)
-        query = """
-        UPDATE alert
-        SET status = ?, last_triggered = ?
-        WHERE id = ?
+    def update_alert_status(self, alert: Dict[str, Any], triggered: bool):
+        """Update alert status in Redis cache instead of database.
+        
+        Args:
+            alert: Full alert dictionary containing at least id, wallet_id, blockchain_symbol.
+            triggered: Whether the condition was met.
         """
-        self.conn.execute(query, [status, datetime.now(), alert_id])
+        if not self.cache.is_connected():
+            logger.warning("Redis cache unavailable – cannot update alert %s status", alert.get('id'))
+            return
+
+        status = 'triggered' if triggered else 'active'
+        key = f"alert:{alert['blockchain_symbol'].lower()}:{alert['wallet_id']}"
+        try:
+            res = self.cache.redis.hset(key, mapping={
+                'status': status,
+                'last_triggered': datetime.now().isoformat(),
+            })
+            logger.debug("Updated cached alert %s status to %s (result=%s)", alert.get('id'), status, res)
+        except Exception as e:
+            logger.error("Failed to update cached alert %s: %s", alert.get('id'), e)
     
     def process_alerts(self):
         """Process all active alerts"""
         logger.info("Processing alerts")
         alerts = self.get_active_alerts()
         logger.info("Retrieved %d alerts to process", len(alerts))
+        if not alerts:
+            logger.debug("No active alerts found. Sleeping until next interval.")
+            return
         
         for alert in alerts:
-            logger.debug("Evaluating alert %s", alert.get('id'))
+            logger.debug("Evaluating alert %s for wallet %s on %s", alert.get('id'), alert.get('address'), alert.get('blockchain_symbol'))
             if self.check_alert_condition(alert):
                 logger.info("Alert %s triggered", alert.get('id'))
                 # Format notification message
@@ -120,7 +193,11 @@ class AlertProcessor:
                     )
                 
                 # Update alert status
-                self.update_alert_status(alert['id'], True)
+                self.update_alert_status(alert, True)
+            else:
+                logger.debug("Alert %s condition not met", alert.get('id'))
+                # Update alert status
+                self.update_alert_status(alert, False)
     
     def run(self, interval: int = 1):
         """

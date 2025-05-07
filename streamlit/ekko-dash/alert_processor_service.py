@@ -14,12 +14,12 @@ def main():
     db_path = os.getenv('DUCKDB_PATH', 'ekko.db')
     
     # Initialize alert processor
-    processor = AlertProcessor(db_path)
+    processor = AlertProcessor()
     
     logger.info("Starting alert processor service...")
     try:
-        # Run processor with 60 second interval
-        processor.run(interval=60)
+        # Run processor with 1 minute interval
+        processor.run(interval=1)
     except KeyboardInterrupt:
         logger.info("Alert processor service stopped.")
     except Exception as e:

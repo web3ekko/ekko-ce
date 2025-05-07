@@ -3,9 +3,12 @@ import uuid
 from datetime import datetime
 import redis
 import streamlit as st
+import os
+from urllib.parse import urlparse
 from typing import Optional, Dict, Any
 from src.config.settings import Settings
 from typing import Optional, Dict, Any, List
+import logging
 
 class Database:
     _instance: Optional['Database'] = None
@@ -440,6 +443,12 @@ class Alert:
             WHERE id = ?
         """, [status, alert_id])
 
+    def delete(self, alert_id: str) -> None:
+        """Delete an alert by ID"""
+        self.db.get_connection().execute(
+            "DELETE FROM alert WHERE id = ?", [alert_id]
+        )
+
 class Workflow:
     def __init__(self, db: Database):
         self.db = db
@@ -543,29 +552,36 @@ class NotificationService:
         self.conn.execute("DELETE FROM notification_service")
 
 @st.cache_resource
-def get_redis_connection(host="localhost", port=6379, db=0):
-    """
-    Creates or returns a cached Redis connection.
+def get_redis_connection(host: str | None = None, port: int = 6379, db: int = 0):
+    """Return a Redis client, prioritising the REDIS_URL env variable.
     
-    Args:
-        host (str): Redis host address
-        port (int): Redis port number
-        db (int): Redis database number
-        
-    Returns:
-        redis.Redis: A Redis connection instance
+    The connection order is:
+    1. If REDIS_URL is set, use ``redis.from_url`` to respect the full URL (scheme, auth, db).
+    2. Otherwise fall back to the supplied ``host``, ``port`` and ``db`` parameters (defaulting to ``localhost:6379/0``).
     """
+    redis_url = os.getenv("REDIS_URL")
     try:
-        client = redis.Redis(
-            host=host,
-            port=port,
-            db=db,
-            decode_responses=True,  # Automatically decode responses to strings
-            socket_timeout=5,  # 5 second timeout
-            retry_on_timeout=True,  # Retry once on timeout
-            max_connections=10  # Connection pool size
-        )
-        # Test the connection
+        if redis_url:
+            # Use the provided URL (e.g. redis://user:pass@valkey:6379/1)
+            client = redis.from_url(
+                redis_url,
+                decode_responses=True,
+                socket_timeout=5,
+                retry_on_timeout=True,
+                max_connections=10,
+            )
+        else:
+            client = redis.Redis(
+                host=host or "localhost",
+                port=port,
+                db=db,
+                decode_responses=True,
+                socket_timeout=5,
+                retry_on_timeout=True,
+                max_connections=10,
+            )
+
+        # Quick connectivity test
         client.ping()
         return client
     except redis.ConnectionError as e:
@@ -588,9 +604,23 @@ class Cache:
     
     def _init_cache(self) -> None:
         """Initialize Redis cache connection"""
-        self.redis = get_redis_connection()
-        if not self.redis:
-            st.warning("Redis cache is not available. Some features may be slower.")
+        # Determine Redis connection details from environment or settings
+        redis_url = os.getenv('REDIS_URL') or Cache._settings.redis.get('url', 'redis://localhost:6379')
+        parsed = urlparse(redis_url)
+        host = parsed.hostname or 'localhost'
+        port = parsed.port or 6379
+        try:
+            db = int(parsed.path.lstrip('/')) if parsed.path.strip('/') else Cache._settings.redis.get('db', 0)
+        except ValueError:
+            db = 0
+
+        self.redis = get_redis_connection(host=host, port=port, db=db)
+
+        logger = logging.getLogger("cache")
+        if self.redis:
+            logger.info("Connected to Redis at %s:%s [db %s]", host, port, db)
+        else:
+            logger.error("Failed to connect to Redis at %s:%s [db %s]", host, port, db)
         
         # Only enable caching if configured
         self.enabled = self._settings.cache.get('enabled', False)
@@ -599,10 +629,71 @@ class Cache:
     def is_connected(self):
         """Check if Redis connection is active"""
         try:
-            return bool(self.redis and self.redis.ping())
+            connected = bool(self.redis and self.redis.ping())
+            if not connected:
+                logging.getLogger("cache").warning("Redis ping failed – cache disabled")
+            return connected
         except Exception as e:
+            logging.getLogger("cache").error("Error checking Redis connection: %s", e)
             st.error(f"Error checking Redis connection: {str(e)}")
             return False
+
+    def cache_alert(self, alert_data):
+        """Cache alert data in Redis using format alert:blockchain_symbol:wallet_id"""
+        logger = logging.getLogger("cache")
+        if not self.is_connected():
+            logger.warning("Cannot cache alert %s – Redis not connected", alert_data.get('id'))
+            return False
+
+        try:
+            key = f"alert:{alert_data['blockchain_symbol'].lower()}:{alert_data['wallet_id']}"
+            
+            # Redis requires string/number/bytes values. Convert unsupported types.
+            def _serialize_val(v):
+                from datetime import datetime as _dt
+                import uuid as _uuid
+                if v is None:
+                    return ""
+                if isinstance(v, (str, int, float)):
+                    return v
+                if isinstance(v, bool):
+                    return int(v)  # store as 0/1
+                if isinstance(v, (_uuid.UUID, _dt)):
+                    return str(v)
+                # Fallback to str for other objects
+                return str(v)
+
+            safe_mapping = {k: _serialize_val(v) for k, v in alert_data.items()}
+            res = self.redis.hset(key, mapping=safe_mapping)
+            if getattr(self, 'ttl', None):
+                self.redis.expire(key, self.ttl)
+            logger.debug("Cached alert %s to %s (result=%s)", alert_data.get('id'), key, res)
+            return res
+        except Exception as e:
+            logger.error("Error caching alert %s: %s", alert_data.get('id'), e)
+            st.error(f"Error caching alert: {str(e)}")
+            return False
+
+    def get_cached_data(self, key):
+        """Get cached data by key"""
+        logger = logging.getLogger("cache")
+        if not self.is_connected():
+            logger.debug("get_cached_data: Redis not connected for key %s", key)
+            return None
+        try:
+            # Try hash get first
+            data = self.redis.hgetall(key)
+            if data:
+                logger.debug("Retrieved hash data for %s: %s", key, data)
+                return data
+            # If not a hash, try string get
+            val = self.redis.get(key)
+            logger.debug("Retrieved string data for %s: %s", key, val)
+            return val
+        except Exception as e:
+            logger.error("Error getting cached data for %s: %s", key, e)
+            st.error(f"Error getting cached data: {str(e)}")
+            return None
 
     def cache_wallet(self, wallet_data):
         """Cache wallet data in Redis"""
@@ -614,18 +705,6 @@ class Cache:
             return self.redis.set(key, wallet_data['name'] or wallet_data['address'])
         except Exception as e:
             st.error(f"Error caching wallet: {str(e)}")
-            return False
-
-    def cache_alert(self, alert_data):
-        """Cache alert data in Redis using format alert:blockchain_symbol:wallet_id"""
-        if not self.is_connected():
-            return False
-            
-        try:
-            key = f"alert:{alert_data['blockchain_symbol'].lower()}:{alert_data['wallet_id']}"
-            return self.redis.hset(key, mapping=alert_data)
-        except Exception as e:
-            st.error(f"Error caching alert: {str(e)}")
             return False
 
     def cache_workflow(self, workflow_data):
@@ -652,18 +731,13 @@ class Cache:
             st.error(f"Error caching agent: {str(e)}")
             return False
 
-    def get_cached_data(self, key):
-        """Get cached data by key"""
+    def delete_alert(self, blockchain_symbol: str, wallet_id: str) -> bool:
+        """Delete cached alert data in Redis"""
         if not self.is_connected():
-            return None
-            
+            return False
         try:
-            # Try hash get first
-            data = self.redis.hgetall(key)
-            if data:
-                return data
-            # If not a hash, try string get
-            return self.redis.get(key)
+            key = f"alert:{blockchain_symbol.lower()}:{wallet_id}"
+            return bool(self.redis.delete(key))
         except Exception as e:
-            st.error(f"Error getting cached data: {str(e)}")
-            return None
+            st.error(f"Error deleting cached alert: {str(e)}")
+            return False

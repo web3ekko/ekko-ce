@@ -118,6 +118,37 @@ def nl_to_polars(nl: str) -> Optional[str]:
         return None
     return expr
 
+# Helper to clean up generated Polars expressions
+def sanitize_polars_condition(expr: str) -> str:
+    """Ensure Polars condition string is syntactically valid.
+
+    - Collapses duplicate `.filter(pl.col('type') == 'transfer')` segments.
+    - Balances parentheses by appending missing ')' characters.
+    """
+    if not expr:
+        return expr
+
+    # Collapse duplicated transfer-filter segments beyond the first
+    transfer_filter = ".filter(pl.col('type') == 'transfer')"
+    # Split once on the first occurrence, remove further duplicates
+    first_idx = expr.find(transfer_filter)
+    if first_idx != -1:
+        head = expr[: first_idx + len(transfer_filter)]
+        tail = expr[first_idx + len(transfer_filter) :]
+        tail = tail.replace(transfer_filter, "")
+        expr = head + tail
+
+    # Balance parentheses
+    diff = expr.count("(") - expr.count(")")
+    if diff > 0:
+        expr += ")" * diff
+
+    # Replace unsupported dtype aliases (e.g., pl.UInt) with pl.UInt64
+    expr = re.sub(r"pl\.UInt(?!\d)", "pl.UInt64", expr)
+    expr = re.sub(r"pl\.uint(?!\d)", "pl.UInt64", expr, flags=re.IGNORECASE)
+
+    return expr.strip()
+
 # Inject custom CSS
 inject_custom_css()
 
@@ -214,6 +245,7 @@ def show_create_alert_form():
                 if condition is None:
                     logger.debug("No rule match, falling back to LLM")
                     condition = llm_to_polars(nl)
+                condition = sanitize_polars_condition(condition)
                 st.session_state['alert_condition'] = condition
                 logger.debug("condition generated: %s", condition)
             except Exception as e:
@@ -310,44 +342,33 @@ def show_create_alert_form():
                         if condition is None:
                             logger.debug("No rule match, falling back to LLM")
                             condition = llm_to_polars(nlq)
+                        condition = sanitize_polars_condition(condition)
                         st.session_state['alert_condition'] = condition
                         logger.debug("condition generated: %s", condition)
                     except Exception as e:
+                        st.session_state['alert_condition'] = ""
                         st.error(f"Error generating condition: {e}")
                         return
-                if not condition:
-                    st.error("Failed to generate condition.")
-                    return
-        
-                status_map = {"High":"error","Medium":"warning","Low":"info"}
-                icon_map = {"Price Alert":"📊","Workflow Alert":"🔄","Smart Contract Alert":"📝","Security Alert":"🔐","Wallet Alert":"👛"}
+                # Build alert data payload
+                import uuid, json
                 alert_data = {
+                    'id': str(uuid.uuid4()),
                     'wallet_id': wallet_id,
                     'blockchain_symbol': blockchain_symbol,
                     'type': alert_type,
-                    'message': st.session_state['nl_query_input'],
-                    'condition': condition,
-                    'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                    'status': status_map.get(priority,"warning"),
-                    'icon': icon_map.get(alert_type,"ℹ️"),
+                    'condition': st.session_state.get('alert_condition', ''),
                     'priority': priority,
-                    'notification_topic': None
+                    'status': 'active',
+                    'created_at': datetime.now()
                 }
-                logger.debug("create_alert_form alert_data: %s", alert_data)
-        
-                try:
-                    alert_model.insert(alert_data)
-                    if cache.is_connected():
-                        try:
-                            cache.cache_alert(alert_data)
-                        except Exception as e:
-                            st.warning(f"Alert created but not cached: {e}")
-                    st.success("Alert created successfully!")
-                    logger.info("create_alert_form: Alert inserted successfully: %s", alert_data.get('id'))
-                except Exception as e:
-                    st.error(f"Failed to create alert: {e}")
-                    logger.error("create_alert_form: Failed to create alert: %s", e)
-        
+                # Log condition being saved for debugging
+                logger.info("Saving alert %s with condition: %s", alert_data['id'], alert_data['condition'])
+                # Save to DuckDB
+                alert_model.insert(alert_data)
+                # Save alert data to Redis for the ekko processor
+                cache.cache_alert(alert_data)
+                st.success("Alert created successfully!")
+                logger.info("create_alert_form: Alert inserted successfully: %s condition=%s", alert_data.get('id'), alert_data['condition'])
                 st.session_state['create_alert_form_open'] = False
                 st.rerun()
 
@@ -386,6 +407,16 @@ def show_alert_grid(alerts):
             margin-bottom: 8px;
         }
         
+        /* Grid row styling: background, border, padding, and shadow */
+        div.row-widget.stHorizontal {
+            background-color: #f9fafb;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
         /* Target each alert card container specifically */
         div.element-container div.stVerticalBlock {
             height: 165px;
@@ -393,9 +424,15 @@ def show_alert_grid(alerts):
             border-radius: 10px;
             padding: 12px;
             border: 1px solid #FFE082;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             margin-bottom: 8px;
             position: relative;
             overflow: hidden;
+        }
+        
+        /* Highlight active alerts */
+        div.element-container div.stVerticalBlock:has(div.alert-active) {
+            background-color: #d1fae5 !important;
         }
         
         /* Style for the priority tag */
@@ -462,18 +499,16 @@ def show_alert_grid(alerts):
             idx = i + j
             if idx < total_alerts:
                 alert = alerts[idx]
+                # Mark active alerts for CSS override
+                if alert.get('status') == 'active':
+                    st.markdown('<div class="alert-active" style="display:none;"></div>', unsafe_allow_html=True)
                 with cols[j]:
                     # Title with icon and alert type
                     icon_html = type_icons.get(alert['type'], 'ℹ️')
                     st.markdown(f"<strong>{icon_html} {alert['type']}</strong>", unsafe_allow_html=True)
                     
-                    # Alert message (always 2 lines with CSS control)
-                    message = alert['message']
-                    if len(message) > 65:  # Slightly longer to fill 2 lines
-                        message = message[:62] + "..."
-                        
-                    # Use a special class to ensure 2-line height
-                    st.markdown(f'<div class="alert-message">{message}</div>', unsafe_allow_html=True)
+                    # Display full condition string for debugging purposes
+                    st.code(alert['message'], language='python')
                     
                     # Time ago and priority in columns
                     col1, col2 = st.columns([3, 2])
@@ -489,8 +524,21 @@ def show_alert_grid(alerts):
                         </span>
                         """, unsafe_allow_html=True)
                     
-                    # Create a unique key for each button
+                    # View details button with click handler
                     button_key = f"view_alert_{alert['id']}"
+                    
+                    # Action buttons: toggle and delete
+                    col_toggle, col_delete = st.columns([1, 1], gap="small")
+                    with col_toggle:
+                        label = "Deactivate" if alert['status'] == "active" else "Activate"
+                        if st.button(label, key=f"alert_toggle_{alert['id']}"):
+                            alert_model.update_status(alert['id'], "inactive" if alert['status'] == "active" else "active")
+                            st.rerun()
+                    with col_delete:
+                        if st.button("Delete", key=f"alert_delete_{alert['id']}"):
+                            alert_model.delete(alert['id'])
+                            cache.delete_alert(alert['blockchain_symbol'], alert['wallet_id'])
+                            st.rerun()
                     
                     # View details button with click handler
                     if st.button("View Details", key=button_key, use_container_width=True):
@@ -573,35 +621,76 @@ def show_alerts():
     if 'create_alert_form_open' not in st.session_state:
         st.session_state['create_alert_form_open'] = False
     
-    # Fetch alerts from db
+    # Fetch alerts from cache (preferred) or DB
     with st.spinner("Loading alerts..."):
+        alerts = []
         try:
-            raw = alert_model.get_all()
-            alerts = []
-            for r in raw:
-                created = r[6]
-                if isinstance(created, str):
-                    try:
-                        created = datetime.fromisoformat(created)
-                    except ValueError:
-                        created = datetime.strptime(created, '%Y-%m-%d %H:%M:%S')
-                last = r[7]
-                if last and isinstance(last, str):
-                    try:
-                        last = datetime.fromisoformat(last)
-                    except ValueError:
-                        last = datetime.strptime(last, '%Y-%m-%d %H:%M:%S')
-                alerts.append({
-                    'id': r[0],
-                    'type': r[2],
-                    'message': r[3],
-                    'time': created,
-                    'status': r[5] or 'inactive',
-                    'icon': r[2] or 'ℹ️',
-                    'priority': r[4],
-                    'created_at': created,
-                    'last_triggered': last
-                })
+            if cache.is_connected():
+                # Redis structure: alert:<chain>:<wallet_id>
+                alert_keys = list(cache.redis.scan_iter(match="alert:*"))
+                for key in alert_keys:
+                    data = cache.get_cached_data(key) or {}
+                    if not data:
+                        continue
+                    # Helper to safely parse timestamps
+                    def _parse_dt(val):
+                        if not val:
+                            return None
+                        if isinstance(val, datetime):
+                            return val
+                        for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S"):
+                            try:
+                                return datetime.strptime(val, fmt)
+                            except ValueError:
+                                continue
+                        try:
+                            return datetime.fromisoformat(val)
+                        except Exception:
+                            return None
+                    created = _parse_dt(data.get('created_at')) or datetime.now()
+                    last = _parse_dt(data.get('last_triggered'))
+                    alerts.append({
+                        'id': data.get('id'),
+                        'wallet_id': data.get('wallet_id'),
+                        'blockchain_symbol': data.get('blockchain_symbol'),
+                        'type': data.get('type'),
+                        'message': data.get('message'),
+                        'time': created,
+                        'status': data.get('status', 'inactive'),
+                        'icon': data.get('icon', 'ℹ️'),
+                        'priority': data.get('priority', 'Medium'),
+                        'created_at': created,
+                        'last_triggered': last,
+                    })
+            # Fallback to DB if cache empty or disabled
+            if not alerts:
+                raw = alert_model.get_all()
+                for r in raw:
+                    created = r[6]
+                    if isinstance(created, str):
+                        try:
+                            created = datetime.fromisoformat(created)
+                        except ValueError:
+                            created = datetime.strptime(created, '%Y-%m-%d %H:%M:%S')
+                    last = r[7]
+                    if last and isinstance(last, str):
+                        try:
+                            last = datetime.fromisoformat(last)
+                        except ValueError:
+                            last = datetime.strptime(last, '%Y-%m-%d %H:%M:%S')
+                    alerts.append({
+                        'id': r[0],
+                        'wallet_id': r[1],
+                        'blockchain_symbol': r[2],
+                        'type': r[2],
+                        'message': r[3],
+                        'time': created,
+                        'status': r[5] or 'inactive',
+                        'icon': r[2] or 'ℹ️',
+                        'priority': r[4],
+                        'created_at': created,
+                        'last_triggered': last
+                    })
         except Exception as e:
             st.warning(f"Using sample alerts: {str(e)}")
             alerts = generate_dummy_alerts(count=10)
@@ -649,7 +738,7 @@ def show_alerts():
         with tabs[2]:
             st.info("Related chain data will appear here.")
 
-def show_alert_grid(alerts):
+def show_alert_grid_legacy(alerts):
     if not alerts:
         st.info("No alerts found. Create your first alert!")
         return
@@ -686,8 +775,10 @@ def show_alert_grid(alerts):
             new_status = "inactive" if alert['status'] == "active" else "active"
             if st.button(label, key=f"alert_toggle_{alert['id']}"):
                 alert_model.update_status(alert['id'], new_status)
-                # Safely rerun if supported
-                try:
-                    st.experimental_rerun()
-                except AttributeError:
-                    pass
+                st.rerun()
+            
+            # Delete Alert Button
+            if st.button("Delete", key=f"alert_delete_{alert['id']}"):
+                alert_model.delete(alert['id'])
+                cache.delete_alert(alert['blockchain_symbol'], alert['wallet_id'])
+                st.rerun()

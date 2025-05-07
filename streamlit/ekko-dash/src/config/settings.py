@@ -74,8 +74,12 @@ class Settings:
     def _apply_env_overrides(self):
         """Apply environment variable overrides to settings."""
         # Docker environment variables take precedence
-        if redis_url := os.getenv('REDIS_URL'):
-            self._settings['redis']['url'] = redis_url
+        redis_env_url = os.getenv('REDIS_URL') or os.getenv('VALKEY_URL')
+        if redis_env_url:
+            # If scheme is missing (e.g., "valkey:6379"), prepend redis://
+            if '://' not in redis_env_url:
+                redis_env_url = f"redis://{redis_env_url}"
+            self._settings['redis']['url'] = redis_env_url
             
         if minio_url := os.getenv('MINIO_URL'):
             self._settings['minio']['url'] = minio_url
