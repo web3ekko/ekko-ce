@@ -139,6 +139,29 @@ services:
       - nats
       - streamlit
 
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - VALKEY_URL=valkey:6379
+      - NATS_URL=nats://nats:4222
+      - API_URL=http://streamlit:8501
+    volumes:
+      - ./dashboard:/app
+      - /app/node_modules
+      - /app/.next
+    restart: unless-stopped
+    networks:
+      - pipeline-network
+    depends_on:
+      - valkey
+      - nats
+      - streamlit
+
   # pulsar-manager:
   #   image: apachepulsar/pulsar-manager:v0.2.0
   #   ports:
