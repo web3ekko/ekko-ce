@@ -665,8 +665,6 @@ class Cache:
 
             safe_mapping = {k: _serialize_val(v) for k, v in alert_data.items()}
             res = self.redis.hset(key, mapping=safe_mapping)
-            if getattr(self, 'ttl', None):
-                self.redis.expire(key, self.ttl)
             logger.debug("Cached alert %s to %s (result=%s)", alert_data.get('id'), key, res)
             return res
         except Exception as e:

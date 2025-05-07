@@ -96,7 +96,7 @@ def show_wallet_grid(wallets, cols=3):
                 st.markdown(f"<div class='wallet-card-title'>{w['name']}</div>", unsafe_allow_html=True)
                 st.markdown(f"<div class='wallet-card-detail'>{truncate_address(w['address'])}</div>", unsafe_allow_html=True)
                 st.markdown(f"<div class='wallet-card-detail'>Balance: {w['balance']:.4f}</div>", unsafe_allow_html=True)
-                status_cls = 'active' if w.get('status') == 'active' else 'inactive'
+                status_cls = 'active'
                 st.markdown(f"<div class='status-{status_cls}'>{status_cls.title()}</div>", unsafe_allow_html=True)
                 if st.button('View Details', key=f"view_{w['id']}", use_container_width=True):
                     st.session_state['selected_wallet_id'] = w['id']

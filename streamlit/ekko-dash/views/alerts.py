@@ -147,6 +147,14 @@ def sanitize_polars_condition(expr: str) -> str:
     expr = re.sub(r"pl\.UInt(?!\d)", "pl.UInt64", expr)
     expr = re.sub(r"pl\.uint(?!\d)", "pl.UInt64", expr, flags=re.IGNORECASE)
 
+    # Ensure numeric casts/strict_cast are compared to make Boolean predicate
+    # e.g. `(pl.col('value').strict_cast(UInt64))` -> `(pl.col('value').strict_cast(UInt64) > 0)`
+    cast_pattern = re.compile(r"(pl\.col\('[^']+'\)\\.[a-zA-Z_]*?cast\([^\)]*\))(?!\s*[<>=])")
+    expr = cast_pattern.sub(r"\1 > 0", expr)
+
+    strict_cast_pattern = re.compile(r"(pl\.col\('[^']+'\)\\.strict_cast\([^\)]*\))(?!\s*[<>=])")
+    expr = strict_cast_pattern.sub(r"\1 > 0", expr)
+
     return expr.strip()
 
 # Inject custom CSS

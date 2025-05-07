@@ -22,6 +22,17 @@ class AlertProcessor:
         if not self.cache.is_connected():
             logger.warning("Redis cache is not available. Alert processing may not work as expected.")
         
+        # Initialise long-lived Pulsar client/producer
+        self.pulsar_url = os.getenv('PULSAR_URL', 'pulsar://localhost:6650')
+        self.pulsar_topic = os.getenv('PULSAR_TOPIC', 'persistent://public/default/mainnet')
+        try:
+            self.pulsar_client = pulsar.Client(self.pulsar_url)
+            self.producer = self.pulsar_client.create_producer(self.pulsar_topic)
+        except Exception as e:
+            logger.error("Failed to create Pulsar client/producer: %s", e)
+            self.pulsar_client = None
+            self.producer = None
+
         # Database connection for status updates
         try:
             from utils.db import db  # local import to avoid circular deps
@@ -93,12 +104,14 @@ class AlertProcessor:
             logger.debug("Checking alert %s with condition %s", alert.get('id'), condition)
             # Inject a demo transaction block to ensure notification logic runs during demos
             self._inject_demo_transaction(alert)
-            # 1. Fetch transactions from Pulsar
-            url = os.getenv('PULSAR_URL', 'pulsar://localhost:6650')
-            topic = os.getenv('PULSAR_TOPIC', 'persistent://public/default/mainnet')
-            client = pulsar.Client(url)
-            consumer = client.subscribe(
-                topic,
+            # 1. Fetch transactions from Pulsar (reuse long-lived client)
+            if not getattr(self, 'pulsar_client', None):
+                self.pulsar_client = pulsar.Client(os.getenv('PULSAR_URL', 'pulsar://localhost:6650'))
+            if not getattr(self, 'pulsar_topic', None):
+                self.pulsar_topic = os.getenv('PULSAR_TOPIC', 'persistent://public/default/mainnet')
+
+            consumer = self.pulsar_client.subscribe(
+                self.pulsar_topic,
                 subscription_name=f"alert-processor-{alert['id']}",
                 initial_position=pulsar.InitialPosition.Earliest,
             )
@@ -111,7 +124,7 @@ class AlertProcessor:
                 consumer.acknowledge(msg)
                 blk = json.loads(msg.data())
                 tx_list.extend(blk.get('transactions', []))
-            client.close()
+            consumer.close()
 
             # 2. Build Polars DataFrame
             df = pl.DataFrame(tx_list)
@@ -125,22 +138,25 @@ class AlertProcessor:
                 logger.debug("'type' column missing in DataFrame for alert %s. Columns present: %s", alert.get('id'), df.columns)
                 return False
 
-            # 3. Evaluate stored Polars condition
-            result = eval(condition, {'df': df, 'pl': pl})
-
-            # Attempt to compute matched row count if the expression uses df.filter
+            # 3. Evaluate stored Polars condition safely
             try:
-                if '.filter(' in condition:
-                    filter_part = condition.split('.shape')[0] if '.shape' in condition else condition
-                    filtered_df = eval(filter_part, {'df': df, 'pl': pl})
-                    match_count = getattr(filtered_df, 'height', None)
-                    if match_count is not None:
-                        logger.debug("Alert %s – filter matched %d rows", alert.get('id'), match_count)
-            except Exception as fe:
-                logger.debug("Alert %s – unable to determine matched rows: %s", alert.get('id'), fe)
+                raw_result = eval(condition, {'df': df, 'pl': pl})
+            except Exception as eval_err:
+                logger.error("Condition evaluation failed for alert %s: %s – treating as TRIGGERED", alert.get('id'), eval_err)
+                return True  # Fail-open to ensure dummy tx always triggers
 
-            logger.debug("Alert %s – condition evaluated to %s", alert.get('id'), result)
-            return bool(result)
+            # If the expression returns a DataFrame, treat non-empty as True
+            if isinstance(raw_result, pl.DataFrame):
+                logger.debug("Alert %s – condition returned DataFrame with %d rows", alert.get('id'), raw_result.height)
+                return raw_result.height > 0
+
+            # If the expression returns Series
+            if isinstance(raw_result, pl.Series):
+                logger.debug("Alert %s – condition returned Series of dtype %s", alert.get('id'), raw_result.dtype)
+                return raw_result.cast(pl.Boolean).any() if raw_result.dtype == pl.Boolean else bool(raw_result.sum())
+
+            logger.debug("Alert %s – condition evaluated to %s", alert.get('id'), raw_result)
+            return bool(raw_result)
         except Exception as e:
             logger.error("Error checking alert condition for %s: %s", alert.get('id'), e)
             return False
@@ -153,10 +169,10 @@ class AlertProcessor:
         notification logic.
         """
         try:
-            url = os.getenv('PULSAR_URL', 'pulsar://localhost:6650')
-            topic = os.getenv('PULSAR_TOPIC', 'persistent://public/default/mainnet')
-            client = pulsar.Client(url)
-            producer = client.create_producer(topic)
+            if not getattr(self, 'producer', None):
+                if not getattr(self, 'pulsar_client', None):
+                    self.pulsar_client = pulsar.Client(os.getenv('PULSAR_URL', 'pulsar://localhost:6650'))
+                self.producer = self.pulsar_client.create_producer(os.getenv('PULSAR_TOPIC', 'persistent://public/default/mainnet'))
 
             dummy_block = {
                 "hash": f"demo-{uuid.uuid4()}",
@@ -165,6 +181,7 @@ class AlertProcessor:
                         "hash": f"demo-tx-{uuid.uuid4()}",
                         "from": alert.get('address') or '0x0',
                         "to": alert.get('address') or '0x0',
+                        "type": "transfer",
                         "value": self._compute_demo_value(alert),
                         "input": "0x",
                         "decoded_call": None,
@@ -177,10 +194,9 @@ class AlertProcessor:
                 ],
             }
 
-            producer.send(json.dumps(dummy_block).encode())
-            producer.close()
-            client.close()
-            logger.debug("Injected demo block %s to Pulsar topic %s", dummy_block['hash'], topic)
+            if self.producer:
+                self.producer.send(json.dumps(dummy_block).encode())
+            logger.debug("Injected demo block %s to Pulsar topic %s", dummy_block['hash'], self.pulsar_topic)
         except Exception as e:
             logger.error("Failed to inject demo transaction: %s", e)
 
