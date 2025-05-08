@@ -143,13 +143,15 @@ services:
     build:
       context: ./dashboard
       dockerfile: Dockerfile
+    # For dev purposes
+    command: npm run dev
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
       - VALKEY_URL=valkey:6379
       - NATS_URL=nats://nats:4222
-      - API_URL=http://streamlit:8501
+      - API_URL=http://api:8000
     volumes:
       - ./dashboard:/app
       - /app/node_modules
@@ -160,25 +162,21 @@ services:
     depends_on:
       - valkey
       - nats
-      - streamlit
+      - api
 
-  # pulsar-manager:
-  #   image: apachepulsar/pulsar-manager:v0.2.0
-  #   ports:
-  #     - "7750:7750"    # Manager UI
-  #     - "9527:9527"    # Manager API
-  #   environment:
-  #     - SPRING_PROFILES_ACTIVE=h2
-  #     - PULSAR_MANAGER_PULSAR_SERVICE_URL=pulsar://pulsar:6650
-  #     - PULSAR_MANAGER_PULSAR_ADMIN_URL=http://pulsar:8080
-  #     - REDIRECT_HOST=0.0.0.0
-  #     - REDIRECT_PORT=9527
-  #     - DRIVER_CLASS_NAME=org.h2.Driver
-  #     - URL=jdbc:h2:mem:testdb
-  #     - USERNAME=sa
-  #     - PASSWORD=
-  #     - LOG_LEVEL=INFO
-  #   networks:
-  #     - pipeline-network
-  #   depends_on:
-  #     - pulsar
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - NATS_URL=nats://nats:4222
+    volumes:
+      - ./api:/app
+    restart: unless-stopped
+    networks:
+      - pipeline-network
+    depends_on:
+      - nats
+      - valkey
