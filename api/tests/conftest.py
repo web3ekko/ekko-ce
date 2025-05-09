@@ -8,15 +8,14 @@ from datetime import datetime
 from typing import Dict, Any, List, Optional
 
 # Set test environment variables
-os.environ["NATS_URL"] = "nats://localhost:4222"
+os.environ["NATS_URL"] = os.getenv("NATS_URL", "nats://nats:4222")
 os.environ["TEST_MODE"] = "true"
 
-@pytest.fixture(scope="session")
-def event_loop():
-    """Create an instance of the default event loop for each test case."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+# Configure pytest to use asyncio
+pytest_plugins = ["pytest_asyncio"]
+
+# Note: We're not defining our own event_loop fixture anymore
+# as pytest-asyncio provides one for us
 
 @pytest.fixture(scope="session")
 async def nats_connection():
@@ -202,6 +201,57 @@ def sample_agent_data(sample_user_data):
         "updated_at": None,
         "created_by": sample_user_data["id"]
     }
+
+@pytest.fixture(scope="session")
+def nats_container():
+    """Start a NATS container for testing."""
+    from testcontainers.nats import NatsContainer
+    
+    # Start a NATS container with JetStream enabled
+    with NatsContainer(image="nats:latest", command=["-js"]) as nats:
+        yield nats
+
+@pytest.fixture
+def nats_client(nats_container):
+    """Create a NATS client connected to the test container."""
+    import nats
+    import asyncio
+    
+    # Get the NATS URL from the container
+    nats_url = nats_container.get_connection_url()
+    
+    # Run in an event loop to connect to NATS
+    async def connect():
+        nc = await nats.connect(nats_url)
+        js = nc.jetstream()
+        return nc, js
+    
+    # Connect to NATS
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    nc, js = loop.run_until_complete(connect())
+    
+    # Create test buckets
+    async def setup_buckets():
+        try:
+            # Create test buckets if they don't exist
+            await js.create_key_value(bucket="test_workflows")
+            await js.create_key_value(bucket="test_workflow_executions")
+            await js.create_key_value(bucket="test_agents")
+        except Exception as e:
+            # Bucket might already exist
+            print(f"Note: {e}")
+    
+    loop.run_until_complete(setup_buckets())
+    
+    yield nc, js
+    
+    # Clean up
+    async def cleanup():
+        await nc.close()
+        
+    loop.run_until_complete(cleanup())
+    loop.close()
 
 @pytest.fixture
 def sample_alert_rule_data(sample_user_data):

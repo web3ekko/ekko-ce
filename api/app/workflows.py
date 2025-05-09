@@ -17,6 +17,14 @@ router = APIRouter(prefix="/workflows", tags=["workflows"])
 nc = None
 js = None
 
+# Dependency to get JetStream instance
+def get_jetstream():
+    """Dependency to get JetStream instance"""
+    # Return the global JetStream instance without requiring a query parameter
+    from fastapi import Query
+    _ = Query(None, include_in_schema=False)  # This prevents FastAPI from expecting a query parameter
+    return js
+
 def init_nats(nats_connection, jetstream):
     """Initialize NATS connection for this module"""
     global nc, js
@@ -27,6 +35,8 @@ def init_nats(nats_connection, jetstream):
 async def publish_event(subject: str, data: Dict[str, Any]):
     """Publish an event to NATS"""
     try:
+        # Use the global js variable for publishing events
+        # This is called from background tasks where we don't have the jetstream dependency
         await js.publish(subject, json.dumps(data).encode())
         print(f"Published event to {subject}")
     except Exception as e:
@@ -37,13 +47,14 @@ async def publish_event(subject: str, data: Dict[str, Any]):
 async def get_workflows(
     skip: int = 0, 
     limit: int = 100,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    jetstream = Depends(get_jetstream)
 ):
     """
     Get all workflows with pagination.
     """
     try:
-        kv = await js.key_value(bucket="workflows")
+        kv = await jetstream.key_value(bucket="workflows")
         keys = await kv.keys()
         workflows = []
         
@@ -67,13 +78,14 @@ async def get_workflows(
 @router.get("/{workflow_id}", response_model=Workflow)
 async def get_workflow(
     workflow_id: str,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    jetstream = Depends(get_jetstream)
 ):
     """
     Get a specific workflow by ID.
     """
     try:
-        kv = await js.key_value(bucket="workflows")
+        kv = await jetstream.key_value(bucket="workflows")
         data = await kv.get(workflow_id)
         workflow_data = json.loads(data.value)
         
@@ -89,20 +101,21 @@ async def get_workflow(
 async def create_workflow(
     workflow: Workflow,
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    jetstream = Depends(get_jetstream)
 ):
     """
     Create a new workflow.
     """
     try:
-        kv = await js.key_value(bucket="workflows")
+        kv = await jetstream.key_value(bucket="workflows")
         
         # Set created_by to current user
         workflow.created_by = current_user.id
         workflow.created_at = datetime.now().isoformat()
         
         # Save to KV store
-        await kv.put(workflow.id, json.dumps(workflow.dict()))
+        await kv.put(workflow.id, json.dumps(workflow.model_dump()))
         
         # Publish event
         background_tasks.add_task(
@@ -120,7 +133,8 @@ async def update_workflow(
     workflow_id: str,
     workflow: Workflow,
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    jetstream = Depends(get_jetstream)
 ):
     """
     Update an existing workflow.
@@ -129,7 +143,7 @@ async def update_workflow(
         if workflow_id != workflow.id:
             raise HTTPException(status_code=400, detail="Workflow ID mismatch")
             
-        kv = await js.key_value(bucket="workflows")
+        kv = await jetstream.key_value(bucket="workflows")
         
         # Check if workflow exists and user has access
         try:
@@ -158,17 +172,18 @@ async def update_workflow(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error updating workflow: {str(e)}")
 
-@router.delete("/{workflow_id}")
+@router.delete("/{workflow_id}", response_model=Dict[str, Any])
 async def delete_workflow(
     workflow_id: str,
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    jetstream = Depends(get_jetstream)
 ):
     """
     Delete a workflow.
     """
     try:
-        kv = await js.key_value(bucket="workflows")
+        kv = await jetstream.key_value(bucket="workflows")
         
         # Check if workflow exists and user has access
         try:
@@ -201,14 +216,15 @@ async def delete_workflow(
 async def execute_workflow(
     workflow_id: str,
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    jetstream = Depends(get_jetstream)
 ):
     """
     Execute a workflow.
     """
     try:
         # Get the workflow
-        workflow_kv = await js.key_value(bucket="workflows")
+        workflow_kv = await jetstream.key_value(bucket="workflows")
         
         try:
             data = await workflow_kv.get(workflow_id)
@@ -234,8 +250,8 @@ async def execute_workflow(
         )
         
         # Save execution record
-        executions_kv = await js.key_value(bucket="workflow_executions")
-        await executions_kv.put(execution_id, json.dumps(execution.dict()))
+        executions_kv = await jetstream.key_value(bucket="workflow_executions")
+        await executions_kv.put(execution_id, json.dumps(execution.model_dump()))
         
         # Publish event to trigger workflow execution
         background_tasks.add_task(
@@ -259,7 +275,8 @@ async def get_workflow_executions(
     workflow_id: str,
     skip: int = 0,
     limit: int = 100,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    jetstream = Depends(get_jetstream)
 ):
     """
     Get execution history for a workflow.
@@ -278,7 +295,7 @@ async def get_workflow_executions(
             raise HTTPException(status_code=404, detail="Workflow not found")
         
         # Get executions
-        executions_kv = await js.key_value(bucket="workflow_executions")
+        executions_kv = await jetstream.key_value(bucket="workflow_executions")
         keys = await executions_kv.keys()
         executions = []
         
@@ -306,7 +323,8 @@ async def get_workflow_executions(
 async def get_workflow_execution(
     workflow_id: str,
     execution_id: str,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    jetstream = Depends(get_jetstream)
 ):
     """
     Get details of a specific workflow execution.
@@ -325,7 +343,7 @@ async def get_workflow_execution(
             raise HTTPException(status_code=404, detail="Workflow not found")
         
         # Get execution
-        executions_kv = await js.key_value(bucket="workflow_executions")
+        executions_kv = await jetstream.key_value(bucket="workflow_executions")
         
         try:
             data = await executions_kv.get(execution_id)

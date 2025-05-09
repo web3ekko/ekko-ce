@@ -17,6 +17,14 @@ router = APIRouter(prefix="/agents", tags=["agents"])
 nc = None
 js = None
 
+# Dependency to get JetStream instance
+def get_jetstream():
+    """Dependency to get JetStream instance"""
+    # Return the global JetStream instance without requiring a query parameter
+    from fastapi import Query
+    _ = Query(None, include_in_schema=False)  # This prevents FastAPI from expecting a query parameter
+    return js
+
 def init_nats(nats_connection, jetstream):
     """Initialize NATS connection for this module"""
     global nc, js
@@ -37,13 +45,14 @@ async def publish_event(subject: str, data: Dict[str, Any]):
 async def get_agents(
     skip: int = 0, 
     limit: int = 100,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    jetstream = Depends(get_jetstream)
 ):
     """
     Get all agents with pagination.
     """
     try:
-        kv = await js.key_value(bucket="agents")
+        kv = await jetstream.key_value(bucket="agents")
         keys = await kv.keys()
         agents = []
         
@@ -67,13 +76,14 @@ async def get_agents(
 @router.get("/{agent_id}", response_model=Agent)
 async def get_agent(
     agent_id: str,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    jetstream = Depends(get_jetstream)
 ):
     """
     Get a specific agent by ID.
     """
     try:
-        kv = await js.key_value(bucket="agents")
+        kv = await jetstream.key_value(bucket="agents")
         data = await kv.get(agent_id)
         agent_data = json.loads(data.value)
         
@@ -89,20 +99,21 @@ async def get_agent(
 async def create_agent(
     agent: Agent,
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    jetstream = Depends(get_jetstream)
 ):
     """
     Create a new agent.
     """
     try:
-        kv = await js.key_value(bucket="agents")
+        kv = await jetstream.key_value(bucket="agents")
         
         # Set created_by to current user
         agent.created_by = current_user.id
         agent.created_at = datetime.now().isoformat()
         
         # Save to KV store
-        await kv.put(agent.id, json.dumps(agent.dict()))
+        await kv.put(agent.id, json.dumps(agent.model_dump()))
         
         # Publish event
         background_tasks.add_task(
@@ -120,7 +131,8 @@ async def update_agent(
     agent_id: str,
     agent: Agent,
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    jetstream = Depends(get_jetstream)
 ):
     """
     Update an existing agent.
@@ -129,7 +141,7 @@ async def update_agent(
         if agent_id != agent.id:
             raise HTTPException(status_code=400, detail="Agent ID mismatch")
             
-        kv = await js.key_value(bucket="agents")
+        kv = await jetstream.key_value(bucket="agents")
         
         # Check if agent exists and user has access
         try:
@@ -158,11 +170,12 @@ async def update_agent(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error updating agent: {str(e)}")
 
-@router.delete("/{agent_id}")
+@router.delete("/{agent_id}", response_model=Dict[str, Any])
 async def delete_agent(
     agent_id: str,
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    jetstream = Depends(get_jetstream)
 ):
     """
     Delete an agent.
@@ -200,7 +213,8 @@ async def delete_agent(
 @router.get("/{agent_id}/status", response_model=Dict[str, Any])
 async def get_agent_status(
     agent_id: str,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    jetstream = Depends(get_jetstream)
 ):
     """
     Get the current status of an agent.
@@ -234,7 +248,8 @@ async def get_agent_status(
 async def start_agent(
     agent_id: str,
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    jetstream = Depends(get_jetstream)
 ):
     """
     Start an agent.
@@ -278,7 +293,8 @@ async def start_agent(
 async def stop_agent(
     agent_id: str,
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    jetstream = Depends(get_jetstream)
 ):
     """
     Stop an agent.
