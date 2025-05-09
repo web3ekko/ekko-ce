@@ -8,7 +8,7 @@ export const protectedRoutes = [
   {
     key: 'dashboard',
     path: '/dashboard',
-    component: lazy(() => import('@/pages/examples/Dashboard')),
+    component: lazy(() => import('@/pages/ekko/Dashboard')),
     authority: []
   },
   {
