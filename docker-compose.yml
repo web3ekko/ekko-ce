@@ -5,7 +5,7 @@ networks:
     driver: bridge
 
 volumes:
-  pulsar_data:
+  redis_data:
   valkey_data:
   duckdb_data:
   nats_data:
@@ -17,13 +17,15 @@ services:
       dockerfile: Dockerfile
     ports:
       - "4195:4195"  # HTTP API + Prometheus metrics
-    # environment:
-    #   - VALKEY_URL=valkey:6379
-    #   - PULSAR_URL=pulsar://pulsar:6650
-    #   - PULSAR_TOPIC=transactions
-    #   - NATS_URL=nats://nats:4222
-    #   - SNOWTRACE_API_KEY=${SNOWTRACE_API_KEY}
-    #   - CHAIN_ID=${CHAIN_ID}
+    environment:
+      - VALKEY_URL=valkey:6379
+      - NATS_URL=nats://nats:4222
+      - NATS_STREAM=blockchain
+      - NATS_SUBJECT=transactions
+      - PULSAR_URL=
+      - PULSAR_ADMIN_URL=
+      # Override any Pulsar-related settings
+      - ENABLE_PULSAR=false
     env_file: ".env"
     volumes:
       - ./config.yaml:/app/config.yaml
@@ -32,7 +34,6 @@ services:
       - pipeline-network
     depends_on:
       - valkey
-      - pulsar
       - nats
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4195/ping"]
@@ -55,30 +56,6 @@ services:
       timeout: 10s
       retries: 3
 
-  pulsar:
-    image: apachepulsar/pulsar:4.0.4
-    container_name: pulsar
-    command:
-      - "bash"
-      - "-c"
-      - |
-        bin/pulsar standalone \
-          --no-functions-worker \
-          --wipe-data
-    environment:
-      PULSAR_MEM: "-Xms1g -Xmx1g -XX:MaxDirectMemorySize=512m"
-    ports:
-      - "6650:6650"   # Pulsar binary protocol
-      - "8080:8080"   # Pulsar REST API
-    networks:
-      - pipeline-network
-    logging:
-      driver: "none"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/admin/v2/clusters"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
       
   nats:
     image: nats:2.10-alpine
@@ -106,9 +83,9 @@ services:
       - "8501:8501"
     environment:
       - VALKEY_URL=valkey:6379
-      - PULSAR_URL=pulsar://pulsar:6650
-      - PULSAR_TOPIC=transactions
       - NATS_URL=nats://nats:4222
+      - NATS_STREAM=blockchain
+      - NATS_SUBJECT=transactions
     volumes:
       - ./streamlit/ekko-dash:/app
       - duckdb_data:/data
@@ -116,7 +93,6 @@ services:
       - pipeline-network
     depends_on:
       - valkey
-      - pulsar
       - nats
       - pipeline
 
@@ -128,6 +104,9 @@ services:
     env_file: .env
     environment:
       - DUCKDB_PATH=/data/ekko.db
+      - NATS_URL=nats://nats:4222
+      - NATS_STREAM=blockchain
+      - NATS_SUBJECT=transactions
     volumes:
       - ./streamlit/ekko-dash:/app
     restart: unless-stopped
@@ -135,7 +114,6 @@ services:
       - pipeline-network
     depends_on:
       - valkey
-      - pulsar
       - nats
       - streamlit
 
@@ -144,9 +122,9 @@ services:
       context: ./dashboard
       dockerfile: Dockerfile
     # For dev purposes
-    command: npm run dev
+    command: sh -c "yarn install && yarn dev --host 0.0.0.0 --port 5173"
     ports:
-      - "3000:3000"
+      - "3000:5173"
     environment:
       - NODE_ENV=production
       - VALKEY_URL=valkey:6379

@@ -2,16 +2,17 @@ FROM node:23-alpine
 
 WORKDIR /app
 
-# Install Yarn 
+# Install Yarn and other dependencies
 RUN apk add --no-cache libc6-compat curl
 RUN corepack enable
 
-# Copy package files
-COPY package.json yarn.lock* .yarnrc.yml ./
+# Copy package files first for better layer caching
+COPY package.json yarn.lock* ./
+COPY .yarnrc.yml* ./
 COPY .yarn ./.yarn
 
-# Install dependencies
-RUN yarn install
+# Install dependencies with verbose logging
+RUN yarn install --immutable
 
 # Copy source files
 COPY . .
@@ -19,11 +20,8 @@ COPY . .
 # Set environment variables
 ENV NODE_ENV=development
 
-# Build the application
-RUN yarn build
-
-# Expose the port the app runs on
+# Expose the port the app runs on (Vite uses 5173 by default)
 EXPOSE 5173
 
-# Command to run the application
-CMD ["yarn", "preview", "--host", "0.0.0.0"]
+# Command to run the development server with host binding to all interfaces
+CMD ["yarn", "dev", "--host", "0.0.0.0", "--port", "5173"]

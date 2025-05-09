@@ -6,19 +6,23 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
 	"gopkg.in/yaml.v3"
 )
 
 // SubnetConfig holds configuration for an Avalanche subnet
 type SubnetConfig struct {
-	Name         string            `yaml:"name"`          // Subnet name (e.g., "mainnet", "fuji", "wagmi")
-	ChainID      string            // Chain ID for the subnet
-	VMType       string            // VM type (e.g., "evm", "subnet-evm")
-	NodeURLs     []string          `yaml:"node_urls,omitempty"`
-	PulsarTopic  string            `yaml:"pulsar_topic,omitempty"`
+	Name         string            `yaml:"name"` // Subnet name (e.g., "mainnet", "fuji", "wagmi")
+	Blockchain   string            `yaml:"blockchain,omitempty"`
+	ChainID      string            `yaml:"chain_id,omitempty"`
+	NodeURLs     []string          `yaml:"nodes"`
+	StreamName   string            `yaml:"stream_name,omitempty"`
+	Subject      string            `yaml:"subject,omitempty"`
+	Templates    map[string]string `yaml:"templates,omitempty"`
 	CustomParams map[string]string `yaml:"custom_params,omitempty"`
 	WebSocketURL string            `yaml:"websocket_url,omitempty"` // Optional override for WS endpoint
 	HTTPURL      string            `yaml:"http_url,omitempty"`      // Optional override for HTTP endpoint
+	VMType       string            `yaml:"vm_type,omitempty"`
 }
 
 // NodeEndpoints represents WebSocket and HTTP endpoints for a node
@@ -29,26 +33,25 @@ type NodeEndpoints struct {
 
 // Config holds the application configuration
 type Config struct {
-	// Network type (e.g., "mainnet", "testnet")
-	NetworkType string
-
-	// Subnet configurations
+	// Subnets configuration
 	Subnets []SubnetConfig `yaml:"subnets"`
 
-	// Pulsar configuration
-	PulsarURL string
+	// Redis configuration
+	RedisURL string
 
-	// Cache configuration
-	CacheType string // "memory" or "redis"
-	RedisURL  string
+	// NATS configuration
+	NatsURL string
 
-	// Processing configuration
+	// Decoder configuration
 	DecoderWorkers int
+	BatchSize      int
 
 	// Retry configuration
 	MaxRetries     int
 	RetryDelay     time.Duration
 	RequestTimeout time.Duration
+	NetworkType    string
+	CacheType      string
 }
 
 // LoadFromEnv loads configuration from environment variables
@@ -95,8 +98,9 @@ func LoadFromEnv() (*Config, error) {
 			}
 		}
 
-		// Load per-subnet Pulsar topic, no default
-		pulsarTopic := os.Getenv(prefix + "_PULSAR_TOPIC")
+		// Load per-subnet NATS stream and subject
+		streamName := os.Getenv(prefix + "_STREAM_NAME")
+		subject := os.Getenv(prefix + "_SUBJECT")
 
 		// Optional overrides for RPC URLs
 		wsURL := os.Getenv(prefix + "_WEBSOCKET_URL")
@@ -107,7 +111,8 @@ func LoadFromEnv() (*Config, error) {
 			ChainID:      chainID,
 			VMType:       vmType,
 			NodeURLs:     nodeURLs,
-			PulsarTopic:  pulsarTopic,
+			StreamName:   streamName,
+			Subject:      subject,
 			CustomParams: customParams,
 			WebSocketURL: wsURL,
 			HTTPURL:      httpURL,
@@ -115,15 +120,19 @@ func LoadFromEnv() (*Config, error) {
 	}
 	// Default topic to subnet name if still unset
 	for i := range subnets {
-		if subnets[i].PulsarTopic == "" {
-			subnets[i].PulsarTopic = subnets[i].Name
+		if subnets[i].StreamName == "" {
+			subnets[i].StreamName = "BLOCKCHAIN"
+		}
+		if subnets[i].Subject == "" {
+			subnets[i].Subject = subnets[i].Name
 		}
 	}
 
 	// Load other configurations
-	pulsarURL := os.Getenv("PULSAR_URL")
-	if pulsarURL == "" {
-		return nil, fmt.Errorf("PULSAR_URL is required")
+	natsURL := os.Getenv("NATS_URL")
+	if natsURL == "" {
+		// Default to localhost if not specified
+		natsURL = "nats://localhost:4222"
 	}
 
 	cacheType := getEnvWithDefault("CACHE_TYPE", "memory")
@@ -138,7 +147,7 @@ func LoadFromEnv() (*Config, error) {
 	return &Config{
 		NetworkType:    networkType,
 		Subnets:        subnets,
-		PulsarURL:      pulsarURL,
+		NatsURL:        natsURL,
 		CacheType:      cacheType,
 		RedisURL:       redisURL,
 		DecoderWorkers: decoderWorkers,
@@ -154,7 +163,9 @@ func Load(path string) (*Config, error) {
 	if err != nil {
 		return LoadFromEnv()
 	}
-	var fileCfg struct { Subnets []SubnetConfig `yaml:"subnets"` }
+	var fileCfg struct {
+		Subnets []SubnetConfig `yaml:"subnets"`
+	}
 	if err := yaml.Unmarshal(data, &fileCfg); err != nil {
 		return nil, fmt.Errorf("failed to parse config file %s: %w", path, err)
 	}
@@ -172,8 +183,11 @@ func Load(path string) (*Config, error) {
 	cfg.Subnets = fileCfg.Subnets
 	// Default topic to subnet name if not set in YAML
 	for i := range cfg.Subnets {
-		if cfg.Subnets[i].PulsarTopic == "" {
-			cfg.Subnets[i].PulsarTopic = cfg.Subnets[i].Name
+		if cfg.Subnets[i].StreamName == "" {
+			cfg.Subnets[i].StreamName = "BLOCKCHAIN"
+		}
+		if cfg.Subnets[i].Subject == "" {
+			cfg.Subnets[i].Subject = cfg.Subnets[i].Name
 		}
 	}
 	return cfg, nil

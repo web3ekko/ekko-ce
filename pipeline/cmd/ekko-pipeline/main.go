@@ -32,7 +32,7 @@ func main() {
 	redisAdapter := decoder.NewRedisAdapter(redisClientAdapter)
 
 	// Create pipeline
-	p, err := pipeline.NewPipeline(redisAdapter, cfg)
+	p, err := pipeline.NewPipeline(*cfg, redisAdapter)
 	if err != nil {
 		log.Fatalf("Failed to create pipeline: %v", err)
 	}

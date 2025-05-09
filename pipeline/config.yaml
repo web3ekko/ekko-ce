@@ -1,0 +1,13 @@
+# Pipeline configuration
+subnets:
+  - name: mainnet
+    chain_id: 43114
+    vm_type: subnet-evm
+    nodes:
+      - https://api.avax.network
+    stream_name: BLOCKCHAIN
+    subject: mainnet
+
+# NATS configuration
+# This will override any PULSAR_URL in the environment variables
+nats_url: nats://nats:4222

@@ -1,6 +1,6 @@
 # Ekko Pipeline
 
-A high-performance data pipeline for processing Avalanche blockchain data. The pipeline connects to Avalanche nodes via WebSocket, processes blocks and transactions, and forwards the data to Apache Pulsar.
+A high-performance data pipeline for processing Avalanche blockchain data. The pipeline connects to Avalanche nodes via WebSocket, processes blocks and transactions, and forwards the data to NATS JetStream.
 
 ## Features
 
@@ -22,8 +22,8 @@ Configuration options in `.env`:
 
 ```env
 # Infrastructure
-PULSAR_HOST=pulsar              # Pulsar host
-PULSAR_PORT=6650               # Pulsar port
+NATS_URL=nats://nats:4222       # NATS server URL
+# NATS configuration is handled via the URL
 REDIS_HOST=redis               # Redis host (if using Redis cache)
 REDIS_PORT=6379               # Redis port
 METRICS_PORT=9090             # Metrics endpoint port
@@ -41,7 +41,8 @@ AVAX_SUBNETS=subnet1,subnet2   # Comma-separated list of subnet names
 SUBNET1_NODE_URLS=http://node1:9650,http://node2:9650
 SUBNET1_CHAIN_ID=2q9e4r
 SUBNET1_VM_TYPE=subnet-evm
-SUBNET1_PULSAR_TOPIC=blocks-subnet1
+SUBNET1_STREAM_NAME=BLOCKCHAIN
+SUBNET1_SUBJECT=blocks-subnet1
 ```
 
 ## Building
@@ -76,6 +77,6 @@ docker run -d \
 1. **WebSocket Source**: Connects to Avalanche nodes and subscribes to new blocks
 2. **Decoder**: Decodes transactions in parallel using a worker pool
 3. **Cache**: Caches decoded transactions using Redis or in-memory storage
-4. **Pulsar Sink**: Forwards processed blocks to Apache Pulsar
+4. **NATS JetStream Sink**: Forwards processed blocks to NATS JetStream
 
 The pipeline automatically handles node failover and includes retry mechanisms for resilience.

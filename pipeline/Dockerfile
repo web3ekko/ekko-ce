@@ -15,9 +15,12 @@ RUN go mod download
 # Copy source code
 COPY . .
 
+# Build without using the vendor directory
+RUN rm -rf vendor && go mod tidy
+
 # Build the application with optimizations
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-    go build -ldflags="-w -s" -o pipeline ./cmd/ekko-pipeline
+    go build -mod=mod -ldflags="-w -s" -o pipeline ./cmd/ekko-pipeline
 
 # Final stage (Debian-based runtime)
 FROM golang:1.24

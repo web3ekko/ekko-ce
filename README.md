@@ -17,16 +17,16 @@ Ekko is an **open-source blockchain monitoring and automation platform** that he
 - **Multi-Chain Support:** Monitor transactions across Avalanche C-Chain (EVM) and P-Chain (Platform)
 - **Real-Time Alerts:** Set up custom alerts for transactions, wallet balances, and smart contract events
 - **Wallet Management:** Track and manage multiple wallets across different chains
-- **Transaction Monitoring:** Real-time transaction monitoring with customizable filters (via Pulsar topics)
-- **Workflow Automation:** Create automated workflows triggered by blockchain events (via Pulsar topics)
-- **Agent System:** Deploy autonomous agents for automated trading and monitoring (with Pulsar integration)
-- **Data Storage and Messaging:** Hybrid system using DuckDB, Valkey, and Pulsar for optimal performance
+- **Transaction Monitoring:** Real-time transaction monitoring with customizable filters (via NATS JetStream)
+- **Workflow Automation:** Create automated workflows triggered by blockchain events (via NATS JetStream)
+- **Agent System:** Deploy autonomous agents for automated trading and monitoring (with NATS JetStream integration)
+- **Data Storage and Messaging:** Hybrid system using DuckDB, Valkey, and NATS JetStream for optimal performance
 - **Modular Architecture:**
   - **Bento:** Real-time transaction processing and alert engine
   - **Streamlit:** Modern, responsive web interface
   - **Valkey:** High-performance caching and real-time data streaming
-  - **Pulsar:** Distributed messaging and event streaming
-  - **Pulsar:** Distributed messaging and event streaming for transaction data
+  - **NATS JetStream:** Distributed messaging and event streaming
+  - **NATS JetStream:** Distributed messaging and event streaming for transaction data
 
 ## Quickstart
 
@@ -53,7 +53,7 @@ Ekko is built with a modular architecture focusing on real-time processing and s
 - **Bento Service:** Processes blockchain transactions and manages alerts
 - **Streamlit Dashboard:** Provides the user interface and data visualization
 - **Valkey:** Handles caching and real-time data streaming
-- **Pulsar:** Handles distributed messaging and event streaming
+- **NATS JetStream:** Handles distributed messaging and event streaming
 - **DuckDB:** Manages structured data for wallets, alerts, and workflows
 
 ## Documentation
