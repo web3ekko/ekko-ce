@@ -5,8 +5,8 @@ import {
   IconBell, 
   IconExchange, 
   IconSettings,
-  IconChartBar,
-  IconServer
+  IconServer,
+  IconArrowsRightLeft
 } from '@tabler/icons-react';
 
 const navigationConfig: NavigationTree[] = [
@@ -47,11 +47,11 @@ const navigationConfig: NavigationTree[] = [
     subMenu: []
   },
   {
-    key: 'analytics',
-    path: '/analytics',
-    title: 'Analytics',
+    key: 'workflows',
+    path: '/workflows',
+    title: 'Workflows',
     translateKey: '',
-    icon: IconChartBar,
+    icon: IconArrowsRightLeft,
     authority: [],
     subMenu: []
   },

@@ -12,9 +12,27 @@ import {
   Select,
   ActionIcon,
   Tabs,
-  Divider
+  Divider,
+  Modal,
+  Textarea,
+  NumberInput,
+  Radio,
+  Slider,
+  Switch
 } from '@mantine/core';
-import { IconSearch, IconPlus, IconRefresh, IconBell, IconAlertCircle, IconChartBar, IconWallet } from '@tabler/icons-react';
+import { useForm } from '@mantine/form';
+import { 
+  IconSearch, 
+  IconPlus, 
+  IconRefresh, 
+  IconBell, 
+  IconAlertCircle, 
+  IconChartBar, 
+  IconWallet, 
+  IconCheck, 
+  IconCurrencyDollar, 
+  IconShield 
+} from '@tabler/icons-react';
 
 // This will be replaced with actual API data
 const MOCK_ALERTS = [
@@ -56,11 +74,71 @@ const MOCK_ALERTS = [
   },
 ];
 
+interface AlertFormValues {
+  type: string;
+  message: string;
+  priority: string;
+  relatedWallet: string;
+  threshold: number;
+  enableNotifications: boolean;
+}
+
 export default function Alerts() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activePage, setActivePage] = useState(1);
   const [pageSize, setPageSize] = useState('10');
   const [activeTab, setActiveTab] = useState('all');
+  const [modalOpened, setModalOpened] = useState(false);
+  
+  // Form for creating a new alert
+  const form = useForm<AlertFormValues>({
+    initialValues: {
+      type: 'Price',
+      message: '',
+      priority: 'Medium',
+      relatedWallet: '',
+      threshold: 5,
+      enableNotifications: true,
+    },
+    validate: {
+      message: (value) => (value.trim().length < 1 ? 'Alert message is required' : null),
+    },
+  });
+  
+  // Handle form submission
+  const handleSubmit = (values: AlertFormValues) => {
+    // In a real app, this would call an API to create the alert
+    console.log('Creating new alert:', values);
+    // Close the modal after submission
+    setModalOpened(false);
+    // Reset form
+    form.reset();
+  };
+  
+  // Update message based on alert type and threshold
+  const updateAlertMessage = (type: string, threshold: number, wallet: string) => {
+    let message = '';
+    const walletName = wallet ? wallet : 'selected wallet';
+    
+    switch (type) {
+      case 'Price':
+        message = `Alert when price changes by ${threshold}%`;
+        break;
+      case 'Balance':
+        message = `Alert when ${walletName} balance falls below ${threshold}`;
+        break;
+      case 'Transaction':
+        message = `Alert on transactions above ${threshold} in ${walletName}`;
+        break;
+      case 'Security':
+        message = `Security monitoring for ${walletName}`;
+        break;
+      default:
+        message = 'Custom alert';
+    }
+    
+    form.setFieldValue('message', message);
+  };
   
   // Filter alerts based on search query and active tab
   const filteredAlerts = MOCK_ALERTS.filter(alert => {
@@ -109,7 +187,112 @@ export default function Alerts() {
           <Title order={2}>Alerts</Title>
           <Text c="dimmed" size="sm">Monitor and manage blockchain alerts</Text>
         </div>
-        <Button leftSection={<IconPlus size={16} />} variant="filled">Create Alert</Button>
+        <Button 
+          leftSection={<IconPlus size={16} />} 
+          variant="filled"
+          onClick={() => setModalOpened(true)}
+        >
+          Create Alert
+        </Button>
+        
+        {/* Create Alert Modal */}
+        <Modal
+          opened={modalOpened}
+          onClose={() => setModalOpened(false)}
+          title="Create New Alert"
+          size="md"
+        >
+          <form onSubmit={form.onSubmit(handleSubmit)}>
+            <Stack gap="md">
+              <Radio.Group
+                label="Alert Type"
+                description="Select the type of alert you want to create"
+                {...form.getInputProps('type')}
+                onChange={(value) => {
+                  form.setFieldValue('type', value);
+                  updateAlertMessage(value, form.values.threshold, form.values.relatedWallet);
+                }}
+              >
+                <Group mt="xs">
+                  <Radio value="Price" label="Price Alert" />
+                  <Radio value="Balance" label="Balance Alert" />
+                  <Radio value="Transaction" label="Transaction Alert" />
+                  <Radio value="Security" label="Security Alert" />
+                </Group>
+              </Radio.Group>
+              
+              <Select
+                label="Related Wallet"
+                placeholder="Select wallet (optional)"
+                data={[
+                  { value: '', label: 'None' },
+                  { value: '0x1234...5678', label: 'Main Wallet (AVAX)' },
+                  { value: '0x8765...4321', label: 'Trading Wallet (ETH)' },
+                  { value: 'bc1q...wxyz', label: 'Cold Storage (BTC)' },
+                ]}
+                clearable
+                {...form.getInputProps('relatedWallet')}
+                onChange={(value: string | null) => {
+                  form.setFieldValue('relatedWallet', value || '');
+                  updateAlertMessage(form.values.type, form.values.threshold, value || '');
+                }}
+              />
+              
+              <div>
+                <Text size="sm" fw={500} mb="xs">Threshold</Text>
+                <Slider
+                  min={1}
+                  max={50}
+                  label={(value) => `${value}${form.values.type === 'Price' ? '%' : ''}`}
+                  marks={[
+                    { value: 1, label: '1' },
+                    { value: 10, label: '10' },
+                    { value: 25, label: '25' },
+                    { value: 50, label: '50' },
+                  ]}
+                  {...form.getInputProps('threshold')}
+                  onChange={(value) => {
+                    form.setFieldValue('threshold', value);
+                    updateAlertMessage(form.values.type, value, form.values.relatedWallet);
+                  }}
+                />
+              </div>
+              
+              <Radio.Group
+                label="Priority"
+                {...form.getInputProps('priority')}
+              >
+                <Group mt="xs">
+                  <Radio value="Low" label="Low" />
+                  <Radio value="Medium" label="Medium" />
+                  <Radio value="High" label="High" />
+                </Group>
+              </Radio.Group>
+              
+              <Textarea
+                label="Alert Message"
+                placeholder="Alert description"
+                required
+                minRows={2}
+                {...form.getInputProps('message')}
+              />
+              
+              <Switch
+                label="Enable Notifications"
+                description="Receive notifications when this alert is triggered"
+                checked={form.values.enableNotifications}
+                onChange={(event) => form.setFieldValue('enableNotifications', event.currentTarget.checked)}
+              />
+              
+              <Divider />
+              
+              <Group justify="flex-end">
+                <Button variant="light" onClick={() => setModalOpened(false)}>Cancel</Button>
+                <Button type="submit" leftSection={<IconCheck size={16} />}>Create Alert</Button>
+              </Group>
+            </Stack>
+          </form>
+        </Modal>
       </Group>
       
       <Card withBorder mb="md">
