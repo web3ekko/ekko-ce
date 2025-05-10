@@ -10,7 +10,14 @@ import {
   Title, 
   Paper,
   SimpleGrid,
-  useMantineTheme
+  useMantineTheme,
+  Button,
+  Progress,
+  Divider,
+  ActionIcon,
+  Tooltip as MantineTooltip,
+  Box,
+  Select
 } from "@mantine/core";
 import { 
   IconArrowUpRight, 
@@ -18,9 +25,17 @@ import {
   IconWallet, 
   IconAlertCircle, 
   IconCoin, 
-  IconGauge
+  IconGauge,
+  IconExchange,
+  IconBell,
+  IconServer,
+  IconSettings,
+  IconChevronRight,
+  IconArrowsRightLeft,
+  IconEye,
+  IconPlus
 } from "@tabler/icons-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { useAppSelector } from "@/store";
 import { useNavigate } from 'react-router-dom';
 
@@ -60,17 +75,40 @@ const chainDistribution = [
   { chain: 'MATIC', value: 10, color: '#9775fa' },
 ];
 
+const activeWallets = [
+  { id: '1', name: 'Main ETH Wallet', address: '0x1a2b...3c4d', balance: 2.45, chain: 'ETH', color: '#4c6ef5', lastActivity: '2 hours ago' },
+  { id: '2', name: 'Trading BTC', address: '0x5e6f...7g8h', balance: 0.15, chain: 'BTC', color: '#f59f00', lastActivity: '5 hours ago' },
+  { id: '3', name: 'AVAX Staking', address: '0x9i0j...1k2l', balance: 45.75, chain: 'AVAX', color: '#e03131', lastActivity: '1 day ago' },
+];
+
+const activeAlerts = [
+  { id: '1', type: 'Price', message: 'ETH price dropped below $2,000', priority: 'High', time: '15 minutes ago', color: '#e03131' },
+  { id: '2', type: 'Wallet Activity', message: 'Unusual withdrawal from Wallet #3', priority: 'Medium', time: '32 minutes ago', color: '#f59f00' },
+  { id: '3', type: 'Node Status', message: 'AVAX node connection lost', priority: 'High', time: '45 minutes ago', color: '#e03131' },
+];
+
+const activeWorkflows = [
+  { id: '1', name: 'Price Alert to Transaction', status: 'Active', lastRun: '2 hours ago', triggers: 1, actions: 2 },
+  { id: '2', name: 'Daily Portfolio Summary', status: 'Active', lastRun: '1 day ago', triggers: 1, actions: 1 },
+];
+
+const nodeStatus = [
+  { id: '1', name: 'ETH Mainnet', status: 'Healthy', uptime: '99.8%', latency: '45ms' },
+  { id: '2', name: 'AVAX C-Chain', status: 'Degraded', uptime: '95.2%', latency: '120ms' },
+  { id: '3', name: 'BTC Node', status: 'Healthy', uptime: '99.9%', latency: '65ms' },
+];
+
 // Define styles as objects for table alignment
 const tableHeaderStyle = {
   textAlign: 'left' as const,
   fontWeight: 600,
-  fontSize: '0.85rem',
+  fontSize: '0.75rem',
   textTransform: 'uppercase' as const,
-  padding: '10px 8px',
+  padding: '6px 4px',
 };
 
 const tableCellStyle = {
-  padding: '8px',
+  padding: '4px',
   verticalAlign: 'middle' as const,
 };
 
@@ -79,322 +117,464 @@ const viewAllLinkStyle = {
   transition: 'all 0.2s ease',
 };
 
+const sectionCardStyle = {
+  height: 'auto',
+  display: 'flex',
+  flexDirection: 'column' as const,
+};
+
+const cardHeaderStyle = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: '5px',
+};
+
+const COLORS = ['#4c6ef5', '#f59f00', '#e03131', '#9775fa', '#40c057', '#fd7e14'];
+
+const getStatusColor = (status: string) => {
+  switch (status.toLowerCase()) {
+    case 'confirmed':
+    case 'healthy':
+    case 'active':
+      return 'green';
+    case 'pending':
+    case 'degraded':
+      return 'yellow';
+    case 'failed':
+    case 'down':
+    case 'inactive':
+      return 'red';
+    default:
+      return 'gray';
+  }
+};
+
+const getPriorityColor = (priority: string) => {
+  switch (priority.toLowerCase()) {
+    case 'high':
+      return 'red';
+    case 'medium':
+      return 'yellow';
+    case 'low':
+      return 'blue';
+    default:
+      return 'gray';
+  }
+};
+
 export default function Dashboard() {
   const theme = useMantineTheme();
   // No classes needed with inline styles
   const navigate = useNavigate();
   const username = useAppSelector((state) => state.auth.user?.email?.split('@')[0] || 'User');
   
-  // Helper function to get badge color based on status
+  // Helper functions
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Confirmed':
+      case 'Active':
+      case 'Healthy':
         return 'green';
       case 'Pending':
+      case 'Issues':
         return 'yellow';
       case 'Failed':
+      case 'Inactive':
         return 'red';
       default:
         return 'gray';
     }
   };
-  
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'High':
+        return 'red';
+      case 'Medium':
+        return 'yellow';
+      case 'Low':
+        return 'blue';
+      default:
+        return 'gray';
+    }
+  };
+
   // Navigation handlers
   const goToTransactions = () => navigate('/transactions');
-  const goToAlerts = () => navigate('/alerts');  
+  const goToAlerts = () => navigate('/alerts');
+  const goToWallets = () => navigate('/wallets');
+  const goToWorkflows = () => navigate('/workflows');
+  const goToNodes = () => navigate('/nodes');
+  const goToSettings = () => navigate('/settings');  
 
   return (
     <>
-      <Group justify="space-between" mb={30}>
+      <Group justify="space-between" mb={20}>
         <div>
           <Title order={2}>Dashboard</Title>
           <Text c="dimmed">Welcome back, {username}!</Text>
         </div>
-        <Text fw={500} c="dimmed">Today: {new Date().toLocaleDateString()}</Text>
+        <Group>
+          <Text fw={500} c="dimmed">Today: {new Date().toLocaleDateString()}</Text>
+          <Button variant="light" leftSection={<IconSettings size={16} />} onClick={goToSettings}>Settings</Button>
+        </Group>
       </Group>
 
       {/* Stats Cards */}
-      <SimpleGrid cols={4} spacing="md" mb={30}>
-        <Card withBorder p="md" radius="md">
+      <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="sm" mb="md">
+        <Card withBorder p="sm" radius="md" component="a" href="#" onClick={goToWallets} style={{ cursor: 'pointer' }}>
           <Group justify="space-between">
             <div>
               <Text c="dimmed" size="xs" tt="uppercase" fw={700}>
                 Total Wallets
               </Text>
               <Text fw={700} size="xl">
-                {walletData.length * 4}
+                {activeWallets.length}
               </Text>
             </div>
             <IconWallet size={30} color={theme.colors.blue[6]} />
           </Group>
           <Text c="dimmed" size="sm" mt="md">
             <Text component="span" c="green" fw={700}>
-              <IconArrowUpRight size={12} stroke={1.5} />
-              +24%
-            </Text>{' '}
-            compared to previous month
+              +{walletData[walletData.length - 1].value}%
+            </Text>{" "}
+            from last month
           </Text>
+          <Button variant="subtle" rightSection={<IconChevronRight size={14} />} mt="xs" size="xs" fullWidth onClick={goToWallets}>View Wallets</Button>
         </Card>
 
-        <Card withBorder p="md" radius="md">
+        <Card withBorder p="sm" radius="md" component="a" href="#" onClick={goToAlerts} style={{ cursor: 'pointer' }}>
           <Group justify="space-between">
             <div>
               <Text c="dimmed" size="xs" tt="uppercase" fw={700}>
                 Active Alerts
               </Text>
               <Text fw={700} size="xl">
-                12
+                {activeAlerts.length}
               </Text>
             </div>
             <IconAlertCircle size={30} color={theme.colors.red[6]} />
           </Group>
           <Text c="dimmed" size="sm" mt="md">
             <Text component="span" c="red" fw={700}>
-              <IconArrowUpRight size={12} stroke={1.5} />
-              +5
-            </Text>{' '}
-            new alerts in the last 24 hours
+              +2
+            </Text>{" "}
+            new alerts today
           </Text>
+          <Button variant="subtle" rightSection={<IconChevronRight size={14} />} mt="xs" size="xs" fullWidth onClick={goToAlerts}>View Alerts</Button>
         </Card>
 
-        <Card withBorder p="md" radius="md">
+        <Card withBorder p="sm" radius="md" component="a" href="#" onClick={goToTransactions} style={{ cursor: 'pointer' }}>
           <Group justify="space-between">
             <div>
               <Text c="dimmed" size="xs" tt="uppercase" fw={700}>
                 Total Balance
               </Text>
               <Text fw={700} size="xl">
-                $74.5K
+                $12,456.78
               </Text>
             </div>
             <IconCoin size={30} color={theme.colors.yellow[6]} />
           </Group>
           <Text c="dimmed" size="sm" mt="md">
             <Text component="span" c="green" fw={700}>
-              <IconArrowUpRight size={12} stroke={1.5} />
-              +18%
-            </Text>{' '}
-            compared to previous month
+              +2.3%
+            </Text>{" "}
+            from yesterday
           </Text>
+          <Button variant="subtle" rightSection={<IconChevronRight size={14} />} mt="xs" size="xs" fullWidth onClick={goToTransactions}>View Transactions</Button>
         </Card>
 
-        <Card withBorder p="md" radius="md">
+        <Card withBorder p="sm" radius="md" component="a" href="#" onClick={goToNodes} style={{ cursor: 'pointer' }}>
           <Group justify="space-between">
             <div>
               <Text c="dimmed" size="xs" tt="uppercase" fw={700}>
-                Pending Orders
+                Network Status
               </Text>
               <Text fw={700} size="xl">
-                8
+                {nodeStatus.filter(node => node.status === 'Healthy').length}/{nodeStatus.length} Healthy
               </Text>
             </div>
-            <IconGauge size={30} color={theme.colors.violet[6]} />
+            <IconServer size={30} color={theme.colors.green[6]} />
           </Group>
           <Text c="dimmed" size="sm" mt="md">
-            <Text component="span" c="red" fw={700}>
-              <IconArrowDownRight size={12} stroke={1.5} />
-              -3
-            </Text>{' '}
-            compared to yesterday
+            <Text component="span" c="yellow" fw={700}>
+              {nodeStatus.filter(node => node.status !== 'Healthy').length}
+            </Text>{" "}
+            {nodeStatus.filter(node => node.status !== 'Healthy').length === 1 ? 'node' : 'nodes'} with issues
           </Text>
+          <Button variant="subtle" rightSection={<IconChevronRight size={14} />} mt="xs" size="xs" fullWidth onClick={goToNodes}>View Nodes</Button>
         </Card>
       </SimpleGrid>
 
-      {/* Charts Section */}
-      <Grid gutter="md" mb={30}>
-        <Grid.Col span={8}>
-          <Card withBorder p="md" radius="md" style={{ height: '100%' }}>
-            <Title order={3} mb={20}>Transaction Volume</Title>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={transactionData}>
+      {/* Main Dashboard Content */}
+      <Grid gutter="md">
+        {/* Left Column */}
+        <Grid.Col span={{ base: 12, md: 8 }}>
+          {/* Portfolio Value Chart */}
+          <Card withBorder p="sm" radius="md" mb="xs" style={sectionCardStyle}>
+            <div style={cardHeaderStyle}>
+              <Title order={5}>Portfolio Value</Title>
+              <Group>
+                <Select
+                  size="xs"
+                  defaultValue="7d"
+                  data={[
+                    { value: '24h', label: '24 Hours' },
+                    { value: '7d', label: '7 Days' },
+                    { value: '30d', label: '30 Days' },
+                    { value: '90d', label: '90 Days' },
+                  ]}
+                />
+              </Group>
+            </div>
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={walletData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" />
                 <YAxis />
                 <Tooltip />
-                <Line 
-                  type="monotone" 
-                  dataKey="value" 
-                  stroke={theme.colors.blue[6]} 
-                  strokeWidth={2}
-                  dot={{ stroke: theme.colors.blue[6], strokeWidth: 2, r: 4 }}
-                  activeDot={{ stroke: theme.colors.blue[7], strokeWidth: 2, r: 6 }}
-                />
+                <Line type="monotone" dataKey="value" stroke={theme.colors.blue[6]} strokeWidth={2} />
               </LineChart>
             </ResponsiveContainer>
           </Card>
+
+          {/* Recent Transactions */}
+          <Card withBorder p="sm" radius="md" mb="xs" style={sectionCardStyle}>
+            <div style={cardHeaderStyle}>
+              <Title order={5}>Recent Transactions</Title>
+              <Group>
+                <MantineTooltip label="View all transactions">
+                  <ActionIcon variant="light" color="blue" onClick={goToTransactions}>
+                    <IconEye size={16} />
+                  </ActionIcon>
+                </MantineTooltip>
+              </Group>
+            </div>
+            <Table striped highlightOnHover style={{ fontSize: '0.8rem' }}>
+              <thead>
+                <tr>
+                  <th style={tableHeaderStyle}>Hash</th>
+                  <th style={tableHeaderStyle}>Type</th>
+                  <th style={tableHeaderStyle}>Amount</th>
+                  <th style={tableHeaderStyle}>Status</th>
+                  <th style={tableHeaderStyle}>Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentTransactions.slice(0, 3).map((tx, index) => (
+                  <tr key={index} style={{ cursor: 'pointer' }} onClick={goToTransactions}>
+                    <td style={tableCellStyle}>
+                      <Group gap="xs">
+                        <div style={{ width: 6, height: 6, backgroundColor: chainDistribution.find(c => c.chain === tx.chain)?.color || '#aaa', 
+                          borderRadius: '50%' }} />
+                        <Text size="sm">{tx.hash}</Text>
+                      </Group>
+                    </td>
+                    <td style={tableCellStyle}>
+                      <Text size="sm">{tx.type}</Text>
+                    </td>
+                    <td style={tableCellStyle}>
+                      <Text size="sm">{tx.amount}</Text>
+                    </td>
+                    <td style={tableCellStyle}>
+                      <Badge size="sm" color={getStatusColor(tx.status)}>
+                        {tx.status}
+                      </Badge>
+                    </td>
+                    <td style={tableCellStyle}>
+                      <Text size="sm" c="dimmed">{tx.time}</Text>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+            <Button variant="light" fullWidth mt="xs" onClick={goToTransactions}>
+              View All Transactions
+            </Button>
+          </Card>
+
+          {/* Active Workflows */}
+          <Card withBorder p="sm" radius="md" mb="xs" style={sectionCardStyle}>
+            <div style={cardHeaderStyle}>
+              <Title order={5}>Active Workflows</Title>
+              <Group>
+                <MantineTooltip label="Create new workflow">
+                  <ActionIcon variant="light" color="blue" onClick={goToWorkflows}>
+                    <IconPlus size={16} />
+                  </ActionIcon>
+                </MantineTooltip>
+                <MantineTooltip label="View all workflows">
+                  <ActionIcon variant="light" color="blue" onClick={goToWorkflows}>
+                    <IconEye size={16} />
+                  </ActionIcon>
+                </MantineTooltip>
+              </Group>
+            </div>
+            
+            {activeWorkflows.length > 0 ? (
+              <div>
+                {activeWorkflows.map((workflow, index) => (
+                  <Paper key={index} withBorder p="xs" radius="md" mb="xs" style={{ cursor: 'pointer' }} onClick={goToWorkflows}>
+                    <Group justify="space-between">
+                      <div>
+                        <Group>
+                          <IconArrowsRightLeft size={20} />
+                          <div>
+                            <Text fw={500}>{workflow.name}</Text>
+                            <Text size="xs" c="dimmed">Last run: {workflow.lastRun}</Text>
+                          </div>
+                        </Group>
+                      </div>
+                      <Badge color={getStatusColor(workflow.status)}>{workflow.status}</Badge>
+                    </Group>
+                    <Group mt="xs" justify="space-between">
+                      <Text size="xs">Triggers: {workflow.triggers}</Text>
+                      <Text size="xs">Actions: {workflow.actions}</Text>
+                    </Group>
+                  </Paper>
+                ))}
+                <Button variant="light" fullWidth mt="xs" onClick={goToWorkflows}>
+                  Manage Workflows
+                </Button>
+              </div>
+            ) : (
+              <div>
+                <Text c="dimmed" ta="center" my="md">No active workflows</Text>
+                <Button variant="light" fullWidth onClick={goToWorkflows}>
+                  Create Workflow
+                </Button>
+              </div>
+            )}
+          </Card>
         </Grid.Col>
-        
-        <Grid.Col span={4}>
-          <Card withBorder p="md" radius="md" style={{ height: '100%' }}>
-            <Title order={3} mb={20}>Chain Distribution</Title>
-            <Group justify="center" mt={30}>
-              <RingProgress
-                size={180}
-                thickness={20}
-                sections={chainDistribution.map(item => ({ value: item.value, color: item.color }))}
-                label={
-                  <Text size="xs" ta="center" px={10}>
-                    Multi-chain
-                    <Text size="xl" fw={700}>
-                      4
-                    </Text>
-                    chains
-                  </Text>
-                }
-              />
-            </Group>
-            <SimpleGrid cols={2} mt={30}>
+
+        {/* Right Column */}
+        <Grid.Col span={{ base: 12, md: 4 }}>
+          {/* Chain Distribution */}
+          <Card withBorder p="sm" radius="md" mb="xs" style={sectionCardStyle}>
+            <Title order={5} mb="xs">Chain Distribution</Title>
+            <Box mx="auto" style={{ width: '100%', height: 160 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={chainDistribution}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  >
+                    {chainDistribution.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </Box>
+            <Divider my="sm" />
+            <Group justify="space-between">
               {chainDistribution.map((item, index) => (
-                <Group key={index}>
-                  <div style={{ width: 12, height: 12, backgroundColor: item.color, borderRadius: '50%' }} />
-                  <div>
-                    <Text size="xs">{item.chain}</Text>
-                    <Text size="xs" fw={700}>{item.value}%</Text>
-                  </div>
+                <Group key={index} gap="xs">
+                  <div style={{ width: 8, height: 8, backgroundColor: item.color, borderRadius: '50%' }} />
+                  <Text size="xs">{item.chain}</Text>
                 </Group>
               ))}
-            </SimpleGrid>
+            </Group>
+          </Card>
+
+          {/* Active Wallets */}
+          <Card withBorder p="sm" radius="md" mb="xs" style={sectionCardStyle}>
+            <div style={cardHeaderStyle}>
+              <Title order={5}>Active Wallets</Title>
+              <MantineTooltip label="View all wallets">
+                <ActionIcon variant="light" color="blue" onClick={goToWallets}>
+                  <IconEye size={16} />
+                </ActionIcon>
+              </MantineTooltip>
+            </div>
+            {activeWallets.map((wallet, index) => (
+              <Paper key={index} withBorder p="xs" radius="md" mb="xs" style={{ cursor: 'pointer' }} onClick={goToWallets}>
+                <Group justify="space-between">
+                  <Group>
+                    <div style={{ width: 8, height: 8, backgroundColor: wallet.color, borderRadius: '50%' }} />
+                    <div>
+                      <Text fw={500}>{wallet.name}</Text>
+                      <Text size="xs" c="dimmed">{wallet.address}</Text>
+                    </div>
+                  </Group>
+                  <Text fw={700}>{wallet.balance} {wallet.chain}</Text>
+                </Group>
+                <Text size="xs" c="dimmed" mt="xs">Last activity: {wallet.lastActivity}</Text>
+              </Paper>
+            ))}
+            <Button variant="light" fullWidth mt="xs" onClick={goToWallets}>
+              Manage Wallets
+            </Button>
+          </Card>
+
+          {/* Active Alerts */}
+          <Card withBorder p="sm" radius="md" mb="xs" style={sectionCardStyle}>
+            <div style={cardHeaderStyle}>
+              <Title order={5}>Active Alerts</Title>
+              <MantineTooltip label="View all alerts">
+                <ActionIcon variant="light" color="blue" onClick={goToAlerts}>
+                  <IconEye size={16} />
+                </ActionIcon>
+              </MantineTooltip>
+            </div>
+            {activeAlerts.map((alert, index) => (
+              <Paper key={index} withBorder p="xs" radius="md" mb="xs" style={{ cursor: 'pointer' }} onClick={goToAlerts}>
+                <Group justify="space-between">
+                  <Group>
+                    <div style={{ width: 8, height: 8, backgroundColor: alert.color, borderRadius: '50%' }} />
+                    <div>
+                      <Text fw={500}>{alert.type}</Text>
+                      <Text size="xs">{alert.message}</Text>
+                    </div>
+                  </Group>
+                  <Badge color={getPriorityColor(alert.priority)}>{alert.priority}</Badge>
+                </Group>
+                <Text size="xs" c="dimmed" mt="xs">{alert.time}</Text>
+              </Paper>
+            ))}
+            <Button variant="light" fullWidth mt="xs" onClick={goToAlerts}>
+              View All Alerts
+            </Button>
+          </Card>
+
+          {/* Node Status */}
+          <Card withBorder p="sm" radius="md" mb="xs" style={sectionCardStyle}>
+            <div style={cardHeaderStyle}>
+              <Title order={5}>Node Status</Title>
+              <MantineTooltip label="View all nodes">
+                <ActionIcon variant="light" color="blue" onClick={goToNodes}>
+                  <IconEye size={16} />
+                </ActionIcon>
+              </MantineTooltip>
+            </div>
+            {nodeStatus.map((node, index) => (
+              <Paper key={index} withBorder p="xs" radius="md" mb="xs" style={{ cursor: 'pointer' }} onClick={goToNodes}>
+                <Group justify="space-between">
+                  <Text fw={500}>{node.name}</Text>
+                  <Badge color={getStatusColor(node.status)}>{node.status}</Badge>
+                </Group>
+                <Group justify="space-between" mt="xs">
+                  <Text size="xs">Uptime: {node.uptime}</Text>
+                  <Text size="xs">Latency: {node.latency}</Text>
+                </Group>
+              </Paper>
+            ))}
+            <Button variant="light" fullWidth mt="xs" onClick={goToNodes}>
+              View All Nodes
+            </Button>
           </Card>
         </Grid.Col>
       </Grid>
-
-      {/* Recent Transactions */}
-      <div style={{ marginBottom: 30 }}>
-        <Group justify="space-between" mb={10}>
-          <Title order={4}>Recent Transactions</Title>
-          <Badge 
-            variant="light" 
-            color="blue" 
-            style={viewAllLinkStyle}
-            onClick={goToTransactions}
-          >
-            VIEW ALL
-          </Badge>
-        </Group>
-        <Card withBorder p="xs" radius="md">
-          <Table striped highlightOnHover style={{ fontSize: '0.9rem' }}>
-            <thead>
-              <tr>
-                <th style={tableHeaderStyle}>Hash</th>
-                <th style={tableHeaderStyle}>Type</th>
-                <th style={tableHeaderStyle}>Amount</th>
-                <th style={tableHeaderStyle}>Status</th>
-                <th style={tableHeaderStyle}>Time</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentTransactions.slice(0, 3).map((tx, index) => (
-                <tr key={index} style={{ cursor: 'pointer' }} onClick={goToTransactions}>
-                  <td style={tableCellStyle}>
-                    <Group gap="xs">
-                      <div style={{ width: 8, height: 8, backgroundColor: 
-                        tx.chain === 'ETH' ? '#4c6ef5' : 
-                        tx.chain === 'BTC' ? '#f59f00' : 
-                        tx.chain === 'AVAX' ? '#e03131' : '#9775fa', 
-                        borderRadius: '50%' }} />
-                      <Text size="sm">{tx.hash}</Text>
-                    </Group>
-                  </td>
-                  <td style={tableCellStyle}>
-                    <Text size="sm">{tx.type}</Text>
-                  </td>
-                  <td style={tableCellStyle}>
-                    <Text size="sm">{tx.amount}</Text>
-                  </td>
-                  <td style={tableCellStyle}>
-                    <Badge size="sm" color={getStatusColor(tx.status)}>
-                      {tx.status}
-                    </Badge>
-                  </td>
-                  <td style={tableCellStyle}>
-                    <Text size="sm" c="dimmed">{tx.time}</Text>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        </Card>
-      </div>
-
-      {/* Active Alerts */}
-      <div>
-        <Group justify="space-between" mb={10}>
-          <Title order={4}>Active Alerts</Title>
-          <Badge 
-            variant="light" 
-            color="blue" 
-            style={viewAllLinkStyle}
-            onClick={goToAlerts}
-          >
-            VIEW ALL
-          </Badge>
-        </Group>
-        <Card withBorder p="xs" radius="md">
-          <Table striped highlightOnHover style={{ fontSize: '0.9rem' }}>
-            <thead>
-              <tr>
-                <th style={tableHeaderStyle}>Type</th>
-                <th style={tableHeaderStyle}>Description</th>
-                <th style={tableHeaderStyle}>Priority</th>
-                <th style={tableHeaderStyle}>Time</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr style={{ cursor: 'pointer' }} onClick={goToAlerts}>
-                <td style={tableCellStyle}>
-                  <Group gap="xs">
-                    <div style={{ width: 8, height: 8, backgroundColor: '#e03131', borderRadius: '50%' }} />
-                    <Text size="sm">Price Alert</Text>
-                  </Group>
-                </td>
-                <td style={tableCellStyle}>
-                  <Text size="sm">ETH price dropped below $2,000</Text>
-                </td>
-                <td style={tableCellStyle}>
-                  <Badge size="sm" color="red">High</Badge>
-                </td>
-                <td style={tableCellStyle}>
-                  <Text size="sm" c="dimmed">15 minutes ago</Text>
-                </td>
-              </tr>
-              <tr style={{ cursor: 'pointer' }} onClick={goToAlerts}>
-                <td style={tableCellStyle}>
-                  <Group gap="xs">
-                    <div style={{ width: 8, height: 8, backgroundColor: '#f59f00', borderRadius: '50%' }} />
-                    <Text size="sm">Wallet Activity</Text>
-                  </Group>
-                </td>
-                <td style={tableCellStyle}>
-                  <Text size="sm">Unusual withdrawal from Wallet #3</Text>
-                </td>
-                <td style={tableCellStyle}>
-                  <Badge size="sm" color="yellow">Medium</Badge>
-                </td>
-                <td style={tableCellStyle}>
-                  <Text size="sm" c="dimmed">32 minutes ago</Text>
-                </td>
-              </tr>
-              <tr style={{ cursor: 'pointer' }} onClick={goToAlerts}>
-                <td style={tableCellStyle}>
-                  <Group gap="xs">
-                    <div style={{ width: 8, height: 8, backgroundColor: '#e03131', borderRadius: '50%' }} />
-                    <Text size="sm">Node Status</Text>
-                  </Group>
-                </td>
-                <td style={tableCellStyle}>
-                  <Text size="sm">AVAX node connection lost</Text>
-                </td>
-                <td style={tableCellStyle}>
-                  <Badge size="sm" color="red">High</Badge>
-                </td>
-                <td style={tableCellStyle}>
-                  <Text size="sm" c="dimmed">45 minutes ago</Text>
-                </td>
-              </tr>
-            </tbody>
-          </Table>
-        </Card>
-      </div>
     </>
   );
 }

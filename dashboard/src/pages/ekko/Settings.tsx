@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Title, 
   Text, 
@@ -15,7 +15,12 @@ import {
   Textarea,
   NumberInput,
   ColorPicker,
-  Box
+  Box,
+  ActionIcon,
+  Badge,
+  Paper,
+  Tooltip,
+  Alert
 } from '@mantine/core';
 import { 
   IconSettings, 
@@ -25,12 +30,78 @@ import {
   IconServer,
   IconBrandGithub,
   IconDeviceDesktop,
-  IconPalette
+  IconPalette,
+  IconPlus,
+  IconTrash,
+  IconBrandSlack,
+  IconBrandDiscord,
+  IconBrandTelegram,
+  IconMail,
+  IconInfoCircle,
+  IconCheck
 } from '@tabler/icons-react';
+import { useForm } from '@mantine/form';
+
+// Interface for notification channel
+interface NotificationChannel {
+  id: string;
+  type: string;
+  url: string;
+  enabled: boolean;
+}
+
+// Validation functions for notification URLs
+const validateNotificationUrl = (type: string, url: string): { valid: boolean; message: string } => {
+  if (!url) return { valid: false, message: 'URL cannot be empty' };
+  
+  switch (type) {
+    case 'email':
+      if (!url.startsWith('mailto://')) {
+        return { valid: false, message: 'Email URL must start with mailto://' };
+      }
+      if (!url.includes('@')) {
+        return { valid: false, message: 'Email URL must include an email address' };
+      }
+      return { valid: true, message: 'Valid email URL' };
+      
+    case 'slack':
+      if (!url.startsWith('https://hooks.slack.com/') && !url.startsWith('slack://')) {
+        return { valid: false, message: 'Slack URL must start with https://hooks.slack.com/ or slack://' };
+      }
+      return { valid: true, message: 'Valid Slack URL' };
+      
+    case 'discord':
+      if (!url.startsWith('discord://') && !url.includes('discord.com/api/webhooks/')) {
+        return { valid: false, message: 'Discord URL must be a valid webhook URL or start with discord://' };
+      }
+      return { valid: true, message: 'Valid Discord URL' };
+      
+    case 'telegram':
+      if (!url.startsWith('tgram://') && !url.startsWith('telegram://')) {
+        return { valid: false, message: 'Telegram URL must start with tgram:// or telegram://' };
+      }
+      return { valid: true, message: 'Valid Telegram URL' };
+      
+    default:
+      return { valid: false, message: 'Unknown notification type' };
+  }
+};
+
+// Helper function to get notification type icon
+const getNotificationTypeIcon = (type: string) => {
+  switch (type) {
+    case 'email': return <IconMail size={16} />;
+    case 'slack': return <IconBrandSlack size={16} />;
+    case 'discord': return <IconBrandDiscord size={16} />;
+    case 'telegram': return <IconBrandTelegram size={16} />;
+    default: return <IconBell size={16} />;
+  }
+};
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState('general');
   const [themeColor, setThemeColor] = useState('#228be6');
+  const [hasChanges, setHasChanges] = useState(false);
   
   // General settings state
   const [apiEndpoint, setApiEndpoint] = useState('http://localhost:8000');
@@ -38,10 +109,14 @@ export default function Settings() {
   const [timeFormat, setTimeFormat] = useState('24h');
   
   // Notification settings state
-  const [emailNotifications, setEmailNotifications] = useState(true);
-  const [slackNotifications, setSlackNotifications] = useState(false);
-  const [slackWebhook, setSlackWebhook] = useState('');
+  const [notificationChannels, setNotificationChannels] = useState<NotificationChannel[]>([
+    { id: '1', type: 'email', url: 'mailto://user:password@example.com', enabled: true },
+    { id: '2', type: 'slack', url: 'https://hooks.slack.com/services/XXX/YYY/ZZZ', enabled: false }
+  ]);
   const [alertThreshold, setAlertThreshold] = useState('medium');
+  const [newChannelType, setNewChannelType] = useState('email');
+  const [newChannelUrl, setNewChannelUrl] = useState('');
+  const [urlValidation, setUrlValidation] = useState<{ valid: boolean; message: string }>({ valid: false, message: '' });
   
   // API settings state
   const [apiKey, setApiKey] = useState('••••••••••••••••••••••••••••••');
@@ -50,6 +125,85 @@ export default function Settings() {
   const [defaultNetwork, setDefaultNetwork] = useState('avalanche');
   const [nodeTimeout, setNodeTimeout] = useState(10);
   const [maxRetries, setMaxRetries] = useState(3);
+  
+  // Store original state for change detection
+  const [originalState] = useState({
+    general: {
+      apiEndpoint: apiEndpoint,
+      refreshInterval: refreshInterval,
+      timeFormat: timeFormat
+    },
+    notifications: {
+      channels: JSON.stringify(notificationChannels),
+      alertThreshold: alertThreshold
+    },
+    api: {
+      apiKey: apiKey
+    },
+    nodes: {
+      defaultNetwork: defaultNetwork,
+      nodeTimeout: nodeTimeout,
+      maxRetries: maxRetries
+    },
+    appearance: {
+      themeColor: themeColor
+    }
+  });
+  
+  // Check for changes whenever state changes
+  useEffect(() => {
+    const currentState = {
+      general: {
+        apiEndpoint: apiEndpoint,
+        refreshInterval: refreshInterval,
+        timeFormat: timeFormat
+      },
+      notifications: {
+        channels: JSON.stringify(notificationChannels),
+        alertThreshold: alertThreshold
+      },
+      api: {
+        apiKey: apiKey
+      },
+      nodes: {
+        defaultNetwork: defaultNetwork,
+        nodeTimeout: nodeTimeout,
+        maxRetries: maxRetries
+      },
+      appearance: {
+        themeColor: themeColor
+      }
+    };
+    
+    // Compare original state with current state
+    const hasStateChanged = 
+      JSON.stringify(originalState.general) !== JSON.stringify(currentState.general) ||
+      originalState.notifications.channels !== currentState.notifications.channels ||
+      originalState.notifications.alertThreshold !== currentState.notifications.alertThreshold ||
+      originalState.api.apiKey !== currentState.api.apiKey ||
+      JSON.stringify(originalState.nodes) !== JSON.stringify(currentState.nodes) ||
+      originalState.appearance.themeColor !== currentState.appearance.themeColor;
+    
+    setHasChanges(hasStateChanged);
+  }, [
+    apiEndpoint, refreshInterval, timeFormat,
+    notificationChannels, alertThreshold,
+    apiKey, defaultNetwork, nodeTimeout, maxRetries,
+    themeColor, originalState
+  ]);
+  
+  // Handle save changes
+  const handleSaveChanges = () => {
+    // Here you would typically make an API call to save the settings
+    console.log('Saving settings...');
+    
+    // After successful save, update the original state to match current state
+    // This would reset the hasChanges flag
+    alert('Settings saved successfully!');
+    
+    // In a real implementation, you would update originalState after successful API call
+    window.location.reload();
+  };
 
   return (
     <div>
@@ -58,11 +212,17 @@ export default function Settings() {
           <Title order={2}>Settings</Title>
           <Text c="dimmed" size="sm">Configure your Ekko dashboard preferences</Text>
         </div>
-        <Button variant="filled">Save Changes</Button>
+        <Button 
+          variant="filled" 
+          disabled={!hasChanges}
+          onClick={handleSaveChanges}
+        >
+          {hasChanges ? 'Save Changes' : 'No Changes'}
+        </Button>
       </Group>
       
       <Card withBorder>
-        <Tabs value={activeTab} onChange={setActiveTab}>
+        <Tabs value={activeTab} onChange={(value: string | null) => setActiveTab(value || 'general')}>
           <Tabs.List mb="md">
             <Tabs.Tab value="general" leftSection={<IconSettings size={16} />}>
               General
@@ -104,7 +264,7 @@ export default function Settings() {
                 min={5}
                 max={300}
                 value={refreshInterval}
-                onChange={(value) => setRefreshInterval(value || 30)}
+                onChange={(value: number | string) => setRefreshInterval(typeof value === 'number' ? value : 30)}
               />
               
               <Select
@@ -138,34 +298,130 @@ export default function Settings() {
             <Stack>
               <Title order={3} mb="sm">Notification Settings</Title>
               
-              <Switch
-                label="Email Notifications"
-                description="Receive alerts via email"
-                checked={emailNotifications}
-                onChange={(event) => setEmailNotifications(event.currentTarget.checked)}
-                mt="md"
-              />
+              <Alert icon={<IconInfoCircle size={16} />} title="About Notification Channels" color="blue" mb="md">
+                Configure multiple notification channels to receive alerts. Each channel can be enabled or disabled individually.
+                Use Apprise-compatible URLs for each service.
+              </Alert>
               
-              <Divider my="md" />
-              
-              <Switch
-                label="Slack Notifications"
-                description="Receive alerts via Slack"
-                checked={slackNotifications}
-                onChange={(event) => setSlackNotifications(event.currentTarget.checked)}
-                mt="md"
-              />
-              
-              {slackNotifications && (
-                <TextInput
-                  label="Slack Webhook URL"
-                  description="The webhook URL for your Slack channel"
-                  placeholder="https://hooks.slack.com/services/..."
-                  value={slackWebhook}
-                  onChange={(e) => setSlackWebhook(e.currentTarget.value)}
-                  mt="xs"
-                />
-              )}
+              <Paper withBorder p="md" mb="md">
+                <Title order={4} mb="sm">Notification Channels</Title>
+                
+                {notificationChannels.length === 0 ? (
+                  <Text c="dimmed" mb="md">No notification channels configured. Add one below.</Text>
+                ) : (
+                  <Stack mb="md">
+                    {notificationChannels.map((channel) => (
+                      <Group key={channel.id} justify="space-between" p="xs" style={{ border: '1px solid #eee', borderRadius: '4px' }}>
+                        <Group>
+                          <Badge
+                            leftSection={getNotificationTypeIcon(channel.type)}
+                            color={channel.enabled ? 'green' : 'gray'}
+                            variant="light"
+                          >
+                            {channel.type.charAt(0).toUpperCase() + channel.type.slice(1)}
+                          </Badge>
+                          <Text size="sm" style={{ wordBreak: 'break-all' }}>{channel.url}</Text>
+                        </Group>
+                        <Group gap="xs">
+                          <Switch
+                            checked={channel.enabled}
+                            onChange={(event) => {
+                              setNotificationChannels(channels => 
+                                channels.map(c => 
+                                  c.id === channel.id ? { ...c, enabled: event.currentTarget.checked } : c
+                                )
+                              );
+                            }}
+                            size="xs"
+                          />
+                          <ActionIcon
+                            color="red"
+                            variant="subtle"
+                            onClick={() => {
+                              setNotificationChannels(channels => 
+                                channels.filter(c => c.id !== channel.id)
+                              );
+                            }}
+                          >
+                            <IconTrash size={16} />
+                          </ActionIcon>
+                        </Group>
+                      </Group>
+                    ))}
+                  </Stack>
+                )}
+                
+                <Divider my="md" label="Add New Channel" labelPosition="center" />
+                
+                <Group align="flex-end" grow>
+                  <Select
+                    label="Channel Type"
+                    value={newChannelType}
+                    onChange={(value: string | null) => {
+                      setNewChannelType(value || 'email');
+                      setUrlValidation({ valid: false, message: '' });
+                    }}
+                    data={[
+                      { value: 'email', label: 'Email' },
+                      { value: 'slack', label: 'Slack' },
+                      { value: 'discord', label: 'Discord' },
+                      { value: 'telegram', label: 'Telegram' },
+                    ]}
+                  />
+                  <TextInput
+                    label="Channel URL"
+                    placeholder={newChannelType === 'email' ? 'mailto://user:password@example.com' : 
+                               newChannelType === 'slack' ? 'https://hooks.slack.com/services/...' :
+                               newChannelType === 'discord' ? 'discord://webhook_id/webhook_token' :
+                               'tgram://bot_token/chat_id'}
+                    value={newChannelUrl}
+                    onChange={(e) => {
+                      setNewChannelUrl(e.currentTarget.value);
+                      setUrlValidation(validateNotificationUrl(newChannelType, e.currentTarget.value));
+                    }}
+                    error={newChannelUrl && !urlValidation.valid ? urlValidation.message : null}
+                    rightSection={
+                      urlValidation.valid && (
+                        <Tooltip label="Valid URL format">
+                          <ActionIcon color="green" variant="subtle">
+                            <IconCheck size={16} />
+                          </ActionIcon>
+                        </Tooltip>
+                      )
+                    }
+                  />
+                </Group>
+                
+                <Group justify="flex-end" mt="md">
+                  <Button
+                    leftSection={<IconPlus size={16} />}
+                    onClick={() => {
+                      if (urlValidation.valid) {
+                        const newChannel: NotificationChannel = {
+                          id: Date.now().toString(),
+                          type: newChannelType,
+                          url: newChannelUrl,
+                          enabled: true
+                        };
+                        setNotificationChannels([...notificationChannels, newChannel]);
+                        setNewChannelUrl('');
+                        setUrlValidation({ valid: false, message: '' });
+                      }
+                    }}
+                    disabled={!urlValidation.valid}
+                  >
+                    Add Channel
+                  </Button>
+                </Group>
+                
+                <Box mt="md">
+                  <Text size="sm" fw={500}>URL Format Examples:</Text>
+                  <Text size="xs" c="dimmed">Email: mailto://user:password@gmail.com/?to=target@example.com</Text>
+                  <Text size="xs" c="dimmed">Slack: https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXX</Text>
+                  <Text size="xs" c="dimmed">Discord: discord://webhook_id/webhook_token</Text>
+                  <Text size="xs" c="dimmed">Telegram: tgram://bot_token/chat_id</Text>
+                </Box>
+              </Paper>
               
               <Divider my="md" />
               
@@ -257,7 +513,7 @@ export default function Settings() {
                 min={1}
                 max={60}
                 value={nodeTimeout}
-                onChange={(value) => setNodeTimeout(value || 10)}
+                onChange={(value: number | string) => setNodeTimeout(typeof value === 'number' ? value : 10)}
                 mt="md"
               />
               
@@ -268,7 +524,7 @@ export default function Settings() {
                 min={0}
                 max={10}
                 value={maxRetries}
-                onChange={(value) => setMaxRetries(value || 3)}
+                onChange={(value: number | string) => setMaxRetries(typeof value === 'number' ? value : 3)}
                 mt="md"
               />
               

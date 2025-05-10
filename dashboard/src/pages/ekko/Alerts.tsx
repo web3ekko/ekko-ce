@@ -321,7 +321,7 @@ export default function Alerts() {
           </Group>
         </Group>
         
-        <Tabs value={activeTab} onChange={setActiveTab} mb="md">
+        <Tabs value={activeTab} onChange={(value: string | null) => setActiveTab(value || 'all')} mb="md">
           <Tabs.List>
             <Tabs.Tab value="all">All Alerts</Tabs.Tab>
             <Tabs.Tab value="open">Open</Tabs.Tab>

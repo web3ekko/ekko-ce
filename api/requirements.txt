@@ -14,3 +14,4 @@ passlib>=1.7.4
 nats-py>=2.6.0
 pytest-asyncio>=0.23.5
 testcontainers>=4.10.0
+apprise>=1.4.5

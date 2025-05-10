@@ -8,6 +8,7 @@ import nats
 from nats.js.api import StreamConfig, ConsumerConfig
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
+from app.routes.settings import router as settings_router, set_js as set_settings_js
 
 # Models
 class Wallet(BaseModel):
@@ -78,6 +79,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Include routers
+app.include_router(settings_router)
+
+# Set JS reference for routers
+set_settings_js(js)
+
 # Ensure required JetStream streams and KV stores exist
 async def ensure_streams():
     global js
@@ -92,6 +99,11 @@ async def ensure_streams():
         await js.key_value(bucket="alerts")
     except Exception:
         await js.create_key_value(bucket="alerts")
+    
+    try:
+        await js.key_value(bucket="settings")
+    except Exception:
+        await js.create_key_value(bucket="settings")
     
     # Create streams if they don't exist
     try:
