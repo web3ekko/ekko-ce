@@ -8,6 +8,8 @@ bento/vendor
 streamlit/ekko-dash/data
 pipeline/vendor
 pipeline/vendor/modules.txt
+
+dashboard/node_modules
 # C extensions
 *.so
 
