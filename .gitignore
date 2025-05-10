@@ -1,15 +1,91 @@
+# Python specific ignores
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
 
-#proj specific
+# Project specific
 bento/vendor
 streamlit/ekko-dash/data
 pipeline/vendor
 pipeline/vendor/modules.txt
-
+dashboard/.yarn
 dashboard/node_modules
+# Node.js/JavaScript/TypeScript specific ignores
+
+# Dependencies
+node_modules/
+dashboard/node_modules/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Yarn v2+
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+.pnp.*
+dashboard/.yarn/*
+!dashboard/.yarn/patches
+!dashboard/.yarn/plugins
+!dashboard/.yarn/releases
+!dashboard/.yarn/sdks
+!dashboard/.yarn/versions
+dashboard/.pnp.*
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+dashboard/.yarn/cache
+dashboard/.yarn/unplugged
+dashboard/.yarn/build-state.yml
+dashboard/.yarn/install-state.gz
+
+# Build outputs
+dist
+dist-ssr
+*.local
+storybook-static
+dashboard/dist
+dashboard/dist-ssr
+
+# TypeScript
+tsconfig.tsbuildinfo
+dashboard/tsconfig.tsbuildinfo
+
+# Vite
+.vite
+dashboard/.vite
+
+# Cache
+.eslintcache
+.stylelintcache
+.mf
+.rollup.cache
+dashboard/.eslintcache
+dashboard/.stylelintcache
+dashboard/.mf
+dashboard/.rollup.cache
+
+# Environment variables
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
+dashboard/.env.local
+dashboard/.env.development.local
+dashboard/.env.test.local
+dashboard/.env.production.local
+!dashboard/.env.example
+
 # C extensions
 *.so
 
