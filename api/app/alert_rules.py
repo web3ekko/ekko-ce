@@ -1,13 +1,14 @@
 import json
 import uuid
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Any
 
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 
 from .models import AlertRule, User
 from .auth import get_current_user, get_admin_user
+from .events import publish_event
 
 # Create router for alert rule endpoints
 router = APIRouter(prefix="/alert-rules", tags=["alert-rules"])
@@ -24,13 +25,7 @@ def init_nats(nats_connection, jetstream):
     js = jetstream
 
 # Helper function to publish events
-async def publish_event(subject: str, data: Dict[str, Any]):
-    """Publish an event to NATS"""
-    try:
-        await js.publish(subject, json.dumps(data).encode())
-        print(f"Published event to {subject}")
-    except Exception as e:
-        print(f"Error publishing event to {subject}: {e}")
+# Helper function to publish events is now imported from app.events
 
 # Alert Rule CRUD operations
 @router.get("", response_model=List[AlertRule])

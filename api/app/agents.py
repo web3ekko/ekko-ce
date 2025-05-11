@@ -8,6 +8,7 @@ from pydantic import BaseModel
 
 from .models import Agent, User
 from .auth import get_current_user, get_admin_user
+from .events import publish_event
 
 # Create router for agent endpoints
 router = APIRouter(prefix="/agents", tags=["agents"])
@@ -31,14 +32,7 @@ def init_nats(nats_connection, jetstream):
     nc = nats_connection
     js = jetstream
 
-# Helper function to publish events
-async def publish_event(subject: str, data: Dict[str, Any]):
-    """Publish an event to NATS"""
-    try:
-        await js.publish(subject, json.dumps(data).encode())
-        print(f"Published event to {subject}")
-    except Exception as e:
-        print(f"Error publishing event to {subject}: {e}")
+# Helper function to publish events now imported from app.events
 
 # Agent CRUD operations
 @router.get("", response_model=List[Agent])
@@ -115,11 +109,12 @@ async def create_agent(
         # Save to KV store
         await kv.put(agent.id, json.dumps(agent.model_dump()))
         
-        # Publish event
+        # Publish event using centralized event system
         background_tasks.add_task(
             publish_event, 
             "agent.created", 
-            {"id": agent.id, "name": agent.name, "type": agent.type}
+            {"id": agent.id, "name": agent.name, "type": agent.type},
+            ignore_errors=True
         )
         
         return agent
@@ -157,11 +152,12 @@ async def update_agent(
         agent.updated_at = datetime.now().isoformat()
         await kv.put(agent_id, json.dumps(agent.dict()))
         
-        # Publish event
+        # Publish event using centralized event system
         background_tasks.add_task(
             publish_event, 
             "agent.updated", 
-            {"id": agent.id, "name": agent.name, "type": agent.type}
+            {"id": agent.id, "name": agent.name, "type": agent.type},
+            ignore_errors=True
         )
         
         return agent
@@ -196,11 +192,12 @@ async def delete_agent(
         # Delete agent
         await kv.delete(agent_id)
         
-        # Publish event
+        # Publish event using centralized event system
         background_tasks.add_task(
             publish_event, 
             "agent.deleted", 
-            {"id": agent_id}
+            {"id": agent_id},
+            ignore_errors=True
         )
         
         return {"status": "deleted", "id": agent_id}
@@ -270,7 +267,7 @@ async def start_agent(
             agent_data["updated_at"] = datetime.now().isoformat()
             await kv.put(agent_id, json.dumps(agent_data))
             
-            # Publish event to start agent
+            # Publish event to start agent using centralized event system
             background_tasks.add_task(
                 publish_event,
                 f"agent.start.{agent_id}",
@@ -278,7 +275,8 @@ async def start_agent(
                     "id": agent_id,
                     "type": agent_data.get("type"),
                     "config": agent_data.get("config", {})
-                }
+                },
+                ignore_errors=True
             )
             
             return {"id": agent_id, "status": "active", "message": "Agent started successfully"}
@@ -315,11 +313,12 @@ async def stop_agent(
             agent_data["updated_at"] = datetime.now().isoformat()
             await kv.put(agent_id, json.dumps(agent_data))
             
-            # Publish event to stop agent
+            # Publish event to stop agent using centralized event system
             background_tasks.add_task(
                 publish_event,
                 f"agent.stop.{agent_id}",
-                {"id": agent_id}
+                {"id": agent_id},
+                ignore_errors=True
             )
             
             return {"id": agent_id, "status": "inactive", "message": "Agent stopped successfully"}

@@ -1,6 +1,6 @@
 import apprise
 from typing import List, Dict, Any
-from app.models.settings import NotificationChannel
+from app.models import NotificationChannel
 
 class NotificationService:
     """

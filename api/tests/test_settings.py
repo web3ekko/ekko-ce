@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, patch, MagicMock
 from fastapi.testclient import TestClient
 from app.main import app
 from app.routes.settings import router as settings_router, set_js
-from app.models.settings import Settings, GeneralSettings, NotificationSettings, NotificationChannel, APISettings, NodeSettings, AppearanceSettings, AccountSettings
+from app.models import Settings, GeneralSettings, NotificationSettings, NotificationChannel, APISettings, NodeSettings, AppearanceSettings, AccountSettings
 
 # Mock data
 MOCK_SETTINGS = {

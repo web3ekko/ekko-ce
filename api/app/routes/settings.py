@@ -3,8 +3,13 @@ import os
 from typing import Dict, Any, List
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel
-from app.models.settings import Settings, GeneralSettings, NotificationSettings, NotificationChannel, APISettings, NodeSettings, AppearanceSettings, AccountSettings
+# Import settings classes directly from the models.py file
+from app.models import (
+    Settings, GeneralSettings, NotificationSettings, NotificationChannel,
+    APISettings, NodeSettings, AppearanceSettings, AccountSettings
+)
 from app.utils.notification import notification_service
+from app.events import publish_event
 
 # Create router
 router = APIRouter(
@@ -85,8 +90,8 @@ async def update_settings(settings: Settings, background_tasks: BackgroundTasks)
         kv = await js.key_value(bucket="settings")
         await kv.put("user_settings", json.dumps(settings.dict()))
         
-        # Publish event about settings update
-        background_tasks.add_task(publish_event, "settings.updated", settings.dict())
+        # Publish event about settings update using centralized event system
+        background_tasks.add_task(publish_event, "settings.updated", settings.dict(), ignore_errors=True)
         
         return settings
     except Exception as e:
@@ -112,7 +117,7 @@ async def update_general_settings(settings: GeneralSettings, background_tasks: B
         await kv.put("user_settings", json.dumps(settings_data))
         
         # Publish event about settings update
-        background_tasks.add_task(publish_event, "settings.general.updated", settings.dict())
+        background_tasks.add_task(publish_event, "settings.general.updated", settings.dict(), ignore_errors=True)
         
         return settings
     except Exception as e:
@@ -150,7 +155,7 @@ async def update_notification_settings(settings: NotificationSettings, backgroun
         notification_service.add_channels(settings.channels)
         
         # Publish event about settings update
-        background_tasks.add_task(publish_event, "settings.notifications.updated", settings.dict())
+        background_tasks.add_task(publish_event, "settings.notifications.updated", settings.dict(), ignore_errors=True)
         
         return settings
     except Exception as e:
@@ -213,7 +218,7 @@ async def update_api_settings(settings: APISettings, background_tasks: Backgroun
         await kv.put("user_settings", json.dumps(settings_data))
         
         # Publish event about settings update
-        background_tasks.add_task(publish_event, "settings.api.updated", settings.dict())
+        background_tasks.add_task(publish_event, "settings.api.updated", settings.dict(), ignore_errors=True)
         
         return settings
     except Exception as e:
@@ -239,7 +244,7 @@ async def update_node_settings(settings: NodeSettings, background_tasks: Backgro
         await kv.put("user_settings", json.dumps(settings_data))
         
         # Publish event about settings update
-        background_tasks.add_task(publish_event, "settings.nodes.updated", settings.dict())
+        background_tasks.add_task(publish_event, "settings.nodes.updated", settings.dict(), ignore_errors=True)
         
         return settings
     except Exception as e:
@@ -265,7 +270,7 @@ async def update_appearance_settings(settings: AppearanceSettings, background_ta
         await kv.put("user_settings", json.dumps(settings_data))
         
         # Publish event about settings update
-        background_tasks.add_task(publish_event, "settings.appearance.updated", settings.dict())
+        background_tasks.add_task(publish_event, "settings.appearance.updated", settings.dict(), ignore_errors=True)
         
         return settings
     except Exception as e:
@@ -291,16 +296,10 @@ async def update_account_settings(settings: AccountSettings, background_tasks: B
         await kv.put("user_settings", json.dumps(settings_data))
         
         # Publish event about settings update
-        background_tasks.add_task(publish_event, "settings.account.updated", settings.dict())
+        background_tasks.add_task(publish_event, "settings.account.updated", settings.dict(), ignore_errors=True)
         
         return settings
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error updating account settings: {str(e)}")
 
-# Helper function to publish events
-async def publish_event(subject: str, data: Dict[str, Any]):
-    try:
-        await js.publish(subject, json.dumps(data).encode())
-        print(f"Published event to {subject}")
-    except Exception as e:
-        print(f"Error publishing event to {subject}: {e}")
+# Helper function to publish events is now imported from app.events

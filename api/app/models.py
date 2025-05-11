@@ -1,7 +1,8 @@
 from typing import Dict, List, Optional, Any, Union
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, validator
 from datetime import datetime
 import uuid
+import re
 
 class Wallet(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -12,6 +13,28 @@ class Wallet(BaseModel):
     status: str = "active"
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
+    
+    class Config:
+        # This is metadata for the API documentation and validation
+        schema_extra = {
+            "description": "Wallet information with unique address per blockchain"
+        }
+    
+    @validator('address')
+    def address_valid_for_blockchain(cls, v, values):
+        # Basic validation based on blockchain
+        blockchain = values.get('blockchain_symbol', '')
+        
+        if blockchain in ['ETH', 'MATIC', 'AVAX']:
+            # Ethereum-style address for ETH, MATIC, and AVAX C-Chain
+            if not re.match(r'^0x[a-fA-F0-9]{40}$', v):
+                raise ValueError(f'Invalid address format for {blockchain}')
+        elif blockchain == 'BTC':
+            # Basic Bitcoin address format
+            if not re.match(r'^(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,39}$', v):
+                raise ValueError('Invalid Bitcoin address format')
+                
+        return v
 
 class Alert(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -126,3 +149,69 @@ class AlertRule(BaseModel):
     created_at: str = Field(default_factory=lambda: datetime.now().isoformat())
     updated_at: Optional[str] = None
     created_by: str  # user_id
+
+# Settings models
+class GeneralSettings(BaseModel):
+    api_endpoint: str
+    refresh_interval: int
+    time_format: str
+    debug_mode: bool = False
+
+class NotificationChannel(BaseModel):
+    type: str
+    url: str
+    enabled: bool = True
+    
+    @validator('url')
+    def validate_url(cls, v, values):
+        channel_type = values.get('type')
+        
+        if channel_type == 'email':
+            # Basic email validation
+            if not re.match(r'^mailto://[^@]+@[^@]+\.[^@]+$', v):
+                raise ValueError('Invalid email URL format. Must be mailto://user:password@domain.com')
+        
+        elif channel_type == 'slack':
+            # Basic Slack webhook validation
+            if not v.startswith('https://hooks.slack.com/') and not v.startswith('slack://'):
+                raise ValueError('Invalid Slack webhook URL format')
+        
+        elif channel_type == 'telegram':
+            # Basic Telegram validation
+            if not v.startswith('tgram://') and not v.startswith('telegram://'):
+                raise ValueError('Invalid Telegram URL format. Must start with tgram:// or telegram://')
+        
+        return v
+
+class NotificationSettings(BaseModel):
+    channels: List[NotificationChannel] = Field(default_factory=list)
+    alert_threshold: str = "medium"
+
+class APISettings(BaseModel):
+    api_key: str
+
+class NodeSettings(BaseModel):
+    default_network: str
+    node_timeout: int
+    max_retries: int
+    auto_switch_nodes: bool = True
+    health_monitoring: bool = True
+
+class AppearanceSettings(BaseModel):
+    theme_color: str = "#228be6"
+    layout_type: str = "sidebar"
+    theme_mode: str = "light"
+    compact_mode: bool = False
+
+class AccountSettings(BaseModel):
+    username: str
+    email: str
+    
+class Settings(BaseModel):
+    id: str = "user_settings"
+    general: GeneralSettings
+    notifications: NotificationSettings
+    api: APISettings
+    nodes: NodeSettings
+    appearance: AppearanceSettings
+    account: AccountSettings

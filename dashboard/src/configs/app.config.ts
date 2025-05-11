@@ -11,10 +11,10 @@ export type AppConfig = {
 
 const appConfig: AppConfig = {
   layoutType: LayoutTypes.SimpleSideBar,
-  apiPrefix: '',
+  apiPrefix: 'http://localhost:8000',
   authenticatedEntryPath: '/dashboard',
   unAuthenticatedEntryPath: '/sign-in',
-  enableMock: true,
+  enableMock: false,
   locale: 'en',
 }
 
