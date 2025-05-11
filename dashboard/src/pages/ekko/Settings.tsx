@@ -126,8 +126,42 @@ export default function Settings() {
   const [nodeTimeout, setNodeTimeout] = useState(10);
   const [maxRetries, setMaxRetries] = useState(3);
   
+  // Account settings state
+  const [username, setUsername] = useState("ekko_admin");
+  const [email, setEmail] = useState("admin@ekko.chain");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  
   // Store original state for change detection
-  const [originalState] = useState({
+  const [originalState] = useState<{
+    general: {
+      apiEndpoint: string;
+      refreshInterval: number;
+      timeFormat: string;
+    };
+    notifications: {
+      channels: string;
+      alertThreshold: string;
+    };
+    api: {
+      apiKey: string;
+    };
+    nodes: {
+      defaultNetwork: string;
+      nodeTimeout: number;
+      maxRetries: number;
+    };
+    appearance: {
+      themeColor: string;
+    };
+    account: {
+      username: string;
+      email: string;
+      passwordChanged: boolean;
+    };
+  }>({
     general: {
       apiEndpoint: apiEndpoint,
       refreshInterval: refreshInterval,
@@ -147,6 +181,11 @@ export default function Settings() {
     },
     appearance: {
       themeColor: themeColor
+    },
+    account: {
+      username: username,
+      email: email,
+      passwordChanged: false
     }
   });
   
@@ -172,8 +211,30 @@ export default function Settings() {
       },
       appearance: {
         themeColor: themeColor
+      },
+      account: {
+        username: username,
+        email: email,
+        passwordChanged: currentPassword !== "" && newPassword !== "" && confirmPassword !== ""
       }
     };
+    
+    // Validate passwords if they're being changed
+    if (currentPassword || newPassword || confirmPassword) {
+      if (!currentPassword) {
+        setPasswordError("Current password is required");
+      } else if (!newPassword) {
+        setPasswordError("New password is required");
+      } else if (newPassword.length < 8) {
+        setPasswordError("New password must be at least 8 characters");
+      } else if (newPassword !== confirmPassword) {
+        setPasswordError("New passwords don't match");
+      } else {
+        setPasswordError("");
+      }
+    } else {
+      setPasswordError("");
+    }
     
     // Compare original state with current state
     const hasStateChanged = 
@@ -182,14 +243,18 @@ export default function Settings() {
       originalState.notifications.alertThreshold !== currentState.notifications.alertThreshold ||
       originalState.api.apiKey !== currentState.api.apiKey ||
       JSON.stringify(originalState.nodes) !== JSON.stringify(currentState.nodes) ||
-      originalState.appearance.themeColor !== currentState.appearance.themeColor;
+      originalState.appearance.themeColor !== currentState.appearance.themeColor ||
+      originalState.account.username !== currentState.account.username ||
+      originalState.account.email !== currentState.account.email ||
+      currentState.account.passwordChanged;
     
     setHasChanges(hasStateChanged);
   }, [
     apiEndpoint, refreshInterval, timeFormat,
     notificationChannels, alertThreshold,
     apiKey, defaultNetwork, nodeTimeout, maxRetries,
-    themeColor, originalState
+    themeColor, username, email, currentPassword, newPassword, confirmPassword,
+    originalState
   ]);
   
   // Handle save changes
@@ -197,12 +262,36 @@ export default function Settings() {
     // Here you would typically make an API call to save the settings
     console.log('Saving settings...');
     
+    // Validate password changes if on account tab
+    if (activeTab === 'account' && currentPassword && newPassword) {
+      if (passwordError) {
+        alert(`Cannot save changes: ${passwordError}`);
+        return;
+      }
+      console.log('Saving password changes...');
+      // In a real implementation, you would make an API call to update the password
+    }
+    
+    // Log the current state for debugging
+    console.log('Current notification channels:', notificationChannels);
+    
+    // Save notification settings if on notifications tab
+    if (activeTab === 'notifications') {
+      // In a real implementation, you would make an API call to update notification settings
+      console.log('Saving notification settings:', {
+        channels: notificationChannels,
+        alertThreshold: alertThreshold
+      });
+      
+      // Update the original state to reflect the current notification channels
+      originalState.notifications.channels = JSON.stringify(notificationChannels);
+      originalState.notifications.alertThreshold = alertThreshold;
+    }
+    
     // After successful save, update the original state to match current state
     // This would reset the hasChanges flag
+    setHasChanges(false);
     alert('Settings saved successfully!');
-    
-    // In a real implementation, you would update originalState after successful API call
-    window.location.reload();
   };
 
   return (
@@ -236,9 +325,10 @@ export default function Settings() {
             <Tabs.Tab value="nodes" leftSection={<IconServer size={16} />}>
               Node Settings
             </Tabs.Tab>
-            <Tabs.Tab value="appearance" leftSection={<IconPalette size={16} />}>
+            {/* Appearance tab hidden for now */}
+            {/* <Tabs.Tab value="appearance" leftSection={<IconPalette size={16} />}>
               Appearance
-            </Tabs.Tab>
+            </Tabs.Tab> */}
             <Tabs.Tab value="account" leftSection={<IconUser size={16} />}>
               Account
             </Tabs.Tab>
@@ -602,37 +692,58 @@ export default function Settings() {
               
               <TextInput
                 label="Username"
-                defaultValue="ekko_admin"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 mb="md"
               />
               
               <TextInput
                 label="Email"
-                defaultValue="admin@ekko.chain"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 mb="md"
               />
               
               <PasswordInput
                 label="Current Password"
                 placeholder="Enter current password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
                 mb="md"
               />
               
               <PasswordInput
                 label="New Password"
                 placeholder="Enter new password"
+                description="Must be at least 8 characters"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
                 mb="md"
               />
               
               <PasswordInput
                 label="Confirm New Password"
                 placeholder="Confirm new password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                error={passwordError}
                 mb="md"
               />
               
               <Divider my="md" />
               
-              <Button color="red" variant="outline">Log Out</Button>
+              {passwordError && (
+                <Alert color="red" mb="md" title="Password Error">
+                  {passwordError}
+                </Alert>
+              )}
+              
+              <Group>
+                <Button color="blue" variant="filled" disabled={!hasChanges || !!passwordError} onClick={handleSaveChanges}>
+                  Save Account Changes
+                </Button>
+                <Button color="red" variant="outline">Log Out</Button>
+              </Group>
             </Stack>
           )}
         </Tabs>
