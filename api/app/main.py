@@ -30,6 +30,8 @@ class Alert(BaseModel):
     status: str
     icon: Optional[str] = None
     priority: Optional[str] = None
+    related_wallet: Optional[str] = None
+    query: Optional[str] = None
 
 # Global NATS connection
 nc = None
@@ -459,22 +461,55 @@ async def delete_wallet(wallet_id: str, background_tasks: BackgroundTasks):
 @app.get("/alerts", response_model=List[Alert])
 async def get_alerts():
     try:
-        kv = await js.key_value(bucket="alerts")
-        keys = await kv.keys()
-        alerts = []
-        
-        for key in keys:
-            data = await kv.get(key)
-            # Properly decode bytes data
-            if isinstance(data.value, bytes):
-                json_str = data.value.decode('utf-8')
+        # Try to get the alerts bucket
+        try:
+            kv = await js.key_value(bucket="alerts")
+        except Exception as bucket_error:
+            # If bucket doesn't exist, create it
+            if "no bucket" in str(bucket_error).lower() or "not found" in str(bucket_error).lower():
+                try:
+                    await js.create_key_value(bucket="alerts")
+                    kv = await js.key_value(bucket="alerts")
+                except Exception as create_error:
+                    print(f"Error creating alerts bucket: {create_error}")
+                    return []  # Return empty list on error
             else:
-                json_str = data.value
-            alerts.append(json.loads(json_str))
-        
-        return alerts
+                # Other bucket error
+                print(f"Error accessing alerts bucket: {bucket_error}")
+                return []  # Return empty list on error
+                
+        # Try to get keys from the bucket
+        try:
+            print("Getting alert keys from bucket...")
+            keys = await kv.keys()
+            print(f"Found {len(keys)} alert keys: {keys}")
+            alerts = []
+            
+            for key in keys:
+                print(f"Loading alert with key: {key}")
+                data = await kv.get(key)
+                # Properly decode bytes data
+                if isinstance(data.value, bytes):
+                    json_str = data.value.decode('utf-8')
+                else:
+                    json_str = data.value
+                alert_data = json.loads(json_str)
+                print(f"Loaded alert: {alert_data.get('id')} - {alert_data.get('type')}")
+                alerts.append(alert_data)
+            
+            print(f"Returning {len(alerts)} alerts")
+            return alerts
+        except Exception as keys_error:
+            # Handle "no keys found" error by returning empty list
+            if "no keys found" in str(keys_error).lower():
+                print("No alert keys found, returning empty list")
+                return []  # Return empty list when no keys found
+            else:
+                print(f"Error getting alert keys: {keys_error}")
+                return []  # Return empty list on error
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching alerts: {str(e)}")
+        print(f"Unexpected error in get_alerts: {e}")
+        return []  # Return empty list instead of error
 
 @app.get("/alerts/{alert_id}", response_model=Alert)
 async def get_alert(alert_id: str):

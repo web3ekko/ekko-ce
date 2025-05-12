@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Title, 
   Text, 
@@ -18,7 +18,10 @@ import {
   NumberInput,
   Radio,
   Slider,
-  Switch
+  Switch,
+  Center,
+  Loader,
+  Alert as MantineAlert
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { 
@@ -34,8 +37,13 @@ import {
   IconShield 
 } from '@tabler/icons-react';
 
-// This will be replaced with actual API data
-const MOCK_ALERTS = [
+// Import the alert service
+import { AlertService } from '@/services/alert/alert.service';
+import type { Alert as AlertType, AlertFormValues } from '@/@types/alert';
+import { v4 as uuidv4 } from 'uuid';
+
+// Sample alerts for empty state - will be replaced with API data
+const EMPTY_ALERTS: AlertType[] = [
   { 
     id: '1', 
     type: 'Balance', 
@@ -43,7 +51,8 @@ const MOCK_ALERTS = [
     time: '2025-05-08T08:30:00Z', 
     status: 'Open', 
     priority: 'High', 
-    relatedWallet: '0x1234...5678' 
+    related_wallet: '0x1234...5678',
+    query: 'balance < 3'
   },
   { 
     id: '2', 
@@ -52,7 +61,8 @@ const MOCK_ALERTS = [
     time: '2025-05-08T07:15:00Z', 
     status: 'Open', 
     priority: 'Medium', 
-    relatedWallet: null
+    related_wallet: '',
+    query: 'price_change > 5%'
   },
   { 
     id: '3', 
@@ -61,7 +71,8 @@ const MOCK_ALERTS = [
     time: '2025-05-08T06:45:00Z', 
     status: 'Open', 
     priority: 'Low', 
-    relatedWallet: '0x8765...4321'
+    related_wallet: '0x8765...4321',
+    query: 'tx_value > 1000'
   },
   { 
     id: '4', 
@@ -70,18 +81,12 @@ const MOCK_ALERTS = [
     time: '2025-05-07T22:30:00Z', 
     status: 'Resolved', 
     priority: 'High', 
-    relatedWallet: 'bc1q...wxyz'
+    related_wallet: 'bc1q...wxyz',
+    query: 'suspicious_activity = true'
   },
 ];
 
-interface AlertFormValues {
-  type: string;
-  message: string;
-  priority: string;
-  relatedWallet: string;
-  threshold: number;
-  enableNotifications: boolean;
-}
+// AlertFormValues is now imported from @types/alert
 
 export default function Alerts() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -89,14 +94,39 @@ export default function Alerts() {
   const [pageSize, setPageSize] = useState('10');
   const [activeTab, setActiveTab] = useState('all');
   const [modalOpened, setModalOpened] = useState(false);
+  const [alerts, setAlerts] = useState<AlertType[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
+  // Fetch alerts on component mount
+  useEffect(() => {
+    fetchAlerts();
+  }, []);
+
+  // Function to fetch alerts
+  const fetchAlerts = async () => {
+    try {
+      setLoading(true);
+      const data = await AlertService.getAlerts();
+      setAlerts(data.length > 0 ? data : []);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching alerts:', err);
+      setError('Failed to load alerts. Please try again.');
+      setAlerts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Form for creating a new alert
   const form = useForm<AlertFormValues>({
     initialValues: {
       type: 'Price',
       message: '',
       priority: 'Medium',
-      relatedWallet: '',
+      related_wallet: '',
+      query: '',
       threshold: 5,
       enableNotifications: true,
     },
@@ -106,45 +136,87 @@ export default function Alerts() {
   });
   
   // Handle form submission
-  const handleSubmit = (values: AlertFormValues) => {
-    // In a real app, this would call an API to create the alert
-    console.log('Creating new alert:', values);
-    // Close the modal after submission
-    setModalOpened(false);
-    // Reset form
-    form.reset();
+  const handleSubmit = async (values: AlertFormValues) => {
+    try {
+      setLoading(true);
+      
+      // Create alert object from form values
+      const newAlert = {
+        id: uuidv4(), // Generate a UUID for the new alert
+        type: values.type,
+        message: values.message,
+        time: new Date().toISOString(),
+        status: 'Open',
+        priority: values.priority,
+        related_wallet: values.related_wallet,
+        query: values.query,
+        icon: values.type === 'Security' ? 'shield' : 
+              values.type === 'Balance' ? 'wallet' : 
+              values.type === 'Price' ? 'chart' : 'bell'
+      };
+      
+      console.log('Creating new alert:', newAlert);
+      
+      // Call the API to create the alert
+      await AlertService.createAlert(newAlert);
+      
+      // Close the modal after successful submission
+      setModalOpened(false);
+      
+      // Reset form
+      form.reset();
+      
+      // Refresh the alert list
+      fetchAlerts();
+      
+      setError(null);
+    } catch (err: any) {
+      console.error('Error creating alert:', err);
+      setError(err.message || 'Failed to create alert. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
   
   // Update message based on alert type and threshold
   const updateAlertMessage = (type: string, threshold: number, wallet: string) => {
     let message = '';
+    let query = '';
     const walletName = wallet ? wallet : 'selected wallet';
     
     switch (type) {
       case 'Price':
         message = `Alert when price changes by ${threshold}%`;
+        query = `price_change > ${threshold}%`;
         break;
       case 'Balance':
         message = `Alert when ${walletName} balance falls below ${threshold}`;
+        query = `balance < ${threshold}`;
         break;
       case 'Transaction':
         message = `Alert on transactions above ${threshold} in ${walletName}`;
+        query = `tx_value > ${threshold}`;
         break;
       case 'Security':
         message = `Security monitoring for ${walletName}`;
+        query = 'suspicious_activity = true';
         break;
       default:
         message = 'Custom alert';
+        query = '';
     }
     
     form.setFieldValue('message', message);
+    form.setFieldValue('query', query);
   };
   
   // Filter alerts based on search query and active tab
-  const filteredAlerts = MOCK_ALERTS.filter(alert => {
+  const filteredAlerts = alerts.filter((alert: AlertType) => {
     const matchesSearch = 
       alert.message.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      alert.type.toLowerCase().includes(searchQuery.toLowerCase());
+      alert.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (alert.related_wallet && alert.related_wallet.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (alert.query && alert.query.toLowerCase().includes(searchQuery.toLowerCase()));
     
     if (activeTab === 'all') return matchesSearch;
     if (activeTab === 'open') return matchesSearch && alert.status === 'Open';
@@ -210,7 +282,7 @@ export default function Alerts() {
                 {...form.getInputProps('type')}
                 onChange={(value) => {
                   form.setFieldValue('type', value);
-                  updateAlertMessage(value, form.values.threshold, form.values.relatedWallet);
+                  updateAlertMessage(value, form.values.threshold, form.values.related_wallet);
                 }}
               >
                 <Group mt="xs">
@@ -231,9 +303,9 @@ export default function Alerts() {
                   { value: 'bc1q...wxyz', label: 'Cold Storage (BTC)' },
                 ]}
                 clearable
-                {...form.getInputProps('relatedWallet')}
+                {...form.getInputProps('related_wallet')}
                 onChange={(value: string | null) => {
-                  form.setFieldValue('relatedWallet', value || '');
+                  form.setFieldValue('related_wallet', value || '');
                   updateAlertMessage(form.values.type, form.values.threshold, value || '');
                 }}
               />
@@ -253,7 +325,7 @@ export default function Alerts() {
                   {...form.getInputProps('threshold')}
                   onChange={(value) => {
                     form.setFieldValue('threshold', value);
-                    updateAlertMessage(form.values.type, value, form.values.relatedWallet);
+                    updateAlertMessage(form.values.type, value, form.values.related_wallet);
                   }}
                 />
               </div>
@@ -275,6 +347,14 @@ export default function Alerts() {
                 required
                 minRows={2}
                 {...form.getInputProps('message')}
+              />
+              
+              <Textarea
+                label="Query Condition"
+                placeholder="Condition that triggers this alert"
+                required
+                minRows={2}
+                {...form.getInputProps('query')}
               />
               
               <Switch
@@ -315,7 +395,14 @@ export default function Alerts() {
               data={['5', '10', '20', '50']}
               style={{ width: '100px' }}
             />
-            <ActionIcon variant="light" color="blue" size="lg" aria-label="Refresh">
+            <ActionIcon 
+              variant="light" 
+              color="blue" 
+              size="lg" 
+              aria-label="Refresh"
+              onClick={() => fetchAlerts()}
+              loading={loading}
+            >
               <IconRefresh size={18} />
             </ActionIcon>
           </Group>
@@ -330,7 +417,34 @@ export default function Alerts() {
         </Tabs>
         
         <Stack>
-          {paginatedAlerts.map(alert => (
+          {loading ? (
+            <Card withBorder p="xl" radius="md">
+              <Center>
+                <Stack align="center" gap="md">
+                  <Loader size="md" />
+                  <Text>Loading alerts...</Text>
+                </Stack>
+              </Center>
+            </Card>
+          ) : error ? (
+            <Card withBorder p="xl" radius="md">
+              <MantineAlert color="red" title="Error loading alerts">
+                {error}
+                <Button variant="light" onClick={fetchAlerts} mt="md">Try Again</Button>
+              </MantineAlert>
+            </Card>
+          ) : paginatedAlerts.length === 0 ? (
+            <Card withBorder p="xl" radius="md">
+              <Center>
+                <Stack align="center" gap="md">
+                  <IconBell size={48} opacity={0.3} />
+                  <Text size="lg" fw={500}>No alerts found</Text>
+                  <Text size="sm" c="dimmed" ta="center">Create your first alert by clicking the "Create Alert" button</Text>
+                  <Button onClick={() => setModalOpened(true)} mt="md">Create Alert</Button>
+                </Stack>
+              </Center>
+            </Card>
+          ) : paginatedAlerts.map((alert: AlertType) => (
             <Card key={alert.id} withBorder p="md" radius="md">
               <Group justify="space-between" mb="xs">
                 <Group>
@@ -342,8 +456,8 @@ export default function Alerts() {
                   <Badge color={alert.status === 'Open' ? 'blue' : 'green'}>
                     {alert.status}
                   </Badge>
-                  <Badge color={getPriorityColor(alert.priority)}>
-                    {alert.priority}
+                  <Badge color={getPriorityColor(alert.priority || 'Medium')}>
+                    {alert.priority || 'Medium'}
                   </Badge>
                 </Group>
               </Group>
@@ -352,9 +466,9 @@ export default function Alerts() {
                 <Text size="sm" c="dimmed">
                   {new Date(alert.time).toLocaleString()}
                 </Text>
-                {alert.relatedWallet && (
+                {alert.related_wallet && alert.related_wallet.length > 0 && (
                   <Text size="sm" c="dimmed">
-                    Wallet: {alert.relatedWallet}
+                    Wallet: {alert.related_wallet}
                   </Text>
                 )}
               </Group>

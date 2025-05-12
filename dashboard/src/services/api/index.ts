@@ -22,7 +22,10 @@ export {
   nodesApi,
   apiUtils,
   authApi,
-  // Types
+};
+
+// Re-export types with 'export type' syntax for isolatedModules compatibility
+export type {
   Wallet,
   Alert,
   Transaction,
