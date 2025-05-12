@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from contextlib import asynccontextmanager
 from app.routes.settings import router as settings_router, set_js as set_settings_js
 from app.events import set_js as set_events_js, publish_event
+from app.alert_processor import start_alert_processor, stop_alert_processor
 
 # Models
 class Wallet(BaseModel):
@@ -37,8 +38,9 @@ class Alert(BaseModel):
 nc = None
 js = None
 
-# Background task flag
+# Background task flags
 running = True
+alert_processor_task = None
 
 # Lifespan context manager to handle startup/shutdown
 @asynccontextmanager
@@ -73,11 +75,29 @@ async def lifespan(app: FastAPI):
         # Start background task for processing messages
         asyncio.create_task(process_messages())
         
+        # Start alert processor as a background task
+        global alert_processor_task
+        alert_processor_task = asyncio.create_task(start_alert_processor(js, interval_seconds=60))
+        print("Alert processor background task started")
+        
         print("FastAPI service started successfully")
         yield
     finally:
         # Shutdown: stop background processing and close NATS connection
         running = False
+        
+        # Stop alert processor
+        if alert_processor_task:
+            await stop_alert_processor()
+            try:
+                alert_processor_task.cancel()
+                await alert_processor_task
+            except asyncio.CancelledError:
+                print("Alert processor task cancelled successfully")
+            except Exception as e:
+                print(f"Error cancelling alert processor task: {e}")
+        
+        # Close NATS connection
         if nc:
             await nc.close()
         print("FastAPI service shut down")

@@ -5,9 +5,6 @@ networks:
     driver: bridge
 
 volumes:
-  redis_data:
-  valkey_data:
-  duckdb_data:
   nats_data:
 
 services:
@@ -18,14 +15,9 @@ services:
     ports:
       - "4195:4195"  # HTTP API + Prometheus metrics
     environment:
-      - VALKEY_URL=valkey:6379
       - NATS_URL=nats://nats:4222
       - NATS_STREAM=blockchain
       - NATS_SUBJECT=transactions
-      - PULSAR_URL=
-      - PULSAR_ADMIN_URL=
-      # Override any Pulsar-related settings
-      - ENABLE_PULSAR=false
     env_file: ".env"
     volumes:
       - ./config.yaml:/app/config.yaml
@@ -33,29 +25,12 @@ services:
     networks:
       - pipeline-network
     depends_on:
-      - valkey
       - nats
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4195/ping"]
       interval: 30s
       timeout: 10s
       retries: 3
-
-  valkey:
-    image: valkey/valkey:8-alpine3.21
-    ports:
-      - "6379:6379"
-    volumes:
-      - valkey_data:/data
-    command: valkey-server --appendonly yes
-    networks:
-      - pipeline-network
-    healthcheck:
-      test: ["CMD", "valkey-cli", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
       
   nats:
     image: nats:2.10-alpine
@@ -96,27 +71,6 @@ services:
       - nats
       - pipeline
 
-  ekko-processor:
-    build:
-      context: ./streamlit/ekko-dash
-      dockerfile: Dockerfile
-    command: python alert_processor_service.py
-    env_file: .env
-    environment:
-      - DUCKDB_PATH=/data/ekko.db
-      - NATS_URL=nats://nats:4222
-      - NATS_STREAM=blockchain
-      - NATS_SUBJECT=transactions
-    volumes:
-      - ./streamlit/ekko-dash:/app
-    restart: unless-stopped
-    networks:
-      - pipeline-network
-    depends_on:
-      - valkey
-      - nats
-      - streamlit
-
   dashboard:
     build:
       context: ./dashboard
@@ -127,7 +81,6 @@ services:
       - "3000:5173"
     environment:
       - NODE_ENV=production
-      - VALKEY_URL=valkey:6379
       - NATS_URL=nats://nats:4222
       - API_URL=http://api:8000
     volumes:
@@ -138,7 +91,6 @@ services:
     networks:
       - pipeline-network
     depends_on:
-      - valkey
       - nats
       - api
 
@@ -157,4 +109,3 @@ services:
       - pipeline-network
     depends_on:
       - nats
-      - valkey
