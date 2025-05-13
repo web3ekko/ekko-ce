@@ -50,27 +50,6 @@ services:
       timeout: 10s
       retries: 3
 
-  streamlit:
-    build:
-      context: ./dashboard
-      dockerfile: Dockerfile
-    ports:
-      - "8501:8501"
-    environment:
-      - VALKEY_URL=valkey:6379
-      - NATS_URL=nats://nats:4222
-      - NATS_STREAM=blockchain
-      - NATS_SUBJECT=transactions
-    volumes:
-      - ./streamlit/ekko-dash:/app
-      - duckdb_data:/data
-    networks:
-      - pipeline-network
-    depends_on:
-      - valkey
-      - nats
-      - pipeline
-
   dashboard:
     build:
       context: ./dashboard

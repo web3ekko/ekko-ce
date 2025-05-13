@@ -6,7 +6,8 @@ export interface Alert {
   status: string;
   icon?: string;
   priority?: string;
-  related_wallet?: string;
+  related_wallet_id?: string;
+  related_wallet?: string; // Keeping for backward compatibility
   query?: string;
 }
 
@@ -27,7 +28,7 @@ export interface AlertFormValues {
   type: string;
   message: string;
   priority: string;
-  related_wallet: string;
+  related_wallet_id: string;
   query: string;
   threshold: number;
   enableNotifications: boolean;

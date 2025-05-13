@@ -188,12 +188,14 @@ export const alertsApi = {
       return response.data;
     } catch (error) {
       console.error('Error fetching alerts:', error);
-      // Return mock data for development
+      // Return mock data for development - will be replaced with actual API data
       const mockAlerts = [
-        { id: '1', type: 'Balance', message: 'Main wallet balance below 3 AVAX', time: '2025-05-08T08:30:00Z', status: 'Open', priority: 'High', relatedWallet: '0x1234...5678' },
-        { id: '2', type: 'Price', message: 'ETH price increased by 5% in last hour', time: '2025-05-08T07:15:00Z', status: 'Open', priority: 'Medium' },
-        { id: '3', type: 'Transaction', message: 'Large transaction detected on wallet AVAX-1', time: '2025-05-08T06:45:00Z', status: 'Open', priority: 'Low', relatedWallet: '0x8765...4321' },
-        { id: '4', type: 'Security', message: 'Suspicious activity detected on wallet BTC-1', time: '2025-05-07T22:30:00Z', status: 'Resolved', priority: 'High', relatedWallet: 'bc1q...wxyz' },
+        // Using empty related_wallet_id field to ensure it's clearly a mock alert
+        // In a real API response, this would be a proper UUID referencing a wallet
+        { id: '1', type: 'Balance', message: 'Main wallet balance below 3 AVAX', time: '2025-05-08T08:30:00Z', status: 'Open', priority: 'High', related_wallet_id: '' },
+        { id: '2', type: 'Price', message: 'ETH price increased by 5% in last hour', time: '2025-05-08T07:15:00Z', status: 'Open', priority: 'Medium', related_wallet_id: '' },
+        { id: '3', type: 'Transaction', message: 'Large transaction detected on wallet AVAX-1', time: '2025-05-08T06:45:00Z', status: 'Open', priority: 'Low', related_wallet_id: '' },
+        { id: '4', type: 'Security', message: 'Suspicious activity detected on wallet BTC-1', time: '2025-05-07T22:30:00Z', status: 'Resolved', priority: 'High', related_wallet_id: '' },
       ];
       
       return {

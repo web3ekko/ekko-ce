@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Title, 
   Text, 
@@ -21,7 +21,8 @@ import {
   Switch,
   Center,
   Loader,
-  Alert as MantineAlert
+  Alert as MantineAlert,
+  Grid
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { 
@@ -37,9 +38,11 @@ import {
   IconShield 
 } from '@tabler/icons-react';
 
-// Import the alert service
+// Import services
 import { AlertService } from '@/services/alert/alert.service';
+import { WalletService } from '@/services/wallet/wallet.service';
 import type { Alert as AlertType, AlertFormValues } from '@/@types/alert';
+import type { Wallet } from '@/@types/wallet';
 import { v4 as uuidv4 } from 'uuid';
 
 // Sample alerts for empty state - will be replaced with API data
@@ -95,13 +98,40 @@ export default function Alerts() {
   const [activeTab, setActiveTab] = useState('all');
   const [modalOpened, setModalOpened] = useState(false);
   const [alerts, setAlerts] = useState<AlertType[]>([]);
+  const [wallets, setWallets] = useState<Wallet[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingWallets, setLoadingWallets] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Fetch alerts on component mount
+  // Fetch alerts and wallets on component mount
   useEffect(() => {
     fetchAlerts();
+    fetchWallets();
   }, []);
+  
+  // Function to fetch wallets
+  const fetchWallets = async () => {
+    try {
+      setLoadingWallets(true);
+      const data = await WalletService.getWallets();
+      setWallets(data);
+    } catch (err) {
+      console.error('Error fetching wallets:', err);
+    } finally {
+      setLoadingWallets(false);
+    }
+  };
+  
+  // Helper function to get wallet name or address by ID
+  const getWalletInfo = (walletId: string | undefined) => {
+    if (!walletId) return 'N/A';
+    
+    const wallet = wallets.find(w => w.id === walletId);
+    if (wallet) {
+      return wallet.name || wallet.address;
+    }
+    return walletId; // Return the ID if wallet not found
+  };
 
   // Function to fetch alerts
   const fetchAlerts = async () => {
@@ -125,7 +155,7 @@ export default function Alerts() {
       type: 'Price',
       message: '',
       priority: 'Medium',
-      related_wallet: '',
+      related_wallet_id: '',
       query: '',
       threshold: 5,
       enableNotifications: true,
@@ -148,7 +178,7 @@ export default function Alerts() {
         time: new Date().toISOString(),
         status: 'Open',
         priority: values.priority,
-        related_wallet: values.related_wallet,
+        related_wallet_id: values.related_wallet_id,
         query: values.query,
         icon: values.type === 'Security' ? 'shield' : 
               values.type === 'Balance' ? 'wallet' : 
@@ -282,7 +312,7 @@ export default function Alerts() {
                 {...form.getInputProps('type')}
                 onChange={(value) => {
                   form.setFieldValue('type', value);
-                  updateAlertMessage(value, form.values.threshold, form.values.related_wallet);
+                  updateAlertMessage(value, form.values.threshold, getWalletInfo(form.values.related_wallet_id));
                 }}
               >
                 <Group mt="xs">
@@ -298,15 +328,17 @@ export default function Alerts() {
                 placeholder="Select wallet (optional)"
                 data={[
                   { value: '', label: 'None' },
-                  { value: '0x1234...5678', label: 'Main Wallet (AVAX)' },
-                  { value: '0x8765...4321', label: 'Trading Wallet (ETH)' },
-                  { value: 'bc1q...wxyz', label: 'Cold Storage (BTC)' },
+                  ...wallets.map(wallet => ({
+                    value: wallet.id,
+                    label: `${wallet.name || 'Wallet'} (${wallet.blockchain_symbol}) - ${wallet.address.substring(0, 6)}...${wallet.address.substring(wallet.address.length - 4)}`
+                  }))
                 ]}
                 clearable
-                {...form.getInputProps('related_wallet')}
+                disabled={loadingWallets}
+                {...form.getInputProps('related_wallet_id')}
                 onChange={(value: string | null) => {
-                  form.setFieldValue('related_wallet', value || '');
-                  updateAlertMessage(form.values.type, form.values.threshold, value || '');
+                  form.setFieldValue('related_wallet_id', value || '');
+                  updateAlertMessage(form.values.type, form.values.threshold, getWalletInfo(value || ''));
                 }}
               />
               
@@ -325,7 +357,7 @@ export default function Alerts() {
                   {...form.getInputProps('threshold')}
                   onChange={(value) => {
                     form.setFieldValue('threshold', value);
-                    updateAlertMessage(form.values.type, value, form.values.related_wallet);
+                    updateAlertMessage(form.values.type, value, getWalletInfo(form.values.related_wallet_id));
                   }}
                 />
               </div>
@@ -416,74 +448,120 @@ export default function Alerts() {
           </Tabs.List>
         </Tabs>
         
-        <Stack>
-          {loading ? (
-            <Card withBorder p="xl" radius="md">
-              <Center>
-                <Stack align="center" gap="md">
-                  <Loader size="md" />
-                  <Text>Loading alerts...</Text>
-                </Stack>
-              </Center>
-            </Card>
-          ) : error ? (
-            <Card withBorder p="xl" radius="md">
-              <MantineAlert color="red" title="Error loading alerts">
-                {error}
-                <Button variant="light" onClick={fetchAlerts} mt="md">Try Again</Button>
-              </MantineAlert>
-            </Card>
-          ) : paginatedAlerts.length === 0 ? (
-            <Card withBorder p="xl" radius="md">
-              <Center>
-                <Stack align="center" gap="md">
-                  <IconBell size={48} opacity={0.3} />
-                  <Text size="lg" fw={500}>No alerts found</Text>
-                  <Text size="sm" c="dimmed" ta="center">Create your first alert by clicking the "Create Alert" button</Text>
-                  <Button onClick={() => setModalOpened(true)} mt="md">Create Alert</Button>
-                </Stack>
-              </Center>
-            </Card>
-          ) : paginatedAlerts.map((alert: AlertType) => (
-            <Card key={alert.id} withBorder p="md" radius="md">
-              <Group justify="space-between" mb="xs">
-                <Group>
-                  {getAlertIcon(alert.type)}
-                  <Badge size="lg">{alert.type}</Badge>
-                  <Text>{alert.message}</Text>
-                </Group>
-                <Group>
-                  <Badge color={alert.status === 'Open' ? 'blue' : 'green'}>
-                    {alert.status}
-                  </Badge>
-                  <Badge color={getPriorityColor(alert.priority || 'Medium')}>
-                    {alert.priority || 'Medium'}
-                  </Badge>
-                </Group>
+        {loading && alerts.length === 0 ? (
+          <Center p="xl">
+            <Loader />
+          </Center>
+        ) : error ? (
+          <Card withBorder p="xl" radius="md">
+            <MantineAlert color="red" title="Error loading alerts">
+              {error}
+              <Button variant="light" onClick={fetchAlerts} mt="md">Try Again</Button>
+            </MantineAlert>
+          </Card>
+        ) : paginatedAlerts.length === 0 ? (
+          <Card withBorder p="xl" radius="md">
+            <Center>
+              <Stack align="center" gap="md">
+                <IconBell size={48} opacity={0.3} />
+                <Text size="lg" fw={500}>No alerts found</Text>
+                <Text size="sm" c="dimmed" ta="center">Create your first alert by clicking the "Create Alert" button</Text>
+                <Button onClick={() => setModalOpened(true)} mt="md">Create Alert</Button>
+              </Stack>
+            </Center>
+          </Card>
+        ) : (
+          <>
+            <Grid>
+              {paginatedAlerts.map((alert: AlertType) => (
+                <Grid.Col span={{ base: 12, md: 6, lg: 4 }} key={alert.id}>
+                  <Card withBorder p="md" radius="md">
+                    <Group justify="space-between" mb="xs">
+                      <Group>
+                        {getAlertIcon(alert.type)}
+                        <Text fw={700}>{alert.type}</Text>
+                      </Group>
+                      <Badge 
+                        color={alert.status === 'Open' ? 'blue' : 'green'}
+                      >
+                        {alert.status}
+                      </Badge>
+                    </Group>
+                    <Text size="sm" c="dimmed" mb="md">{alert.message}</Text>
+                    <Group justify="space-between">
+                      <Text>Priority:</Text>
+                      <Badge color={getPriorityColor(alert.priority || 'Medium')}>
+                        {alert.priority || 'Medium'}
+                      </Badge>
+                    </Group>
+                    
+                    <Group justify="space-between" mt="xs">
+                      <Text>Wallet:</Text>
+                      <Text size="sm">
+                        {(() => {
+                          // Check if alert has a related_wallet_id
+                          if (alert.related_wallet_id) {
+                            // Find the associated wallet by ID
+                            const associatedWallet = wallets.find(w => w.id === alert.related_wallet_id);
+                            if (associatedWallet) {
+                              // Format as "Name (truncated address)"
+                              const address = associatedWallet.address;
+                              const truncatedAddress = address ? 
+                                `${address.substring(0, 6)}...${address.substring(address.length - 6)}` : 
+                                '';
+                              const name = associatedWallet.name || `${associatedWallet.blockchain_symbol} Wallet`;
+                              
+                              return truncatedAddress ? 
+                                `${name} (${truncatedAddress})` : 
+                                name;
+                            }
+                            return `Wallet ${alert.related_wallet_id.substring(0, 8)}...`;
+                          }
+                          
+                          // Extract wallet info from message if available
+                          if (alert.message) {
+                            if (alert.message.toLowerCase().includes('wallet')) {
+                              // Try to extract wallet name from message
+                              const walletMatch = alert.message.match(/wallet\s+([\w-]+)/i);
+                              if (walletMatch && walletMatch[1]) {
+                                return walletMatch[1];
+                              }
+                            }
+                            
+                            // Extract blockchain if available
+                            const chains = ['ETH', 'BTC', 'AVAX', 'MATIC'];
+                            for (const chain of chains) {
+                              if (alert.message.includes(chain)) {
+                                return `${chain} Wallet`;
+                              }
+                            }
+                          }
+                          
+                          return 'N/A';
+                        })()}
+                      </Text>
+                    </Group>
+                    
+                    <Group justify="flex-end" mt="md">
+                      <Text size="xs" c="dimmed">
+                        {new Date(alert.time).toLocaleString()}
+                      </Text>
+                    </Group>
+                  </Card>
+                </Grid.Col>
+              ))}
+            </Grid>
+            
+            {filteredAlerts.length > parseInt(pageSize) && (
+              <Group justify="center" mt="xl">
+                <Pagination 
+                  value={activePage} 
+                  onChange={setActivePage} 
+                  total={totalPages} 
+                />
               </Group>
-              <Divider my="xs" />
-              <Group justify="space-between" mt="xs">
-                <Text size="sm" c="dimmed">
-                  {new Date(alert.time).toLocaleString()}
-                </Text>
-                {alert.related_wallet && alert.related_wallet.length > 0 && (
-                  <Text size="sm" c="dimmed">
-                    Wallet: {alert.related_wallet}
-                  </Text>
-                )}
-              </Group>
-            </Card>
-          ))}
-        </Stack>
-        
-        {filteredAlerts.length > parseInt(pageSize) && (
-          <Group justify="center" mt="xl">
-            <Pagination 
-              value={activePage} 
-              onChange={setActivePage} 
-              total={totalPages} 
-            />
-          </Group>
+            )}
+          </>
         )}
       </Card>
     </div>
