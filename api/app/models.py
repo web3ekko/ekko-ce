@@ -190,6 +190,24 @@ class NotificationSettings(BaseModel):
 class APISettings(BaseModel):
     api_key: str
 
+class Node(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    websocket_url: str
+    http_url: str
+    vm: str = "EVM"  # Default to EVM
+    type: str = "API"  # API, Validator, Full
+    network: str = "Avalanche"  # Avalanche, Avalanche Fuji
+    status: str = "Offline"  # Online, Offline, Degraded
+    uptime: float = 0.0
+    cpu: int = 0
+    memory: int = 0
+    disk: int = 0
+    peers: int = 0
+    version: str = ""
+    created_at: str = Field(default_factory=lambda: datetime.now().isoformat())
+    updated_at: Optional[str] = None
+
 class NodeSettings(BaseModel):
     default_network: str
     node_timeout: int

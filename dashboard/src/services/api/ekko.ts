@@ -95,6 +95,9 @@ export interface Node {
   disk: number;
   peers: number;
   version: string;
+  websocket_url?: string;
+  http_url?: string;
+  vm?: string;
 }
 
 // Pagination parameters
@@ -297,9 +300,6 @@ export const nodesApi = {
       // Return mock data for development
       const mockNodes = [
         { id: '1', name: 'AVAX-Mainnet-1', type: 'Validator', network: 'Avalanche', endpoint: 'https://node1.example.com:9650', status: 'Online', uptime: 99.98, cpu: 32, memory: 45, disk: 68, peers: 124, version: '1.9.12' },
-        { id: '2', name: 'AVAX-Mainnet-2', type: 'API', network: 'Avalanche', endpoint: 'https://node2.example.com:9650', status: 'Online', uptime: 99.95, cpu: 45, memory: 62, disk: 72, peers: 118, version: '1.9.12' },
-        { id: '3', name: 'ETH-Mainnet-1', type: 'Full', network: 'Ethereum', endpoint: 'https://eth1.example.com:8545', status: 'Online', uptime: 99.92, cpu: 58, memory: 75, disk: 82, peers: 86, version: '1.12.0' },
-        { id: '4', name: 'BTC-Mainnet-1', type: 'Full', network: 'Bitcoin', endpoint: 'https://btc1.example.com:8332', status: 'Degraded', uptime: 98.45, cpu: 78, memory: 82, disk: 91, peers: 42, version: '24.0.1' },
         { id: '5', name: 'AVAX-Fuji-1', type: 'API', network: 'Avalanche Fuji', endpoint: 'https://fuji1.example.com:9650', status: 'Offline', uptime: 0, cpu: 0, memory: 0, disk: 65, peers: 0, version: '1.9.11' },
       ];
       
@@ -319,6 +319,16 @@ export const nodesApi = {
       return response.data;
     } catch (error) {
       console.error(`Error fetching node ${id}:`, error);
+      throw error;
+    }
+  },
+  
+  createNode: async (node: Omit<Node, 'id'>): Promise<Node> => {
+    try {
+      const response = await api.post('/nodes', node);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating node:', error);
       throw error;
     }
   },

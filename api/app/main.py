@@ -5,12 +5,14 @@ from typing import Dict, List, Optional, Any, Union
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 import nats
+from datetime import datetime
 from nats.js.api import StreamConfig, ConsumerConfig
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
 from app.routes.settings import router as settings_router, set_js as set_settings_js
 from app.events import set_js as set_events_js, publish_event
 from app.alert_processor import start_alert_processor, stop_alert_processor
+from app.models import Node
 
 # Models
 class Wallet(BaseModel):
@@ -129,6 +131,11 @@ async def ensure_streams():
         await js.key_value(bucket="wallets")
     except Exception:
         await js.create_key_value(bucket="wallets")
+        
+    try:
+        await js.key_value(bucket="nodes")
+    except Exception:
+        await js.create_key_value(bucket="nodes")
     
     try:
         await js.key_value(bucket="alerts")
@@ -691,6 +698,163 @@ async def debug_wallets():
     except Exception as e:
         print(f"Overall debug error: {e}")
         return {"error": f"Debug failed: {str(e)}"}
+
+# Node routes
+@app.get("/nodes")
+async def get_nodes():
+    try:
+        # Access KV store
+        kv = await js.key_value(bucket="nodes")
+        
+        # Get all keys
+        try:
+            keys = await kv.keys()
+        except Exception as e:
+            # Return empty array if no keys found
+            if "no keys found" in str(e).lower():
+                return []
+            raise
+        
+        # Get all nodes
+        nodes = []
+        for key in keys:
+            try:
+                data = await kv.get(key)
+                # Properly decode bytes data
+                if isinstance(data.value, bytes):
+                    json_str = data.value.decode('utf-8')
+                else:
+                    json_str = data.value
+                node = json.loads(json_str)
+                nodes.append(node)
+            except Exception as e:
+                print(f"Error retrieving node {key}: {str(e)}")
+        
+        return nodes
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching nodes: {str(e)}")
+
+@app.get("/nodes/{node_id}")
+async def get_node(node_id: str):
+    try:
+        # Access KV store
+        kv = await js.key_value(bucket="nodes")
+        
+        # Get node by ID
+        try:
+            data = await kv.get(node_id)
+            # Properly decode bytes data
+            if isinstance(data.value, bytes):
+                json_str = data.value.decode('utf-8')
+            else:
+                json_str = data.value
+            node = json.loads(json_str)
+            return node
+        except Exception as e:
+            if "no key exists" in str(e).lower():
+                raise HTTPException(status_code=404, detail="Node not found")
+            raise
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching node: {str(e)}")
+
+@app.post("/nodes")
+async def create_node(node: Node, background_tasks: BackgroundTasks):
+    try:
+        # Ensure the KV bucket exists
+        try:
+            kv = await js.key_value(bucket="nodes")
+        except Exception:
+            # Create the KV bucket if it doesn't exist
+            await js.create_key_value(bucket="nodes")
+            kv = await js.key_value(bucket="nodes")
+        
+        # Create a complete node object
+        current_time = datetime.now().isoformat()
+        node_data = node.dict()
+        node_data["created_at"] = current_time
+        node_data["updated_at"] = current_time
+        
+        # Convert node to JSON string
+        node_json = json.dumps(node_data)
+        
+        # Store node in KV store
+        await kv.put(node_data["id"], node_json)
+        
+        # Publish event
+        background_tasks.add_task(publish_event, "node.created", node_data, ignore_errors=True)
+        
+        return node_data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating node: {str(e)}")
+
+@app.put("/nodes/{node_id}")
+async def update_node(node_id: str, node: Node, background_tasks: BackgroundTasks):
+    try:
+        # Access KV store
+        kv = await js.key_value(bucket="nodes")
+        
+        # Check if node exists
+        try:
+            existing_data = await kv.get(node_id)
+            # Properly decode bytes data
+            if isinstance(existing_data.value, bytes):
+                json_str = existing_data.value.decode('utf-8')
+            else:
+                json_str = existing_data.value
+            existing_node = json.loads(json_str)
+        except Exception as e:
+            if "no key exists" in str(e).lower():
+                raise HTTPException(status_code=404, detail="Node not found")
+            raise
+        
+        # Update node data
+        node_data = node.dict()
+        node_data["id"] = node_id  # Ensure ID is set correctly
+        node_data["created_at"] = existing_node.get("created_at")
+        node_data["updated_at"] = datetime.now().isoformat()
+        
+        # Convert node to JSON string
+        node_json = json.dumps(node_data)
+        
+        # Store updated node in KV store
+        await kv.put(node_id, node_json)
+        
+        # Publish event
+        background_tasks.add_task(publish_event, "node.updated", node_data, ignore_errors=True)
+        
+        return node_data
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error updating node: {str(e)}")
+
+@app.delete("/nodes/{node_id}")
+async def delete_node(node_id: str, background_tasks: BackgroundTasks):
+    try:
+        # Access KV store
+        kv = await js.key_value(bucket="nodes")
+        
+        # Check if node exists
+        try:
+            await kv.get(node_id)
+        except Exception as e:
+            if "no key exists" in str(e).lower():
+                raise HTTPException(status_code=404, detail="Node not found")
+            raise
+        
+        # Delete node
+        await kv.delete(node_id)
+        
+        # Publish event
+        background_tasks.add_task(publish_event, "node.deleted", {"id": node_id}, ignore_errors=True)
+        
+        return {"status": "deleted", "id": node_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting node: {str(e)}")
 
 # Health check endpoint
 @app.get("/health")

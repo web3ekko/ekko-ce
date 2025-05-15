@@ -37,7 +37,7 @@ function DeckedSideBarContent() {
       <div className={classes.wrapper}>
         <div className={classes.aside}>
           <div>
-            <img className={classes.logo} alt={'Mantine Logo'} src={'/logo/logo-light-full.svg'} />
+            <img className={classes.logo} alt={'Ekko Logo'} src={'/logo/ekko-logo.svg'} />
           </div>
           <div style={{ overflowY: 'auto' }}>
             {navigationConfig.map((link, index) => (

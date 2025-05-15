@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Title, 
   Text, 
@@ -9,11 +9,14 @@ import {
   Button, 
   TextInput,
   ActionIcon,
-  Progress,
   Table,
-  Tooltip,
-  Tabs
+  Tabs,
+  Modal,
+  Select,
+  Center,
+  Loader
 } from '@mantine/core';
+import { useForm } from '@mantine/form';
 import { 
   IconSearch, 
   IconPlus, 
@@ -24,6 +27,7 @@ import {
   IconX,
   IconAlertTriangle
 } from '@tabler/icons-react';
+import { nodesApi } from '@/services/api/ekko';
 
 // This will be replaced with actual API data
 const MOCK_NODES = [
@@ -40,48 +44,6 @@ const MOCK_NODES = [
     disk: 68,
     peers: 124,
     version: '1.9.12'
-  },
-  { 
-    id: '2', 
-    name: 'AVAX-Mainnet-2', 
-    type: 'API',
-    network: 'Avalanche',
-    endpoint: 'https://node2.example.com:9650',
-    status: 'Online',
-    uptime: 99.95,
-    cpu: 45,
-    memory: 62,
-    disk: 72,
-    peers: 118,
-    version: '1.9.12'
-  },
-  { 
-    id: '3', 
-    name: 'ETH-Mainnet-1', 
-    type: 'Full',
-    network: 'Ethereum',
-    endpoint: 'https://eth1.example.com:8545',
-    status: 'Online',
-    uptime: 99.92,
-    cpu: 58,
-    memory: 75,
-    disk: 82,
-    peers: 86,
-    version: '1.12.0'
-  },
-  { 
-    id: '4', 
-    name: 'BTC-Mainnet-1', 
-    type: 'Full',
-    network: 'Bitcoin',
-    endpoint: 'https://btc1.example.com:8332',
-    status: 'Degraded',
-    uptime: 98.45,
-    cpu: 78,
-    memory: 82,
-    disk: 91,
-    peers: 42,
-    version: '24.0.1'
   },
   { 
     id: '5', 
@@ -102,9 +64,96 @@ const MOCK_NODES = [
 export default function Nodes() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('all');
+  const [modalOpened, setModalOpened] = useState(false);
+  const [nodes, setNodes] = useState(MOCK_NODES);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Form for creating a new node
+  const form = useForm({
+    initialValues: {
+      name: '',
+      websocket_url: '',
+      http_url: '',
+      vm: 'EVM',
+    },
+    validate: {
+      name: (value) => (value.trim().length > 0 ? null : 'Name is required'),
+      websocket_url: (value) => {
+        if (value.trim().length === 0) return 'WebSocket URL is required';
+        if (!value.startsWith('ws://') && !value.startsWith('wss://')) return 'WebSocket URL must start with ws:// or wss://';
+        return null;
+      },
+      http_url: (value) => {
+        if (value.trim().length === 0) return 'HTTP URL is required';
+        if (!value.startsWith('http://') && !value.startsWith('https://')) return 'HTTP URL must start with http:// or https://';
+        return null;
+      },
+    },
+  });
+  
+  // Function to fetch nodes from API
+  const fetchNodes = async () => {
+    try {
+      setLoading(true);
+      const data = await nodesApi.getNodes();
+      setNodes(data.data.length > 0 ? data.data : MOCK_NODES);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching nodes:', err);
+      setError('Failed to load nodes. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Fetch nodes on component mount
+  useEffect(() => {
+    fetchNodes();
+  }, []);
+  
+  // Handle form submission
+  const handleSubmit = async (values: typeof form.values) => {
+    try {
+      setLoading(true);
+      
+      // Create new node
+      const newNode = {
+        name: values.name,
+        websocket_url: values.websocket_url,
+        http_url: values.http_url,
+        vm: values.vm,
+        type: 'API',
+        network: values.name.includes('Fuji') ? 'Avalanche Fuji' : 'Avalanche',
+        // Required properties from Node interface
+        endpoint: values.http_url, // Use HTTP URL as the main endpoint
+        status: 'Offline', // Initial status
+        uptime: 0,
+        cpu: 0,
+        memory: 0,
+        disk: 0,
+        peers: 0,
+        version: '',
+      };
+      
+      await nodesApi.createNode(newNode);
+      
+      // Refresh nodes list
+      await fetchNodes();
+      
+      // Reset form and close modal
+      form.reset();
+      setModalOpened(false);
+    } catch (error) {
+      console.error('Error creating node:', error);
+      setError('Failed to create node. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
   
   // Filter nodes based on search query and active tab
-  const filteredNodes = MOCK_NODES.filter(node => {
+  const filteredNodes = nodes.filter(node => {
     const matchesSearch = 
       node.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
       node.network.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -152,7 +201,7 @@ export default function Nodes() {
           <Title order={2}>Blockchain Nodes</Title>
           <Text c="dimmed" size="sm">Monitor and manage your blockchain nodes</Text>
         </div>
-        <Button leftSection={<IconPlus size={16} />} variant="filled">Add Node</Button>
+        <Button leftSection={<IconPlus size={16} />} variant="filled" onClick={() => setModalOpened(true)}>Add Node</Button>
       </Group>
       
       <Card withBorder mb="md">
@@ -161,7 +210,7 @@ export default function Nodes() {
             placeholder="Search nodes..."
             leftSection={<IconSearch size={16} />}
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.currentTarget.value)}
+            onChange={(e) => setSearchQuery(e.currentTarget.value as string)}
             style={{ width: '300px' }}
           />
           <ActionIcon variant="light" color="blue" size="lg" aria-label="Refresh">
@@ -169,7 +218,7 @@ export default function Nodes() {
           </ActionIcon>
         </Group>
         
-        <Tabs value={activeTab} onChange={setActiveTab} mb="md">
+        <Tabs value={activeTab} onChange={(value) => value && setActiveTab(value)} mb="md">
           <Tabs.List>
             <Tabs.Tab value="all">All Nodes</Tabs.Tab>
             <Tabs.Tab value="online">Online</Tabs.Tab>
@@ -177,79 +226,35 @@ export default function Nodes() {
           </Tabs.List>
         </Tabs>
         
-        <Table striped highlightOnHover>
+        <Table verticalSpacing="sm">
           <Table.Thead>
             <Table.Tr>
               <Table.Th>Name</Table.Th>
               <Table.Th>Network</Table.Th>
-              <Table.Th>Type</Table.Th>
               <Table.Th>Status</Table.Th>
-              <Table.Th>Uptime</Table.Th>
-              <Table.Th>Resources</Table.Th>
-              <Table.Th>Version</Table.Th>
-              <Table.Th>Actions</Table.Th>
+              <Table.Th></Table.Th>
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
             {filteredNodes.map(node => (
               <Table.Tr key={node.id}>
                 <Table.Td>
-                  <Group gap="xs">
-                    <IconServer size={18} />
-                    <Text fw={500}>{node.name}</Text>
+                  <Group gap="sm">
+                    <IconServer size={16} />
+                    <Text size="sm">{node.name}</Text>
                   </Group>
                 </Table.Td>
                 <Table.Td>
-                  <Badge>{node.network}</Badge>
-                </Table.Td>
-                <Table.Td>
-                  <Text size="sm">{node.type}</Text>
+                  <Text size="sm">{node.network}</Text>
                 </Table.Td>
                 <Table.Td>
                   <Badge 
+                    size="sm" 
                     color={getStatusColor(node.status)}
                     leftSection={getStatusIcon(node.status)}
                   >
                     {node.status}
                   </Badge>
-                </Table.Td>
-                <Table.Td>
-                  <Text size="sm">{node.uptime}%</Text>
-                </Table.Td>
-                <Table.Td style={{ width: '180px' }}>
-                  {node.status !== 'Offline' ? (
-                    <Group gap={5}>
-                      <Tooltip label={`CPU: ${node.cpu}%`}>
-                        <Progress 
-                          value={node.cpu} 
-                          color={getResourceColor(node.cpu)} 
-                          size="sm" 
-                          style={{ width: '50px' }}
-                        />
-                      </Tooltip>
-                      <Tooltip label={`Memory: ${node.memory}%`}>
-                        <Progress 
-                          value={node.memory} 
-                          color={getResourceColor(node.memory)} 
-                          size="sm" 
-                          style={{ width: '50px' }}
-                        />
-                      </Tooltip>
-                      <Tooltip label={`Disk: ${node.disk}%`}>
-                        <Progress 
-                          value={node.disk} 
-                          color={getResourceColor(node.disk)} 
-                          size="sm" 
-                          style={{ width: '50px' }}
-                        />
-                      </Tooltip>
-                    </Group>
-                  ) : (
-                    <Text size="sm" c="dimmed">No data</Text>
-                  )}
-                </Table.Td>
-                <Table.Td>
-                  <Text size="sm">{node.version}</Text>
                 </Table.Td>
                 <Table.Td>
                   <ActionIcon variant="subtle">
@@ -263,7 +268,7 @@ export default function Nodes() {
       </Card>
       
       {/* Node Details Cards */}
-      <Grid>
+      <Grid mt="md">
         {filteredNodes.slice(0, 3).map(node => (
           <Grid.Col span={{ base: 12, md: 6, lg: 4 }} key={node.id}>
             <Card withBorder p="md" radius="md">
@@ -276,75 +281,81 @@ export default function Nodes() {
                   {node.status}
                 </Badge>
               </Group>
-              <Text size="sm" c="dimmed" mb="md">{node.endpoint}</Text>
               
-              <Group justify="space-between" mb="xs">
+              <Group justify="space-between" mt="md">
                 <Text size="sm">Network:</Text>
                 <Text size="sm" fw={500}>{node.network}</Text>
               </Group>
-              
-              <Group justify="space-between" mb="xs">
-                <Text size="sm">Type:</Text>
-                <Text size="sm" fw={500}>{node.type}</Text>
-              </Group>
-              
-              <Group justify="space-between" mb="xs">
-                <Text size="sm">Peers:</Text>
-                <Text size="sm" fw={500}>{node.peers}</Text>
-              </Group>
-              
-              <Group justify="space-between" mb="xs">
-                <Text size="sm">Version:</Text>
-                <Text size="sm" fw={500}>{node.version}</Text>
-              </Group>
-              
-              {node.status !== 'Offline' && (
-                <>
-                  <Text size="sm" fw={500} mt="md" mb="xs">Resource Usage</Text>
-                  <Group justify="space-between" mb="xs">
-                    <Text size="sm">CPU:</Text>
-                    <Group gap={5}>
-                      <Progress 
-                        value={node.cpu} 
-                        color={getResourceColor(node.cpu)} 
-                        size="sm" 
-                        style={{ width: '100px' }}
-                      />
-                      <Text size="sm">{node.cpu}%</Text>
-                    </Group>
-                  </Group>
-                  
-                  <Group justify="space-between" mb="xs">
-                    <Text size="sm">Memory:</Text>
-                    <Group gap={5}>
-                      <Progress 
-                        value={node.memory} 
-                        color={getResourceColor(node.memory)} 
-                        size="sm" 
-                        style={{ width: '100px' }}
-                      />
-                      <Text size="sm">{node.memory}%</Text>
-                    </Group>
-                  </Group>
-                  
-                  <Group justify="space-between" mb="xs">
-                    <Text size="sm">Disk:</Text>
-                    <Group gap={5}>
-                      <Progress 
-                        value={node.disk} 
-                        color={getResourceColor(node.disk)} 
-                        size="sm" 
-                        style={{ width: '100px' }}
-                      />
-                      <Text size="sm">{node.disk}%</Text>
-                    </Group>
-                  </Group>
-                </>
-              )}
             </Card>
           </Grid.Col>
         ))}
       </Grid>
+      
+      {/* Add Node Modal */}
+      <Modal
+        opened={modalOpened}
+        onClose={() => {
+          setModalOpened(false);
+          form.reset();
+        }}
+        title="Add New Node"
+        size="md"
+      >
+        {loading && (
+          <Center my="xl">
+            <Loader size="md" />
+          </Center>
+        )}
+        
+        {!loading && (
+          <form onSubmit={form.onSubmit(handleSubmit)}>
+            <TextInput
+              label="Node Name"
+              placeholder="AVAX-Mainnet-3"
+              required
+              mb="md"
+              {...form.getInputProps('name')}
+            />
+            
+            <TextInput
+              label="WebSocket URL"
+              placeholder="wss://node.example.com:9650/ext/bc/ws"
+              required
+              mb="md"
+              {...form.getInputProps('websocket_url')}
+            />
+            
+            <TextInput
+              label="HTTP URL"
+              placeholder="https://node.example.com:9650/ext/bc/C/rpc"
+              required
+              mb="md"
+              {...form.getInputProps('http_url')}
+            />
+            
+            <Select
+              label="Virtual Machine"
+              placeholder="Select VM"
+              data={[{ value: 'EVM', label: 'EVM' }]}
+              mb="xl"
+              required
+              {...form.getInputProps('vm')}
+            />
+            
+            <Group justify="flex-end">
+              <Button variant="outline" onClick={() => {
+                setModalOpened(false);
+                form.reset();
+              }}>
+                Cancel
+              </Button>
+              <Button type="submit">
+                Add Node
+              </Button>
+            </Group>
+          </form>
+        )}
+      </Modal>
     </div>
   );
 }
