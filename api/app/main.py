@@ -1,6 +1,8 @@
 import asyncio
 import os
 import json
+import uuid
+import traceback
 from typing import Dict, List, Optional, Any, Union
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,6 +15,8 @@ from app.routes.settings import router as settings_router, set_js as set_setting
 from app.events import set_js as set_events_js, publish_event
 from app.alert_processor import start_alert_processor, stop_alert_processor
 from app.models import Node
+from app.alert_job_utils import generate_job_spec_from_alert
+from app.logging_config import alert_logger, api_logger, job_spec_logger
 
 # Models
 class Wallet(BaseModel):
@@ -552,21 +556,128 @@ async def get_alert(alert_id: str):
     except Exception as e:
         raise HTTPException(status_code=404, detail=f"Alert not found: {str(e)}")
 
+# Background task to generate job specification for an alert
+async def generate_job_spec_for_alert(alert_id: str, alert_query: str):
+    try:
+        job_spec_logger.info(f"[ALERT:{alert_id}] Starting background task for job spec generation")
+        job_spec_logger.debug(f"[ALERT:{alert_id}] Query: '{alert_query}'")
+        
+        start_time = datetime.now()
+        
+        # Get the alert from KV store
+        try:
+            kv = await js.key_value(bucket="alerts")
+            job_spec_logger.debug(f"[ALERT:{alert_id}] Connected to alerts KV store")
+            
+            data = await kv.get(alert_id)
+            job_spec_logger.debug(f"[ALERT:{alert_id}] Retrieved alert data from KV store")
+            
+            # Decode the alert data
+            if isinstance(data.value, bytes):
+                json_str = data.value.decode('utf-8')
+            else:
+                json_str = data.value
+                
+            alert_data = json.loads(json_str)
+            job_spec_logger.debug(f"[ALERT:{alert_id}] Successfully parsed alert data JSON")
+            
+        except Exception as kv_error:
+            job_spec_logger.error(f"[ALERT:{alert_id}] Error accessing KV store: {str(kv_error)}")
+            job_spec_logger.debug(f"[ALERT:{alert_id}] KV error details: {traceback.format_exc()}")
+            raise
+        
+        # Generate job spec
+        job_spec_logger.info(f"[ALERT:{alert_id}] Calling job spec generator")
+        job_spec = await generate_job_spec_from_alert({"id": alert_id, "query": alert_query})
+        
+        if job_spec:
+            job_name = job_spec.get("job_name", "unnamed")
+            job_spec_logger.info(f"[ALERT:{alert_id}] Successfully generated job spec '{job_name}'")
+            
+            # Update the alert with the job spec
+            alert_data["job_spec"] = job_spec
+            
+            # Store the updated alert back to KV store
+            try:
+                json_data = json.dumps(alert_data)
+                encoded_data = json_data.encode('utf-8')  # Convert string to bytes
+                await kv.put(alert_id, encoded_data)
+                job_spec_logger.info(f"[ALERT:{alert_id}] Updated alert with job spec in KV store")
+            except Exception as update_error:
+                job_spec_logger.error(f"[ALERT:{alert_id}] Error updating alert with job spec: {str(update_error)}")
+                raise
+            
+            # Publish event about job spec creation
+            try:
+                await publish_event("alert.jobspec.created", 
+                                  {"alert_id": alert_id, "job_name": job_name}, 
+                                  ignore_errors=True)
+                job_spec_logger.info(f"[ALERT:{alert_id}] Published job spec creation event")
+            except Exception as event_error:
+                job_spec_logger.warning(f"[ALERT:{alert_id}] Error publishing event: {str(event_error)}")
+            
+            # Calculate and log total processing time
+            elapsed = (datetime.now() - start_time).total_seconds()
+            job_spec_logger.info(f"[ALERT:{alert_id}] Total job spec generation time: {elapsed:.2f} seconds")
+        else:
+            job_spec_logger.warning(f"[ALERT:{alert_id}] Job spec generation failed, no job spec created")
+            
+    except Exception as e:
+        job_spec_logger.error(f"[ALERT:{alert_id}] Unhandled error in job spec generation: {str(e)}")
+        job_spec_logger.debug(f"[ALERT:{alert_id}] Exception details: {traceback.format_exc()}")
+
+
 @app.post("/alerts", response_model=Alert)
 async def create_alert(alert: Alert, background_tasks: BackgroundTasks):
     try:
-        kv = await js.key_value(bucket="alerts")
-        # Store the new alert - properly encode to bytes
-        json_data = json.dumps(alert.dict())
-        encoded_data = json_data.encode('utf-8')  # Convert string to bytes
-        await kv.put(alert.id, encoded_data)
+        alert_logger.info(f"[ALERT:{alert.id}] Creating new alert of type '{alert.type}'")
+        alert_logger.debug(f"[ALERT:{alert.id}] Full alert data: {alert.dict()}")
+        
+        start_time = datetime.now()
+        
+        # Store the alert first without waiting for job spec
+        try:
+            kv = await js.key_value(bucket="alerts")
+            alert_logger.debug(f"[ALERT:{alert.id}] Connected to alerts KV store")
+            
+            # Store the new alert - properly encode to bytes
+            json_data = json.dumps(alert.dict())
+            encoded_data = json_data.encode('utf-8')  # Convert string to bytes
+            await kv.put(alert.id, encoded_data)
+            alert_logger.info(f"[ALERT:{alert.id}] Alert stored in KV store")
+            
+        except Exception as kv_error:
+            alert_logger.error(f"[ALERT:{alert.id}] Error storing alert in KV store: {str(kv_error)}")
+            alert_logger.debug(f"[ALERT:{alert.id}] KV error details: {traceback.format_exc()}")
+            raise
+        
+        # Schedule job spec generation as a background task if query is provided
+        if alert.query:
+            alert_logger.info(f"[ALERT:{alert.id}] Alert has query, scheduling job spec generation")
+            background_tasks.add_task(generate_job_spec_for_alert, alert.id, alert.query)
+            alert_logger.debug(f"[ALERT:{alert.id}] Background task for job spec generation scheduled")
+        else:
+            alert_logger.debug(f"[ALERT:{alert.id}] No query provided, skipping job spec generation")
         
         # Publish event about new alert using centralized system
-        background_tasks.add_task(publish_event, "alert.created", alert.dict(), ignore_errors=True)
+        try:
+            background_tasks.add_task(publish_event, "alert.created", alert.dict(), ignore_errors=True)
+            alert_logger.info(f"[ALERT:{alert.id}] Alert creation event scheduled for publishing")
+        except Exception as event_error:
+            alert_logger.warning(f"[ALERT:{alert.id}] Error scheduling event publication: {str(event_error)}")
+        
+        # Calculate and log total processing time
+        elapsed = (datetime.now() - start_time).total_seconds()
+        alert_logger.info(f"[ALERT:{alert.id}] Alert creation completed in {elapsed:.2f} seconds")
         
         return alert
     except Exception as e:
+        alert_logger.error(f"Error creating alert: {str(e)}")
+        alert_logger.debug(f"Alert creation exception details: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Error creating alert: {str(e)}")
+
+
+
 
 @app.put("/alerts/{alert_id}", response_model=Alert)
 async def update_alert(alert_id: str, alert: Alert, background_tasks: BackgroundTasks):

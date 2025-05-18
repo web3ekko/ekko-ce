@@ -45,6 +45,8 @@ class Alert(BaseModel):
     icon: Optional[str] = None
     priority: Optional[str] = None
     related_wallet_id: Optional[str] = None
+    query: Optional[str] = None
+    job_spec: Optional[Dict[str, Any]] = None
 
 class WalletBalance(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))

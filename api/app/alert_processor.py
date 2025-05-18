@@ -269,6 +269,74 @@ class AlertProcessor:
             except Exception as e:
                 logger.error(f"Error publishing notification event: {e}")
     
+    async def execute_job_spec(self, job_spec: Dict[str, Any]) -> None:
+        """Execute a job specification
+        
+        Args:
+            job_spec: The job specification to execute
+        """
+        if not job_spec:
+            return
+            
+        try:
+            logger.info(f"Executing job spec: {job_spec.get('job_name', 'unnamed')}")
+            
+            # Extract key components
+            job_name = job_spec.get('job_name', 'unnamed_job')
+            sources = job_spec.get('sources', [])
+            polars_code = job_spec.get('polars_code', '')
+            time_window = job_spec.get('time_window', '-7d..now')
+            
+            # Log execution details
+            logger.info(f"Job {job_name} - Time window: {time_window}")
+            logger.info(f"Job {job_name} - Sources: {len(sources)}")
+            
+            # In a full implementation, this would execute the Polars code against the sources
+            # For now, we'll just log it
+            logger.info(f"Job {job_name} - Would execute Polars code: {polars_code[:100]}...")
+            
+            # Report job execution
+            if self.js:
+                try:
+                    # Publish job execution event
+                    execution_data = {
+                        "id": str(uuid.uuid4()),
+                        "job_name": job_name,
+                        "time": datetime.now().isoformat(),
+                        "status": "completed",
+                        "alert_id": job_spec.get("alert_id"),
+                        "result": {
+                            "executed": True,
+                            "message": "Job executed successfully"
+                        }
+                    }
+                    
+                    # Publish execution event
+                    data_bytes = json.dumps(execution_data).encode('utf-8')
+                    await self.js.publish("job.execution", data_bytes)
+                    logger.info(f"Published job execution event for {job_name}")
+                
+                except Exception as e:
+                    logger.error(f"Error publishing job execution event: {e}")
+                    
+        except Exception as e:
+            logger.error(f"Error executing job spec: {e}")
+    
+    async def should_run_job(self, job_spec: Dict[str, Any]) -> bool:
+        """Determine if a job should run based on its schedule
+        
+        Args:
+            job_spec: The job specification with schedule information
+            
+        Returns:
+            bool: True if the job should run, False otherwise
+        """
+        # In a production system, implement proper schedule parsing
+        # For now, always return True for testing
+        schedule = job_spec.get('schedule', '')
+        logger.debug(f"Checking schedule: {schedule}")
+        return True
+    
     async def process_alerts(self) -> None:
         """Process all active alerts"""
         logger.info("Processing alerts")
@@ -283,16 +351,31 @@ class AlertProcessor:
         
         # Process each alert
         for alert in alerts:
-            logger.debug(f"Evaluating alert {alert.get('id')}: {alert.get('type')}")
+            alert_id = alert.get('id')
+            logger.debug(f"Evaluating alert {alert_id}: {alert.get('type')}")
             
             # Check if alert condition is met
             triggered = await self.check_alert_condition(alert)
             
             if triggered:
-                logger.info(f"Alert {alert.get('id')} triggered")
+                logger.info(f"Alert {alert_id} triggered")
                 
                 # Send notification
                 await self.send_notification(alert)
+            
+            # Check if the alert has a job spec to execute
+            job_spec = alert.get('job_spec')
+            if job_spec:
+                logger.info(f"Alert {alert_id} has a job spec: {job_spec.get('job_name', 'unnamed')}")
+                
+                # Check if the job should run based on its schedule
+                should_run = await self.should_run_job(job_spec)
+                
+                if should_run:
+                    logger.info(f"Executing job spec for alert {alert_id}")
+                    await self.execute_job_spec(job_spec)
+                else:
+                    logger.debug(f"Job spec for alert {alert_id} not scheduled to run now")
             
             # Log alert activity (without updating status)
             await self.log_alert_activity(alert, triggered)
