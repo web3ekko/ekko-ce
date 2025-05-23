@@ -45,6 +45,30 @@ export const AlertService = {
       return handleApiError(error, 'fetch alert');
     }
   },
+  
+  async getAlertJobspec(id: string): Promise<any> {
+    try {
+      const res = await ApiService.fetchData<null, any>({
+        url: `/alerts/${id}/jobspec`,
+        method: 'GET'
+      });
+      return res.data;
+    } catch (error) {
+      return handleApiError(error, 'retrieve alert jobspec');
+    }
+  },
+
+  async generateJobSpec(id: string): Promise<any> {
+    try {
+      const res = await ApiService.fetchData<null, any>({
+        url: `/alerts/${id}/generate-jobspec`,
+        method: 'POST'
+      });
+      return res.data;
+    } catch (error) {
+      return handleApiError(error, 'generate job specification');
+    }
+  },
 
   async createAlert(alertData: AlertCreate): Promise<Alert> {
     try {

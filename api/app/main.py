@@ -38,7 +38,9 @@ class Alert(BaseModel):
     icon: Optional[str] = None
     priority: Optional[str] = None
     related_wallet: Optional[str] = None
+    related_wallet_id: Optional[str] = None
     query: Optional[str] = None
+    notifications_enabled: Optional[bool] = True
 
 # Global NATS connection
 nc = None
@@ -542,19 +544,109 @@ async def get_alerts():
         print(f"Unexpected error in get_alerts: {e}")
         return []  # Return empty list instead of error
 
-@app.get("/alerts/{alert_id}", response_model=Alert)
+@app.get("/alerts/{alert_id}")
 async def get_alert(alert_id: str):
     try:
         kv = await js.key_value(bucket="alerts")
-        data = await kv.get(alert_id)
-        # Properly decode bytes data
-        if isinstance(data.value, bytes):
-            json_str = data.value.decode('utf-8')
-        else:
-            json_str = data.value
-        return json.loads(json_str)
+        
+        # Get alert data
+        try:
+            data = await kv.get(alert_id)
+            # Handle both string and bytes values
+            if isinstance(data.value, bytes):
+                return json.loads(data.value.decode('utf-8'))
+            else:
+                return json.loads(data.value)
+        except Exception as e:
+            raise HTTPException(status_code=404, detail="Alert not found")
     except Exception as e:
-        raise HTTPException(status_code=404, detail=f"Alert not found: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error fetching alert: {str(e)}")
+
+@app.get("/alerts/{alert_id}/jobspec")
+async def get_alert_jobspec(alert_id: str):
+    try:
+        kv = await js.key_value(bucket="alerts")
+        
+        # Get alert data
+        try:
+            data = await kv.get(alert_id)
+            # Handle both string and bytes values
+            if isinstance(data.value, bytes):
+                alert_data = json.loads(data.value.decode('utf-8'))
+            else:
+                alert_data = json.loads(data.value)
+        except Exception as e:
+            raise HTTPException(status_code=404, detail="Alert not found")
+            
+        # Generate jobspec from alert
+        from app.alert_job_utils import generate_job_spec_from_alert
+        jobspec = await generate_job_spec_from_alert(alert_data)
+        
+        if not jobspec:
+            raise HTTPException(status_code=404, detail="Could not generate jobspec for this alert")
+            
+        return {
+            "alert_id": alert_id,
+            "jobspec": jobspec,
+            "prettified": json.dumps(jobspec, indent=2)
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating jobspec: {str(e)}")
+
+@app.post("/alerts/{alert_id}/generate-jobspec")
+async def generate_alert_jobspec(alert_id: str, background_tasks: BackgroundTasks):
+    """
+    Explicitly generate a job specification for an alert and store it with the alert.
+    """
+    try:
+        kv = await js.key_value(bucket="alerts")
+        
+        # Check if alert exists and get its data
+        try:
+            data = await kv.get(alert_id)
+            # Handle both string and bytes values
+            if isinstance(data.value, bytes):
+                alert_data = json.loads(data.value.decode('utf-8'))
+            else:
+                alert_data = json.loads(data.value)
+        except Exception:
+            raise HTTPException(status_code=404, detail="Alert not found")
+            
+        # Generate jobspec immediately (not as a background task)
+        from app.alert_job_utils import generate_job_spec_from_alert
+        job_spec = await generate_job_spec_from_alert(alert_data)
+        
+        if not job_spec:
+            raise HTTPException(status_code=422, detail="Failed to generate job specification")
+            
+        # Update the alert with the new job spec
+        alert_data['job_spec'] = job_spec
+        alert_data['job_spec_generated_at'] = datetime.now().isoformat()
+        
+        # Store updated alert
+        json_data = json.dumps(alert_data)
+        encoded_data = json_data.encode('utf-8')
+        await kv.put(alert_id, encoded_data)
+        
+        # Publish event
+        background_tasks.add_task(publish_event, "alert.jobspec.generated", {
+            "alert_id": alert_id,
+            "job_spec": job_spec
+        }, ignore_errors=True)
+        
+        return {
+            "status": "success",
+            "alert_id": alert_id,
+            "job_spec": job_spec,
+            "prettified": json.dumps(job_spec, indent=2)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating job specification: {str(e)}")
 
 # Background task to generate job specification for an alert
 async def generate_job_spec_for_alert(alert_id: str, alert_query: str):
@@ -687,21 +779,37 @@ async def update_alert(alert_id: str, alert: Alert, background_tasks: Background
             
         kv = await js.key_value(bucket="alerts")
         
-        # Check if alert exists
+        # Check if alert exists and get existing data
         try:
-            await kv.get(alert_id)
-        except Exception:
+            existing = await kv.get(alert_id)
+            # Handle byte or string data properly
+            if isinstance(existing.value, bytes):
+                json_str = existing.value.decode('utf-8')
+            else:
+                json_str = existing.value
+            existing_alert = json.loads(json_str)
+        except Exception as e:
+            api_logger.error(f"Error getting existing alert: {str(e)}")
             raise HTTPException(status_code=404, detail="Alert not found")
         
+        # Merge existing alert with update data
+        # This preserves fields not included in the update
+        updated_alert = {**existing_alert}
+        update_data = alert.dict(exclude_unset=True)
+        for key, value in update_data.items():
+            if value is not None:  # Only update non-None values
+                updated_alert[key] = value
+        
         # Update alert - properly encode to bytes
-        json_data = json.dumps(alert.dict())
+        json_data = json.dumps(updated_alert)
         encoded_data = json_data.encode('utf-8')  # Convert string to bytes
         await kv.put(alert_id, encoded_data)
         
         # Publish event using centralized system
-        background_tasks.add_task(publish_event, "alert.updated", alert.dict(), ignore_errors=True)
+        background_tasks.add_task(publish_event, "alert.updated", updated_alert, ignore_errors=True)
         
-        return alert
+        # Return updated alert as an Alert model instance
+        return Alert(**updated_alert)
     except HTTPException:
         raise
     except Exception as e:

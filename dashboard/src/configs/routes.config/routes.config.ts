@@ -24,6 +24,12 @@ export const protectedRoutes = [
     authority: []
   },
   {
+    key: 'alertDetail',
+    path: '/ekko/alerts/:id',
+    component: lazy(() => import('@/pages/ekko/AlertDetail')),
+    authority: []
+  },
+  {
     key: 'transactions',
     path: '/transactions',
     component: lazy(() => import('@/pages/ekko/Transactions')),

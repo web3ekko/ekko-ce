@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Title, 
   Text, 
@@ -22,7 +23,8 @@ import {
   Center,
   Loader,
   Alert as MantineAlert,
-  Grid
+  Grid,
+  Tooltip
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { 
@@ -35,7 +37,8 @@ import {
   IconWallet, 
   IconCheck, 
   IconCurrencyDollar, 
-  IconShield 
+  IconShield,
+  IconTrash
 } from '@tabler/icons-react';
 
 // Import services
@@ -45,53 +48,10 @@ import type { Alert as AlertType, AlertFormValues } from '@/@types/alert';
 import type { Wallet } from '@/@types/wallet';
 import { v4 as uuidv4 } from 'uuid';
 
-// Sample alerts for empty state - will be replaced with API data
-const EMPTY_ALERTS: AlertType[] = [
-  { 
-    id: '1', 
-    type: 'Balance', 
-    message: 'Main wallet balance below 3 AVAX', 
-    time: '2025-05-08T08:30:00Z', 
-    status: 'Open', 
-    priority: 'High', 
-    related_wallet: '0x1234...5678',
-    query: 'balance < 3'
-  },
-  { 
-    id: '2', 
-    type: 'Price', 
-    message: 'ETH price increased by 5% in last hour', 
-    time: '2025-05-08T07:15:00Z', 
-    status: 'Open', 
-    priority: 'Medium', 
-    related_wallet: '',
-    query: 'price_change > 5%'
-  },
-  { 
-    id: '3', 
-    type: 'Transaction', 
-    message: 'Large transaction detected on wallet AVAX-1', 
-    time: '2025-05-08T06:45:00Z', 
-    status: 'Open', 
-    priority: 'Low', 
-    related_wallet: '0x8765...4321',
-    query: 'tx_value > 1000'
-  },
-  { 
-    id: '4', 
-    type: 'Security', 
-    message: 'Suspicious activity detected on wallet BTC-1', 
-    time: '2025-05-07T22:30:00Z', 
-    status: 'Resolved', 
-    priority: 'High', 
-    related_wallet: 'bc1q...wxyz',
-    query: 'suspicious_activity = true'
-  },
-];
-
 // AlertFormValues is now imported from @types/alert
 
 export default function Alerts() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [activePage, setActivePage] = useState(1);
   const [pageSize, setPageSize] = useState('10');
@@ -102,6 +62,8 @@ export default function Alerts() {
   const [loading, setLoading] = useState(false);
   const [loadingWallets, setLoadingWallets] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [updatingNotification, setUpdatingNotification] = useState<string | null>(null);
   
   // Fetch alerts and wallets on component mount
   useEffect(() => {
@@ -138,7 +100,7 @@ export default function Alerts() {
     try {
       setLoading(true);
       const data = await AlertService.getAlerts();
-      setAlerts(data.length > 0 ? data : []);
+      setAlerts(data || []);
       setError(null);
     } catch (err) {
       console.error('Error fetching alerts:', err);
@@ -146,6 +108,57 @@ export default function Alerts() {
       setAlerts([]);
     } finally {
       setLoading(false);
+    }
+  };
+  
+  // Function to delete an alert
+  const handleDeleteAlert = async (id: string) => {
+    try {
+      setDeleting(id);
+      await AlertService.deleteAlert(id);
+      // Refresh alerts list after deletion
+      fetchAlerts();
+    } catch (err) {
+      console.error('Error deleting alert:', err);
+      setError('Failed to delete alert. Please try again.');
+    } finally {
+      setDeleting(null);
+    }
+  };
+  
+  // Function to toggle notifications for an alert
+  const handleToggleNotifications = async (alert: AlertType) => {
+    try {
+      setUpdatingNotification(alert.id);
+      
+      // Create complete update payload with all required fields
+      // The API requires all these fields to be present
+      const updatePayload = {
+        id: alert.id,
+        type: alert.type,
+        message: alert.message,
+        time: alert.time,
+        status: alert.status,
+        priority: alert.priority || 'Medium',
+        icon: alert.icon,
+        query: alert.query,
+        related_wallet_id: alert.related_wallet_id,
+        related_wallet: alert.related_wallet,
+        notifications_enabled: !alert.notifications_enabled
+      };
+      
+      console.log('Updating alert notification status:', updatePayload);
+      
+      // Send the update to the API
+      await AlertService.updateAlert(alert.id, updatePayload);
+      
+      // Refresh alerts list after update
+      fetchAlerts();
+    } catch (err) {
+      console.error('Error updating alert notification status:', err);
+      setError('Failed to update notification settings. Please try again.');
+    } finally {
+      setUpdatingNotification(null);
     }
   };
 
@@ -157,11 +170,18 @@ export default function Alerts() {
       priority: 'Medium',
       related_wallet_id: '',
       query: '',
-      threshold: 5,
+      threshold: 10,
       enableNotifications: true,
     },
     validate: {
       message: (value) => (value.trim().length < 1 ? 'Alert message is required' : null),
+      related_wallet_id: (value, values) => {
+        // Make related_wallet required only for Transaction alerts
+        if (values.type === 'Transaction' && (!value || value.trim() === '')) {
+          return 'A wallet is required for transaction alerts';
+        }
+        return null;
+      },
     },
   });
   
@@ -180,9 +200,8 @@ export default function Alerts() {
         priority: values.priority,
         related_wallet_id: values.related_wallet_id,
         query: values.query,
-        icon: values.type === 'Security' ? 'shield' : 
-              values.type === 'Balance' ? 'wallet' : 
-              values.type === 'Price' ? 'chart' : 'bell'
+        notifications_enabled: values.enableNotifications,
+        icon: values.type === 'Price' ? 'chart' : 'bell'
       };
       
       console.log('Creating new alert:', newAlert);
@@ -212,24 +231,25 @@ export default function Alerts() {
   const updateAlertMessage = (type: string, threshold: number, wallet: string) => {
     let message = '';
     let query = '';
-    const walletName = wallet ? wallet : 'selected wallet';
+    
+    // Format wallet name to include (Wallet) suffix if not already there
+    let walletName = wallet ? wallet : 'selected wallet';
+    if (walletName && !walletName.includes('(') && !walletName.includes('Wallet')) {
+      walletName = `${walletName} (Wallet)`;
+    }
+    
+    // Get selected wallet to determine cryptocurrency symbol
+    const selectedWallet = wallets.find(w => w.id === form.values.related_wallet_id);
+    const cryptoSymbol = selectedWallet ? selectedWallet.blockchain_symbol : 'AVAX';
     
     switch (type) {
       case 'Price':
         message = `Alert when price changes by ${threshold}%`;
         query = `price_change > ${threshold}%`;
         break;
-      case 'Balance':
-        message = `Alert when ${walletName} balance falls below ${threshold}`;
-        query = `balance < ${threshold}`;
-        break;
       case 'Transaction':
-        message = `Alert on transactions above ${threshold} in ${walletName}`;
+        message = `Alert on transactions above ${threshold} ${cryptoSymbol} in ${walletName}`;
         query = `tx_value > ${threshold}`;
-        break;
-      case 'Security':
-        message = `Security monitoring for ${walletName}`;
-        query = 'suspicious_activity = true';
         break;
       default:
         message = 'Custom alert';
@@ -265,9 +285,8 @@ export default function Alerts() {
   // Helper function to get alert icon based on type
   const getAlertIcon = (type: string) => {
     switch (type) {
-      case 'Balance': return <IconWallet size={18} />;
       case 'Price': return <IconChartBar size={18} />;
-      case 'Security': return <IconAlertCircle size={18} />;
+      case 'Transaction': return <IconCurrencyDollar size={18} />;
       default: return <IconBell size={18} />;
     }
   };
@@ -317,9 +336,7 @@ export default function Alerts() {
               >
                 <Group mt="xs">
                   <Radio value="Price" label="Price Alert" />
-                  <Radio value="Balance" label="Balance Alert" />
                   <Radio value="Transaction" label="Transaction Alert" />
-                  <Radio value="Security" label="Security Alert" />
                 </Group>
               </Radio.Group>
               
@@ -343,16 +360,22 @@ export default function Alerts() {
               />
               
               <div>
-                <Text size="sm" fw={500} mb="xs">Threshold</Text>
+                <Text size="sm" fw={500} mb="xs">Threshold {form.values.type === 'Price' ? '(%)' : '(Amount)'}</Text>
                 <Slider
                   min={1}
-                  max={50}
+                  max={form.values.type === 'Price' ? 50 : 100}
+                  step={form.values.type === 'Price' ? 1 : 5}
                   label={(value) => `${value}${form.values.type === 'Price' ? '%' : ''}`}
-                  marks={[
-                    { value: 1, label: '1' },
+                  marks={form.values.type === 'Price' ? [
+                    { value: 5, label: '5%' },
+                    { value: 15, label: '15%' },
+                    { value: 30, label: '30%' },
+                    { value: 50, label: '50%' },
+                  ] : [
                     { value: 10, label: '10' },
                     { value: 25, label: '25' },
                     { value: 50, label: '50' },
+                    { value: 100, label: '100' },
                   ]}
                   {...form.getInputProps('threshold')}
                   onChange={(value) => {
@@ -372,6 +395,8 @@ export default function Alerts() {
                   <Radio value="High" label="High" />
                 </Group>
               </Radio.Group>
+              
+
               
               <Textarea
                 label="Alert Message"
@@ -448,18 +473,15 @@ export default function Alerts() {
           </Tabs.List>
         </Tabs>
         
-        {loading && alerts.length === 0 ? (
+        {loading ? (
           <Center p="xl">
-            <Loader />
+            <Loader size="lg" />
           </Center>
         ) : error ? (
-          <Card withBorder p="xl" radius="md">
-            <MantineAlert color="red" title="Error loading alerts">
-              {error}
-              <Button variant="light" onClick={fetchAlerts} mt="md">Try Again</Button>
-            </MantineAlert>
-          </Card>
-        ) : paginatedAlerts.length === 0 ? (
+          <MantineAlert color="red" title="Error" withCloseButton closeButtonLabel="Close alert" onClose={() => setError(null)}>
+            {error}
+          </MantineAlert>
+        ) : filteredAlerts.length === 0 ? (
           <Card withBorder p="xl" radius="md">
             <Center>
               <Stack align="center" gap="md">
@@ -475,7 +497,14 @@ export default function Alerts() {
             <Grid>
               {paginatedAlerts.map((alert: AlertType) => (
                 <Grid.Col span={{ base: 12, md: 6, lg: 4 }} key={alert.id}>
-                  <Card withBorder p="md" radius="md">
+                  <Card 
+                    withBorder 
+                    shadow="sm" 
+                    p="md" 
+                    radius="md" 
+                    style={{ height: '100%', cursor: 'pointer' }}
+                    onClick={() => navigate(`/ekko/alerts/${alert.id}`)}
+                  >
                     <Group justify="space-between" mb="xs">
                       <Group>
                         {getAlertIcon(alert.type)}
@@ -487,12 +516,37 @@ export default function Alerts() {
                         {alert.status}
                       </Badge>
                     </Group>
-                    <Text size="sm" c="dimmed" mb="md">{alert.message}</Text>
+                    <Text 
+                      size="sm" 
+                      mb="md" 
+                      p="xs" 
+                      bg={alert.type === 'Price' ? 'rgba(25, 113, 194, 0.1)' : 'rgba(255, 151, 0, 0.1)'}
+                      style={{ 
+                        borderRadius: '4px', 
+                        fontWeight: 500,
+                        color: alert.type === 'Price' ? '#1864ab' : '#d97706'
+                      }}
+                    >
+                      {alert.message}
+                    </Text>
                     <Group justify="space-between">
                       <Text>Priority:</Text>
                       <Badge color={getPriorityColor(alert.priority || 'Medium')}>
                         {alert.priority || 'Medium'}
                       </Badge>
+                    </Group>
+                    
+                    <Group justify="space-between" mt="xs">
+                      <Text>Notifications:</Text>
+                      <Switch
+                        checked={alert.notifications_enabled !== false}
+                        disabled={updatingNotification === alert.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                        }}
+                        onChange={() => handleToggleNotifications(alert)}
+                        size="sm"
+                      />
                     </Group>
                     
                     <Group justify="space-between" mt="xs">
@@ -546,6 +600,20 @@ export default function Alerts() {
                       <Text size="xs" c="dimmed">
                         {new Date(alert.time).toLocaleString()}
                       </Text>
+                      <Tooltip label="Delete alert">
+                        <ActionIcon 
+                          color="red" 
+                          radius="xl" 
+                          variant="subtle"
+                          loading={deleting === alert.id}
+                          onClick={(e) => {
+                            e.stopPropagation(); // Prevent card click event
+                            handleDeleteAlert(alert.id);
+                          }}
+                        >
+                          <IconTrash size={16} />
+                        </ActionIcon>
+                      </Tooltip>
                     </Group>
                   </Card>
                 </Grid.Col>
