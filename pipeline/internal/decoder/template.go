@@ -16,6 +16,18 @@ type TemplateManager struct {
 	redis RedisClient
 }
 
+// GetString retrieves a string value from the cache (Redis).
+// This method makes TemplateManager implement the Cache interface implicitly expected by NewDecoder.
+func (tm *TemplateManager) GetString(ctx context.Context, key string) (string, error) {
+	return tm.redis.Get(ctx, key).Result()
+}
+
+// SetString sets a string value in the cache (Redis).
+// This method helps TemplateManager implement the Cache interface implicitly expected by NewDecoder.
+func (tm *TemplateManager) SetString(ctx context.Context, key string, value string, expiration time.Duration) error {
+	return tm.redis.Set(ctx, key, value, expiration).Err()
+}
+
 // NewTemplateManager creates a new template manager
 func NewTemplateManager(redis RedisClient) *TemplateManager {
 	return &TemplateManager{
