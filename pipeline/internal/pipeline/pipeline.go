@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/reugn/go-streams"
-	"github.com/web3ekko/ekko-ce/pipeline/internal/blockchain"
+	"github.com/web3ekko/ekko-ce/pipeline/pkg/blockchain"
 	"github.com/web3ekko/ekko-ce/pipeline/internal/config"
-	"github.com/web3ekko/ekko-ce/pipeline/internal/decoder"
+	"github.com/web3ekko/ekko-ce/pipeline/pkg/decoder"
 )
 
 // SubnetPipeline represents a pipeline for a single subnet

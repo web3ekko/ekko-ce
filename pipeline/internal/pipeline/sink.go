@@ -3,7 +3,7 @@ package pipeline
 import (
 	"context"
 
-	"github.com/web3ekko/ekko-ce/pipeline/internal/blockchain"
+	"github.com/web3ekko/ekko-ce/pipeline/pkg/blockchain"
 )
 
 // Sink defines the interface for message sinks in the pipeline

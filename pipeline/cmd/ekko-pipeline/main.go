@@ -9,7 +9,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"github.com/web3ekko/ekko-ce/pipeline/internal/config"
-	"github.com/web3ekko/ekko-ce/pipeline/internal/decoder"
+	"github.com/web3ekko/ekko-ce/pipeline/pkg/decoder"
 	"github.com/web3ekko/ekko-ce/pipeline/internal/pipeline"
 )
 

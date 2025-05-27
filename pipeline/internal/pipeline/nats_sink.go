@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
-	"github.com/web3ekko/ekko-ce/pipeline/internal/blockchain"
+	"github.com/web3ekko/ekko-ce/pipeline/pkg/blockchain"
 )
 
 // NATSSink implements a NATS JetStream sink for blockchain data

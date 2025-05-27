@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
-	"github.com/web3ekko/ekko-ce/pipeline/internal/blockchain" // For blockchain.Block
-	"github.com/web3ekko/ekko-ce/pipeline/internal/decoder"    // For decoder.RedisClient, decoder.Decoder
+	"github.com/web3ekko/ekko-ce/pipeline/pkg/blockchain" // For blockchain.Block
+	"github.com/web3ekko/ekko-ce/pipeline/pkg/decoder"    // For decoder.RedisClient, decoder.Decoder
 	"github.com/web3ekko/ekko-ce/pipeline/pkg/common"        // For common.NodeConfig
 )
 

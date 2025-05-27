@@ -3,8 +3,7 @@ package fetchers
 import (
 	"context"
 	"encoding/json"
-	"github.com/redis/go-redis/v9"
-	"github.com/web3ekko/ekko-ce/pipeline/internal/decoder"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -12,24 +11,83 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nats-io/nats.go"
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/web3ekko/ekko-ce/pipeline/internal/blockchain"
+	"github.com/testcontainers/testcontainers-go"
+	tcNats "github.com/testcontainers/testcontainers-go/modules/nats"
+	tcRedis "github.com/testcontainers/testcontainers-go/modules/redis"
+
+	"github.com/web3ekko/ekko-ce/pipeline/pkg/decoder"
+	"github.com/web3ekko/ekko-ce/pipeline/pkg/blockchain"
 	"github.com/web3ekko/ekko-ce/pipeline/pkg/common"
 )
 
-// mockRedisClient is a minimal mock for decoder.RedisClient.
-type mockRedisClient struct{}
+// setupTestEnvironment prepares Redis and NATS containers for testing.
+func setupTestEnvironment(t *testing.T) (decoder.RedisClient, *nats.Conn, nats.JetStreamContext, nats.KeyValue, func()) {
+	t.Helper()
+	ctx := context.Background()
 
-func (m *mockRedisClient) Get(ctx context.Context, key string) *redis.StringCmd {
-	// For NewBlockFetcher, it only checks if rc is nil, doesn't call methods for EVM init path relevant to fetchFullBlock tests.
-	// If specific Get/Set behavior is needed for other tests, this mock would need expansion.
-	return redis.NewStringResult("", nil) // Return a valid StringCmd
+	// Start Redis container
+	redisContainer, err := tcRedis.RunContainer(ctx, testcontainers.WithImage("redis:7"))
+	require.NoError(t, err, "failed to run redis container")
+
+	redisHost, err := redisContainer.Host(ctx)
+	require.NoError(t, err, "failed to get redis host")
+	redisPort, err := redisContainer.MappedPort(ctx, "6379/tcp")
+	require.NoError(t, err, "failed to get redis mapped port")
+	redisAddr := fmt.Sprintf("%s:%s", redisHost, redisPort.Port())
+
+	redisClientOpts := &redis.Options{Addr: redisAddr}
+	appRedisClient := redis.NewClient(redisClientOpts)
+	_, err = appRedisClient.Ping(ctx).Result()
+	require.NoError(t, err, "failed to ping redis")
+
+	// Start NATS container
+	natsContainer, err := tcNats.RunContainer(ctx,
+		testcontainers.WithImage("nats:2.10-alpine"),
+	)
+	require.NoError(t, err, "failed to run nats container")
+
+	natsURL, err := natsContainer.ConnectionString(ctx)
+	require.NoError(t, err, "failed to get nats connection string")
+
+	natsConn, err := nats.Connect(natsURL)
+	require.NoError(t, err, "failed to connect to nats")
+
+	js, err := natsConn.JetStream()
+	require.NoError(t, err, "failed to get nats jetstream context")
+
+	kvConfig := nats.KeyValueConfig{Bucket: "testKVStoreForBlockFetcher"}
+	kvStore, err := js.CreateKeyValue(&kvConfig)
+	if err != nil {
+		if errors.Is(err, nats.ErrStreamNameAlreadyInUse) {
+			kvStore, err = js.KeyValue(kvConfig.Bucket)
+			require.NoError(t, err, "failed to bind to existing KeyValue store")
+		} else {
+			require.NoError(t, err, "failed to create KeyValue store and not an already_exists error")
+		}
+	}
+	require.NotNil(t, kvStore, "kvStore should not be nil")
+
+	cleanupFunc := func() {
+		if natsConn != nil {
+			natsConn.Close()
+		}
+		if appRedisClient != nil {
+			appRedisClient.Close()
+		}
+		if natsContainer != nil {
+			_ = natsContainer.Terminate(ctx) // Use underscore to ignore error on cleanup if not critical
+		}
+		if redisContainer != nil {
+			_ = redisContainer.Terminate(ctx)
+		}
+	}
+
+	return appRedisClient, natsConn, js, kvStore, cleanupFunc
 }
-func (m *mockRedisClient) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.StatusCmd {
-	return redis.NewStatusResult("", nil)
-}
-func (m *mockRedisClient) Close() error { return nil }
 
 // mockRPCServer is a helper to create an httptest.Server that mimics a JSON-RPC endpoint.
 func mockRPCServer(t *testing.T, handler http.HandlerFunc) *httptest.Server {
@@ -71,11 +129,14 @@ func TestFetchFullBlock_SuccessByHash(t *testing.T) {
 		HttpURL:  server.URL,
 		WssURL:   "", // Not used in this test
 	}
-	var rc decoder.RedisClient
-	if config.VMType == "evm" {
-		rc = &mockRedisClient{}
+	redisC, natsC, _, kv, cleanup := setupTestEnvironment(t) // js from setupTestEnvironment is ignored for now by NewBlockFetcher
+	defer cleanup()
+
+	var bfRedisClient decoder.RedisClient = redisC
+	if config.VMType != "evm" { // NewBlockFetcher only expects redis client for EVM
+		bfRedisClient = nil
 	}
-	bf, err := NewBlockFetcher(config.VMType, config.Network, nil, nil, rc) // NATS conn and RedisClient not needed for this unit test
+	bf, err := NewBlockFetcher(config.VMType, config.Network, natsC, kv, bfRedisClient) // NATS conn and RedisClient not needed for this unit test
 	require.NoError(t, err, "NewBlockFetcher failed")
 
 	ctx := context.Background()
@@ -120,11 +181,14 @@ func TestFetchFullBlock_SuccessByNumber(t *testing.T) {
 	defer server.Close()
 
 	config := common.NodeConfig{VMType: "evm", Network: "testnet", HttpURL: server.URL}
-	var rc decoder.RedisClient
-	if config.VMType == "evm" {
-		rc = &mockRedisClient{}
+	redisC, natsC, _, kv, cleanup := setupTestEnvironment(t) // js from setupTestEnvironment is ignored for now by NewBlockFetcher
+	defer cleanup()
+
+	var bfRedisClient decoder.RedisClient = redisC
+	if config.VMType != "evm" { // NewBlockFetcher only expects redis client for EVM
+		bfRedisClient = nil
 	}
-	bf, err := NewBlockFetcher(config.VMType, config.Network, nil, nil, rc)
+	bf, err := NewBlockFetcher(config.VMType, config.Network, natsC, kv, bfRedisClient)
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -154,11 +218,14 @@ func TestFetchFullBlock_BlockNotFound(t *testing.T) {
 	defer server.Close()
 
 	config := common.NodeConfig{VMType: "evm", Network: "testnet", HttpURL: server.URL}
-	var rc decoder.RedisClient
-	if config.VMType == "evm" {
-		rc = &mockRedisClient{}
+	redisC, natsC, _, kv, cleanup := setupTestEnvironment(t) // js from setupTestEnvironment is ignored for now by NewBlockFetcher
+	defer cleanup()
+
+	var bfRedisClient decoder.RedisClient = redisC
+	if config.VMType != "evm" { // NewBlockFetcher only expects redis client for EVM
+		bfRedisClient = nil
 	}
-	bf, err := NewBlockFetcher(config.VMType, config.Network, nil, nil, rc)
+	bf, err := NewBlockFetcher(config.VMType, config.Network, natsC, kv, bfRedisClient)
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -188,11 +255,14 @@ func TestFetchFullBlock_RPCError(t *testing.T) {
 	defer server.Close()
 
 	config := common.NodeConfig{VMType: "evm", Network: "testnet", HttpURL: server.URL}
-	var rc decoder.RedisClient
-	if config.VMType == "evm" {
-		rc = &mockRedisClient{}
+	redisC, natsC, _, kv, cleanup := setupTestEnvironment(t) // js from setupTestEnvironment is ignored for now by NewBlockFetcher
+	defer cleanup()
+
+	var bfRedisClient decoder.RedisClient = redisC
+	if config.VMType != "evm" { // NewBlockFetcher only expects redis client for EVM
+		bfRedisClient = nil
 	}
-	bf, err := NewBlockFetcher(config.VMType, config.Network, nil, nil, rc)
+	bf, err := NewBlockFetcher(config.VMType, config.Network, natsC, kv, bfRedisClient)
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -213,11 +283,14 @@ func TestFetchFullBlock_HTTPError(t *testing.T) {
 	defer server.Close()
 
 	config := common.NodeConfig{VMType: "evm", Network: "testnet", HttpURL: server.URL}
-	var rc decoder.RedisClient
-	if config.VMType == "evm" {
-		rc = &mockRedisClient{}
+	redisC, natsC, _, kv, cleanup := setupTestEnvironment(t) // js from setupTestEnvironment is ignored for now by NewBlockFetcher
+	defer cleanup()
+
+	var bfRedisClient decoder.RedisClient = redisC
+	if config.VMType != "evm" { // NewBlockFetcher only expects redis client for EVM
+		bfRedisClient = nil
 	}
-	bf, err := NewBlockFetcher(config.VMType, config.Network, nil, nil, rc)
+	bf, err := NewBlockFetcher(config.VMType, config.Network, natsC, kv, bfRedisClient)
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -230,11 +303,14 @@ func TestFetchFullBlock_HTTPError(t *testing.T) {
 
 func TestFetchFullBlock_InvalidIdentifier(t *testing.T) {
 	config := common.NodeConfig{VMType: "evm", Network: "testnet", HttpURL: "http://localhost:1234"}
-	var rc decoder.RedisClient
-	if config.VMType == "evm" {
-		rc = &mockRedisClient{}
+	redisC, natsC, _, kv, cleanup := setupTestEnvironment(t) // js from setupTestEnvironment is ignored for now by NewBlockFetcher
+	defer cleanup()
+
+	var bfRedisClient decoder.RedisClient = redisC
+	if config.VMType != "evm" { // NewBlockFetcher only expects redis client for EVM
+		bfRedisClient = nil
 	}
-	bf, err := NewBlockFetcher(config.VMType, config.Network, nil, nil, rc)
+	bf, err := NewBlockFetcher(config.VMType, config.Network, natsC, kv, bfRedisClient)
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -245,11 +321,14 @@ func TestFetchFullBlock_InvalidIdentifier(t *testing.T) {
 
 func TestFetchFullBlock_NonEVMType(t *testing.T) {
 	config := common.NodeConfig{VMType: "solana", Network: "devnet", HttpURL: "http://localhost:1234"}
-	var rc decoder.RedisClient
-	if config.VMType == "evm" {
-		rc = &mockRedisClient{}
+	redisC, natsC, _, kv, cleanup := setupTestEnvironment(t) // js from setupTestEnvironment is ignored for now by NewBlockFetcher
+	defer cleanup()
+
+	var bfRedisClient decoder.RedisClient = redisC
+	if config.VMType != "evm" { // NewBlockFetcher only expects redis client for EVM
+		bfRedisClient = nil
 	}
-	bf, err := NewBlockFetcher(config.VMType, config.Network, nil, nil, rc)
+	bf, err := NewBlockFetcher(config.VMType, config.Network, natsC, kv, bfRedisClient)
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -260,11 +339,14 @@ func TestFetchFullBlock_NonEVMType(t *testing.T) {
 
 func TestFetchFullBlock_EmptyHTTPURL(t *testing.T) {
 	config := common.NodeConfig{VMType: "evm", Network: "testnet", HttpURL: ""} // Empty URL
-	var rc decoder.RedisClient
-	if config.VMType == "evm" {
-		rc = &mockRedisClient{}
+	redisC, natsC, _, kv, cleanup := setupTestEnvironment(t) // js from setupTestEnvironment is ignored for now by NewBlockFetcher
+	defer cleanup()
+
+	var bfRedisClient decoder.RedisClient = redisC
+	if config.VMType != "evm" { // NewBlockFetcher only expects redis client for EVM
+		bfRedisClient = nil
 	}
-	bf, err := NewBlockFetcher(config.VMType, config.Network, nil, nil, rc)
+	bf, err := NewBlockFetcher(config.VMType, config.Network, natsC, kv, bfRedisClient)
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -283,11 +365,14 @@ func TestFetchFullBlock_MalformedJSONResponse(t *testing.T) {
 	defer server.Close()
 
 	config := common.NodeConfig{VMType: "evm", Network: "testnet", HttpURL: server.URL}
-	var rc decoder.RedisClient
-	if config.VMType == "evm" {
-		rc = &mockRedisClient{}
+	redisC, natsC, _, kv, cleanup := setupTestEnvironment(t) // js from setupTestEnvironment is ignored for now by NewBlockFetcher
+	defer cleanup()
+
+	var bfRedisClient decoder.RedisClient = redisC
+	if config.VMType != "evm" { // NewBlockFetcher only expects redis client for EVM
+		bfRedisClient = nil
 	}
-	bf, err := NewBlockFetcher(config.VMType, config.Network, nil, nil, rc)
+	bf, err := NewBlockFetcher(config.VMType, config.Network, natsC, kv, bfRedisClient)
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -308,11 +393,14 @@ func TestFetchFullBlock_Timeout(t *testing.T) {
 	defer server.Close()
 
 	config := common.NodeConfig{VMType: "evm", Network: "testnet", HttpURL: server.URL}
-	var rc decoder.RedisClient
-	if config.VMType == "evm" {
-		rc = &mockRedisClient{}
+	redisC, natsC, _, kv, cleanup := setupTestEnvironment(t) // js from setupTestEnvironment is ignored for now by NewBlockFetcher
+	defer cleanup()
+
+	var bfRedisClient decoder.RedisClient = redisC
+	if config.VMType != "evm" { // NewBlockFetcher only expects redis client for EVM
+		bfRedisClient = nil
 	}
-	bf, err := NewBlockFetcher(config.VMType, config.Network, nil, nil, rc)
+	bf, err := NewBlockFetcher(config.VMType, config.Network, natsC, kv, bfRedisClient)
 	require.NoError(t, err)
 
 	// Temporarily modify client timeout for this specific test case in fetchFullBlock

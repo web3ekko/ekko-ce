@@ -11,7 +11,7 @@ import (
 	// "github.com/web3ekko/ekko-ce/pipeline/internal/config" // Assuming config path
 	"github.com/web3ekko/ekko-ce/pipeline/pkg/listeners" // Added for NewHeadListener
 	"github.com/web3ekko/ekko-ce/pipeline/pkg/common"    // For common.NodeConfig
-	"github.com/web3ekko/ekko-ce/pipeline/internal/decoder"  // For decoder.RedisClient
+	"github.com/web3ekko/ekko-ce/pipeline/pkg/decoder"  // For decoder.RedisClient
 )
 
 // PipelineSupervisor manages the lifecycle of NewHeadListener and BlockFetcher services.

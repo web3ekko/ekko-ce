@@ -1,6 +1,6 @@
 package supervisor
 
-import "github.com/web3ekko/ekko-ce/pipeline/internal/blockchain"
+import "github.com/web3ekko/ekko-ce/pipeline/pkg/blockchain"
 
 // NewHeadPayload is the message published by NewHeadListener
 // when a new block head is detected via WebSocket.
