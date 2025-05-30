@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Title, 
   Text, 
@@ -21,86 +21,56 @@ import {
   IconExchange, 
   IconArrowUp, 
   IconArrowDown,
-  IconFilter
+  IconFilter,
+  IconWifi,
+  IconWifiOff
 } from '@tabler/icons-react';
 
-// This will be replaced with actual API data
-const MOCK_TRANSACTIONS = [
-  { 
-    id: '1', 
-    hash: '0x1a2b3c4d5e6f...', 
-    from: '0x1234...5678', 
-    to: '0x8765...4321', 
-    amount: 1.25, 
-    token: 'AVAX', 
-    timestamp: '2025-05-08T09:30:00Z', 
-    status: 'Confirmed',
-    type: 'Send'
-  },
-  { 
-    id: '2', 
-    hash: '0xabcdef1234...', 
-    from: '0x9876...5432', 
-    to: '0x1234...5678', 
-    amount: 0.5, 
-    token: 'ETH', 
-    timestamp: '2025-05-08T08:15:00Z', 
-    status: 'Confirmed',
-    type: 'Receive'
-  },
-  { 
-    id: '3', 
-    hash: '0x7890abcdef...', 
-    from: '0x1234...5678', 
-    to: '0xContract...', 
-    amount: 100, 
-    token: 'USDC', 
-    timestamp: '2025-05-08T07:45:00Z', 
-    status: 'Confirmed',
-    type: 'Contract'
-  },
-  { 
-    id: '4', 
-    hash: '0x2468acef...', 
-    from: '0x1234...5678', 
-    to: '0xdead...beef', 
-    amount: 0.75, 
-    token: 'AVAX', 
-    timestamp: '2025-05-08T06:30:00Z', 
-    status: 'Pending',
-    type: 'Send'
-  },
-  { 
-    id: '5', 
-    hash: '0x13579bdf...', 
-    from: '0xdead...beef', 
-    to: '0x1234...5678', 
-    amount: 2.5, 
-    token: 'MATIC', 
-    timestamp: '2025-05-07T23:15:00Z', 
-    status: 'Confirmed',
-    type: 'Receive'
-  },
-];
+import { useAppDispatch, useAppSelector } from '@/store';
+import RealtimeTransactionService from '@/services/realtime/RealtimeTransactionService';
+import { 
+  selectAllRealtimeTransactions, 
+  selectIsConnectingToRealtime, 
+  selectIsConnectedToRealtime, 
+  selectRealtimeConnectionError 
+} from '@/store/selectors/realtimeTransactionsSelectors';
+import type { RealtimeTransaction } from '@/store/slices/realtimeTransactionsSlice';
 
+// Mock transactions removed, will use live data
 export default function Transactions() {
+  const dispatch = useAppDispatch(); // if needed for any direct dispatches, though service handles most
+  const liveTransactions = useAppSelector(selectAllRealtimeTransactions);
+  const isConnecting = useAppSelector(selectIsConnectingToRealtime);
+  const isConnected = useAppSelector(selectIsConnectedToRealtime);
+  const connectionError = useAppSelector(selectRealtimeConnectionError);
   const [searchQuery, setSearchQuery] = useState('');
   const [activePage, setActivePage] = useState(1);
   const [pageSize, setPageSize] = useState('10');
   const [activeTab, setActiveTab] = useState('all');
   
+  // Effect for WebSocket connection management
+  useEffect(() => {
+    RealtimeTransactionService.connect();
+    return () => {
+      RealtimeTransactionService.disconnect();
+    };
+  }, []); // Empty dependency array means this runs once on mount and cleanup on unmount
+
   // Filter transactions based on search query and active tab
-  const filteredTransactions = MOCK_TRANSACTIONS.filter(tx => {
+  const filteredTransactions = liveTransactions.filter(tx => {
     const matchesSearch = 
-      tx.hash.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      tx.from.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      tx.to.toLowerCase().includes(searchQuery.toLowerCase());
+      (
+        tx.hash.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        tx.from.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (tx.to && tx.to.toLowerCase().includes(searchQuery.toLowerCase())) || // Handle null 'to'
+        (tx.decoded_call?.function && tx.decoded_call.function.toLowerCase().includes(searchQuery.toLowerCase()))
+      );
     
     if (activeTab === 'all') return matchesSearch;
-    if (activeTab === 'send') return matchesSearch && tx.type === 'Send';
-    if (activeTab === 'receive') return matchesSearch && tx.type === 'Receive';
-    if (activeTab === 'contract') return matchesSearch && tx.type === 'Contract';
-    if (activeTab === 'pending') return matchesSearch && tx.status === 'Pending';
+    if (activeTab === 'send') return matchesSearch && tx.transactionType === 'send';
+    if (activeTab === 'receive') return matchesSearch && tx.transactionType === 'receive';
+    if (activeTab === 'contract') return matchesSearch && (tx.transactionType === 'contract_interaction' || tx.transactionType === 'contract_creation');
+    if (activeTab === 'pending') return matchesSearch && tx.status === 'pending';
     
     return matchesSearch;
   });
@@ -113,18 +83,21 @@ export default function Transactions() {
   );
 
   // Helper function to get transaction icon based on type
-  const getTransactionIcon = (type: string) => {
+  const getTransactionIcon = (type: RealtimeTransaction['transactionType']) => {
     switch (type) {
-      case 'Send': return <IconArrowUp size={18} color="red" />;
-      case 'Receive': return <IconArrowDown size={18} color="green" />;
-      case 'Contract': return <IconExchange size={18} color="blue" />;
+      case 'send': return <IconArrowUp size={18} color="red" />;
+      case 'receive': return <IconArrowDown size={18} color="green" />;
+      case 'contract_interaction': return <IconExchange size={18} color="blue" />;
+      case 'contract_creation': return <IconExchange size={18} color="purple" />; // Different color for creation
       default: return <IconExchange size={18} />;
     }
   };
 
   // Helper function to format date
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString();
+  const formatDate = (dateInput: string | number | undefined) => {
+    if (dateInput === undefined) return 'N/A';
+    const date = typeof dateInput === 'string' ? new Date(dateInput) : new Date(dateInput * 1000); // Assuming numeric timestamp is in seconds
+    return new Date(date).toLocaleString();
   };
 
   return (
@@ -160,13 +133,16 @@ export default function Transactions() {
               data={['5', '10', '20', '50']}
               style={{ width: '100px' }}
             />
-            <ActionIcon variant="light" color="blue" size="lg" aria-label="Refresh">
+            {isConnecting && <Badge color="yellow" leftSection={<IconWifi size={14}/>}>Connecting...</Badge>}
+            {isConnected && <Badge color="green" leftSection={<IconWifi size={14}/>}>Connected</Badge>}
+            {connectionError && <Badge color="red" leftSection={<IconWifiOff size={14}/>}>{connectionError}</Badge>}
+            <ActionIcon variant="light" color="blue" size="lg" aria-label="Reconnect" onClick={() => { RealtimeTransactionService.disconnect(); RealtimeTransactionService.connect();}} title="Reconnect">
               <IconRefresh size={18} />
             </ActionIcon>
           </Group>
         </Group>
         
-        <Tabs value={activeTab} onChange={setActiveTab} mb="md">
+        <Tabs value={activeTab} onChange={(value) => setActiveTab(value || 'all')} mb="md">
           <Tabs.List>
             <Tabs.Tab value="all">All</Tabs.Tab>
             <Tabs.Tab value="send">Sent</Tabs.Tab>
@@ -183,18 +159,19 @@ export default function Transactions() {
               <Table.Th>Hash</Table.Th>
               <Table.Th>From</Table.Th>
               <Table.Th>To</Table.Th>
-              <Table.Th>Amount</Table.Th>
+              <Table.Th>Value</Table.Th>
+              <Table.Th>Network/Token</Table.Th>
               <Table.Th>Time</Table.Th>
               <Table.Th>Status</Table.Th>
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
             {paginatedTransactions.map(tx => (
-              <Table.Tr key={tx.id}>
+              <Table.Tr key={tx.hash}>
                 <Table.Td>
                   <Group gap="xs">
-                    {getTransactionIcon(tx.type)}
-                    <Text size="sm">{tx.type}</Text>
+                    {getTransactionIcon(tx.transactionType)}
+                    <Text size="sm">{tx.transactionType || 'N/A'}</Text>
                   </Group>
                 </Table.Td>
                 <Table.Td>
@@ -207,15 +184,17 @@ export default function Transactions() {
                   <Text size="sm" style={{ fontFamily: 'monospace' }}>{tx.to}</Text>
                 </Table.Td>
                 <Table.Td>
-                  <Text size="sm" fw={500}>{tx.amount} {tx.token}</Text>
+                  {/* TODO: Format large numbers appropriately */}
+                  <Text size="sm" c="dimmed">{tx.value}</Text>
                 </Table.Td>
                 <Table.Td>
-                  <Text size="sm">{formatDate(tx.timestamp)}</Text>
+                  <Text size="sm" c="dimmed">{tx.network || tx.tokenSymbol || 'N/A'}</Text>
                 </Table.Td>
                 <Table.Td>
-                  <Badge color={tx.status === 'Confirmed' ? 'green' : 'yellow'}>
-                    {tx.status}
-                  </Badge>
+                  <Text size="sm" c="dimmed">{formatDate(tx.timestamp)}</Text>
+                </Table.Td>
+                <Table.Td>
+                  <Badge color={tx.status === 'Confirmed' ? 'green' : tx.status === 'pending' ? 'yellow' : 'gray'}>{tx.status || 'N/A'}</Badge>
                 </Table.Td>
               </Table.Tr>
             ))}

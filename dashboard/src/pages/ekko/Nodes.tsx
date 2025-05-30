@@ -27,37 +27,44 @@ import {
   IconX,
   IconAlertTriangle
 } from '@tabler/icons-react';
-import { nodesApi } from '@/services/api/ekko';
+import { nodesApi, Node, CreateNodePayload } from '@/services/api/ekko'; 
 
-// This will be replaced with actual API data
-const MOCK_NODES = [
-  { 
-    id: '1', 
-    name: 'AVAX-Mainnet-1', 
+const networkSubnetOptions: Record<string, string[]> = {
+  'Ethereum': ['Mainnet', 'Sepolia', 'Goerli'],
+  'Avalanche': ['Mainnet', 'Fuji Testnet'],
+  'Polygon': ['Mainnet', 'Mumbai Testnet'],
+  'BNB Smart Chain': ['Mainnet', 'Testnet'],
+  'Arbitrum': ['One', 'Goerli'],
+  'Optimism': ['Mainnet', 'Goerli'],
+  // Add more networks and their subnets as needed
+};
+
+const MOCK_NODES: Node[] = [
+  {
+    id: '1',
+    name: 'AVAX-Mainnet-1',
     type: 'Validator',
     network: 'Avalanche',
-    endpoint: 'https://node1.example.com:9650',
+    subnet: 'Mainnet',
+    http_url: 'https://node1.example.com:9650',
+    websocket_url: 'wss://node1.example.com:9651/ext/bc/C/ws',
+    vm: 'EVM',
     status: 'Online',
-    uptime: 99.98,
-    cpu: 32,
-    memory: 45,
-    disk: 68,
-    peers: 124,
-    version: '1.9.12'
+    created_at: '2023-01-01T10:00:00Z', // Retaining for mock, though optional in interface
+    updated_at: '2023-01-10T12:00:00Z', // Retaining for mock, though optional in interface
   },
-  { 
-    id: '5', 
-    name: 'AVAX-Fuji-1', 
+  {
+    id: '5',
+    name: 'AVAX-Fuji-1',
     type: 'API',
-    network: 'Avalanche Fuji',
-    endpoint: 'https://fuji1.example.com:9650',
+    network: 'Avalanche',
+    subnet: 'Fuji Testnet',
+    http_url: 'https://fuji1.example.com:9650',
+    websocket_url: 'wss://fuji1.example.com:9651/ext/bc/C/ws',
+    vm: 'EVM',
     status: 'Offline',
-    uptime: 0,
-    cpu: 0,
-    memory: 0,
-    disk: 65,
-    peers: 0,
-    version: '1.9.11'
+    created_at: '2023-01-02T10:00:00Z', // Retaining for mock, though optional in interface
+    updated_at: '2023-01-05T12:00:00Z', // Retaining for mock, though optional in interface
   },
 ];
 
@@ -65,7 +72,7 @@ export default function Nodes() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [modalOpened, setModalOpened] = useState(false);
-  const [nodes, setNodes] = useState(MOCK_NODES);
+  const [nodes, setNodes] = useState<Node[]>(MOCK_NODES);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -76,6 +83,8 @@ export default function Nodes() {
       websocket_url: '',
       http_url: '',
       vm: 'EVM',
+      network: '',
+      subnet: '',
     },
     validate: {
       name: (value) => (value.trim().length > 0 ? null : 'Name is required'),
@@ -89,6 +98,8 @@ export default function Nodes() {
         if (!value.startsWith('http://') && !value.startsWith('https://')) return 'HTTP URL must start with http:// or https://';
         return null;
       },
+      network: (value) => (value ? null : 'Network is required'),
+      subnet: (value) => (value ? null : 'Subnet is required'),
     },
   });
   
@@ -96,11 +107,27 @@ export default function Nodes() {
   const fetchNodes = async () => {
     try {
       setLoading(true);
-      const data = await nodesApi.getNodes();
-      setNodes(data.data.length > 0 ? data.data : MOCK_NODES);
+      const response = await nodesApi.getNodes();
+      console.log('Nodes.tsx: Fetched nodes API response:', JSON.stringify(response, null, 2)); // Log the whole response object
+      // Assuming response is PaginatedResponse<Node> as per ekko.ts type
+      if (response && response.data) {
+        console.log('Nodes.tsx: Setting nodes with response.data:', JSON.stringify(response.data, null, 2));
+        setNodes(response.data);
+      } else {
+        console.error('Nodes.tsx: API response for nodes did not have a .data property or response was null/undefined. Response:', response);
+        // If the API returns a direct array, response.data would be undefined.
+        // In that case, we might want to setNodes(response) if response is Node[]
+        // For now, let's assume PaginatedResponse and log an error if it's not matching.
+        setNodes([]); // Set to empty array to prevent crash, but indicates an issue
+      }
       setError(null);
-    } catch (err) {
-      console.error('Error fetching nodes:', err);
+    } catch (err: any) { // Added :any for better inspection
+      console.error('Nodes.tsx: Error fetching nodes RAW:', err);
+      console.error('Nodes.tsx: Error fetching nodes JSON:', JSON.stringify(err, null, 2));
+      if (err.response) {
+        console.error('Nodes.tsx: Error response data:', JSON.stringify(err.response.data, null, 2));
+        console.error('Nodes.tsx: Error response status:', err.response.status);
+      }
       setError('Failed to load nodes. Please try again.');
     } finally {
       setLoading(false);
@@ -117,26 +144,17 @@ export default function Nodes() {
     try {
       setLoading(true);
       
-      // Create new node
-      const newNode = {
+      const nodeToCreate: CreateNodePayload = {
         name: values.name,
-        websocket_url: values.websocket_url,
+        network: values.network,
+        subnet: values.subnet,
         http_url: values.http_url,
+        websocket_url: values.websocket_url,
         vm: values.vm,
-        type: 'API',
-        network: values.name.includes('Fuji') ? 'Avalanche Fuji' : 'Avalanche',
-        // Required properties from Node interface
-        endpoint: values.http_url, // Use HTTP URL as the main endpoint
-        status: 'Offline', // Initial status
-        uptime: 0,
-        cpu: 0,
-        memory: 0,
-        disk: 0,
-        peers: 0,
-        version: '',
+        type: 'API', // Optional: backend defaults to 'API'
       };
       
-      await nodesApi.createNode(newNode);
+      await nodesApi.createNode(nodeToCreate);
       
       // Refresh nodes list
       await fetchNodes();
@@ -157,7 +175,7 @@ export default function Nodes() {
     const matchesSearch = 
       node.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
       node.network.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      node.endpoint.toLowerCase().includes(searchQuery.toLowerCase());
+      node.http_url.toLowerCase().includes(searchQuery.toLowerCase());
     
     if (activeTab === 'all') return matchesSearch;
     if (activeTab === 'online') return matchesSearch && node.status === 'Online';
@@ -170,7 +188,8 @@ export default function Nodes() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Online': return 'green';
-      case 'Degraded': return 'yellow';
+      case 'Pending': return 'yellow'; 
+      case 'Degraded': return 'orange'; 
       case 'Offline': return 'red';
       default: return 'gray';
     }
@@ -179,19 +198,12 @@ export default function Nodes() {
   // Helper function to get status icon
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'Online': return <IconCheck size={16} />;
-      case 'Degraded': return <IconAlertTriangle size={16} />;
-      case 'Offline': return <IconX size={16} />;
-      default: return null;
+      case 'Online': return <IconCheck size={14} />;
+      case 'Pending': return <IconRefresh size={14} />; 
+      case 'Degraded': return <IconAlertTriangle size={14} />;
+      case 'Offline': return <IconX size={14} />;
+      default: return <IconServer size={14} />; 
     }
-  };
-
-  // Helper function to get resource usage color
-  const getResourceColor = (usage: number) => {
-    if (usage >= 90) return 'red';
-    if (usage >= 75) return 'orange';
-    if (usage >= 50) return 'yellow';
-    return 'green';
   };
 
   return (
@@ -230,7 +242,7 @@ export default function Nodes() {
           <Table.Thead>
             <Table.Tr>
               <Table.Th>Name</Table.Th>
-              <Table.Th>Network</Table.Th>
+              <Table.Th>Network / Subnet</Table.Th>
               <Table.Th>Status</Table.Th>
               <Table.Th></Table.Th>
             </Table.Tr>
@@ -245,7 +257,7 @@ export default function Nodes() {
                   </Group>
                 </Table.Td>
                 <Table.Td>
-                  <Text size="sm">{node.network}</Text>
+                  <Text size="sm">{node.network} ({node.subnet})</Text>
                 </Table.Td>
                 <Table.Td>
                   <Badge 
@@ -283,8 +295,8 @@ export default function Nodes() {
               </Group>
               
               <Group justify="space-between" mt="md">
-                <Text size="sm">Network:</Text>
-                <Text size="sm" fw={500}>{node.network}</Text>
+                <Text size="sm">Network / Subnet:</Text>
+                <Text size="sm" fw={500}>{node.network} ({node.subnet})</Text>
               </Group>
             </Card>
           </Grid.Col>
@@ -315,6 +327,29 @@ export default function Nodes() {
               required
               mb="md"
               {...form.getInputProps('name')}
+            />
+
+            <Select
+              label="Network"
+              placeholder="Select network"
+              data={Object.keys(networkSubnetOptions).map(net => ({ value: net, label: net }))}
+              required
+              mb="md"
+              {...form.getInputProps('network')}
+              onChange={(value) => {
+                form.setFieldValue('network', value || '');
+                form.setFieldValue('subnet', ''); // Reset subnet when network changes
+              }}
+            />
+
+            <Select
+              label="Subnet"
+              placeholder={form.values.network ? "Select subnet" : "Select network first"}
+              data={form.values.network ? networkSubnetOptions[form.values.network]?.map(sub => ({ value: sub, label: sub })) || [] : []}
+              required
+              mb="md"
+              disabled={!form.values.network || !networkSubnetOptions[form.values.network]}
+              {...form.getInputProps('subnet')}
             />
             
             <TextInput

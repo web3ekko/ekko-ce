@@ -39,6 +39,7 @@ def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta]
     return encoded_jwt
 
 async def get_user(js, email: str) -> Optional[UserInDB]:
+    print(f"AUTH.GET_USER: Received js: {js} (type: {type(js)})")
     try:
         kv = await js.key_value(bucket="users")
         # Get all users and find by email
@@ -56,6 +57,7 @@ async def get_user(js, email: str) -> Optional[UserInDB]:
         return None
 
 async def authenticate_user(js, email: str, password: str) -> Optional[User]:
+    print(f"AUTH.AUTHENTICATE_USER: Received js: {js} (type: {type(js)})")
     user = await get_user(js, email)
     if not user:
         return None

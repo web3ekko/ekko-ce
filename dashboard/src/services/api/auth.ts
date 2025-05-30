@@ -5,7 +5,7 @@ import { SignInCredential, SignUpCredential, SignInResponse } from '@/@types/aut
 export const authApi = {
   signIn: async (email: string, password: string): Promise<SignInResponse> => {
     try {
-      const response = await api.post('/users/sign-in', { email, password });
+      const response = await api.post('/token', { username: email, password: password }, { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
       
       // Store the token in localStorage for the interceptor to use
       if (response.data.access_token) {

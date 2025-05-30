@@ -4234,6 +4234,7 @@ __metadata:
     lottie-web: "npm:^5.12.2"
     mantine-form-yup-resolver: "npm:^2.0.0"
     miragejs: "npm:^0.1.48"
+    nats.ws: "npm:^1.30.3"
     postcss: "npm:^8.4.35"
     postcss-preset-mantine: "npm:1.13.0"
     postcss-simple-vars: "npm:^7.0.1"
@@ -6575,6 +6576,18 @@ __metadata:
   languageName: node
   linkType: hard
 
+"nats.ws@npm:^1.30.3":
+  version: 1.30.3
+  resolution: "nats.ws@npm:1.30.3"
+  dependencies:
+    nkeys.js: "npm:1.1.0"
+  dependenciesMeta:
+    nkeys.js:
+      optional: true
+  checksum: 10c0/db5e4669e5f4349482245d76ed1529b9f6634e849e2b7dd4a1739faf8134517796c8bb7ce8be2aa2188f757f1dcbd230257df0344ad4bdc9f93f1520c8cee4cd
+  languageName: node
+  linkType: hard
+
 "natural-compare@npm:^1.4.0":
   version: 1.4.0
   resolution: "natural-compare@npm:1.4.0"
@@ -6586,6 +6599,15 @@ __metadata:
   version: 1.0.0
   resolution: "negotiator@npm:1.0.0"
   checksum: 10c0/4c559dd52669ea48e1914f9d634227c561221dd54734070791f999c52ed0ff36e437b2e07d5c1f6e32909fc625fe46491c16e4a8f0572567d4dd15c3a4fda04b
+  languageName: node
+  linkType: hard
+
+"nkeys.js@npm:1.1.0":
+  version: 1.1.0
+  resolution: "nkeys.js@npm:1.1.0"
+  dependencies:
+    tweetnacl: "npm:1.0.3"
+  checksum: 10c0/44ff8d61e46d2b345351ed7844d66036a815aeca23927def6ca258e27a18a1678fe5ab161c5cf0b6e3a3993a945d422b71036986d09669b214540c8491478bef
   languageName: node
   linkType: hard
 
@@ -8675,6 +8697,13 @@ __metadata:
   version: 2.8.1
   resolution: "tslib@npm:2.8.1"
   checksum: 10c0/9c4759110a19c53f992d9aae23aac5ced636e99887b51b9e61def52611732872ff7668757d4e4c61f19691e36f4da981cd9485e869b4a7408d689f6bf1f14e62
+  languageName: node
+  linkType: hard
+
+"tweetnacl@npm:1.0.3":
+  version: 1.0.3
+  resolution: "tweetnacl@npm:1.0.3"
+  checksum: 10c0/069d9df51e8ad4a89fbe6f9806c68e06c65be3c7d42f0701cc43dba5f0d6064686b238bbff206c5addef8854e3ce00c643bff59432ea2f2c639feab0ee1a93f9
   languageName: node
   linkType: hard
 

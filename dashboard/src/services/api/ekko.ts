@@ -82,22 +82,35 @@ export interface Transaction {
   type: string;
 }
 
+// Represents the full Node object, as returned by the backend GET endpoints
+// Represents the full Node object, as returned by the backend GET endpoints
 export interface Node {
   id: string;
   name: string;
-  type: string;
+  network: string;     // e.g., 'Avalanche', 'Ethereum'
+  subnet: string;      // e.g., 'Mainnet', 'Fuji Testnet', 'Sepolia'
+  http_url: string;    // Primary HTTP/RPC endpoint
+  websocket_url?: string; // Optional WebSocket endpoint
+  vm?: string;          // e.g., 'EVM'
+  type: string;        // e.g., 'API', 'Validator'
+  status: string;      // e.g., 'Pending', 'Online', 'Offline', 'Syncing'
+  // The backend now also adds created_at and updated_at to the raw response data for POST/PUT,
+  // but they are not part of the core Pydantic model for GET /nodes.
+  // If they are consistently returned by GET /nodes and GET /nodes/{id}, they can be added here.
+  // For now, assuming they are not part of the primary GET /nodes list model.
+  created_at?: string; // Optional: if backend GET /nodes includes it
+  updated_at?: string; // Optional: if backend GET /nodes includes it
+}
+
+// Payload for creating a new node
+export interface CreateNodePayload {
+  name: string;
   network: string;
-  endpoint: string;
-  status: string;
-  uptime: number;
-  cpu: number;
-  memory: number;
-  disk: number;
-  peers: number;
-  version: string;
+  subnet: string;
+  http_url: string;
   websocket_url?: string;
-  http_url?: string;
-  vm?: string;
+  vm?: string;          // Defaulted to 'EVM' by backend if not sent
+  type?: string;        // Defaulted to 'API' by backend if not sent
 }
 
 // Pagination parameters
@@ -297,19 +310,8 @@ export const nodesApi = {
       return response.data;
     } catch (error) {
       console.error('Error fetching nodes:', error);
-      // Return mock data for development
-      const mockNodes = [
-        { id: '1', name: 'AVAX-Mainnet-1', type: 'Validator', network: 'Avalanche', endpoint: 'https://node1.example.com:9650', status: 'Online', uptime: 99.98, cpu: 32, memory: 45, disk: 68, peers: 124, version: '1.9.12' },
-        { id: '5', name: 'AVAX-Fuji-1', type: 'API', network: 'Avalanche Fuji', endpoint: 'https://fuji1.example.com:9650', status: 'Offline', uptime: 0, cpu: 0, memory: 0, disk: 65, peers: 0, version: '1.9.11' },
-      ];
-      
-      return {
-        data: mockNodes,
-        total: mockNodes.length,
-        page: params?.page || 1,
-        limit: params?.limit || 10,
-        totalPages: 1
-      };
+      // Let errors propagate to be handled by the caller (e.g., in UI component or Redux thunk)
+      throw error;
     }
   },
   
@@ -323,9 +325,9 @@ export const nodesApi = {
     }
   },
   
-  createNode: async (node: Omit<Node, 'id'>): Promise<Node> => {
+  createNode: async (nodePayload: CreateNodePayload): Promise<Node> => {
     try {
-      const response = await api.post('/nodes', node);
+      const response = await api.post('/nodes', nodePayload);
       return response.data;
     } catch (error) {
       console.error('Error creating node:', error);

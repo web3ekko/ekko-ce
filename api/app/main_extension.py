@@ -3,7 +3,9 @@ import os
 import json
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Union
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends, status
+from fastapi import APIRouter, FastAPI, HTTPException, BackgroundTasks, Depends, status
+from typing import Any # Use Any for type hinting for now
+from app.dependencies import get_jetstream_context
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import nats
@@ -12,6 +14,7 @@ from pydantic import BaseModel
 from contextlib import asynccontextmanager
 
 # Import models and auth utilities
+from app.auth import verify_password, get_password_hash, create_access_token, authenticate_user, get_current_user, get_current_active_user, get_admin_user, oauth2_scheme
 from .models import (
     User, UserCreate, UserUpdate, UserInDB, 
     Wallet, Alert, WalletBalance,
@@ -24,7 +27,10 @@ from .auth import (
 )
 
 # User routes
-@app.post("/users", response_model=User)
+auth_router = APIRouter(tags=["Authentication"])
+user_router = APIRouter(prefix="/users", tags=["Users"])
+
+@user_router.post("/", response_model=User) # Path becomes relative to /users prefix
 async def create_user(user: UserCreate, background_tasks: BackgroundTasks, current_user: User = Depends(get_admin_user)):
     """
     Create a new user (admin only).
@@ -77,7 +83,7 @@ async def create_user(user: UserCreate, background_tasks: BackgroundTasks, curre
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error creating user: {str(e)}")
 
-@app.get("/users", response_model=List[User])
+@user_router.get("/", response_model=List[User]) # Path becomes relative to /users prefix
 async def get_users(current_user: User = Depends(get_admin_user)):
     """
     Get all users (admin only).
@@ -99,14 +105,14 @@ async def get_users(current_user: User = Depends(get_admin_user)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching users: {str(e)}")
 
-@app.get("/users/me", response_model=User)
+@user_router.get("/me", response_model=User) # Path becomes relative to /users prefix
 async def get_current_user_info(current_user: User = Depends(get_current_user)):
     """
     Get current user information.
     """
     return current_user
 
-@app.get("/users/{user_id}", response_model=User)
+@user_router.get("/{user_id}", response_model=User) # Path becomes relative to /users prefix
 async def get_user_by_id(user_id: str, current_user: User = Depends(get_admin_user)):
     """
     Get user by ID (admin only).
@@ -124,7 +130,7 @@ async def get_user_by_id(user_id: str, current_user: User = Depends(get_admin_us
     except Exception as e:
         raise HTTPException(status_code=404, detail=f"User not found: {str(e)}")
 
-@app.put("/users/{user_id}", response_model=User)
+@user_router.put("/{user_id}", response_model=User) # Path becomes relative to /users prefix
 async def update_user(
     user_id: str, 
     user_update: UserUpdate, 
@@ -174,7 +180,7 @@ async def update_user(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error updating user: {str(e)}")
 
-@app.delete("/users/{user_id}")
+@user_router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT) # Path becomes relative to /users prefix
 async def delete_user(user_id: str, background_tasks: BackgroundTasks, current_user: User = Depends(get_admin_user)):
     """
     Delete user (admin only).
@@ -206,12 +212,12 @@ async def delete_user(user_id: str, background_tasks: BackgroundTasks, current_u
         raise HTTPException(status_code=500, detail=f"Error deleting user: {str(e)}")
 
 # Authentication routes
-@app.post("/token", response_model=Token)
-async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+@auth_router.post("/token", response_model=Token)
+async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), jetstream_context: Any = Depends(get_jetstream_context)):
     """
     Authenticate user and return JWT token.
     """
-    user = await authenticate_user(js, form_data.username, form_data.password)
+    user = await authenticate_user(jetstream_context, form_data.username, form_data.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -225,10 +231,18 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         expires_delta=access_token_expires
     )
     
-    return {"access_token": access_token, "token_type": "bearer"}
+    # Return the token and the user information
+    # The 'user' object will be serialized according to the User model's Config (camelCase)
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": user
+    }
 
 # Helper function to get user by email
-async def get_user_by_email(email: str) -> Optional[User]:
+
+wallet_router = APIRouter(prefix="/wallet-balances", tags=["Wallet Balances"])
+async def get_user_by_email(email: str, password_to_check: str) -> Optional[User]:
     try:
         kv = await js.key_value(bucket="users")
         keys = await kv.keys()
@@ -244,11 +258,33 @@ async def get_user_by_email(email: str) -> Optional[User]:
         
         return None
     except Exception as e:
-        print(f"Error getting user by email: {e}")
-        return None
+        print(f"Error getting user by email from NATS: {e}. Attempting fallback authentication.")
+        fallback_email_env = os.getenv("FALLBACK_USER_EMAIL")
+        fallback_password_env = os.getenv("FALLBACK_USER_PASSWORD") # Plain text password
+
+        if email == fallback_email_env and fallback_password_env:
+            # Direct plain text password comparison - NOT RECOMMENDED FOR PRODUCTION
+            if password_to_check == fallback_password_env:
+                print(f"WARNING: Successfully authenticated fallback user '{email}' using plain text password. This is insecure.")
+                fallback_user = User(
+                    id=os.getenv("FALLBACK_USER_ID", "fallback-user-id"),
+                    email=fallback_email_env, # Use the matched email
+                    full_name=os.getenv("FALLBACK_USER_FULL_NAME", "Fallback User"),
+                    role=os.getenv("FALLBACK_USER_ROLE", "user"),
+                    is_active=os.getenv("FALLBACK_USER_IS_ACTIVE", "true").lower() == "true",
+                    created_at=datetime.now().isoformat(),
+                    updated_at=None
+                )
+                return fallback_user
+            else:
+                print(f"Fallback password verification failed for user: {email}")
+                return None
+        else:
+            print(f"Email '{email}' does not match FALLBACK_USER_EMAIL ('{fallback_email_env}') or FALLBACK_USER_PASSWORD not set.")
+            return None
 
 # Wallet balance routes
-@app.post("/wallet-balances", response_model=WalletBalance)
+@wallet_router.post("/", response_model=WalletBalance)
 async def create_wallet_balance(
     wallet_balance: WalletBalance, 
     background_tasks: BackgroundTasks,
@@ -280,7 +316,7 @@ async def create_wallet_balance(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error creating wallet balance: {str(e)}")
 
-@app.get("/wallet-balances/{wallet_id}", response_model=List[WalletBalance])
+@wallet_router.get("/{wallet_id}", response_model=List[WalletBalance])
 async def get_wallet_balances(
     wallet_id: str,
     limit: int = 100,

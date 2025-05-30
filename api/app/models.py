@@ -1,5 +1,6 @@
 from typing import Dict, List, Optional, Any, Union
 from pydantic import BaseModel, EmailStr, Field, validator
+from pydantic.alias_generators import to_camel
 from datetime import datetime
 import uuid
 import re
@@ -70,22 +71,24 @@ class UserUpdate(BaseModel):
 class User(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     email: EmailStr
-    full_name: str
+    full_name: str # Python uses snake_case
     role: str = "user"  # Can be 'user', 'admin', etc.
     is_active: bool = True
     created_at: str = Field(default_factory=lambda: datetime.now().isoformat())
     updated_at: Optional[str] = None
     
     class Config:
+        populate_by_name = True
+        alias_generator = to_camel # Converts snake_case to camelCase for JSON keys
         json_schema_extra = {
             "example": {
                 "id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
                 "email": "user@example.com",
-                "full_name": "John Doe",
+                "fullName": "John Doe", # Example now uses camelCase
                 "role": "user",
-                "is_active": True,
-                "created_at": "2025-05-09T08:15:00.000Z",
-                "updated_at": None
+                "isActive": True,    # Example now uses camelCase
+                "createdAt": "2025-05-09T08:15:00.000Z", # Example now uses camelCase
+                "updatedAt": None    # Example now uses camelCase
             }
         }
 
@@ -95,6 +98,12 @@ class UserInDB(User):
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    # If your /token response includes the user object directly in the Token model:
+    user: Optional[User] = None # Add this if user object is part of Token response
+
+    class Config:
+        populate_by_name = True
+        alias_generator = to_camel
     
 class TokenData(BaseModel):
     user_id: Optional[str] = None
@@ -195,20 +204,14 @@ class APISettings(BaseModel):
 class Node(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str
-    websocket_url: str
+    network: str = "Avalanche"  # e.g., Avalanche, Ethereum
+    subnet: str = "Mainnet"  # e.g., Mainnet, Fuji Testnet, Sepolia
     http_url: str
+    websocket_url: Optional[str] = None
     vm: str = "EVM"  # Default to EVM
     type: str = "API"  # API, Validator, Full
-    network: str = "Avalanche"  # Avalanche, Avalanche Fuji
-    status: str = "Offline"  # Online, Offline, Degraded
-    uptime: float = 0.0
-    cpu: int = 0
-    memory: int = 0
-    disk: int = 0
-    peers: int = 0
-    version: str = ""
-    created_at: str = Field(default_factory=lambda: datetime.now().isoformat())
-    updated_at: Optional[str] = None
+    status: str = "Pending"  # Pending, Online, Offline, Degraded
+    # created_at and updated_at are handled in the API endpoint logic
 
 class NodeSettings(BaseModel):
     default_network: str

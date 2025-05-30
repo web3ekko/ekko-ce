@@ -4,7 +4,7 @@ import json
 import uuid
 import traceback
 from typing import Dict, List, Optional, Any, Union
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
 import nats
 from datetime import datetime
@@ -12,6 +12,7 @@ from nats.js.api import StreamConfig, ConsumerConfig
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
 from app.routes.settings import router as settings_router, set_js as set_settings_js
+from app.main_extension import auth_router, user_router, wallet_router
 from app.events import set_js as set_events_js, publish_event
 from app.alert_processor import start_alert_processor, stop_alert_processor
 from app.models import Node
@@ -64,8 +65,12 @@ async def lifespan(app: FastAPI):
         print(f"Connecting to NATS at {nats_url}")
         nc = await nats.connect(nats_url)
         js = nc.jetstream()
+        print(f"LIFESPAN: nc.jetstream() returned: {js} (type: {type(js)})")
+        app.state.js = js
+        print(f"LIFESPAN: app.state.js set to: {app.state.js} (type: {type(app.state.js)})") # Store js in app.state
+        set_events_js(js) # Set js for events module
+        set_settings_js(js) # Set js for settings routers
         
-        # Initialize events module with JetStream reference first
         # This is critical for event publishing to work properly
         print("Initializing event publishing system...")
         set_events_js(js)
@@ -123,9 +128,10 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(settings_router)
-
-# Set JS reference for routers
+app.include_router(settings_router, prefix="/api/settings", tags=["settings"])
+app.include_router(auth_router)  # For /token endpoint
+app.include_router(user_router)  # For /users endpoints
+app.include_router(wallet_router) # For /wallet-balances endpoints
 set_settings_js(js)
 
 # Ensure required JetStream streams and KV stores exist

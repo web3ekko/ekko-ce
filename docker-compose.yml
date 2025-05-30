@@ -35,16 +35,21 @@ services:
   nats:
     image: nats:2.10-alpine
     container_name: nats
-    command: -js -m 8222
+    command: --config /etc/nats/nats-server.conf -js -m 8222
     ports:
       - "4222:4222"   # NATS client connections
       - "8222:8222"   # HTTP monitoring
+      - "8080:8080"   # WebSocket connections
     volumes:
       - nats_data:/data
+      - ./nats-config/nats-server.conf:/etc/nats/nats-server.conf
     networks:
       - pipeline-network
     restart: unless-stopped
     healthcheck:
+      # The healthcheck relies on the HTTP monitoring port (8222 by default).
+      # If nats-server.conf disables or changes http_port, this might need adjustment.
+      # Our current nats-server.conf doesn't explicitly change it, so 8222 should still work.
       test: ["CMD", "curl", "-f", "http://localhost:8222/healthz"]
       interval: 30s
       timeout: 10s
@@ -81,6 +86,7 @@ services:
       - "8000:8000"
     environment:
       - NATS_URL=nats://nats:4222
+      - TEST_MODE="true"
     volumes:
       - ./api:/app
     restart: unless-stopped
