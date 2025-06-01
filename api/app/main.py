@@ -937,7 +937,7 @@ async def get_nodes():
         except Exception as e:
             # Return empty array if no keys found
             if "no keys found" in str(e).lower():
-                return []
+                return {"data": [], "total": 0, "page": 1, "limit": 0, "totalPages": 0}
             raise
         
         # Get all nodes
@@ -955,7 +955,13 @@ async def get_nodes():
             except Exception as e:
                 print(f"Error retrieving node {key}: {str(e)}")
         
-        return nodes
+        return {
+            "data": nodes,
+            "total": len(nodes),
+            "page": 1,
+            "limit": len(nodes) if len(nodes) > 0 else 10, # Avoid limit 0 if nodes empty, use a default
+            "totalPages": 1
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching nodes: {str(e)}")
 
@@ -1005,7 +1011,7 @@ async def create_node(node: Node, background_tasks: BackgroundTasks):
         node_json = json.dumps(node_data)
         
         # Store node in KV store
-        await kv.put(node_data["id"], node_json)
+        await kv.put(node_data["id"], node_json.encode('utf-8'))
         
         # Publish event
         background_tasks.add_task(publish_event, "node.created", node_data, ignore_errors=True)
@@ -1044,7 +1050,7 @@ async def update_node(node_id: str, node: Node, background_tasks: BackgroundTask
         node_json = json.dumps(node_data)
         
         # Store updated node in KV store
-        await kv.put(node_id, node_json)
+        await kv.put(node_id, node_json.encode('utf-8'))
         
         # Publish event
         background_tasks.add_task(publish_event, "node.updated", node_data, ignore_errors=True)

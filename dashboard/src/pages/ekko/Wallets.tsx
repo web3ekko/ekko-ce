@@ -23,9 +23,47 @@ import {
   Center
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconSearch, IconPlus, IconRefresh, IconWallet, IconCheck, IconX, IconTrash, IconEdit } from '@tabler/icons-react';
+import { useNavigate } from 'react-router-dom';
+import { IconSearch, IconPlus, IconRefresh, IconWallet, IconCheck, IconX, IconTrash, IconEdit, IconNetwork } from '@tabler/icons-react';
 
 import type { Wallet } from '@/@types/wallet';
+
+// Helper function to truncate wallet addresses
+const truncateAddress = (address: string, startChars = 6, endChars = 4) => {
+  if (!address) return '';
+  if (address.length <= startChars + endChars) return address;
+  const start = address.substring(0, startChars);
+  const end = address.substring(address.length - endChars);
+  return `${start}...${end}`;
+};
+
+const subnetOptionsByNetwork: Record<string, Array<{ value: string; label: string }>> = {
+  ETH: [
+    { value: 'mainnet', label: 'Ethereum Mainnet' },
+    { value: 'sepolia', label: 'Sepolia Testnet' },
+    { value: 'goerli', label: 'Goerli Testnet' },
+  ],
+  AVAX: [
+    { value: 'mainnet_c', label: 'Avalanche Mainnet C-Chain' },
+    { value: 'fuji_c', label: 'Fuji Testnet C-Chain' },
+    { value: 'mainnet_x', label: 'Avalanche Mainnet X-Chain' },
+    { value: 'fuji_x', label: 'Fuji Testnet X-Chain' },
+  ],
+  MATIC: [
+    { value: 'mainnet', label: 'Polygon Mainnet' },
+    { value: 'mumbai', label: 'Mumbai Testnet' },
+  ],
+  SOL: [
+    { value: 'mainnet-beta', label: 'Solana Mainnet Beta' },
+    { value: 'testnet', label: 'Solana Testnet' },
+    { value: 'devnet', label: 'Solana Devnet' },
+  ],
+  BTC: [
+    { value: 'mainnet', label: 'Bitcoin Mainnet' },
+    { value: 'testnet', label: 'Bitcoin Testnet' },
+  ],
+  // Add more networks and their subnets as needed
+};
 
 // Wallet data will be fetched from the API
 
@@ -33,11 +71,13 @@ interface WalletFormValues {
   name: string;
   address: string;
   blockchain: string;
+  subnet: string; // Added subnet
   description: string;
   isActive: boolean;
 }
 
 export default function Wallets() {
+  const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { wallets, loading, error } = useAppSelector((state) => state.wallets);
   const [searchQuery, setSearchQuery] = useState('');
@@ -50,13 +90,15 @@ export default function Wallets() {
     initialValues: {
       name: '',
       address: '',
-      blockchain: 'ETH',
+      blockchain: 'ETH', // Default blockchain
+      subnet: subnetOptionsByNetwork['ETH']?.[0]?.value || '', // Default to first subnet of default blockchain
       description: '',
       isActive: true,
     },
     validate: {
-      name: (value) => (value.trim().length < 1 ? 'Wallet name is required' : null),
-      address: (value) => {
+      name: (value: string) => (value.trim().length < 1 ? 'Wallet name is required' : null),
+      subnet: (value: string) => (value.trim().length < 1 ? 'Subnet/Chain is required' : null),
+      address: (value: string) => {
         if (value.trim().length < 1) return 'Wallet address is required';
         // Basic validation for common blockchain address formats
         // This is simplified and should be enhanced for production
@@ -96,6 +138,7 @@ export default function Wallets() {
   const handleSubmit = async (values: WalletFormValues) => {
     const walletPayload = {
       blockchain_symbol: values.blockchain,
+      subnet: values.subnet, // Added subnet
       address: values.address,
       name: values.name,
       balance: 0, // Initial balance, or let backend decide
@@ -179,24 +222,42 @@ export default function Wallets() {
               />
               
               <Select
-                label="Blockchain"
-                placeholder="Select blockchain"
+                label="Blockchain/Network"
+                placeholder="Select blockchain/network"
                 data={[
-                  { value: 'ETH', label: 'Ethereum (ETH)' },
-                  { value: 'BTC', label: 'Bitcoin (BTC)' },
-                  { value: 'AVAX', label: 'Avalanche (AVAX)' },
-                  { value: 'MATIC', label: 'Polygon (MATIC)' },
-                  { value: 'SOL', label: 'Solana (SOL)' },
+                  { value: 'ETH', label: 'Ethereum' },
+                  { value: 'AVAX', label: 'Avalanche' },
+                  { value: 'MATIC', label: 'Polygon' },
+                  { value: 'SOL', label: 'Solana' },
+                  { value: 'BTC', label: 'Bitcoin' },
+                  // Add more as needed
                 ]}
                 required
                 {...form.getInputProps('blockchain')}
+                onChange={(value) => {
+                  form.setFieldValue('blockchain', value || '');
+                  // Update subnet options and reset subnet if the new network doesn't have the current one
+                  const newSubnetOptions = subnetOptionsByNetwork[value || ''] || [];
+                  const currentSubnetIsValid = newSubnetOptions.some(opt => opt.value === form.values.subnet);
+                  if (!currentSubnetIsValid) {
+                    form.setFieldValue('subnet', newSubnetOptions[0]?.value || '');
+                  }
+                }}
               />
               
               <TextInput
-                label="Wallet Address"
-                placeholder="0x1234...5678"
+                label="Address"
+                placeholder="e.g., 0x... or bc1..."
                 required
                 {...form.getInputProps('address')}
+              />
+
+              <Select
+                label="Subnet/Chain"
+                placeholder="Select subnet/chain"
+                required
+                data={subnetOptionsByNetwork[form.values.blockchain] || []}
+                {...form.getInputProps('subnet')}
               />
               
               <Textarea
@@ -260,15 +321,29 @@ export default function Wallets() {
           </Group>
         </Group>
         
-        {loading && wallets.length === 0 ? (
+        {loading && filteredWallets.length === 0 ? (
           <Center p="xl">
             <Loader />
+          </Center>
+        ) : !loading && filteredWallets.length === 0 ? (
+          <Center mt="xl" mb="xl">
+            <Stack align="center">
+              <IconWallet size={48} stroke={1.5} color="gray" />
+              <Text size="lg" fw={500}>No wallets found</Text>
+              <Text size="sm" c="dimmed" ta="center">Create your first wallet by clicking the "Add Wallet" button above.</Text>
+            </Stack>
           </Center>
         ) : (
           <Grid>
           {paginatedWallets.map(wallet => (
             <Grid.Col span={{ base: 12, md: 6, lg: 4 }} key={wallet.id}>
-              <Card withBorder p="md" radius="md">
+              <Card 
+                withBorder 
+                p="md" 
+                radius="md" 
+                onClick={() => navigate(`/ekko/wallets/${wallet.id}`)}
+                style={{ cursor: 'pointer' }}
+              >
                 <Group justify="space-between" mb="xs">
                   <Group>
                     <IconWallet size={20} />
@@ -282,7 +357,7 @@ export default function Wallets() {
                     {wallet.status === 'active' ? 'Active' : 'Inactive'}
                   </Badge>
                 </Group>
-                <Text size="sm" c="dimmed" mb="md">{wallet.address}</Text>
+                <Text size="sm" c="dimmed" mb="md" title={wallet.address}>{truncateAddress(wallet.address)}</Text>
                 <Group justify="space-between">
                   <Text>Balance:</Text>
                   <Text fw={700}>{wallet.balance} {wallet.blockchain_symbol}</Text>

@@ -6,6 +6,8 @@ export interface Wallet {
   balance: number;
   status: string;
   subnet: string; // e.g., 'mainnet', 'sepolia', 'testnet'
+  description?: string;
+  isActive?: boolean;
   created_at?: string;
   updated_at?: string;
 }

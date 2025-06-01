@@ -39,7 +39,7 @@ func NewPipelineSupervisor(natsURL string, redisClient decoder.RedisClient /*cfg
 		return nil, fmt.Errorf("failed to get NATS JetStream context: %w", err)
 	}
 
-	kv, err := js.KeyValue("ekko_nodes") // Use the actual KV bucket name defined in your API
+	kv, err := js.KeyValue("nodes") // Use the actual KV bucket name defined in your API
 	if err != nil {
 		nc.Close() // Close connection if KV store setup fails
 		return nil, fmt.Errorf("failed to get NATS KV store 'ekko_nodes': %w", err)

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Title, 
   Text, 
@@ -14,7 +15,9 @@ import {
   Modal,
   Select,
   Center,
-  Loader
+  Loader,
+  Switch,
+  Anchor
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { 
@@ -50,8 +53,9 @@ const MOCK_NODES: Node[] = [
     websocket_url: 'wss://node1.example.com:9651/ext/bc/C/ws',
     vm: 'EVM',
     status: 'Online',
-    created_at: '2023-01-01T10:00:00Z', // Retaining for mock, though optional in interface
-    updated_at: '2023-01-10T12:00:00Z', // Retaining for mock, though optional in interface
+    is_enabled: true,
+    created_at: '2023-01-01T10:00:00Z',
+    updated_at: '2023-01-10T12:00:00Z',
   },
   {
     id: '5',
@@ -63,8 +67,9 @@ const MOCK_NODES: Node[] = [
     websocket_url: 'wss://fuji1.example.com:9651/ext/bc/C/ws',
     vm: 'EVM',
     status: 'Offline',
-    created_at: '2023-01-02T10:00:00Z', // Retaining for mock, though optional in interface
-    updated_at: '2023-01-05T12:00:00Z', // Retaining for mock, though optional in interface
+    is_enabled: false,
+    created_at: '2023-01-02T10:00:00Z',
+    updated_at: '2023-01-05T12:00:00Z',
   },
 ];
 
@@ -75,6 +80,7 @@ export default function Nodes() {
   const [nodes, setNodes] = useState<Node[]>(MOCK_NODES);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [updatingNodeId, setUpdatingNodeId] = useState<string | null>(null);
   
   // Form for creating a new node
   const form = useForm({
@@ -102,6 +108,57 @@ export default function Nodes() {
       subnet: (value) => (value ? null : 'Subnet is required'),
     },
   });
+  
+  const navigate = useNavigate();
+
+  const handleToggleNodeEnabled = async (nodeToUpdate: Node, isEnabled: boolean) => {
+    setUpdatingNodeId(nodeToUpdate.id);
+    const originalNodes = [...nodes]; // Store original state for potential rollback
+
+    // Optimistic update
+    setNodes(currentNodes =>
+      currentNodes.map(n =>
+        n.id === nodeToUpdate.id ? { ...n, is_enabled: isEnabled } : n
+      )
+    );
+
+    try {
+      // Prepare the payload for the update. Only send fields that can be updated.
+      // Assuming the backend can handle partial updates or we send the whole node object with the change.
+      // For now, let's send the essential parts plus the changed is_enabled field.
+      // The backend Node model has defaults, so we might only need to send changed fields.
+      // However, the updateNode API in ekko.ts expects a full Node object or CreateNodePayload.
+      // Let's assume we need to send most of the node's data back.
+      const payload: Partial<Node> & { is_enabled: boolean } = {
+        // Spreading nodeToUpdate might include fields like created_at, updated_at, id, status etc.
+        // which the backend might not expect or want to be user-modifiable directly in an update.
+        // Let's be more specific based on what `updateNode` likely expects or what `CreateNodePayload` contains.
+        name: nodeToUpdate.name,
+        network: nodeToUpdate.network,
+        subnet: nodeToUpdate.subnet,
+        http_url: nodeToUpdate.http_url,
+        websocket_url: nodeToUpdate.websocket_url,
+        vm: nodeToUpdate.vm,
+        type: nodeToUpdate.type, // Assuming type can be part of an update
+        is_enabled: isEnabled,
+      };
+      // The payload should be the full Node object as updateNode expects one argument
+      const fullPayload: Node = {
+        ...nodeToUpdate, // ensure all existing fields are present
+        ...payload, // override with specific changes
+        is_enabled: isEnabled // explicitly set is_enabled
+      };
+      await nodesApi.updateNode(fullPayload);
+      // Optionally, show a success notification
+      // console.log(`Node ${nodeToUpdate.name} ${isEnabled ? 'enabled' : 'disabled'}`);
+    } catch (err) {
+      console.error('Failed to update node status:', err);
+      // Rollback optimistic update
+      setNodes(originalNodes);
+      // Optionally, show an error notification
+    }
+    setUpdatingNodeId(null);
+  };
   
   // Function to fetch nodes from API
   const fetchNodes = async () => {
@@ -169,7 +226,7 @@ export default function Nodes() {
       setLoading(false);
     }
   };
-  
+
   // Filter nodes based on search query and active tab
   const filteredNodes = nodes.filter(node => {
     const matchesSearch = 
@@ -244,19 +301,20 @@ export default function Nodes() {
               <Table.Th>Name</Table.Th>
               <Table.Th>Network / Subnet</Table.Th>
               <Table.Th>Status</Table.Th>
-              <Table.Th></Table.Th>
+              <Table.Th>Enabled</Table.Th>
+              <Table.Th>Details</Table.Th>
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
             {filteredNodes.map(node => (
               <Table.Tr key={node.id}>
-                <Table.Td>
+                <Table.Td onClick={() => navigate(`/ekko/nodes/${node.id}`)} style={{ cursor: 'pointer' }}>
                   <Group gap="sm">
                     <IconServer size={16} />
                     <Text size="sm">{node.name}</Text>
                   </Group>
                 </Table.Td>
-                <Table.Td>
+                <Table.Td onClick={() => navigate(`/ekko/nodes/${node.id}`)} style={{ cursor: 'pointer' }}>
                   <Text size="sm">{node.network} ({node.subnet})</Text>
                 </Table.Td>
                 <Table.Td>
@@ -269,9 +327,12 @@ export default function Nodes() {
                   </Badge>
                 </Table.Td>
                 <Table.Td>
-                  <ActionIcon variant="subtle">
-                    <IconChevronRight size={16} />
-                  </ActionIcon>
+                  <Switch
+                    checked={node.is_enabled}
+                    onChange={(event) => handleToggleNodeEnabled(node, event.currentTarget.checked)}
+                    disabled={updatingNodeId === node.id}
+                    labelPosition="left"
+                  />
                 </Table.Td>
               </Table.Tr>
             ))}

@@ -211,6 +211,7 @@ class Node(BaseModel):
     vm: str = "EVM"  # Default to EVM
     type: str = "API"  # API, Validator, Full
     status: str = "Pending"  # Pending, Online, Offline, Degraded
+    is_enabled: bool = True  # User-controlled flag for pipeline usage
     # created_at and updated_at are handled in the API endpoint logic
 
 class NodeSettings(BaseModel):

@@ -20,11 +20,12 @@
   },
   "dependencies": {
     "@mantine/charts": "^7.15.1",
-    "@mantine/core": "^7.15.1",
+    "@mantine/core": "8.0.2",
     "@mantine/dates": "^7.15.1",
     "@mantine/form": "^7.15.1",
-    "@mantine/hooks": "^7.15.1",
+    "@mantine/hooks": "8.0.2",
     "@mantine/modals": "^7.15.1",
+    "@mantine/notifications": "^8.0.2",
     "@reduxjs/toolkit": "^2.2.3",
     "@tabler/icons-react": "^3.1.0",
     "axios": "^1.6.8",
@@ -44,7 +45,8 @@
     "redux": "^5.0.1",
     "redux-persist": "^6.0.0",
     "yarn": "^1.22.22",
-    "yup": "^1.4.0"
+    "yup": "^1.4.0",
+    "zod": "^3.25.42"
   },
   "devDependencies": {
     "@storybook/addon-essentials": "^8.0.0",

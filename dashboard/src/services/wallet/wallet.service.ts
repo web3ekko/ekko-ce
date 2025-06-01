@@ -65,7 +65,7 @@ export const WalletService = {
       const res = await ApiService.fetchData<Partial<Wallet>, Wallet>({
         url: `/wallets/${id}`,
         method: 'PUT',
-        data: { ...walletData, id }
+        data: walletData
       });
       return res.data;
     } catch (error) {

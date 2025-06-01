@@ -55,6 +55,19 @@ export const deleteWallet = createAsyncThunk(
   }
 );
 
+// Async thunk to fetch a single wallet by ID
+export const fetchWalletById = createAsyncThunk(
+  'wallets/fetchWalletById',
+  async (walletId: string, { rejectWithValue }) => {
+    try {
+      const data = await WalletService.getWallet(walletId);
+      return data;
+    } catch (err: any) {
+      return rejectWithValue(err.message || 'Failed to fetch wallet by ID');
+    }
+  }
+);
+
 // Async thunk to update a wallet
 export const updateWallet = createAsyncThunk(
   'wallets/updateWallet',
@@ -125,6 +138,25 @@ const walletsSlice = createSlice({
         state.loading = false; // fetchWallets will update the list and loading state
       })
       .addCase(updateWallet.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      // Fetch Wallet By ID
+      .addCase(fetchWalletById.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchWalletById.fulfilled, (state, action: PayloadAction<Wallet>) => {
+        const fetchedWallet = action.payload;
+        const index = state.wallets.findIndex(w => w.id === fetchedWallet.id);
+        if (index !== -1) {
+          state.wallets[index] = fetchedWallet; // Update existing
+        } else {
+          state.wallets.push(fetchedWallet); // Add if not found (e.g., direct navigation)
+        }
+        state.loading = false;
+      })
+      .addCase(fetchWalletById.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       });

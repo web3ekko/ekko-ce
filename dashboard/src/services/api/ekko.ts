@@ -90,16 +90,19 @@ export interface Node {
   network: string;     // e.g., 'Avalanche', 'Ethereum'
   subnet: string;      // e.g., 'Mainnet', 'Fuji Testnet', 'Sepolia'
   http_url: string;    // Primary HTTP/RPC endpoint
-  websocket_url?: string; // Optional WebSocket endpoint
-  vm?: string;          // e.g., 'EVM'
+  websocket_url: string; // WebSocket endpoint
+  vm: string;          // e.g., 'EVM'
   type: string;        // e.g., 'API', 'Validator'
   status: string;      // e.g., 'Pending', 'Online', 'Offline', 'Syncing'
-  // The backend now also adds created_at and updated_at to the raw response data for POST/PUT,
-  // but they are not part of the core Pydantic model for GET /nodes.
-  // If they are consistently returned by GET /nodes and GET /nodes/{id}, they can be added here.
-  // For now, assuming they are not part of the primary GET /nodes list model.
-  created_at?: string; // Optional: if backend GET /nodes includes it
-  updated_at?: string; // Optional: if backend GET /nodes includes it
+  is_enabled: boolean; // User-controlled flag for pipeline usage
+  uptime?: number;      // Percentage or seconds
+  cpu?: number;         // Percentage
+  memory?: number;      // Percentage or MB
+  disk?: number;        // Percentage or GB
+  peers?: number;
+  version?: string;
+  created_at: string;  // ISO date string
+  updated_at: string;  // ISO date string
 }
 
 // Payload for creating a new node
@@ -108,8 +111,8 @@ export interface CreateNodePayload {
   network: string;
   subnet: string;
   http_url: string;
-  websocket_url?: string;
-  vm?: string;          // Defaulted to 'EVM' by backend if not sent
+  websocket_url: string;
+  vm: string;
   type?: string;        // Defaulted to 'API' by backend if not sent
 }
 
@@ -339,8 +342,19 @@ export const nodesApi = {
     try {
       const response = await api.put(`/nodes/${node.id}`, node);
       return response.data;
-    } catch (error) {
-      console.error(`Error updating node ${node.id}:`, error);
+    } catch (error: any) {
+      console.error(`[ekko.ts] Error updating node ${node.id} - Raw error:`, error);
+      if (error.response) {
+        // Axios-like error structure
+        console.error(`[ekko.ts] Error updating node ${node.id} - Status:`, error.response.status);
+        console.error(`[ekko.ts] Error updating node ${node.id} - Headers:`, JSON.stringify(error.response.headers, null, 2));
+        console.error(`[ekko.ts] Error updating node ${node.id} - Data:`, JSON.stringify(error.response.data, null, 2));
+      } else {
+        // Non-Axios error or other issue
+        console.error(`[ekko.ts] Error updating node ${node.id} - Message:`, error.message);
+        console.error(`[ekko.ts] Error updating node ${node.id} - Stack:`, error.stack);
+      }
+      console.error(`[ekko.ts] Error updating node ${node.id} - Full JSON.stringify:`, JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
       throw error;
     }
   }
