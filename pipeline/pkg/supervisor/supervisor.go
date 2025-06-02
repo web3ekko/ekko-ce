@@ -2,210 +2,335 @@ package supervisor
 
 import (
 	"context"
+	"errors"
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/nats-io/nats.go"
-	// "github.com/web3ekko/ekko-ce/pipeline/internal/config" // Assuming config path
-	"github.com/web3ekko/ekko-ce/pipeline/pkg/listeners" // Added for NewHeadListener
-	"github.com/web3ekko/ekko-ce/pipeline/pkg/common"    // For common.NodeConfig
-	"github.com/web3ekko/ekko-ce/pipeline/pkg/decoder"  // For decoder.RedisClient
+	"github.com/web3ekko/ekko-ce/pipeline/pkg/common"
+	"github.com/web3ekko/ekko-ce/pipeline/pkg/decoder"
 )
 
-// PipelineSupervisor manages the lifecycle of NewHeadListener and BlockFetcher services.
+// kvStoreKeyPrefix is used for keys in the NATS KV store for node configurations.
+const kvStoreKeyPrefix = "nodestore."
+
+// newManagedPipelineFunc is a function variable that allows replacing the pipeline creation logic for testing.
+var newManagedPipelineFunc = NewManagedPipeline
+
+
+
+
+// PipelineSupervisor manages the lifecycle of blockchain data pipelines based on node configurations.
 type PipelineSupervisor struct {
 	natsConn         *nats.Conn
-	kvStore          nats.KeyValue                 // NATS Key-Value store for node configurations
-	runningServices  map[string]context.CancelFunc // Key: serviceIdentifier (e.g., nodeID or nodeID_vmType), Value: cancel function
+	kvStore          nats.KeyValue
+	kvMutex          sync.Mutex                    // Mutex for KV store operations (e.g., in updateNodeStatusInKV)
+	servicesMutex    sync.Mutex                    // Mutex for s.runningServices map
+	runningServices  map[string]ManagedPipelineInterface   // Key: compositeKey (Network-Subnet-VMType), Value: ManagedPipeline instance
 	supervisorCtx    context.Context               // Main context for the supervisor's operations
 	supervisorCancel context.CancelFunc            // To cancel the supervisor's own context
-	// config   config.Config // General pipeline configuration
 	redisClient      decoder.RedisClient           // Redis client for EVM decoder in BlockFetcher
+	// initWg           sync.WaitGroup              // Retained from previous checkpoint, if needed for startup synchronization
 }
 
-// NewPipelineSupervisor creates a new supervisor instance.
-func NewPipelineSupervisor(natsURL string, redisClient decoder.RedisClient /*cfg config.Config*/) (*PipelineSupervisor, error) {
-	nc, err := nats.Connect(natsURL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to NATS at %s: %w", natsURL, err)
+// NewPipelineSupervisor creates a new PipelineSupervisor.
+func NewPipelineSupervisor(
+	nc *nats.Conn,
+	kv nats.KeyValue,
+	redisClient decoder.RedisClient,
+) (*PipelineSupervisor, error) {
+	if nc == nil {
+		return nil, fmt.Errorf("NATS connection cannot be nil")
 	}
-
-	// Get JetStream context
-	js, err := nc.JetStream()
-	if err != nil {
-		nc.Close()
-		return nil, fmt.Errorf("failed to get NATS JetStream context: %w", err)
-	}
-
-	kv, err := js.KeyValue("nodes") // Use the actual KV bucket name defined in your API
-	if err != nil {
-		nc.Close() // Close connection if KV store setup fails
-		return nil, fmt.Errorf("failed to get NATS KV store 'ekko_nodes': %w", err)
+	if kv == nil {
+		return nil, fmt.Errorf("NATS KV store cannot be nil")
 	}
 
 	return &PipelineSupervisor{
 		natsConn:        nc,
 		kvStore:         kv,
-		// config:   cfg,
-		runningServices: make(map[string]context.CancelFunc),
+		runningServices: make(map[string]ManagedPipelineInterface),
 		redisClient:     redisClient,
 	}, nil
 }
 
-// Run starts the supervisor's main loop, periodically checking node configurations
-// and managing the associated services.
+// Run starts the PipelineSupervisor's main loop, listening for context cancellation.
 func (s *PipelineSupervisor) Run(ctx context.Context) error {
-	log.Println("PipelineSupervisor Run: Starting...")
-	s.supervisorCtx, s.supervisorCancel = context.WithCancel(ctx) // Create cancellable context for supervisor's own lifetime
+	log.Println("PipelineSupervisor: Starting...")
+	s.supervisorCtx, s.supervisorCancel = context.WithCancel(ctx)
+	defer s.supervisorCancel()
 
-	defer func() {
-		log.Println("PipelineSupervisor Run: Deferred shutdown actions starting...")
-		s.shutdownAllServices() // Gracefully stop all managed goroutines
-
-		if s.supervisorCancel != nil {
-			log.Println("PipelineSupervisor Run: Cancelling supervisor's internal context.")
-			s.supervisorCancel() // Cancel the supervisor's own context
-		}
-		if s.natsConn != nil {
-			log.Println("PipelineSupervisor Run: Closing NATS connection.")
-			s.natsConn.Close() // Ensure NATS connection is closed on exit
-		}
-		log.Println("PipelineSupervisor Run: Fully stopped.")
-	}()
-
-	// Perform an initial synchronization of services when the supervisor starts.
-	if err := s.synchronizeServices(s.supervisorCtx); err != nil { // Pass down the supervisor's cancellable context
+	if err := s.synchronizeServices(s.supervisorCtx); err != nil {
 		log.Printf("Initial service synchronization failed: %v", err)
-		// For now, we'll log and continue. Consider if this should be fatal.
 	}
 
-	// Ticker for periodic checks.
-	ticker := time.NewTicker(30 * time.Second) // Example: check every 30 seconds
+	natsSubscription, err := s.natsConn.Subscribe("nodes", func(msg *nats.Msg) {
+		log.Printf("PipelineSupervisor: Received event on subject '%s', triggering service synchronization.", msg.Subject)
+		if err := s.synchronizeServices(s.supervisorCtx); err != nil {
+			log.Printf("PipelineSupervisor: Error during event-triggered service synchronization: %v", err)
+		}
+	})
+	if err != nil {
+		log.Printf("PipelineSupervisor: Failed to subscribe to 'nodes' NATS subject: %v. Will rely on ticker only.", err)
+	} else {
+		log.Println("PipelineSupervisor: Subscribed to 'nodes' NATS subject for event-triggered synchronization.")
+		defer func() {
+			log.Println("PipelineSupervisor: Unsubscribing from 'nodes' NATS subject.")
+			if err := natsSubscription.Unsubscribe(); err != nil {
+				log.Printf("PipelineSupervisor: Error unsubscribing from 'nodes': %v", err)
+			}
+		}()
+	}
+
+	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
 	log.Println("PipelineSupervisor Run: Entering main loop.")
 	for {
 		select {
-		case <-ctx.Done(): // Main context from the caller is done (e.g., OS signal)
-			log.Println("PipelineSupervisor Run: Main context cancelled by caller. Initiating shutdown...")
-			return ctx.Err() // Propagate the cancellation error
-
-		case <-s.supervisorCtx.Done(): // Supervisor's internal context is done (e.g., self-initiated shutdown or error)
-			log.Println("PipelineSupervisor Run: Supervisor's internal context cancelled.")
+		case <-s.supervisorCtx.Done():
+			log.Println("PipelineSupervisor: Context cancelled, shutting down services...")
+			s.shutdownAllServices()
+			log.Println("PipelineSupervisor: Shutdown complete.")
 			return s.supervisorCtx.Err()
-
 		case <-ticker.C:
-			log.Println("PipelineSupervisor Run: Tick. Time to synchronize services.")
-			if err := s.synchronizeServices(s.supervisorCtx); err != nil { // Pass down the supervisor's cancellable context
-				log.Printf("Error during service synchronization: %v", err)
+			log.Println("PipelineSupervisor: Periodic check triggered, synchronizing services...")
+			if err := s.synchronizeServices(s.supervisorCtx); err != nil {
+				log.Printf("PipelineSupervisor: Error during periodic service synchronization: %v", err)
 			}
 		}
 	}
 }
 
-// synchronizeServices fetches the current node configurations from NATS KV
-// and starts, stops, or updates services as necessary.
-// ctx here is s.supervisorCtx
+// synchronizeServices fetches all node configurations from the KV store and reconciles running services.
 func (s *PipelineSupervisor) synchronizeServices(ctx context.Context) error {
-	log.Println("Synchronizing services with NATS KV store...")
+	log.Println("PipelineSupervisor: Synchronizing services...")
+	s.servicesMutex.Lock()
+	defer s.servicesMutex.Unlock()
 
-	// 1. Get all node configuration keys from the KV store.
-	keys, err := s.kvStore.Keys()
+	keys, err := s.kvStore.Keys() // This gets all keys, not just those with kvStoreKeyPrefix
 	if err != nil {
-		return fmt.Errorf("failed to list keys from NATS KV store 'ekko_nodes': %w", err)
+		if errors.Is(err, nats.ErrNoKeysFound) {
+			log.Println("PipelineSupervisor: No keys found in KV store (or bucket is empty), treating as zero active nodes.")
+			keys = []string{} // Ensure keys is an empty slice so downstream logic sees no nodes
+			// No error returned, proceed to reconcile with zero active nodes
+		} else {
+			// It's a different error, so report it
+			log.Printf("PipelineSupervisor: Error fetching keys from KV store: %v", err)
+			return fmt.Errorf("error fetching keys from KV store: %w", err)
+		}
 	}
-	log.Printf("Found %d keys in KV store: %v", len(keys), keys)
 
-
-	currentDesiredServices := make(map[string]common.NodeConfig) // Stores configs of nodes that should have active services
-
-	// 2. For each key, get the node configuration.
+	// 1. Group NodeConfigs by Network+Subnet+VMType.
+	groupedNodeConfigs := make(map[string][]common.NodeConfig)
 	for _, key := range keys {
-		entry, err := s.kvStore.Get(key)
-		if err != nil {
-			log.Printf("Error fetching KV entry for key %s: %v", key, err)
-			continue // Skip this node, or handle error more robustly
+		// Ensure we only process keys relevant to node configurations if a prefix is used elsewhere.
+		// For now, assuming all keys in this KV store are node configs or this check is handled by prefix on Get.
+		// If kvStoreKeyPrefix is defined and used for Put, Keys() might return unprefixed keys or this needs filtering.
+		// For simplicity, assuming 'key' is the direct key used in s.kvStore.Get() for node configs.
+		// If nodeID in updateNodeStatusInKV is UUID, and keyInKV = kvStoreKeyPrefix + nodeID, then keys here should match that pattern.
+		if !strings.HasPrefix(key, kvStoreKeyPrefix) { // Assuming kvStoreKeyPrefix is defined globally or on 's'
+			// log.Printf("PipelineSupervisor: Skipping key %s as it does not match node config prefix %s", key, kvStoreKeyPrefix)
+			continue // Skip keys not matching our pattern if prefix is used consistently
 		}
 
-		var nodeCfg common.NodeConfig
-		if err := json.Unmarshal(entry.Value(), &nodeCfg); err != nil {
-			log.Printf("Error unmarshalling node config for key %s (value: %s): %v", key, string(entry.Value()), err)
-			continue // Skip malformed entries
+		entry, errK := s.kvStore.Get(key)
+		if errK != nil {
+			log.Printf("PipelineSupervisor: Error fetching entry for key %s: %v", key, errK)
+			continue
 		}
-		
-		log.Printf("Processing node config: ID=%s, Name=%s, Network=%s, VMType=%s, IsEnabled=%t",
-			nodeCfg.ID, nodeCfg.Name, nodeCfg.Network, nodeCfg.VMType, nodeCfg.IsEnabled)
+		var nodeCfg common.NodeConfig
+		if errJ := json.Unmarshal(entry.Value(), &nodeCfg); errJ != nil {
+			log.Printf("PipelineSupervisor: Error unmarshalling node config for key %s: %v", key, errJ)
+			continue
+		}
 
 		if nodeCfg.IsEnabled {
-			serviceIdentifier := nodeCfg.ID // Assuming ID is unique and sufficient for now
-			currentDesiredServices[serviceIdentifier] = nodeCfg
-
-			if _, isRunning := s.runningServices[serviceIdentifier]; !isRunning {
-				log.Printf("Attempting to start services for enabled node: %s (ID: %s, VM: %s)", nodeCfg.Name, nodeCfg.ID, nodeCfg.VMType)
-				s.startNodeServices(ctx, nodeCfg, serviceIdentifier) // Pass down the supervisor's context
-			} else {
-				// TODO: Handle updates to existing services if config changed (e.g., WSS URL)
-				// This might involve stopping and restarting the specific service.
-				log.Printf("Services for node %s (ID: %s) already running. (Update logic TBD)", nodeCfg.Name, serviceIdentifier)
-			}
+			pipelineID := generatePipelineID(nodeCfg)
+			groupedNodeConfigs[pipelineID] = append(groupedNodeConfigs[pipelineID], nodeCfg)
 		}
 	}
 
-	// 3. Stop services for nodes that are no longer in the KV store, are marked as disabled, or whose configs led to errors.
-	for serviceID, cancelFunc := range s.runningServices {
-		if _, stillDesired := currentDesiredServices[serviceID]; !stillDesired {
-			log.Printf("Attempting to stop services for service ID: %s (node removed, disabled, or config error)", serviceID)
-			if cancelFunc != nil {
-				cancelFunc() // Trigger the context cancellation for the service goroutines
+	log.Printf("PipelineSupervisor: Found %d active pipeline groups from KV store.", len(groupedNodeConfigs))
+
+	currentPipelineIDs := make(map[string]bool)
+
+	// 2. For each group, create or update a ManagedPipeline instance.
+	for pipelineID, nodesInGroup := range groupedNodeConfigs {
+		currentPipelineIDs[pipelineID] = true
+		if len(nodesInGroup) == 0 { // Should not happen if only IsEnabled nodes are added
+			continue
+		}
+
+		if existingPipeline, ok := s.runningServices[pipelineID]; ok {
+			// Pipeline exists, update its node configurations
+			log.Printf("PipelineSupervisor: Updating existing pipeline %s with %d nodes.", pipelineID, len(nodesInGroup))
+			err := existingPipeline.UpdateNodeConfigs(nodesInGroup)
+			if err != nil {
+				log.Printf("PipelineSupervisor: Error updating node configs for pipeline %s: %v", pipelineID, err)
 			}
-			delete(s.runningServices, serviceID)
+		} else {
+			// Pipeline does not exist, create and start a new one
+			log.Printf("PipelineSupervisor: Creating new pipeline %s for %d nodes.", pipelineID, len(nodesInGroup))
+			// Extract network, subnet, vmType from the first node (they are the same for the group)
+			firstNode := nodesInGroup[0]
+			newPipeline, err := newManagedPipelineFunc(
+				s.supervisorCtx, // Pass the supervisor's main context
+				firstNode.Network,
+				firstNode.Subnet,
+				firstNode.VMType,
+				nodesInGroup,
+				s.natsConn,
+				s.redisClient,
+				s.updateNodeStatusInKV, // Pass the callback method
+			)
+			if err != nil {
+				log.Printf("PipelineSupervisor: Error creating new pipeline %s: %v", pipelineID, err)
+				continue
+			}
+			s.runningServices[pipelineID] = newPipeline
+
+			// Call UpdateNodeConfigs for the new pipeline with its initial set of nodes
+			if err := newPipeline.UpdateNodeConfigs(nodesInGroup); err != nil {
+				log.Printf("PipelineSupervisor: Error initially configuring new pipeline %s: %v", pipelineID, err)
+				// Decide if we should continue without this pipeline or remove it
+				delete(s.runningServices, pipelineID) // Example: remove if initial config fails
+				continue
+			}
+
+			go newPipeline.Run() // Run the pipeline in a new goroutine
+			log.Printf("PipelineSupervisor: Started new pipeline %s after initial configuration.", pipelineID)
 		}
 	}
 
+	// 3. Stop ManagedPipelines for groups that no longer exist or have no enabled nodes.
+	for pipelineID, managedPipeline := range s.runningServices {
+		if !currentPipelineIDs[pipelineID] {
+			activeNodesInGroup := groupedNodeConfigs[pipelineID]
+			log.Printf("PipelineSupervisor: Pipeline %s no longer active or has no enabled nodes. Updating with %d nodes before stopping.", pipelineID, len(activeNodesInGroup))
+			managedPipeline.UpdateNodeConfigs(activeNodesInGroup) // Inform the pipeline it has no active nodes
+
+			log.Printf("PipelineSupervisor: Stopping pipeline %s...", pipelineID)
+			managedPipeline.Stop() // This should handle context cancellation and cleanup
+			delete(s.runningServices, pipelineID)
+			log.Printf("PipelineSupervisor: Pipeline %s stopped and removed.", pipelineID)
+		}
+	}
+
+	log.Printf("PipelineSupervisor: Service synchronization complete. %d pipelines running.", len(s.runningServices))
+	return nil
+}
+
+// shutdownAllServices iterates over running services and signals them to stop.
+func (s *PipelineSupervisor) shutdownAllServices() {
+	log.Println("PipelineSupervisor: Initiating shutdown of all managed services...")
+	// s.kvMutex.Lock() // Lock if modifying runningServices map concurrently, though usually called in sequence
+	// defer s.kvMutex.Unlock()
+
+	var wg sync.WaitGroup
+	for id, pipeline := range s.runningServices {
+		wg.Add(1)
+		go func(pid string, p ManagedPipelineInterface) {
+			defer wg.Done()
+			log.Printf("PipelineSupervisor: Stopping pipeline %s...", pid)
+			if p != nil {
+				p.Stop()
+				p.Wait()
+			}
+			log.Printf("PipelineSupervisor: Pipeline %s stopped.", pid)
+		}(id, pipeline)
+	}
+	wg.Wait()
+	// delete(s.runningServices, id) // Temporarily removed, will be handled by ManagedPipeline's lifecycle
+	log.Println("PipelineSupervisor: All services have been signaled to stop and are shutting down.")
+}
+
+// generatePipelineID creates a unique identifier for a pipeline based on network, subnet, and VM type.
+func generatePipelineID(nodeCfg common.NodeConfig) string {
+	return fmt.Sprintf("%s-%s-%s",
+		strings.ToLower(nodeCfg.Network),
+		strings.ToLower(nodeCfg.Subnet),
+		strings.ToLower(nodeCfg.VMType),
+	)
+}
+
+// updateNodeStatusInKV fetches a node's configuration from the KV store, updates its status fields,
+// and writes it back. This will trigger a NATS event which in turn causes synchronizeServices.
+// The nodeID here is the actual key in the KV store (e.g., the UUID of the node).
+func (s *PipelineSupervisor) updateNodeStatusInKV(nodeID string, status string, errMsg string) error {
+	s.kvMutex.Lock()
+	defer s.kvMutex.Unlock()
+
+	keyInKV := kvStoreKeyPrefix + nodeID // If nodeID is already the full key, prefix might be empty.
+
+	entry, err := s.kvStore.Get(keyInKV)
+	if err != nil {
+		if err == nats.ErrKeyNotFound {
+			log.Printf("PipelineSupervisor: Cannot update status for node %s (key: %s), not found in KV store.", nodeID, keyInKV)
+			return fmt.Errorf("node %s (key: %s) not found in KV store: %w", nodeID, keyInKV, err)
+		}
+		log.Printf("PipelineSupervisor: Error fetching node %s (key: %s) from KV store for status update: %v", nodeID, keyInKV, err)
+		return fmt.Errorf("failed to get node %s (key: %s) from KV store: %w", nodeID, keyInKV, err)
+	}
+
+	var nodeCfg common.NodeConfig
+	if err := json.Unmarshal(entry.Value(), &nodeCfg); err != nil {
+		log.Printf("PipelineSupervisor: Error unmarshalling node %s (key: %s) for status update: %v", nodeID, keyInKV, err)
+		return fmt.Errorf("failed to unmarshal node %s (key: %s): %w", nodeID, keyInKV, err)
+	}
+
+	// Update status fields
+	previousStatus := nodeCfg.Status
+	nodeCfg.Status = status
+	nodeCfg.LastStatusUpdate = time.Now().UTC().Format(time.RFC3339)
+
+	if errMsg != "" {
+		nodeCfg.LastError = errMsg
+	} else if status == common.NodeStatusActive { // Clear error if status is now Active
+		nodeCfg.LastError = ""
+	}
+
+	// Avoid unnecessary KV writes if status and error message haven't changed meaningfully
+	// Only skip if status is the same AND (either no error OR the same error message)
+	if previousStatus == nodeCfg.Status && ((errMsg == "" && nodeCfg.LastError == "") || (errMsg != "" && nodeCfg.LastError == errMsg)) {
+		// Log this decision but still update LastStatusUpdate by proceeding with the write
+		log.Printf("PipelineSupervisor: Node %s status '%s' and error '%s' effectively unchanged. Will still update timestamp.", nodeID, status, errMsg)
+	}
+
+	updatedJSON, err := json.Marshal(nodeCfg)
+	if err != nil {
+		log.Printf("PipelineSupervisor: Error marshalling updated node %s (key: %s) for status update: %v", nodeID, keyInKV, err)
+		return fmt.Errorf("failed to marshal updated node %s (key: %s): %w", nodeID, keyInKV, err)
+	}
+
+	if _, err := s.kvStore.Put(keyInKV, updatedJSON); err != nil {
+		log.Printf("PipelineSupervisor: Error writing updated node %s (key: %s) to KV store: %v", nodeID, keyInKV, err)
+		return fmt.Errorf("failed to put updated node %s (key: %s) to KV store: %w", nodeID, keyInKV, err)
+	}
+
+	log.Printf("PipelineSupervisor: Updated status for node %s (key: %s) to '%s'. Error: '%s'", nodeID, keyInKV, status, errMsg)
 	return nil
 }
 
 // startNodeServices launches the necessary services (NewHeadListener, etc.) for a given node.
 // ctx is s.supervisorCtx
 func (s *PipelineSupervisor) startNodeServices(ctx context.Context, nodeCfg common.NodeConfig, serviceIdentifier string) {
-	log.Printf("startNodeServices: Launching services for %s (ID: %s)", nodeCfg.Name, serviceIdentifier)
-	// Create a new context that can be cancelled independently for this specific service/node.
-	childCtx, childCancel := context.WithCancel(ctx)
-	s.runningServices[serviceIdentifier] = childCancel
+	/* --- OLD LOGIC - TO BE REPLACED BY ManagedPipeline --- 
+	// Create a new context for this specific service (or group of services for a node)
+	// This allows individual cancellation of a service without stopping the entire supervisor.
+	childCtx, childCancel := context.WithCancel(ctx) // Use the passed-down supervisor's context as parent
+	// s.runningServices[serviceIdentifier] = childCancel // Store the cancel func to stop it later - Now map[string]*ManagedPipeline
 
-	// Start NewHeadListener for this node
-	listener := listeners.NewNewHeadListener(nodeCfg, s.natsConn)
-	go func() {
-		log.Printf("Supervisor: NewHeadListener goroutine starting for node %s (ID: %s, WSS: %s)", nodeCfg.Name, nodeCfg.ID, nodeCfg.WssURL)
-		if err := listener.Run(childCtx); err != nil && err != context.Canceled {
-			log.Printf("Supervisor: NewHeadListener for node %s (ID: %s) exited with error: %v", nodeCfg.Name, nodeCfg.ID, err)
-			// The service's context (childCtx) will be cancelled by the supervisor if the node is disabled/removed.
-			// If the listener exits due to an internal error not context.Canceled, it will stop.
-			// The supervisor's periodic sync might attempt to restart it if the node config is still valid and enabled.
-			// Consider adding logic here or in the listener to manage s.runningServices entry upon self-termination.
-		}
-		log.Printf("Supervisor: NewHeadListener goroutine stopped for node %s (ID: %s)", nodeCfg.Name, nodeCfg.ID)
-	}()
+	log.Printf("Starting services for node: %s (ID: %s, Network: %s, VM: %s)", nodeCfg.Name, nodeCfg.ID, nodeCfg.Network, nodeCfg.VMType)
 
-	// TODO: Start BlockFetcher for this node's VMType if not already running.
+	// Example: Launching a NewHeadListener
+	// Adjust according to actual service components and their needs.
+	// listener := listeners.NewNewHeadListener(nodeCfg, s.natsConn) // Assuming NewHeadListener is adapted or replaced
 	// BlockFetchers might be managed per VMType rather than per node if they subscribe to a wildcard subject.
-}
-
-// shutdownAllServices gracefully stops all services managed by the supervisor.
-func (s *PipelineSupervisor) shutdownAllServices() {
-	log.Println("shutdownAllServices: Initiating shutdown of all managed services...")
-	count := 0
-	for id, cancel := range s.runningServices {
-		log.Printf("shutdownAllServices: Sending stop signal to service %s...", id)
-		if cancel != nil {
-			cancel() // Signal the service's context to be cancelled
-			count++
-		}
-	}
-	// Note: This doesn't wait for goroutines to actually finish, just signals them.
-	// For a more robust shutdown, a sync.WaitGroup could be used in startNodeServices
-	// and waited upon here after all cancel() calls.
-	log.Printf("shutdownAllServices: All %d active services signaled to stop.", count)
+	--- END OLD LOGIC --- */
+	log.Printf("PipelineSupervisor: startNodeServices for %s called (currently a stub). Logic to be replaced by ManagedPipeline management.", serviceIdentifier)
 }

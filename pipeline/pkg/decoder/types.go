@@ -2,7 +2,6 @@ package decoder
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"strings"
 	"time"
@@ -47,10 +46,6 @@ type DecodedCall struct {
 	Params   map[string]interface{} `json:"params"`
 }
 
-// hexToBytes converts a hex string to bytes
-func hexToBytes(h string) ([]byte, error) {
-	return hex.DecodeString(strings.TrimPrefix(h, "0x"))
-}
 
 // getRedisKey constructs a Redis key for various types
 func getRedisKey(keyType string, parts ...string) string {

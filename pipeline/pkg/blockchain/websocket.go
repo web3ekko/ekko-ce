@@ -1,8 +1,10 @@
 package blockchain
 
+
+
 import (
 	"bytes"
-	"context"
+	"context" // Added import for context
 	"encoding/json"
 	"fmt"
 	"log"
@@ -18,7 +20,7 @@ type WebSocketSource struct {
 	url     string
 	httpURL string
 	conn    *websocket.Conn
-	outCh   chan any
+	outCh   chan any // Consider changing `any` to `*Block` once Block is defined
 	ctx     context.Context
 	cancel  context.CancelFunc
 }
@@ -29,7 +31,7 @@ func NewWebSocketSource(url, httpURL string) *WebSocketSource {
 	return &WebSocketSource{
 		url:     url,
 		httpURL: httpURL,
-		outCh:   make(chan any),
+		outCh:   make(chan any), // Consider changing `any` to `*Block`
 		ctx:     ctx,
 		cancel:  cancel,
 	}

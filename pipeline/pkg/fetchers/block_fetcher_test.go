@@ -19,10 +19,15 @@ import (
 	tcNats "github.com/testcontainers/testcontainers-go/modules/nats"
 	tcRedis "github.com/testcontainers/testcontainers-go/modules/redis"
 
-	"github.com/web3ekko/ekko-ce/pipeline/pkg/decoder"
 	"github.com/web3ekko/ekko-ce/pipeline/pkg/blockchain"
 	"github.com/web3ekko/ekko-ce/pipeline/pkg/common"
+	"github.com/web3ekko/ekko-ce/pipeline/pkg/decoder"
 )
+
+// stringPtr is a helper function to get a pointer to a string.
+func stringPtr(s string) *string {
+	return &s
+}
 
 // setupTestEnvironment prepares Redis and NATS containers for testing.
 func setupTestEnvironment(t *testing.T) (decoder.RedisClient, *nats.Conn, nats.JetStreamContext, nats.KeyValue, func()) {
@@ -90,7 +95,7 @@ func setupTestEnvironment(t *testing.T) (decoder.RedisClient, *nats.Conn, nats.J
 }
 
 // mockRPCServer is a helper to create an httptest.Server that mimics a JSON-RPC endpoint.
-func mockRPCServer(t *testing.T, handler http.HandlerFunc) *httptest.Server {
+func mockRPCServer(_ *testing.T, handler http.HandlerFunc) *httptest.Server {
 	return httptest.NewServer(handler)
 }
 
@@ -99,7 +104,7 @@ func TestFetchFullBlock_SuccessByHash(t *testing.T) {
 	expectedBlock := &blockchain.Block{
 		Hash: blockHash,
 		Transactions: []blockchain.Transaction{
-			{Hash: "0xtx1", From: "0xfrom1", To: "0xto1", Value: "0x1"},
+			{Hash: "0xtx1", From: "0xfrom1", To: stringPtr("0xto1"), Value: "0x1"},
 		},
 	}
 
@@ -126,8 +131,8 @@ func TestFetchFullBlock_SuccessByHash(t *testing.T) {
 	config := common.NodeConfig{
 		VMType:   "evm",
 		Network:  "testnet",
-		HttpURL:  server.URL,
-		WssURL:   "", // Not used in this test
+		// HttpURL: server.URL, // Passed directly to fetchFullBlock
+		// WssURL:   "",      // Not used in this test
 	}
 	redisC, natsC, _, kv, cleanup := setupTestEnvironment(t) // js from setupTestEnvironment is ignored for now by NewBlockFetcher
 	defer cleanup()
@@ -156,7 +161,7 @@ func TestFetchFullBlock_SuccessByNumber(t *testing.T) {
 	expectedBlock := &blockchain.Block{
 		Hash: "0xabc", // A different hash for the block found by number
 		Transactions: []blockchain.Transaction{
-			{Hash: "0xtx2", From: "0xfrom2", To: "0xto2", Value: "0x2"},
+			{Hash: "0xtx2", From: "0xfrom2", To: stringPtr("0xto2"), Value: "0x2"},
 		},
 	}
 
@@ -180,7 +185,7 @@ func TestFetchFullBlock_SuccessByNumber(t *testing.T) {
 	})
 	defer server.Close()
 
-	config := common.NodeConfig{VMType: "evm", Network: "testnet", HttpURL: server.URL}
+	config := common.NodeConfig{VMType: "evm", Network: "testnet" /* HttpURL: server.URL */}
 	redisC, natsC, _, kv, cleanup := setupTestEnvironment(t) // js from setupTestEnvironment is ignored for now by NewBlockFetcher
 	defer cleanup()
 
@@ -217,7 +222,7 @@ func TestFetchFullBlock_BlockNotFound(t *testing.T) {
 	})
 	defer server.Close()
 
-	config := common.NodeConfig{VMType: "evm", Network: "testnet", HttpURL: server.URL}
+	config := common.NodeConfig{VMType: "evm", Network: "testnet" /* HttpURL: server.URL */}
 	redisC, natsC, _, kv, cleanup := setupTestEnvironment(t) // js from setupTestEnvironment is ignored for now by NewBlockFetcher
 	defer cleanup()
 
@@ -254,7 +259,7 @@ func TestFetchFullBlock_RPCError(t *testing.T) {
 	})
 	defer server.Close()
 
-	config := common.NodeConfig{VMType: "evm", Network: "testnet", HttpURL: server.URL}
+	config := common.NodeConfig{VMType: "evm", Network: "testnet" /* HttpURL: server.URL */}
 	redisC, natsC, _, kv, cleanup := setupTestEnvironment(t) // js from setupTestEnvironment is ignored for now by NewBlockFetcher
 	defer cleanup()
 
@@ -282,7 +287,7 @@ func TestFetchFullBlock_HTTPError(t *testing.T) {
 	})
 	defer server.Close()
 
-	config := common.NodeConfig{VMType: "evm", Network: "testnet", HttpURL: server.URL}
+	config := common.NodeConfig{VMType: "evm", Network: "testnet" /* HttpURL: server.URL */}
 	redisC, natsC, _, kv, cleanup := setupTestEnvironment(t) // js from setupTestEnvironment is ignored for now by NewBlockFetcher
 	defer cleanup()
 

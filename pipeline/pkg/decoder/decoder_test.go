@@ -14,6 +14,11 @@ import (
 	"github.com/web3ekko/ekko-ce/pipeline/pkg/decoder"
 )
 
+// stringPtr is a helper function to get a pointer to a string.
+func stringPtr(s string) *string {
+	return &s
+}
+
 func TestDecoder_DecodeTransaction(t *testing.T) {
 	// Create mock Redis client using redismock
 	db, mock := redismock.NewClientMock()
@@ -23,7 +28,7 @@ func TestDecoder_DecodeTransaction(t *testing.T) {
 	d := decoder.NewDecoder(redisAdapter, "testchain")
 
 	// Store signatures in mock Redis
-	transferSelector := "0xa9059cbb" // transfer(address,uint256) with 0x prefix
+	transferSelector := "a9059cbb" // transfer(address,uint256) without 0x prefix for key
 	globalKey := "sel:testchain:" + transferSelector
 	// JSON template with simple string types
 	transferTemplate := `{"name":"transfer","inputs":[{"name":"recipient","type":"address"},{"name":"amount","type":"uint256"}]}`
@@ -31,14 +36,14 @@ func TestDecoder_DecodeTransaction(t *testing.T) {
 	mock.ExpectGet(globalKey).SetVal(transferTemplate)
 
 	// For unknown selector - first global lookup
-	mock.ExpectGet("sel:testchain:0xdeadbeef").SetErr(redis.Nil)
+	mock.ExpectGet("sel:testchain:deadbeef").SetErr(redis.Nil) // selector without 0x
 	// Then contract-specific lookup
-	mock.ExpectGet("sel:testchain:0x1234567890123456789012345678901234567890:0xdeadbeef").SetErr(redis.Nil)
+	mock.ExpectGet("sel:testchain:0x1234567890123456789012345678901234567890:deadbeef").SetErr(redis.Nil) // selector without 0x
 
 	// For invalid input - first global lookup
-	mock.ExpectGet("sel:testchain:0x1234").SetErr(redis.Nil)
+	mock.ExpectGet("sel:testchain:1234").SetErr(redis.Nil) // selector without 0x, though this test expects an error before this due to length
 	// Then contract-specific lookup
-	mock.ExpectGet("sel:testchain:0xb794f5ea0ba39494ce839613fffba74279579268:0x1234").SetErr(redis.Nil)
+	mock.ExpectGet("sel:testchain:0xb794f5ea0ba39494ce839613fffba74279579268:1234").SetErr(redis.Nil) // selector without 0x
 
 	tests := []struct {
 		name     string
@@ -50,12 +55,13 @@ func TestDecoder_DecodeTransaction(t *testing.T) {
 		{
 			name: "valid transfer transaction",
 			tx: &blockchain.Transaction{
-				To:    "0x1234567890123456789012345678901234567890", // Add a To address
-				Input: "0xa9059cbb000000000000000000000000b794f5ea0ba39494ce839613fffba74279579268000000000000000000000000000000000000000000000000000000000000000a",
+				To:    stringPtr("0x1234567890123456789012345678901234567890"), // Add a To address
+				Data: "0xa9059cbb000000000000000000000000b794f5ea0ba39494ce839613fffba74279579268000000000000000000000000000000000000000000000000000000000000000a",
 			},
 			wantErr:  false,
 			wantFunc: "transfer",
 			wantArgs: map[string]interface{}{
+				"from":      "", // tx.From is empty string in this test case
 				"recipient": "0xb794f5ea0ba39494ce839613fffba74279579268",
 				"amount":    big.NewInt(10),
 			},
@@ -63,8 +69,8 @@ func TestDecoder_DecodeTransaction(t *testing.T) {
 		{
 			name: "contract creation",
 			tx: &blockchain.Transaction{
-				To:    "", // Empty To address indicates contract creation
-				Input: "0x608060405234801561001057600080fd5b50610150806100206000396000f3fe608060405234801561001057600080fd5b50600436106100365760003560e01c806317d7de7c1461003b578063c47f0027146100b9575b600080fd5b61004361011a565b6040518080602001828103825283818151815260200191508051906020019080838360005b8381101561008357808201518184015260208101905061006857565b50505050905090810190601f1680156100b05780820380516001836020036101000a031916815260200191505b509250505060405180910390f35b610118600480360360208110156100cf57600080fd5b81019080803590602001906401000000008111156100ec57600080fd5b8201836020820111156100fe57600080fd5b8035906020019184600183028401116401000000008311171561012057600080fd5b90919293919293905050505061015c565b005b60008054600181600116156101000203166002900480601f0160208091040260200160405190810160405280929190818152602001828054600181600116156101000203166002900480156101545780601f1061012957610100808354040283529160200191610154565b820191906000526020600020905b81548152906001019060200180831161013757829003601f168201915b505050505081565b8282826000919061016d92919061017b565b505050565b828054600181600116156101000203166002900490600052602060002090601f016020900481019282601f106101bc57803560ff19168380011785556101ea565b828001600101855582156101ea579182015b828111156101e95782358255916020019190600101906101ce565b5b5090506101f791906101fb565b5090565b61021d91905b80821115610219576000816000905550600101610201565b5090565b9056fea265627a7a723058204b651e0d8c75664a21f5e8d643a0a6a2d197c1a6824721d51b7c5e23e4e4747364736f6c634300050a0032",
+				To:    nil, // Empty To address indicates contract creation
+				Data: "0x608060405234801561001057600080fd5b50610150806100206000396000f3fe608060405234801561001057600080fd5b50600436106100365760003560e01c806317d7de7c1461003b578063c47f0027146100b9575b600080fd5b61004361011a565b6040518080602001828103825283818151815260200191508051906020019080838360005b8381101561008357808201518184015260208101905061006857565b50505050905090810190601f1680156100b05780820380516001836020036101000a031916815260200191505b509250505060405180910390f35b610118600480360360208110156100cf57600080fd5b81019080803590602001906401000000008111156100ec57600080fd5b8201836020820111156100fe57600080fd5b8035906020019184600183028401116401000000008311171561012057600080fd5b90919293919293905050505061015c565b005b60008054600181600116156101000203166002900480601f0160208091040260200160405190810160405280929190818152602001828054600181600116156101000203166002900480156101545780601f1061012957610100808354040283529160200191610154565b820191906000526020600020905b81548152906001019060200180831161013757829003601f168201915b505050505081565b8282826000919061016d92919061017b565b505050565b828054600181600116156101000203166002900490600052602060002090601f016020900481019282601f106101bc57803560ff19168380011785556101ea565b828001600101855582156101ea579182015b828111156101e95782358255916020019190600101906101ce565b5b5090506101f791906101fb565b5090565b61021d91905b80821115610219576000816000905550600101610201565b5090565b9056fea265627a7a723058204b651e0d8c75664a21f5e8d643a0a6a2d197c1a6824721d51b7c5e23e4e4747364736f6c634300050a0032",
 				Value: "0x0",
 			},
 			wantErr: false, // Contract creation should not be considered an error
@@ -78,8 +84,8 @@ func TestDecoder_DecodeTransaction(t *testing.T) {
 		{
 			name: "simple value transfer",
 			tx: &blockchain.Transaction{
-				To:    "0xb794f5ea0ba39494ce839613fffba74279579268",
-				Input: "0x",                // Empty input data for simple value transfer
+				To:    stringPtr("0xb794f5ea0ba39494ce839613fffba74279579268"),
+				Data: "", // Empty input data for simple value transfer
 				Value: "0xde0b6b3a7640000", // 1 AVAX in hex
 			},
 			wantErr: false, // Simple value transfer should not be considered an error
@@ -93,16 +99,16 @@ func TestDecoder_DecodeTransaction(t *testing.T) {
 		{
 			name: "invalid input data",
 			tx: &blockchain.Transaction{
-				To:    "0xb794f5ea0ba39494ce839613fffba74279579268",
-				Input: "0x1234",
+				To:    stringPtr("0xb794f5ea0ba39494ce839613fffba74279579268"),
+				Data: "0x1234",
 			},
 			wantErr: true,
 		},
 		{
 			name: "unknown selector",
 			tx: &blockchain.Transaction{
-				To:    "0x1234567890123456789012345678901234567890",
-				Input: "0xdeadbeef000000000000000000000000000000000000000000000000000000000000000a",
+				To:    stringPtr("0x1234567890123456789012345678901234567890"),
+				Data: "0xdeadbeef000000000000000000000000000000000000000000000000000000000000000a",
 			},
 			wantErr: true,
 		},
@@ -137,9 +143,9 @@ func TestDecoder_ContractSpecificSelector(t *testing.T) {
 	d := decoder.NewDecoder(redisAdapter, "testchain")
 
 	// Prepare signature lookup expectations
-	selector := "0xa9059cbb"
+	selector := "a9059cbb" // Selector without 0x prefix
 	// Global lookup fails
-	globalKey := "sel:testchain:" + selector
+	globalKey := "sel:testchain:" + selector // This key is for global, contract-specific uses contractAddr too
 	mock.ExpectGet(globalKey).SetErr(redis.Nil)
 
 	// Contract-specific lookup succeeds with customTransfer template
@@ -150,8 +156,8 @@ func TestDecoder_ContractSpecificSelector(t *testing.T) {
 
 	// Test contract-specific selector
 	tx := &blockchain.Transaction{
-		To:    contractAddr,
-		Input: "0xa9059cbb000000000000000000000000000000000000000000000000000000000000000a",
+		To:    stringPtr(contractAddr),
+		Data: "0xa9059cbb000000000000000000000000000000000000000000000000000000000000000a",
 	}
 
 	err := d.DecodeTransaction(context.Background(), tx)

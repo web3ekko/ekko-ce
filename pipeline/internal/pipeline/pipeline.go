@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/reugn/go-streams"
-	"github.com/web3ekko/ekko-ce/pipeline/pkg/blockchain"
 	"github.com/web3ekko/ekko-ce/pipeline/internal/config"
+	"github.com/web3ekko/ekko-ce/pipeline/pkg/blockchain"
 	"github.com/web3ekko/ekko-ce/pipeline/pkg/decoder"
 )
 
@@ -37,18 +37,18 @@ type Pipeline struct {
 // NewPipeline creates a new pipeline
 func NewPipeline(cfg config.Config, redis decoder.RedisClient) (*Pipeline, error) {
 	return &Pipeline{
-		subnets:     make(map[string]*SubnetPipeline),
-		config:      cfg,
-		redis:       redis,
-		manager:     decoder.NewTemplateManager(redis),
-		batchSize:  100,
-		workers:    cfg.DecoderWorkers,
-		natsURL:    cfg.NatsURL,
+		subnets:   make(map[string]*SubnetPipeline),
+		config:    cfg,
+		redis:     redis,
+		manager:   decoder.NewTemplateManager(redis),
+		batchSize: 100,
+		workers:   cfg.DecoderWorkers,
+		natsURL:   cfg.NatsURL,
 	}, nil
 }
 
 // processBlock processes a block and its transactions
-func (p *Pipeline) processBlock(ctx context.Context, block *blockchain.Block) error {
+func (p *Pipeline) processBlock(block *blockchain.Block) error {
 	// Start workers
 	var wg sync.WaitGroup
 	jobs := make(chan int, len(block.Transactions))
@@ -133,7 +133,7 @@ func (p *Pipeline) Start(ctx context.Context) error {
 					// Log receipt of block
 					log.Printf("Subnet %s: received block %s with %d transactions", subnet.config.Name, blk.Hash, len(blk.Transactions))
 					// Process block
-					if err := p.processBlock(ctx, blk); err != nil {
+					if err := p.processBlock(blk); err != nil {
 						log.Printf("Subnet %s: error processing block %s: %v", subnet.config.Name, blk.Hash, err)
 						continue
 					}
@@ -236,23 +236,6 @@ func (s *FailoverSource) run() {
 			}
 		}
 	}
-}
-
-// createSourceWithFailover creates a source that automatically fails over to another node
-func (p *Pipeline) createSourceWithFailover(subnet *SubnetPipeline) streams.Source {
-	// If overrides provided, use them
-	if subnet.config.WebSocketURL != "" && subnet.config.HTTPURL != "" {
-		return blockchain.NewWebSocketSource(subnet.config.WebSocketURL, subnet.config.HTTPURL)
-	}
-	// Fallback to first node
-	nodeURLs := subnet.config.NodeURLs
-	if len(nodeURLs) == 0 {
-		log.Printf("No nodes configured for subnet %s", subnet.config.Name)
-		return nil
-	}
-	wsURL := getWebSocketURL(nodeURLs[0], subnet.config)
-	httpURL := getHTTPURL(nodeURLs[0], subnet.config)
-	return blockchain.NewWebSocketSource(wsURL, httpURL)
 }
 
 // getWebSocketURL constructs the WebSocket URL for a node

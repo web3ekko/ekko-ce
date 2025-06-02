@@ -10,7 +10,9 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/web3ekko/ekko-ce/pipeline/internal/config"
 	"github.com/web3ekko/ekko-ce/pipeline/pkg/decoder"
-	"github.com/web3ekko/ekko-ce/pipeline/internal/pipeline"
+	"github.com/web3ekko/ekko-ce/pipeline/pkg/supervisor" // Changed to supervisor
+
+	"github.com/nats-io/nats.go"
 )
 
 func main() {
@@ -31,10 +33,40 @@ func main() {
 	redisClientAdapter := decoder.NewRedisClientAdapter(redisClient)
 	redisAdapter := decoder.NewRedisAdapter(redisClientAdapter)
 
-	// Create pipeline
-	p, err := pipeline.NewPipeline(*cfg, redisAdapter)
+	// Connect to NATS
+	nc, err := nats.Connect(cfg.NatsURL)
 	if err != nil {
-		log.Fatalf("Failed to create pipeline: %v", err)
+		log.Fatalf("Failed to connect to NATS: %v", err)
+	}
+	defer nc.Close()
+
+	// Get JetStream context
+	js, err := nc.JetStream()
+	if err != nil {
+		log.Fatalf("Failed to get JetStream context: %v", err)
+	}
+
+	// Bind to or create the 'nodes' KV store
+	kv, err := js.KeyValue("nodes")
+	if err != nil {
+		log.Printf("Failed to bind to KV store 'nodes', attempting to create: %v", err)
+		kv, err = js.CreateKeyValue(&nats.KeyValueConfig{
+			Bucket:      "nodes",
+			Description: "Stores node configurations for Ekko pipelines.",
+			// TTL:         24 * time.Hour, // Example: if you want a TTL for entries
+		})
+		if err != nil {
+			log.Fatalf("Failed to create KV store 'nodes': %v", err)
+		}
+		log.Println("Successfully created KV store 'nodes'")
+	} else {
+		log.Println("Successfully bound to KV store 'nodes'")
+	}
+
+	// Create PipelineSupervisor
+	sup, err := supervisor.NewPipelineSupervisor(nc, kv, redisAdapter)
+	if err != nil {
+		log.Fatalf("Failed to create PipelineSupervisor: %v", err)
 	}
 
 	// Create context with cancellation
@@ -50,11 +82,11 @@ func main() {
 		cancel()
 	}()
 
-	// Start pipeline
-	log.Println("Starting pipeline...")
-	if err := p.Start(ctx); err != nil && err != context.Canceled {
-		log.Fatalf("Pipeline error: %v", err)
+	// Start PipelineSupervisor
+	log.Println("Starting PipelineSupervisor...")
+	if err := sup.Run(ctx); err != nil && err != context.Canceled {
+		log.Fatalf("PipelineSupervisor error: %v", err)
 	}
 
-	log.Println("Pipeline stopped")
+	log.Println("PipelineSupervisor stopped")
 }
