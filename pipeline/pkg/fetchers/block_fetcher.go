@@ -1,20 +1,22 @@
 package fetchers
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
+	"encoding/json" // Added back for processMessage
 	"fmt"
-	"io"
 	"log"
-	"net/http"
+	"math/big"
 	"strings"
-	"time"
 
+	"github.com/ethereum/go-ethereum"
+	gethcommon "github.com/ethereum/go-ethereum/common" // Aliased
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/nats-io/nats.go"
-	"github.com/web3ekko/ekko-ce/pipeline/pkg/blockchain" // For blockchain.Block
-	"github.com/web3ekko/ekko-ce/pipeline/pkg/decoder"    // For decoder.RedisClient, decoder.Decoder
-	"github.com/web3ekko/ekko-ce/pipeline/pkg/common"        // For common.NodeConfig
+	"github.com/web3ekko/ekko-ce/pipeline/pkg/blockchain"
+	ekkoCommon "github.com/web3ekko/ekko-ce/pipeline/pkg/common" // Aliased
+	"github.com/web3ekko/ekko-ce/pipeline/pkg/decoder"
 )
 
 // EVMNewHeadResult is a simplified struct to parse the "result" field from an EVM newHeads subscription event.
@@ -38,26 +40,39 @@ type EVMSubscriptionMessage struct {
 type BlockFetcher struct {
 	vmType      string
 	network     string
+	subnet      string // Added subnet
 	natsConn    *nats.Conn
 	kvStore     nats.KeyValue
 	redisClient decoder.RedisClient // Needed to initialize the EVM decoder
 	evmDecoder  *decoder.Decoder    // Instance of EVM decoder, nil if not EVM
+	ethClient   *ethclient.Client      // EVM client for fetching blocks
+	nodeConfig  ekkoCommon.NodeConfig // Node configuration for this fetcher
 }
 
 // NewBlockFetcher creates a new BlockFetcher instance.
-func NewBlockFetcher(vmType, network string, nc *nats.Conn, kv nats.KeyValue, rc decoder.RedisClient) (*BlockFetcher, error) {
+func NewBlockFetcher(nodeConfig ekkoCommon.NodeConfig, nc *nats.Conn, kv nats.KeyValue, rc decoder.RedisClient) (*BlockFetcher, error) {
 	fetcher := &BlockFetcher{
-		vmType:      vmType,
-		network:     network,
+		vmType:      nodeConfig.VMType,
+		network:     nodeConfig.Network,
+		subnet:      nodeConfig.Subnet,
 		natsConn:    nc,
 		kvStore:     kv,
 		redisClient: rc,
+		nodeConfig:  nodeConfig,
 	}
 
-	if strings.ToLower(vmType) == "evm" {
-		if rc == nil {
-			return nil, fmt.Errorf("RedisClient is required for EVM BlockFetcher (%s-%s)", vmType, network)
+	if strings.ToLower(fetcher.vmType) == "evm" {
+		if fetcher.nodeConfig.HttpURL == "" {
+			return nil, fmt.Errorf("HttpURL is required for EVM BlockFetcher (%s-%s) but was empty", fetcher.vmType, fetcher.network)
 		}
+		if rc == nil {
+			return nil, fmt.Errorf("RedisClient is required for EVM BlockFetcher (%s-%s)", fetcher.vmType, fetcher.network)
+		}
+		client, err := ethclient.DialContext(context.Background(), fetcher.nodeConfig.HttpURL) // Use a background context for dialing initially
+		if err != nil {
+			return nil, fmt.Errorf("failed to connect to EVM node %s for BlockFetcher (%s-%s): %w", fetcher.nodeConfig.HttpURL, fetcher.vmType, fetcher.network, err)
+		}
+		fetcher.ethClient = client
 		// The actual EVM decoder initialization needs to be aligned with how `decoder.New`
 		// and `decoder.NewTemplateManager` are used in your existing `pipeline/pipeline.go`.
 		// For now, this is a placeholder. The MEMORY indicates we need to reuse existing logic.
@@ -65,7 +80,7 @@ func NewBlockFetcher(vmType, network string, nc *nats.Conn, kv nats.KeyValue, rc
 		// and then that manager to NewDecoder.
 		templateManager := decoder.NewTemplateManager(rc)
 		fetcher.evmDecoder = decoder.NewDecoder(templateManager, fetcher.network) // Pass any required ABIs if necessary, or load them in the decoder
-		log.Printf("BlockFetcher for %s-%s: EVM decoder initialized.", vmType, network)
+		log.Printf("BlockFetcher for %s-%s: EVM decoder and ethClient initialized for %s.", fetcher.vmType, fetcher.network, fetcher.nodeConfig.HttpURL)
 	}
 
 	return fetcher, nil
@@ -73,10 +88,13 @@ func NewBlockFetcher(vmType, network string, nc *nats.Conn, kv nats.KeyValue, rc
 
 // Run starts the BlockFetcher's main loop.
 func (bf *BlockFetcher) Run(ctx context.Context) error {
-	log.Printf("BlockFetcher: Starting for VMType: %s, Network: %s", bf.vmType, bf.network)
-	defer log.Printf("BlockFetcher: Stopped for VMType: %s, Network: %s", bf.vmType, bf.network)
+	log.Printf("BlockFetcher: Starting for VMType: %s, Network: %s, Subnet: %s", bf.vmType, bf.network, bf.subnet)
+	defer log.Printf("BlockFetcher: Stopped for VMType: %s, Network: %s, Subnet: %s", bf.vmType, bf.network, bf.subnet)
 
-	natsSubscriptionSubject := fmt.Sprintf("ekko.heads.%s.%s.*", bf.vmType, bf.network)
+	natsSubscriptionSubject := fmt.Sprintf("%s.%s.%s.newheads",
+		strings.ToLower(bf.network),
+		strings.ToLower(bf.subnet),
+		strings.ToLower(bf.vmType))
 
 	msgChan := make(chan *nats.Msg, 64) // Buffer for incoming messages
 
@@ -116,7 +134,7 @@ func (bf *BlockFetcher) processMessage(ctx context.Context, msg *nats.Msg) {
 		log.Printf("BlockFetcher (%s-%s): Failed to get NodeConfig for ID %s from KV store: %v", bf.vmType, bf.network, nodeID, err)
 		return
 	}
-	var nodeCfg common.NodeConfig
+	var nodeCfg ekkoCommon.NodeConfig
 	if err := json.Unmarshal(entry.Value(), &nodeCfg); err != nil {
 		log.Printf("BlockFetcher (%s-%s): Failed to unmarshal NodeConfig for ID %s: %v", bf.vmType, bf.network, nodeID, err)
 		return
@@ -150,13 +168,13 @@ func (bf *BlockFetcher) processMessage(ctx context.Context, msg *nats.Msg) {
 	log.Printf("BlockFetcher (%s-%s): Attempting to fetch block %s from node %s (URL: %s)", bf.vmType, bf.network, blockIdentifier, nodeID, nodeCfg.HttpURL)
 
 	// Fetch the full block
-	fullBlock, err := bf.fetchFullBlock(ctx, nodeCfg.HttpURL, blockIdentifier)
+	fullBlock, err := bf.fetchFullBlock(ctx, blockIdentifier)
 	if err != nil {
 		log.Printf("BlockFetcher (%s-%s): Failed to fetch full block %s from node %s: %v", bf.vmType, bf.network, blockIdentifier, nodeID, err)
 		return
 	}
 	if fullBlock == nil {
-		log.Printf("BlockFetcher (%s-%s): Fetched nil block for %s from node %s", bf.vmType, bf.network, blockIdentifier, nodeID)
+		log.Printf("BlockFetcher (%s-%s): Block %s not found or not ready, skipping.", bf.vmType, bf.network, blockIdentifier)
 		return
 	}
 
@@ -185,101 +203,154 @@ func (bf *BlockFetcher) processMessage(ctx context.Context, msg *nats.Msg) {
 	}
 }
 
-// fetchFullBlock fetches full block details via HTTP RPC.
-func (bf *BlockFetcher) fetchFullBlock(ctx context.Context, httpURL string, blockIdentifier string) (*blockchain.Block, error) {
-	if strings.ToLower(bf.vmType) != "evm" {
-		log.Printf("BlockFetcher: fetchFullBlock not implemented for VMType: %s. Returning nil.", bf.vmType)
-		// For non-EVM types, we might return an error or a specific kind of empty/stub block.
-		// For now, returning an error to make it explicit that it's not handled.
-		return nil, fmt.Errorf("fetchFullBlock not implemented for VMType: %s", bf.vmType)
+// fetchFullBlock fetches full block details using ethClient.
+func (bf *BlockFetcher) fetchFullBlock(ctx context.Context, blockIdentifier string) (*blockchain.Block, error) {
+	if strings.ToLower(bf.vmType) != "evm" || bf.ethClient == nil {
+		log.Printf("BlockFetcher (%s-%s): fetchFullBlock called for non-EVM type or nil ethClient.", bf.vmType, bf.network)
+		return nil, fmt.Errorf("fetchFullBlock: not an EVM fetcher or ethClient not initialized for %s-%s", bf.vmType, bf.network)
 	}
 
-	if httpURL == "" {
-		return nil, fmt.Errorf("HTTP RPC URL is empty for %s-%s", bf.vmType, bf.network)
-	}
+	var gethBlock *types.Block
+	var err error
 
-	client := &http.Client{Timeout: 15 * time.Second}
-
-	var method string
-	var params []interface{}
-
-	// EVM specific logic: eth_getBlockByHash or eth_getBlockByNumber
-	// blockIdentifier is expected to be a hash (0x-prefixed, 66 chars) or a hex block number (0x-prefixed)
 	if len(blockIdentifier) == 66 && strings.HasPrefix(strings.ToLower(blockIdentifier), "0x") {
-		method = "eth_getBlockByHash"
-		params = []interface{}{blockIdentifier, true} // true for full transaction objects
+		blockHash := gethcommon.HexToHash(blockIdentifier)
+		gethBlock, err = bf.ethClient.BlockByHash(ctx, blockHash)
 	} else if strings.HasPrefix(strings.ToLower(blockIdentifier), "0x") {
-		method = "eth_getBlockByNumber"
-		params = []interface{}{blockIdentifier, true} // true for full transaction objects
+		blockNumber := new(big.Int)
+		_, success := blockNumber.SetString(strings.TrimPrefix(blockIdentifier, "0x"), 16)
+		if !success {
+			return nil, fmt.Errorf("invalid block number format: %s", blockIdentifier)
+		}
+		gethBlock, err = bf.ethClient.BlockByNumber(ctx, blockNumber)
 	} else {
-		return nil, fmt.Errorf("invalid EVM blockIdentifier format: %s", blockIdentifier)
+		return nil, fmt.Errorf("invalid blockIdentifier format: '%s'. Expected 0x-prefixed hash or number", blockIdentifier)
 	}
 
-	rpcReq := blockchain.JSONRPCRequest{
-		JSONRPC: "2.0",
-		Method:  method,
-		Params:  params,
-		ID:      1, // Static ID for simplicity
-	}
-
-	reqBytes, err := json.Marshal(rpcReq)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal JSON-RPC request: %w", err)
+		if err == ethereum.NotFound {
+			log.Printf("BlockFetcher (%s-%s): Block %s not found.", bf.vmType, bf.network, blockIdentifier)
+			return nil, nil // Block not found, not an error for the fetcher to retry immediately.
+		}
+		return nil, fmt.Errorf("failed to fetch block %s: %w", blockIdentifier, err)
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", httpURL, bytes.NewBuffer(reqBytes))
+	if gethBlock == nil { // Should be covered by ethereum.NotFound, but as a safeguard.
+		log.Printf("BlockFetcher (%s-%s): Block %s not found (gethBlock is nil after fetch attempt).", bf.vmType, bf.network, blockIdentifier)
+		return nil, nil
+	}
+
+	internalBlock, err := convertGethBlockToInternalBlock(gethBlock)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create HTTP request: %w", err)
+		return nil, fmt.Errorf("failed to convert fetched Geth block %s to internal representation: %w", gethBlock.Hash().Hex(), err)
 	}
-	httpReq.Header.Set("Content-Type", "application/json")
 
-	log.Printf("BlockFetcher (%s-%s): Sending RPC request to %s: Method=%s, Params=%v", bf.vmType, bf.network, httpURL, method, params)
+	log.Printf("BlockFetcher (%s-%s): Successfully fetched and converted block %s (Number: %s)", bf.vmType, bf.network, internalBlock.Hash, internalBlock.Number)
+	return internalBlock, nil
+}
 
-	httpResp, err := client.Do(httpReq)
+// convertGethBlockToInternalBlock converts a go-ethereum types.Block to blockchain.Block.
+// convertGethBlockToInternalBlock converts a go-ethereum types.Block to blockchain.Block.
+func convertGethBlockToInternalBlock(gethBlock *types.Block) (*blockchain.Block, error) {
+	if gethBlock == nil {
+		return nil, fmt.Errorf("cannot convert nil gethBlock")
+	}
+
+	header := gethBlock.Header()
+	if header == nil {
+		return nil, fmt.Errorf("gethBlock has nil header")
+	}
+
+	internalTxs := make([]blockchain.Transaction, len(gethBlock.Transactions()))
+	for i, gethTx := range gethBlock.Transactions() {
+		internalTx, err := convertGethTxToInternalTx(gethTx, gethBlock.Hash(), gethBlock.Number(), uint(i), gethBlock.BaseFee()) // Pass BaseFee
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert transaction %s at index %d: %w", gethTx.Hash().Hex(), i, err)
+		}
+		if internalTx != nil { // Ensure internalTx is not nil before dereferencing
+		    internalTxs[i] = *internalTx
+		}
+	}
+
+	block := &blockchain.Block{
+		Hash:         gethBlock.Hash().Hex(),
+		Number:       hexutil.EncodeBig(gethBlock.Number()),
+		Timestamp:    hexutil.EncodeUint64(gethBlock.Time()),
+		ParentHash:   gethBlock.ParentHash().Hex(),
+		Transactions: internalTxs,
+		// Fields like GasLimit, GasUsed, Miner, Difficulty, Size, ExtraData, Sha3Uncles, ReceiptsRoot, StateRoot, BaseFeePerGas
+		// are commented out in blockchain.Block definition (types.go) and thus removed here.
+		// TODO: If these fields are needed, they must be uncommented/added in pipeline/pkg/blockchain/types.go first.
+	}
+
+	// BaseFee handling removed as BaseFeePerGas is not in blockchain.Block struct
+
+	return block, nil
+}
+
+// convertGethTxToInternalTx converts a go-ethereum types.Transaction to blockchain.Transaction.
+func convertGethTxToInternalTx(gethTx *types.Transaction, blockHash gethcommon.Hash, blockNumber *big.Int, txIndex uint, baseFee *big.Int) (*blockchain.Transaction, error) {
+	if gethTx == nil {
+		return nil, fmt.Errorf("cannot convert nil gethTx")
+	}
+
+	signer := types.LatestSignerForChainID(gethTx.ChainId())
+	from, err := types.Sender(signer, gethTx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to execute HTTP request to %s: %w", httpURL, err)
-	}
-	defer httpResp.Body.Close()
-
-	if httpResp.StatusCode != http.StatusOK {
-		// Try to read body for more details, but don't fail if read fails
-		bodyBytes, _ := io.ReadAll(httpResp.Body)
-		return nil, fmt.Errorf("HTTP request to %s failed with status %s; Body: %s", httpURL, httpResp.Status, string(bodyBytes))
-	}
-
-	var rpcResp blockchain.JSONRPCResponse
-	if err := json.NewDecoder(httpResp.Body).Decode(&rpcResp); err != nil {
-		return nil, fmt.Errorf("failed to decode JSON-RPC response from %s: %w", httpURL, err)
+		// For pre-EIP155 transactions or certain scenarios, Sender might fail if chain ID is ambiguous.
+		// Try with a more general signer if specific one fails and chain ID is nil.
+		if gethTx.ChainId() == nil {
+			signer = types.HomesteadSigner{}
+			from, err = types.Sender(signer, gethTx)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("failed to derive sender for transaction %s: %w", gethTx.Hash().Hex(), err)
+		}
 	}
 
-	if rpcResp.Error != nil {
-		return nil, fmt.Errorf("JSON-RPC error from %s: %s (code: %d)", httpURL, rpcResp.Error.Message, rpcResp.Error.Code)
+	var toAddrStrP *string
+	if to := gethTx.To(); to != nil {
+		s := to.Hex()
+		toAddrStrP = &s
 	}
 
-	if rpcResp.Result == nil {
-		// This can happen if a block is not found (e.g., eth_getBlockByHash for a pending block's hash, or non-existent block)
-		log.Printf("BlockFetcher (%s-%s): RPC result is null for block %s from %s. This might indicate the block is not yet available or does not exist.", bf.vmType, bf.network, blockIdentifier, httpURL)
-		return nil, nil // Return nil, nil to indicate block not found, not necessarily an error for the fetcher to retry immediately.
+	_, _, _ = gethTx.RawSignatureValues() // V, R, S are not used in the internal transaction struct
+
+	txTypeHex := hexutil.EncodeUint64(uint64(gethTx.Type()))
+	blockHashHex := blockHash.Hex()
+	blockNumberHex := hexutil.EncodeBig(blockNumber)
+	txIndexHex := hexutil.EncodeUint64(uint64(txIndex))
+
+	internalTx := &blockchain.Transaction{
+		Type:        &txTypeHex,
+		Hash:        gethTx.Hash().Hex(),
+		From:        from.Hex(),
+		To:          toAddrStrP,
+		Value:       hexutil.EncodeBig(gethTx.Value()),
+		Gas:         hexutil.EncodeUint64(gethTx.Gas()),
+		Data:        hexutil.Encode(gethTx.Data()), 
+		Nonce:       hexutil.EncodeUint64(gethTx.Nonce()),
+		BlockHash:   &blockHashHex,
+		BlockNumber: &blockNumberHex,
+		TransactionIndex: &txIndexHex, 
+		// ChainID, MaxPriorityFeePerGas, MaxFeePerGas are commented out in blockchain.Transaction (types.go)
+		// and thus removed here.
+		// V, R, S are also not part of the struct definition.
+		// TODO: If these fields are needed, they must be uncommented/added in pipeline/pkg/blockchain/types.go first.
 	}
 
-	// The rpcResp.Result is an interface{}. Marshal it to JSON and then Unmarshal into our blockchain.Block struct.
-	resultBytes, err := json.Marshal(rpcResp.Result)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal rpcResp.Result for block %s from %s: %w", blockIdentifier, httpURL, err)
+	// ChainID handling removed
+
+	switch gethTx.Type() {
+	case types.LegacyTxType:
+		internalTx.GasPrice = hexutil.EncodeBig(gethTx.GasPrice())
+	case types.AccessListTxType:
+		internalTx.GasPrice = hexutil.EncodeBig(gethTx.GasPrice())
+		// TODO: Handle AccessList if needed in blockchain.Transaction
+	case types.DynamicFeeTxType: // EIP-1559
+		// MaxPriorityFeePerGas and MaxFeePerGas handling removed
+		// TODO: Handle AccessList if needed in blockchain.Transaction
 	}
 
-	var block blockchain.Block
-	if err := json.Unmarshal(resultBytes, &block); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal block data for %s from %s (JSON: %s): %w", blockIdentifier, httpURL, string(resultBytes), err)
-	}
-
-	// Ensure essential fields are present, e.g. Hash. The actual block hash might differ from blockIdentifier if it was a number.
-	if block.Hash == "" {
-		log.Printf("BlockFetcher (%s-%s): Fetched block from %s using identifier %s has an empty hash. Raw result: %s", bf.vmType, bf.network, httpURL, blockIdentifier, string(resultBytes))
-		// Depending on strictness, this could be an error or handled as a block with missing data.
-		// For now, let it pass, but it's a point of concern.
-	}
-
-	log.Printf("BlockFetcher (%s-%s): Successfully parsed block %s from %s", bf.vmType, bf.network, block.Hash, httpURL)
-	return &block, nil
+	return internalTx, nil
 }

@@ -20,7 +20,7 @@ import (
 	tcRedis "github.com/testcontainers/testcontainers-go/modules/redis"
 
 	"github.com/web3ekko/ekko-ce/pipeline/pkg/blockchain"
-	"github.com/web3ekko/ekko-ce/pipeline/pkg/common"
+	ekkoCommon "github.com/web3ekko/ekko-ce/pipeline/pkg/common"
 	"github.com/web3ekko/ekko-ce/pipeline/pkg/decoder"
 )
 
@@ -128,7 +128,7 @@ func TestFetchFullBlock_SuccessByHash(t *testing.T) {
 	})
 	defer server.Close()
 
-	config := common.NodeConfig{
+	config := ekkoCommon.NodeConfig{
 		VMType:   "evm",
 		Network:  "testnet",
 		// HttpURL: server.URL, // Passed directly to fetchFullBlock
@@ -141,11 +141,18 @@ func TestFetchFullBlock_SuccessByHash(t *testing.T) {
 	if config.VMType != "evm" { // NewBlockFetcher only expects redis client for EVM
 		bfRedisClient = nil
 	}
-	bf, err := NewBlockFetcher(config.VMType, config.Network, natsC, kv, bfRedisClient) // NATS conn and RedisClient not needed for this unit test
+	nodeCfg := ekkoCommon.NodeConfig{
+		ID:      fmt.Sprintf("test-node-%s-%s", config.VMType, config.Network),
+		VMType:  config.VMType,
+		Network: config.Network,
+		Subnet:  "test-subnet",
+		HttpURL: server.URL, // Used by ethClient if VMType is EVM
+	}
+	bf, err := NewBlockFetcher(nodeCfg, natsC, kv, bfRedisClient)
 	require.NoError(t, err, "NewBlockFetcher failed")
 
 	ctx := context.Background()
-	block, err := bf.fetchFullBlock(ctx, server.URL, blockHash)
+	block, err := bf.fetchFullBlock(ctx, blockHash)
 
 	require.NoError(t, err, "fetchFullBlock returned an error")
 	require.NotNil(t, block, "fetchFullBlock returned a nil block")
@@ -185,7 +192,7 @@ func TestFetchFullBlock_SuccessByNumber(t *testing.T) {
 	})
 	defer server.Close()
 
-	config := common.NodeConfig{VMType: "evm", Network: "testnet" /* HttpURL: server.URL */}
+	config := ekkoCommon.NodeConfig{VMType: "evm", Network: "testnet" /* HttpURL: server.URL */}
 	redisC, natsC, _, kv, cleanup := setupTestEnvironment(t) // js from setupTestEnvironment is ignored for now by NewBlockFetcher
 	defer cleanup()
 
@@ -193,11 +200,18 @@ func TestFetchFullBlock_SuccessByNumber(t *testing.T) {
 	if config.VMType != "evm" { // NewBlockFetcher only expects redis client for EVM
 		bfRedisClient = nil
 	}
-	bf, err := NewBlockFetcher(config.VMType, config.Network, natsC, kv, bfRedisClient)
+	nodeCfg := ekkoCommon.NodeConfig{
+		ID:      fmt.Sprintf("test-node-%s-%s", config.VMType, config.Network),
+		VMType:  config.VMType,
+		Network: config.Network,
+		Subnet:  "test-subnet",
+		HttpURL: server.URL,
+	}
+	bf, err := NewBlockFetcher(nodeCfg, natsC, kv, bfRedisClient)
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	block, err := bf.fetchFullBlock(ctx, server.URL, blockNumber)
+	block, err := bf.fetchFullBlock(ctx, blockNumber)
 
 	require.NoError(t, err)
 	require.NotNil(t, block)
@@ -222,19 +236,25 @@ func TestFetchFullBlock_BlockNotFound(t *testing.T) {
 	})
 	defer server.Close()
 
-	config := common.NodeConfig{VMType: "evm", Network: "testnet" /* HttpURL: server.URL */}
-	redisC, natsC, _, kv, cleanup := setupTestEnvironment(t) // js from setupTestEnvironment is ignored for now by NewBlockFetcher
+	nodeCfg := ekkoCommon.NodeConfig{
+		ID:      "test-node-evm-testnet-blocknotfound",
+		VMType:  "evm",
+		Network: "testnet",
+		Subnet:  "test-subnet",
+		HttpURL: server.URL,
+	}
+	redisC, natsC, _, kv, cleanup := setupTestEnvironment(t)
 	defer cleanup()
 
 	var bfRedisClient decoder.RedisClient = redisC
-	if config.VMType != "evm" { // NewBlockFetcher only expects redis client for EVM
+	if nodeCfg.VMType != "evm" { // Use nodeCfg
 		bfRedisClient = nil
 	}
-	bf, err := NewBlockFetcher(config.VMType, config.Network, natsC, kv, bfRedisClient)
+	bf, err := NewBlockFetcher(nodeCfg, natsC, kv, bfRedisClient) // Pass the full nodeCfg
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	block, err := bf.fetchFullBlock(ctx, server.URL, blockHash)
+	block, err := bf.fetchFullBlock(ctx, blockHash) // server.URL is not passed here
 
 	require.NoError(t, err, "Expected no error when block is not found (nil result)")
 	require.Nil(t, block, "Expected nil block when not found")
@@ -259,19 +279,25 @@ func TestFetchFullBlock_RPCError(t *testing.T) {
 	})
 	defer server.Close()
 
-	config := common.NodeConfig{VMType: "evm", Network: "testnet" /* HttpURL: server.URL */}
-	redisC, natsC, _, kv, cleanup := setupTestEnvironment(t) // js from setupTestEnvironment is ignored for now by NewBlockFetcher
+	nodeCfg := ekkoCommon.NodeConfig{
+		ID:      "test-node-evm-testnet-rpcerror",
+		VMType:  "evm",
+		Network: "testnet",
+		Subnet:  "test-subnet",
+		HttpURL: server.URL,
+	}
+	redisC, natsC, _, kv, cleanup := setupTestEnvironment(t)
 	defer cleanup()
 
 	var bfRedisClient decoder.RedisClient = redisC
-	if config.VMType != "evm" { // NewBlockFetcher only expects redis client for EVM
+	if nodeCfg.VMType != "evm" { // Use nodeCfg
 		bfRedisClient = nil
 	}
-	bf, err := NewBlockFetcher(config.VMType, config.Network, natsC, kv, bfRedisClient)
+	bf, err := NewBlockFetcher(nodeCfg, natsC, kv, bfRedisClient) // Pass the full nodeCfg
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	block, err := bf.fetchFullBlock(ctx, server.URL, blockHash)
+	block, err := bf.fetchFullBlock(ctx, blockHash) // server.URL is not passed here
 
 	require.Error(t, err, "Expected an error due to RPC error")
 	assert.Nil(t, block, "Expected nil block on RPC error")
@@ -287,19 +313,25 @@ func TestFetchFullBlock_HTTPError(t *testing.T) {
 	})
 	defer server.Close()
 
-	config := common.NodeConfig{VMType: "evm", Network: "testnet" /* HttpURL: server.URL */}
-	redisC, natsC, _, kv, cleanup := setupTestEnvironment(t) // js from setupTestEnvironment is ignored for now by NewBlockFetcher
+	nodeCfg := ekkoCommon.NodeConfig{
+		ID:      "test-node-evm-testnet-httperror",
+		VMType:  "evm",
+		Network: "testnet",
+		Subnet:  "test-subnet",
+		HttpURL: server.URL,
+	}
+	redisC, natsC, _, kv, cleanup := setupTestEnvironment(t)
 	defer cleanup()
 
 	var bfRedisClient decoder.RedisClient = redisC
-	if config.VMType != "evm" { // NewBlockFetcher only expects redis client for EVM
+	if nodeCfg.VMType != "evm" { // Use nodeCfg
 		bfRedisClient = nil
 	}
-	bf, err := NewBlockFetcher(config.VMType, config.Network, natsC, kv, bfRedisClient)
+	bf, err := NewBlockFetcher(nodeCfg, natsC, kv, bfRedisClient) // Pass the full nodeCfg
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	block, err := bf.fetchFullBlock(ctx, server.URL, blockHash)
+	block, err := bf.fetchFullBlock(ctx, blockHash) // server.URL is not passed here
 
 	require.Error(t, err, "Expected an error due to HTTP error")
 	assert.Nil(t, block, "Expected nil block on HTTP error")
@@ -307,7 +339,7 @@ func TestFetchFullBlock_HTTPError(t *testing.T) {
 }
 
 func TestFetchFullBlock_InvalidIdentifier(t *testing.T) {
-	config := common.NodeConfig{VMType: "evm", Network: "testnet", HttpURL: "http://localhost:1234"}
+	config := ekkoCommon.NodeConfig{VMType: "evm", Network: "testnet", HttpURL: "http://localhost:1234"}
 	redisC, natsC, _, kv, cleanup := setupTestEnvironment(t) // js from setupTestEnvironment is ignored for now by NewBlockFetcher
 	defer cleanup()
 
@@ -315,17 +347,24 @@ func TestFetchFullBlock_InvalidIdentifier(t *testing.T) {
 	if config.VMType != "evm" { // NewBlockFetcher only expects redis client for EVM
 		bfRedisClient = nil
 	}
-	bf, err := NewBlockFetcher(config.VMType, config.Network, natsC, kv, bfRedisClient)
+	nodeCfg := ekkoCommon.NodeConfig{
+		ID:      fmt.Sprintf("test-node-%s-%s", config.VMType, config.Network),
+		VMType:  config.VMType,
+		Network: config.Network,
+		Subnet:  "test-subnet",
+		HttpURL: config.HttpURL, // This test case might specifically use config.HttpURL
+	}
+	bf, err := NewBlockFetcher(nodeCfg, natsC, kv, bfRedisClient)
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	_, err = bf.fetchFullBlock(ctx, config.HttpURL, "not_a_hash_or_number")
+	_, err = bf.fetchFullBlock(ctx, "not_a_hash_or_number")
 	require.Error(t, err, "Expected error for invalid block identifier")
 	assert.Contains(t, err.Error(), "invalid EVM blockIdentifier format")
 }
 
 func TestFetchFullBlock_NonEVMType(t *testing.T) {
-	config := common.NodeConfig{VMType: "solana", Network: "devnet", HttpURL: "http://localhost:1234"}
+	config := ekkoCommon.NodeConfig{VMType: "solana", Network: "devnet", HttpURL: "http://localhost:1234"}
 	redisC, natsC, _, kv, cleanup := setupTestEnvironment(t) // js from setupTestEnvironment is ignored for now by NewBlockFetcher
 	defer cleanup()
 
@@ -333,17 +372,24 @@ func TestFetchFullBlock_NonEVMType(t *testing.T) {
 	if config.VMType != "evm" { // NewBlockFetcher only expects redis client for EVM
 		bfRedisClient = nil
 	}
-	bf, err := NewBlockFetcher(config.VMType, config.Network, natsC, kv, bfRedisClient)
+	nodeCfg := ekkoCommon.NodeConfig{
+		ID:      fmt.Sprintf("test-node-%s-%s", config.VMType, config.Network),
+		VMType:  config.VMType,       // This test is specifically for non-EVM
+		Network: config.Network,
+		Subnet:  "test-subnet",
+		HttpURL: config.HttpURL, // For non-EVM, ethClient won't be initialized, URL doesn't matter for ethClient
+	}
+	bf, err := NewBlockFetcher(nodeCfg, natsC, kv, bfRedisClient)
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	_, err = bf.fetchFullBlock(ctx, config.HttpURL, "some_identifier")
+	_, err = bf.fetchFullBlock(ctx, "some_identifier")
 	require.Error(t, err, "Expected error for non-EVM vmType")
 	assert.Contains(t, err.Error(), "fetchFullBlock not implemented for VMType: solana")
 }
 
 func TestFetchFullBlock_EmptyHTTPURL(t *testing.T) {
-	config := common.NodeConfig{VMType: "evm", Network: "testnet", HttpURL: ""} // Empty URL
+	config := ekkoCommon.NodeConfig{VMType: "evm", Network: "testnet", HttpURL: ""} // Empty URL
 	redisC, natsC, _, kv, cleanup := setupTestEnvironment(t) // js from setupTestEnvironment is ignored for now by NewBlockFetcher
 	defer cleanup()
 
@@ -351,11 +397,18 @@ func TestFetchFullBlock_EmptyHTTPURL(t *testing.T) {
 	if config.VMType != "evm" { // NewBlockFetcher only expects redis client for EVM
 		bfRedisClient = nil
 	}
-	bf, err := NewBlockFetcher(config.VMType, config.Network, natsC, kv, bfRedisClient)
+	nodeCfg := ekkoCommon.NodeConfig{
+		ID:      fmt.Sprintf("test-node-%s-%s", config.VMType, config.Network),
+		VMType:  config.VMType,
+		Network: config.Network,
+		Subnet:  "test-subnet",
+		HttpURL: "", // Test specifically for empty HttpURL
+	}
+	bf, err := NewBlockFetcher(nodeCfg, natsC, kv, bfRedisClient)
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	_, err = bf.fetchFullBlock(ctx, "", "0x123")
+	_, err = bf.fetchFullBlock(ctx, "0x123")
 	require.Error(t, err, "Expected error for empty HTTP URL")
 	assert.Contains(t, err.Error(), "HTTP RPC URL is empty")
 }
@@ -369,23 +422,29 @@ func TestFetchFullBlock_MalformedJSONResponse(t *testing.T) {
 	})
 	defer server.Close()
 
-	config := common.NodeConfig{VMType: "evm", Network: "testnet", HttpURL: server.URL}
-	redisC, natsC, _, kv, cleanup := setupTestEnvironment(t) // js from setupTestEnvironment is ignored for now by NewBlockFetcher
+	nodeCfg := ekkoCommon.NodeConfig{
+		ID:      "test-node-evm-testnet-malformedjsonresponse",
+		VMType:  "evm",
+		Network: "testnet",
+		Subnet:  "test-subnet",
+		HttpURL: server.URL,
+	}
+	redisC, natsC, _, kv, cleanup := setupTestEnvironment(t)
 	defer cleanup()
 
 	var bfRedisClient decoder.RedisClient = redisC
-	if config.VMType != "evm" { // NewBlockFetcher only expects redis client for EVM
+	if nodeCfg.VMType != "evm" { 
 		bfRedisClient = nil
 	}
-	bf, err := NewBlockFetcher(config.VMType, config.Network, natsC, kv, bfRedisClient)
+	bf, err := NewBlockFetcher(nodeCfg, natsC, kv, bfRedisClient)
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	block, err := bf.fetchFullBlock(ctx, server.URL, blockHash)
+	block, err := bf.fetchFullBlock(ctx, blockHash)
 
 	require.Error(t, err, "Expected an error due to malformed JSON response")
 	assert.Nil(t, block, "Expected nil block on malformed JSON response")
-	assert.Contains(t, err.Error(), "failed to decode JSON-RPC response")
+	assert.Contains(t, err.Error(), "invalid character 'n' looking for beginning of object key string")
 }
 
 func TestFetchFullBlock_Timeout(t *testing.T) {
@@ -397,15 +456,21 @@ func TestFetchFullBlock_Timeout(t *testing.T) {
 	})
 	defer server.Close()
 
-	config := common.NodeConfig{VMType: "evm", Network: "testnet", HttpURL: server.URL}
-	redisC, natsC, _, kv, cleanup := setupTestEnvironment(t) // js from setupTestEnvironment is ignored for now by NewBlockFetcher
+	nodeCfg := ekkoCommon.NodeConfig{
+		ID:      "test-node-evm-testnet-timeout",
+		VMType:  "evm",
+		Network: "testnet",
+		Subnet:  "test-subnet",
+		HttpURL: server.URL,
+	}
+	redisC, natsC, _, kv, cleanup := setupTestEnvironment(t)
 	defer cleanup()
 
 	var bfRedisClient decoder.RedisClient = redisC
-	if config.VMType != "evm" { // NewBlockFetcher only expects redis client for EVM
+	if nodeCfg.VMType != "evm" { 
 		bfRedisClient = nil
 	}
-	bf, err := NewBlockFetcher(config.VMType, config.Network, natsC, kv, bfRedisClient)
+	bf, err := NewBlockFetcher(nodeCfg, natsC, kv, bfRedisClient)
 	require.NoError(t, err)
 
 	// Temporarily modify client timeout for this specific test case in fetchFullBlock
@@ -423,7 +488,7 @@ func TestFetchFullBlock_Timeout(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond) // Shorter than server sleep
 	defer cancel()
 
-	block, err := bf.fetchFullBlock(ctx, server.URL, blockHash)
+	block, err := bf.fetchFullBlock(ctx, blockHash)
 
 	require.Error(t, err, "Expected an error due to timeout")
 	assert.Nil(t, block, "Expected nil block on timeout")

@@ -18,6 +18,12 @@ import (
 // kvStoreKeyPrefix is used for keys in the NATS KV store for node configurations.
 const kvStoreKeyPrefix = "nodestore."
 
+// Default NATS KV store names for FetcherSupervisor
+const (
+	fetcherConfigKVNameDefault = "fetcher_configs"
+	fetcherDataKVNameDefault   = "fetcher_data"
+)
+
 // newManagedPipelineFunc is a function variable that allows replacing the pipeline creation logic for testing.
 var newManagedPipelineFunc = NewManagedPipeline
 
@@ -26,15 +32,17 @@ var newManagedPipelineFunc = NewManagedPipeline
 
 // PipelineSupervisor manages the lifecycle of blockchain data pipelines based on node configurations.
 type PipelineSupervisor struct {
-	natsConn         *nats.Conn
-	kvStore          nats.KeyValue
-	kvMutex          sync.Mutex                    // Mutex for KV store operations (e.g., in updateNodeStatusInKV)
-	servicesMutex    sync.Mutex                    // Mutex for s.runningServices map
-	runningServices  map[string]ManagedPipelineInterface   // Key: compositeKey (Network-Subnet-VMType), Value: ManagedPipeline instance
-	supervisorCtx    context.Context               // Main context for the supervisor's operations
-	supervisorCancel context.CancelFunc            // To cancel the supervisor's own context
-	redisClient      decoder.RedisClient           // Redis client for EVM decoder in BlockFetcher
-	// initWg           sync.WaitGroup              // Retained from previous checkpoint, if needed for startup synchronization
+	natsConn            *nats.Conn
+	kvStore             nats.KeyValue
+	kvMutex             sync.Mutex // Mutex for KV store operations (e.g., in updateNodeStatusInKV)
+	servicesMutex       sync.Mutex // Mutex for s.runningServices map
+	runningServices     map[string]ManagedPipelineInterface   // Key: compositeKey (Network-Subnet-VMType), Value: ManagedPipeline instance
+	supervisorCtx       context.Context    // Main context for the supervisor's operations
+	supervisorCancel    context.CancelFunc // To cancel the supervisor's own context
+	redisClient         decoder.RedisClient // Redis client for EVM decoder in BlockFetcher
+	fetcherSupervisor   *FetcherSupervisor
+	allNodeConfigs      []common.NodeConfig // All unique node configs from KV, for FetcherSupervisor
+	fetcherSupervisorWg sync.WaitGroup      // To wait for fetcherSupervisor to stop
 }
 
 // NewPipelineSupervisor creates a new PipelineSupervisor.
@@ -55,6 +63,7 @@ func NewPipelineSupervisor(
 		kvStore:         kv,
 		runningServices: make(map[string]ManagedPipelineInterface),
 		redisClient:     redisClient,
+		allNodeConfigs:  make([]common.NodeConfig, 0), // Initialize empty slice
 	}, nil
 }
 
@@ -125,8 +134,11 @@ func (s *PipelineSupervisor) synchronizeServices(ctx context.Context) error {
 		}
 	}
 
-	// 1. Group NodeConfigs by Network+Subnet+VMType.
+	// 1. Collect all NodeConfigs and group them by Network+Subnet+VMType.
 	groupedNodeConfigs := make(map[string][]common.NodeConfig)
+	tempAllNodeConfigs := make([]common.NodeConfig, 0, len(keys))
+	uniqueNodeIDs := make(map[string]struct{}) // To ensure we only add unique node configs to tempAllNodeConfigs
+
 	for _, key := range keys {
 		// Ensure we only process keys relevant to node configurations if a prefix is used elsewhere.
 		// For now, assuming all keys in this KV store are node configs or this check is handled by prefix on Get.
@@ -149,13 +161,55 @@ func (s *PipelineSupervisor) synchronizeServices(ctx context.Context) error {
 			continue
 		}
 
-		if nodeCfg.IsEnabled {
-			pipelineID := generatePipelineID(nodeCfg)
-			groupedNodeConfigs[pipelineID] = append(groupedNodeConfigs[pipelineID], nodeCfg)
-		}
+		// Add to tempAllNodeConfigs if unique and IsEnabled (or just unique if FetcherSupervisor might need disabled ones for some reason - current FetcherSupervisor logic filters by IsEnabled)
+			if _, exists := uniqueNodeIDs[nodeCfg.ID]; !exists {
+				tempAllNodeConfigs = append(tempAllNodeConfigs, nodeCfg)
+				uniqueNodeIDs[nodeCfg.ID] = struct{}{}
+			}
+
+			if nodeCfg.IsEnabled {
+				pipelineID := generatePipelineID(nodeCfg)
+				groupedNodeConfigs[pipelineID] = append(groupedNodeConfigs[pipelineID], nodeCfg)
+			}
 	}
 
-	log.Printf("PipelineSupervisor: Found %d active pipeline groups from KV store.", len(groupedNodeConfigs))
+	log.Printf("PipelineSupervisor: Found %d active pipeline groups and %d unique node configurations from KV store.", len(groupedNodeConfigs), len(tempAllNodeConfigs))
+	s.allNodeConfigs = tempAllNodeConfigs // Update the supervisor's list of all node configs
+
+	// Initialize and start FetcherSupervisor if not already running and node configs are available
+	if s.fetcherSupervisor == nil && len(s.allNodeConfigs) > 0 {
+		log.Println("PipelineSupervisor: Initializing FetcherSupervisor...")
+		fs, err := NewFetcherSupervisor(
+			s.supervisorCtx, // Pass the main supervisor context
+			s.natsConn,
+			fetcherConfigKVNameDefault, // Use default KV name for fetcher configs
+			fetcherDataKVNameDefault,   // Use default KV name for fetcher data
+			s.redisClient,
+			s.allNodeConfigs,     // Pass all collected node configurations
+		)
+		if err != nil {
+			log.Printf("PipelineSupervisor: Failed to create FetcherSupervisor: %v", err)
+			// Decide on error handling: maybe return error, or log and continue without fetcher supervisor
+		} else {
+			s.fetcherSupervisor = fs
+			s.fetcherSupervisorWg.Add(1)
+			go func() {
+				defer s.fetcherSupervisorWg.Done()
+				log.Println("PipelineSupervisor: Starting FetcherSupervisor Run loop...")
+				if err := s.fetcherSupervisor.Run(); err != nil {
+					log.Printf("PipelineSupervisor: FetcherSupervisor Run loop exited with error: %v", err)
+				}
+				log.Println("PipelineSupervisor: FetcherSupervisor Run loop exited.")
+			}()
+			log.Println("PipelineSupervisor: FetcherSupervisor started.")
+		}
+	} else if s.fetcherSupervisor != nil {
+		// If FetcherSupervisor exists, update its known node configurations
+		// This assumes FetcherSupervisor has a method like UpdateNodeConfigs, which it currently doesn't explicitly
+		// For now, FetcherSupervisor re-reads relevantNodeConfigs in its synchronizeFetchers, so simply having it run is okay.
+		// A more direct update mechanism could be added to FetcherSupervisor if needed.
+		log.Println("PipelineSupervisor: FetcherSupervisor already running. Node configs will be used on its next sync cycle.")
+	}
 
 	currentPipelineIDs := make(map[string]bool)
 
@@ -228,8 +282,15 @@ func (s *PipelineSupervisor) synchronizeServices(ctx context.Context) error {
 // shutdownAllServices iterates over running services and signals them to stop.
 func (s *PipelineSupervisor) shutdownAllServices() {
 	log.Println("PipelineSupervisor: Initiating shutdown of all managed services...")
-	// s.kvMutex.Lock() // Lock if modifying runningServices map concurrently, though usually called in sequence
-	// defer s.kvMutex.Unlock()
+	s.servicesMutex.Lock() // Protect access to runningServices and fetcherSupervisor
+	defer s.servicesMutex.Unlock()
+
+	// Shutdown FetcherSupervisor first or concurrently
+	if s.fetcherSupervisor != nil {
+		log.Println("PipelineSupervisor: Signaling FetcherSupervisor to stop...")
+		s.fetcherSupervisor.cancel() // Call the cancel function of FetcherSupervisor
+		// No need to nil s.fetcherSupervisor here, as the whole PipelineSupervisor is shutting down
+	}
 
 	var wg sync.WaitGroup
 	for id, pipeline := range s.runningServices {
@@ -245,7 +306,15 @@ func (s *PipelineSupervisor) shutdownAllServices() {
 		}(id, pipeline)
 	}
 	wg.Wait()
-	// delete(s.runningServices, id) // Temporarily removed, will be handled by ManagedPipeline's lifecycle
+	log.Println("PipelineSupervisor: All ManagedPipelines stopped.")
+
+	// Wait for FetcherSupervisor to stop if it was started
+	if s.fetcherSupervisor != nil {
+		log.Println("PipelineSupervisor: Waiting for FetcherSupervisor to stop...")
+		s.fetcherSupervisorWg.Wait()
+		log.Println("PipelineSupervisor: FetcherSupervisor stopped.")
+	}
+
 	log.Println("PipelineSupervisor: All services have been signaled to stop and are shutting down.")
 }
 

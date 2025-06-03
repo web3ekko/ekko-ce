@@ -391,6 +391,15 @@ func (mp *ManagedPipeline) Run() error {
 				continue
 			}
 
+			// Populate NodeID if it's empty (which it will be from WebSocketSource as it doesn't know our specific node ID)
+			if newHead.NodeID == "" && mp.activeNodeConfig.ID != "" {
+				newHead.NodeID = mp.activeNodeConfig.ID
+				log.Printf("ManagedPipeline [%s]: Populated NodeID %s into NewHeadEvent from active config for node %s", mp.id, newHead.NodeID, mp.activeNodeConfig.Name)
+			} else if newHead.NodeID == "" && mp.activeNodeConfig.ID == "" {
+				log.Printf("ManagedPipeline [%s]: Warning - NewHeadEvent NodeID is empty and activeNodeConfig.ID is also empty. Cannot reliably set NodeID.", mp.id)
+				// Potentially skip publishing or use a default if this case is problematic
+			}
+
 			log.Printf("ManagedPipeline [%s]: Received NewHeadEvent from node %s (Event NodeID: %s): Hash %s, Number %d", 
 				mp.id, mp.activeNodeConfig.Name, newHead.NodeID, newHead.Hash, newHead.Number)
 
@@ -408,11 +417,11 @@ func (mp *ManagedPipeline) Run() error {
 				continue // Don't stop the pipeline for a single marshalling error
 			}
 
-			// Construct NATS subject: ekko.heads.<vmType>.<network>.<nodeID>
-			natsSubject := fmt.Sprintf("ekko.heads.%s.%s.%s",
-				strings.ToLower(mp.vmType),
+			// Construct NATS subject: <network>.<subnet>.<vmType>.newheads
+			natsSubject := fmt.Sprintf("%s.%s.%s.newheads",
 				strings.ToLower(mp.network),
-				newHead.NodeID) // Use NodeID from the event itself
+				strings.ToLower(mp.subnet),
+				strings.ToLower(mp.vmType))
 
 			if err := mp.natsConn.Publish(natsSubject, payload); err != nil {
 				log.Printf("ManagedPipeline [%s]: Error publishing head data to NATS subject %s for node %s: %v", mp.id, natsSubject, mp.activeNodeConfig.Name, err)

@@ -9,10 +9,13 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/reugn/go-streams"
+	"github.com/web3ekko/ekko-ce/pipeline/pkg/common"
 )
 
 // WebSocketSource is a source that connects to an Avalanche node via WebSocket
@@ -144,36 +147,69 @@ func (s *WebSocketSource) Start() error {
 			default:
 				_, message, err := conn.ReadMessage()
 				if err != nil {
-					log.Printf("read failed: %v", err)
-					return
+					log.Printf("WebSocketSource: read message failed: %v", err)
+					// Consider if this is a fatal error for the connection
+					return // Exit goroutine on read failure
 				}
-				// Log raw WS message
-				log.Printf("WebSocketSource: raw message: %s", string(message))
+				// Log raw WS message for debugging if needed, can be verbose
+				// log.Printf("WebSocketSource: raw message: %s", string(message))
 
-				// Parse subscription response
-				var response struct {
+				var wsResponse struct {
 					Params struct {
-						Result struct {
-							Hash string `json:"hash"`
+						SubscriptionID string `json:"subscription"`
+						Result         struct {
+							Hash       string `json:"hash"`
+							ParentHash string `json:"parentHash"`
+							Number     string `json:"number"`    // Hex string
+							Timestamp  string `json:"timestamp"` // Hex string
 						} `json:"result"`
 					} `json:"params"`
+					Method string `json:"method"` // To ensure it's a subscription event
 				}
-				if err := json.Unmarshal(message, &response); err != nil {
-					log.Printf("unmarshal failed: %v", err)
+
+				if err := json.Unmarshal(message, &wsResponse); err != nil {
+					log.Printf("WebSocketSource: unmarshal raw message failed: %v. Message: %s", err, string(message))
 					continue
 				}
-				// Log parsed new head
-				log.Printf("WebSocketSource: new head hash %s", response.Params.Result.Hash)
 
-				// Get full block
-				block, err := s.getBlock(response.Params.Result.Hash)
+				// Ensure it's a subscription event and not an error response or other message type
+				if wsResponse.Method != "eth_subscription" || wsResponse.Params.Result.Hash == "" {
+					// This might also catch the initial subscription confirmation which has a result that is the subscription ID, not a block head.
+					// Proper handling would be to check if wsResponse.Params.Result is an object or a string.
+					// For now, we assume newHeads events always have the Result object with a Hash.
+					log.Printf("WebSocketSource: received non-subscription head event or initial confirmation: Method=%s, Params=%+v", wsResponse.Method, wsResponse.Params)
+					continue
+				}
+
+				blockNumber, err := strconv.ParseUint(strings.TrimPrefix(wsResponse.Params.Result.Number, "0x"), 16, 64)
 				if err != nil {
-					log.Printf("get block failed: %v", err)
+					log.Printf("WebSocketSource: failed to parse block number '%s': %v", wsResponse.Params.Result.Number, err)
 					continue
 				}
 
-				// Send block to channel
-				s.outCh <- block
+				timestamp, err := strconv.ParseUint(strings.TrimPrefix(wsResponse.Params.Result.Timestamp, "0x"), 16, 64)
+				if err != nil {
+					log.Printf("WebSocketSource: failed to parse timestamp '%s': %v", wsResponse.Params.Result.Timestamp, err)
+					continue
+				}
+
+				headEvent := &common.NewHeadEvent{
+					Hash:       wsResponse.Params.Result.Hash,
+					ParentHash: wsResponse.Params.Result.ParentHash,
+					Number:     blockNumber,
+					Timestamp:  timestamp,
+					NodeID:     "", // Will be populated by ManagedPipeline with its activeNodeConfig.ID
+				}
+
+				log.Printf("WebSocketSource: sending NewHeadEvent: Hash=%s, Number=%d", headEvent.Hash, headEvent.Number)
+				
+				// Send with select to handle context cancellation during potential block on outCh
+				select {
+				case s.outCh <- headEvent:
+				case <-s.ctx.Done():
+					log.Printf("WebSocketSource: context cancelled while sending NewHeadEvent to outCh.")
+					return
+				}
 			}
 		}
 	}()
