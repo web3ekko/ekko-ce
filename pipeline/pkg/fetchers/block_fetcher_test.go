@@ -16,8 +16,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
-	tcNats "github.com/testcontainers/testcontainers-go/modules/nats"
 	tcRedis "github.com/testcontainers/testcontainers-go/modules/redis"
+	"github.com/testcontainers/testcontainers-go/wait" // Added for wait strategy
 
 	"github.com/web3ekko/ekko-ce/pipeline/pkg/blockchain"
 	ekkoCommon "github.com/web3ekko/ekko-ce/pipeline/pkg/common"
@@ -50,13 +50,25 @@ func setupTestEnvironment(t *testing.T) (decoder.RedisClient, *nats.Conn, nats.J
 	require.NoError(t, err, "failed to ping redis")
 
 	// Start NATS container
-	natsContainer, err := tcNats.RunContainer(ctx,
-		testcontainers.WithImage("nats:2.10-alpine"),
-	)
+	natsReq := testcontainers.GenericContainerRequest{
+		ContainerRequest: testcontainers.ContainerRequest{
+			Image:        "nats:2.10-alpine",
+			ExposedPorts: []string{"4222/tcp"},
+			Cmd:          []string{"-js", "-sd", "/data/jetstream"}, // Enable JetStream and set storage dir
+			Tmpfs:        map[string]string{"/data/jetstream": "rw"},    // Provide tmpfs for JetStream
+			WaitingFor:   wait.ForLog("Listening for client connections on 0.0.0.0:4222").WithStartupTimeout(10 * time.Second),
+		},
+		Started: true,
+	}
+	natsContainer, err := testcontainers.GenericContainer(ctx, natsReq)
 	require.NoError(t, err, "failed to run nats container")
 
-	natsURL, err := natsContainer.ConnectionString(ctx)
-	require.NoError(t, err, "failed to get nats connection string")
+	natsHost, err := natsContainer.Host(ctx)
+	require.NoError(t, err, "failed to get nats host")
+	natsPort, err := natsContainer.MappedPort(ctx, "4222/tcp")
+	require.NoError(t, err, "failed to get nats mapped port")
+	natsURL := fmt.Sprintf("nats://%s:%s", natsHost, natsPort.Port())
+
 
 	natsConn, err := nats.Connect(natsURL)
 	require.NoError(t, err, "failed to connect to nats")
@@ -102,9 +114,21 @@ func mockRPCServer(_ *testing.T, handler http.HandlerFunc) *httptest.Server {
 func TestFetchFullBlock_SuccessByHash(t *testing.T) {
 	blockHash := "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
 	expectedBlock := &blockchain.Block{
-		Hash: blockHash,
+		Hash:       blockHash,
+		Number:     "0x1b4", // Example block number, hex encoded
+		ParentHash: "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef12345678", // Corrected length
+		Timestamp:  "0x5e4b5c6d", // Example timestamp
 		Transactions: []blockchain.Transaction{
-			{Hash: "0xtx1", From: "0xfrom1", To: stringPtr("0xto1"), Value: "0x1"},
+			{
+				Hash:     "0xtx1",
+				From:     "0xfrom1",
+				To:       stringPtr("0xto1"),
+				Value:    "0x1",
+				Gas:      "0x5208",    // 21000
+				GasPrice: "0x4a817c800", // 20 Gwei
+				Nonce:    "0x0",
+				Data:     "0x",
+			},
 		},
 	}
 
@@ -157,6 +181,9 @@ func TestFetchFullBlock_SuccessByHash(t *testing.T) {
 	require.NoError(t, err, "fetchFullBlock returned an error")
 	require.NotNil(t, block, "fetchFullBlock returned a nil block")
 	assert.Equal(t, expectedBlock.Hash, block.Hash)
+	assert.Equal(t, expectedBlock.Number, block.Number)
+	assert.Equal(t, expectedBlock.ParentHash, block.ParentHash)
+	assert.Equal(t, expectedBlock.Timestamp, block.Timestamp)
 	assert.Equal(t, len(expectedBlock.Transactions), len(block.Transactions))
 	if len(block.Transactions) > 0 {
 		assert.Equal(t, expectedBlock.Transactions[0].Hash, block.Transactions[0].Hash)
@@ -164,11 +191,26 @@ func TestFetchFullBlock_SuccessByHash(t *testing.T) {
 }
 
 func TestFetchFullBlock_SuccessByNumber(t *testing.T) {
-	blockNumber := "0x1b4"
+	blockNumberStr := "0x1b4"
+	blockNumberHex := "0x1b4"
+	expectedBlockHash := "0xblocknumabcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+
 	expectedBlock := &blockchain.Block{
-		Hash: "0xabc", // A different hash for the block found by number
+		Hash:       expectedBlockHash,
+		Number:     blockNumberHex,
+		ParentHash: "0xdefabc1234567890defabc1234567890defabc1234567890defabc12345678", // Corrected length
+		Timestamp:  "0x5e4b5c6d",
 		Transactions: []blockchain.Transaction{
-			{Hash: "0xtx2", From: "0xfrom2", To: stringPtr("0xto2"), Value: "0x2"},
+			{
+				Hash:     "0xtx2",
+				From:     "0xfrom2",
+				To:       stringPtr("0xto2"),
+				Value:    "0x2",
+				Gas:      "0x5208",
+				GasPrice: "0x4a817c800",
+				Nonce:    "0x1",
+				Data:     "0x",
+			},
 		},
 	}
 
@@ -179,7 +221,7 @@ func TestFetchFullBlock_SuccessByNumber(t *testing.T) {
 
 		assert.Equal(t, "eth_getBlockByNumber", req.Method)
 		require.Len(t, req.Params, 2)
-		assert.Equal(t, blockNumber, req.Params[0])
+		assert.Equal(t, blockNumberStr, req.Params[0])
 		assert.Equal(t, true, req.Params[1])
 
 		resp := blockchain.JSONRPCResponse{
@@ -211,11 +253,18 @@ func TestFetchFullBlock_SuccessByNumber(t *testing.T) {
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	block, err := bf.fetchFullBlock(ctx, blockNumber)
+	block, err := bf.fetchFullBlock(ctx, blockNumberStr)
 
 	require.NoError(t, err)
 	require.NotNil(t, block)
 	assert.Equal(t, expectedBlock.Hash, block.Hash)
+	assert.Equal(t, expectedBlock.Number, block.Number)
+	assert.Equal(t, expectedBlock.ParentHash, block.ParentHash)
+	assert.Equal(t, expectedBlock.Timestamp, block.Timestamp)
+	assert.Equal(t, len(expectedBlock.Transactions), len(block.Transactions))
+	if len(block.Transactions) > 0 {
+		assert.Equal(t, expectedBlock.Transactions[0].Hash, block.Transactions[0].Hash)
+	}
 }
 
 func TestFetchFullBlock_BlockNotFound(t *testing.T) {

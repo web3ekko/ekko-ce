@@ -6,16 +6,17 @@ import (
 	"fmt"
 	"log"
 	"reflect"
-	"strings" // Added strings import
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
-	tcnats "github.com/testcontainers/testcontainers-go/modules/nats" // Alias for nats module
+	"github.com/testcontainers/testcontainers-go/wait"
 	"github.com/web3ekko/ekko-ce/pipeline/pkg/common"
 	"github.com/web3ekko/ekko-ce/pipeline/pkg/decoder"
 )
@@ -373,8 +374,47 @@ func (m *mockManagedPipeline) lastUpdateConfigs() []common.NodeConfig {
 func TestSynchronizeServices_NodeCreated(t *testing.T) {
 	ctx := context.Background()
 
+	// Start Redis container
+	redisReq := testcontainers.GenericContainerRequest{
+		ContainerRequest: testcontainers.ContainerRequest{
+			Image:        "redis:7",
+			ExposedPorts: []string{"6379/tcp"},
+			WaitingFor:   wait.ForExec([]string{"redis-cli", "ping"}).WithStartupTimeout(5 * time.Second),
+		},
+		Started: true,
+	}
+	redisContainer, err := testcontainers.GenericContainer(ctx, redisReq)
+	require.NoError(t, err, "failed to run redis container")
+	defer func() {
+		if errTerminate := redisContainer.Terminate(ctx); errTerminate != nil {
+			t.Logf("Failed to terminate redis container: %s", errTerminate)
+		}
+	}()
+
+	redisHost, err := redisContainer.Host(ctx)
+	require.NoError(t, err, "failed to get redis host")
+	redisPortNum, err := redisContainer.MappedPort(ctx, "6379/tcp")
+	require.NoError(t, err, "failed to get redis mapped port")
+	redisAddr := fmt.Sprintf("%s:%s", redisHost, redisPortNum.Port())
+
+	redisClientOpts := &redis.Options{Addr: redisAddr}
+	appRedisClient := redis.NewClient(redisClientOpts)
+	_, err = appRedisClient.Ping(ctx).Result()
+	require.NoError(t, err, "failed to ping redis")
+	defer appRedisClient.Close()
+
 	// Setup NATS container
-	natsContainer, err := tcnats.RunContainer(ctx, testcontainers.WithImage("nats:2.10-alpine"))
+	natsReq := testcontainers.GenericContainerRequest{
+		ContainerRequest: testcontainers.ContainerRequest{
+			Image:        "nats:2.10-alpine",
+			ExposedPorts: []string{"4222/tcp", "8222/tcp"}, // Added 8222/tcp
+			Cmd:          []string{"-js", "-sd", "/data/jetstream", "-m", "8222"}, // Ensure monitoring port is 8222
+			Tmpfs:        map[string]string{"/data/jetstream": "rw"},
+			WaitingFor:   wait.ForHTTP("/healthz").WithPort("8222/tcp").WithStartupTimeout(10 * time.Second), // Changed strategy
+		},
+		Started: true,
+	}
+	natsContainer, err := testcontainers.GenericContainer(ctx, natsReq)
 	require.NoError(t, err, "Failed to start NATS container")
 	defer func() {
 		if err := natsContainer.Terminate(ctx); err != nil {
@@ -382,8 +422,12 @@ func TestSynchronizeServices_NodeCreated(t *testing.T) {
 		}
 	}()
 
-	natsURL, err := natsContainer.ConnectionString(ctx)
-	require.NoError(t, err, "Failed to get NATS connection string")
+	natsHost, err := natsContainer.Host(ctx)
+	require.NoError(t, err, "failed to get nats host")
+	natsPort, err := natsContainer.MappedPort(ctx, "4222/tcp")
+	require.NoError(t, err, "failed to get nats mapped port")
+	natsURL := fmt.Sprintf("nats://%s:%s", natsHost, natsPort.Port())
+	// require.NoError(t, err, "Failed to construct NATS connection string") // Original err was for ConnectionString, now covered by host/port checks
 
 	nc, err := nats.Connect(natsURL)
 	require.NoError(t, err, "Failed to connect to NATS container")
@@ -400,7 +444,7 @@ func TestSynchronizeServices_NodeCreated(t *testing.T) {
 	const kvStoreKeyPrefix = "nodestore."
 
 	// Setup Supervisor with real NATS connection and KV store
-	supervisor, err := NewPipelineSupervisor(nc, kv, nil /*redisClient*/)
+	supervisor, err := NewPipelineSupervisor(nc, kv, appRedisClient)
 	require.NoError(t, err)
 	supervisor.supervisorCtx = context.Background() // Initialize supervisorCtx for the test to prevent panic in NewFetcherSupervisor
 
@@ -461,8 +505,47 @@ func TestSynchronizeServices_NodeCreated(t *testing.T) {
 func TestSynchronizeServices_NodeUpdated(t *testing.T) {
 	ctx := context.Background()
 
+	// Start Redis container
+	redisReq := testcontainers.GenericContainerRequest{
+		ContainerRequest: testcontainers.ContainerRequest{
+			Image:        "redis:7",
+			ExposedPorts: []string{"6379/tcp"},
+			WaitingFor:   wait.ForExec([]string{"redis-cli", "ping"}).WithStartupTimeout(5 * time.Second),
+		},
+		Started: true,
+	}
+	redisContainer, err := testcontainers.GenericContainer(ctx, redisReq)
+	require.NoError(t, err, "failed to run redis container")
+	defer func() {
+		if errTerminate := redisContainer.Terminate(ctx); errTerminate != nil {
+			t.Logf("Failed to terminate redis container: %s", errTerminate)
+		}
+	}()
+
+	redisHost, err := redisContainer.Host(ctx)
+	require.NoError(t, err, "failed to get redis host")
+	redisPortNum, err := redisContainer.MappedPort(ctx, "6379/tcp")
+	require.NoError(t, err, "failed to get redis mapped port")
+	redisAddr := fmt.Sprintf("%s:%s", redisHost, redisPortNum.Port())
+
+	redisClientOpts := &redis.Options{Addr: redisAddr}
+	appRedisClient := redis.NewClient(redisClientOpts)
+	_, err = appRedisClient.Ping(ctx).Result()
+	require.NoError(t, err, "failed to ping redis")
+	defer appRedisClient.Close()
+
 	// Setup NATS container
-	natsContainer, err := tcnats.RunContainer(ctx, testcontainers.WithImage("nats:2.10-alpine"))
+	natsReq := testcontainers.GenericContainerRequest{
+		ContainerRequest: testcontainers.ContainerRequest{
+			Image:        "nats:2.10-alpine",
+			ExposedPorts: []string{"4222/tcp", "8222/tcp"}, // Added 8222/tcp
+			Cmd:          []string{"-js", "-sd", "/data/jetstream", "-m", "8222"}, // Ensure monitoring port is 8222
+			Tmpfs:        map[string]string{"/data/jetstream": "rw"},
+			WaitingFor:   wait.ForHTTP("/healthz").WithPort("8222/tcp").WithStartupTimeout(10 * time.Second), // Changed strategy
+		},
+		Started: true,
+	}
+	natsContainer, err := testcontainers.GenericContainer(ctx, natsReq)
 	require.NoError(t, err, "Failed to start NATS container")
 	defer func() {
 		if err := natsContainer.Terminate(ctx); err != nil {
@@ -470,8 +553,12 @@ func TestSynchronizeServices_NodeUpdated(t *testing.T) {
 		}
 	}()
 
-	natsURL, err := natsContainer.ConnectionString(ctx)
-	require.NoError(t, err, "Failed to get NATS connection string")
+	natsHost, err := natsContainer.Host(ctx)
+	require.NoError(t, err, "failed to get nats host")
+	natsPort, err := natsContainer.MappedPort(ctx, "4222/tcp")
+	require.NoError(t, err, "failed to get nats mapped port")
+	natsURL := fmt.Sprintf("nats://%s:%s", natsHost, natsPort.Port())
+	// require.NoError(t, err, "Failed to construct NATS connection string") // Original err was for ConnectionString, now covered by host/port checks
 
 	nc, err := nats.Connect(natsURL)
 	require.NoError(t, err, "Failed to connect to NATS container")
@@ -488,7 +575,7 @@ func TestSynchronizeServices_NodeUpdated(t *testing.T) {
 	const kvStoreKeyPrefix = "nodestore."
 
 	// Setup Supervisor with real NATS connection and KV store
-	supervisor, err := NewPipelineSupervisor(nc, kv, nil /*redisClient*/)
+	supervisor, err := NewPipelineSupervisor(nc, kv, appRedisClient)
 	require.NoError(t, err, "NewPipelineSupervisor should not error")
 	supervisor.supervisorCtx = context.Background() // Initialize supervisorCtx for the test
 
@@ -576,8 +663,46 @@ func TestSynchronizeServices_NodeUpdated(t *testing.T) {
 func TestSynchronizeServices_NodeDeleted(t *testing.T) {
 	ctx := context.Background()
 
+	// Start Redis container
+	redisReq := testcontainers.GenericContainerRequest{
+		ContainerRequest: testcontainers.ContainerRequest{
+			Image:        "redis:7",
+			ExposedPorts: []string{"6379/tcp"},
+			WaitingFor:   wait.ForExec([]string{"redis-cli", "ping"}).WithStartupTimeout(5 * time.Second),
+		},
+		Started: true,
+	}
+	redisContainer, err := testcontainers.GenericContainer(ctx, redisReq)
+	require.NoError(t, err, "failed to run redis container")
+	defer func() {
+		if errTerminate := redisContainer.Terminate(ctx); errTerminate != nil {
+			t.Logf("Failed to terminate redis container: %s", errTerminate)
+		}
+	}()
+
+	redisHost, err := redisContainer.Host(ctx)
+	require.NoError(t, err, "failed to get redis host")
+	redisPortNum, err := redisContainer.MappedPort(ctx, "6379/tcp")
+	require.NoError(t, err, "failed to get redis mapped port")
+	redisAddr := fmt.Sprintf("%s:%s", redisHost, redisPortNum.Port())
+
+	redisClientOpts := &redis.Options{Addr: redisAddr}
+	appRedisClient := redis.NewClient(redisClientOpts)
+	_, err = appRedisClient.Ping(ctx).Result()
+	require.NoError(t, err, "failed to ping redis")
+
 	// Setup NATS container
-	natsContainer, err := tcnats.RunContainer(ctx, testcontainers.WithImage("nats:2.10-alpine"))
+	natsReq := testcontainers.GenericContainerRequest{
+		ContainerRequest: testcontainers.ContainerRequest{
+			Image:        "nats:2.10-alpine",
+			ExposedPorts: []string{"4222/tcp", "8222/tcp"}, // Added 8222/tcp
+			Cmd:          []string{"-js", "-sd", "/data/jetstream", "-m", "8222"}, // Ensure monitoring port is 8222
+			Tmpfs:        map[string]string{"/data/jetstream": "rw"},
+			WaitingFor:   wait.ForHTTP("/healthz").WithPort("8222/tcp").WithStartupTimeout(10 * time.Second), // Changed strategy
+		},
+		Started: true,
+	}
+	natsContainer, err := testcontainers.GenericContainer(ctx, natsReq)
 	require.NoError(t, err, "Failed to start NATS container")
 	defer func() {
 		if err := natsContainer.Terminate(ctx); err != nil {
@@ -585,8 +710,12 @@ func TestSynchronizeServices_NodeDeleted(t *testing.T) {
 		}
 	}()
 
-	natsURL, err := natsContainer.ConnectionString(ctx)
-	require.NoError(t, err, "Failed to get NATS connection string")
+	natsHost, err := natsContainer.Host(ctx)
+	require.NoError(t, err, "failed to get nats host")
+	natsPort, err := natsContainer.MappedPort(ctx, "4222/tcp")
+	require.NoError(t, err, "failed to get nats mapped port")
+	natsURL := fmt.Sprintf("nats://%s:%s", natsHost, natsPort.Port())
+	// require.NoError(t, err, "Failed to construct NATS connection string") // Original err was for ConnectionString, now covered by host/port checks
 
 	nc, err := nats.Connect(natsURL)
 	require.NoError(t, err, "Failed to connect to NATS container")
@@ -603,7 +732,7 @@ func TestSynchronizeServices_NodeDeleted(t *testing.T) {
 	const kvStoreKeyPrefix = "nodestore."
 
 	// Setup Supervisor with real NATS connection and KV store
-	supervisor, err := NewPipelineSupervisor(nc, kv, nil /*redisClient*/)
+	supervisor, err := NewPipelineSupervisor(nc, kv, appRedisClient)
 	require.NoError(t, err, "NewPipelineSupervisor should not error")
 	supervisor.supervisorCtx = context.Background() // Initialize supervisorCtx for the test
 
@@ -678,8 +807,46 @@ func TestSynchronizeServices_NodeDeleted(t *testing.T) {
 func TestSynchronizeServices_NodeDisabledEnabled(t *testing.T) {
 	ctx := context.Background()
 
+	// Start Redis container
+	redisReq := testcontainers.GenericContainerRequest{
+		ContainerRequest: testcontainers.ContainerRequest{
+			Image:        "redis:7",
+			ExposedPorts: []string{"6379/tcp"},
+			WaitingFor:   wait.ForExec([]string{"redis-cli", "ping"}).WithStartupTimeout(5 * time.Second),
+		},
+		Started: true,
+	}
+	redisContainer, err := testcontainers.GenericContainer(ctx, redisReq)
+	require.NoError(t, err, "failed to run redis container")
+	defer func() {
+		if errTerminate := redisContainer.Terminate(ctx); errTerminate != nil {
+			t.Logf("Failed to terminate redis container: %s", errTerminate)
+		}
+	}()
+
+	redisHost, err := redisContainer.Host(ctx)
+	require.NoError(t, err, "failed to get redis host")
+	redisPortNum, err := redisContainer.MappedPort(ctx, "6379/tcp")
+	require.NoError(t, err, "failed to get redis mapped port")
+	redisAddr := fmt.Sprintf("%s:%s", redisHost, redisPortNum.Port())
+
+	redisClientOpts := &redis.Options{Addr: redisAddr}
+	appRedisClient := redis.NewClient(redisClientOpts)
+	_, err = appRedisClient.Ping(ctx).Result()
+	require.NoError(t, err, "failed to ping redis")
+
 	// Setup NATS container
-	natsContainer, err := tcnats.RunContainer(ctx, testcontainers.WithImage("nats:2.10-alpine"))
+	natsReq := testcontainers.GenericContainerRequest{
+		ContainerRequest: testcontainers.ContainerRequest{
+			Image:        "nats:2.10-alpine",
+			ExposedPorts: []string{"4222/tcp", "8222/tcp"}, // Added 8222/tcp
+			Cmd:          []string{"-js", "-sd", "/data/jetstream", "-m", "8222"}, // Ensure monitoring port is 8222
+			Tmpfs:        map[string]string{"/data/jetstream": "rw"},
+			WaitingFor:   wait.ForHTTP("/healthz").WithPort("8222/tcp").WithStartupTimeout(10 * time.Second), // Changed strategy
+		},
+		Started: true,
+	}
+	natsContainer, err := testcontainers.GenericContainer(ctx, natsReq)
 	require.NoError(t, err, "Failed to start NATS container")
 	defer func() {
 		if err := natsContainer.Terminate(ctx); err != nil {
@@ -687,8 +854,12 @@ func TestSynchronizeServices_NodeDisabledEnabled(t *testing.T) {
 		}
 	}()
 
-	natsURL, err := natsContainer.ConnectionString(ctx)
-	require.NoError(t, err, "Failed to get NATS connection string")
+	natsHost, err := natsContainer.Host(ctx)
+	require.NoError(t, err, "failed to get nats host")
+	natsPort, err := natsContainer.MappedPort(ctx, "4222/tcp")
+	require.NoError(t, err, "failed to get nats mapped port")
+	natsURL := fmt.Sprintf("nats://%s:%s", natsHost, natsPort.Port())
+	// require.NoError(t, err, "Failed to construct NATS connection string") // Original err was for ConnectionString, now covered by host/port checks
 
 	nc, err := nats.Connect(natsURL)
 	require.NoError(t, err, "Failed to connect to NATS container")
@@ -703,7 +874,7 @@ func TestSynchronizeServices_NodeDisabledEnabled(t *testing.T) {
 
 	const kvStoreKeyPrefix = "nodestore."
 
-	supervisor, err := NewPipelineSupervisor(nc, kv, nil /*redisClient*/)
+	supervisor, err := NewPipelineSupervisor(nc, kv, appRedisClient)
 	require.NoError(t, err, "NewPipelineSupervisor should not error")
 	supervisor.supervisorCtx = context.Background() // Initialize supervisorCtx for the test
 
@@ -771,9 +942,9 @@ func TestSynchronizeServices_NodeDisabledEnabled(t *testing.T) {
 	require.NotNil(t, currentMockPipeline, "Mock pipeline should still be the same instance")
 	assert.True(t, currentMockPipeline.stopCalled, "Pipeline's Stop method should have been called after disable")
 	// Check if UpdateNodeConfigs was called with zero enabled nodes before stop
-	assert.Len(t, currentMockPipeline.updateNodeConfigsCalls, 1, "UpdateNodeConfigs should be called once for disable")
-	if len(currentMockPipeline.updateNodeConfigsCalls) > 0 {
-		assert.Empty(t, currentMockPipeline.updateNodeConfigsCalls[0], "UpdateNodeConfigs should be called with empty nodes for disable")
+	assert.Len(t, currentMockPipeline.updateNodeConfigsCalls, 2, "UpdateNodeConfigs should have 2 calls by disable phase (initial + disable)")
+	if len(currentMockPipeline.updateNodeConfigsCalls) == 2 {
+		assert.Empty(t, currentMockPipeline.updateNodeConfigsCalls[1], "UpdateNodeConfigs (disable call) should be called with empty nodes")
 	}
 	supervisor.servicesMutex.Lock()
 	_, exists = supervisor.runningServices[pipelineID]
@@ -818,17 +989,59 @@ func TestSynchronizeServices_MultipleNodesInGroup(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second) // Increased timeout for potentially more complex test
 	defer cancel()
 
+	// Start Redis container
+	redisReq := testcontainers.GenericContainerRequest{
+		ContainerRequest: testcontainers.ContainerRequest{
+			Image:        "redis:7",
+			ExposedPorts: []string{"6379/tcp"},
+			WaitingFor:   wait.ForExec([]string{"redis-cli", "ping"}).WithStartupTimeout(5 * time.Second),
+		},
+		Started: true,
+	}
+	redisContainer, err := testcontainers.GenericContainer(ctx, redisReq)
+	require.NoError(t, err, "failed to run redis container")
+	defer func() {
+		if errTerminate := redisContainer.Terminate(ctx); errTerminate != nil {
+			t.Logf("Failed to terminate redis container: %s", errTerminate)
+		}
+	}()
+
+	redisHost, err := redisContainer.Host(ctx)
+	require.NoError(t, err, "failed to get redis host")
+	redisPortNum, err := redisContainer.MappedPort(ctx, "6379/tcp")
+	require.NoError(t, err, "failed to get redis mapped port")
+	redisAddr := fmt.Sprintf("%s:%s", redisHost, redisPortNum.Port())
+
+	redisClientOpts := &redis.Options{Addr: redisAddr}
+	appRedisClient := redis.NewClient(redisClientOpts)
+	_, err = appRedisClient.Ping(ctx).Result()
+	require.NoError(t, err, "failed to ping redis")
+
 	// Test NATS setup
-	natsContainer, err := tcnats.RunContainer(ctx, testcontainers.WithImage("nats:2.10-alpine"))
-	require.NoError(t, err)
+	natsReq := testcontainers.GenericContainerRequest{
+		ContainerRequest: testcontainers.ContainerRequest{
+			Image:        "nats:2.10-alpine",
+			ExposedPorts: []string{"4222/tcp", "8222/tcp"}, // Added 8222/tcp
+			Cmd:          []string{"-js", "-sd", "/data/jetstream", "-m", "8222"}, // Ensure monitoring port is 8222
+			Tmpfs:        map[string]string{"/data/jetstream": "rw"},
+			WaitingFor:   wait.ForHTTP("/healthz").WithPort("8222/tcp").WithStartupTimeout(10 * time.Second), // Changed strategy
+		},
+		Started: true,
+	}
+	natsContainer, err := testcontainers.GenericContainer(ctx, natsReq)
+	require.NoError(t, err) // err here is from GenericContainer
 	defer func() {
 		if err := natsContainer.Terminate(ctx); err != nil {
 			t.Fatalf("failed to terminate NATS container: %s", err)
 		}
 	}()
 
-	natsURL, err := natsContainer.ConnectionString(ctx)
-	require.NoError(t, err)
+	natsHost, errHost := natsContainer.Host(ctx)
+	require.NoError(t, errHost)
+	natsPort, errPort := natsContainer.MappedPort(ctx, "4222/tcp")
+	require.NoError(t, errPort)
+	natsURL := fmt.Sprintf("nats://%s:%s", natsHost, natsPort.Port())
+	// require.NoError(t, err) // Original err was for ConnectionString, now covered by host/port checks
 
 	nc, err := nats.Connect(natsURL)
 	require.NoError(t, err)
@@ -914,7 +1127,7 @@ func TestSynchronizeServices_MultipleNodesInGroup(t *testing.T) {
 	require.NoError(t, err)
 
 	// Now start the supervisor, its initial synchronizeServices should pick up both nodes.
-	supervisor, err := NewPipelineSupervisor(nc, kv, nil) // Using nil for RedisClient for now
+	supervisor, err := NewPipelineSupervisor(nc, kv, appRedisClient)
 	require.NoError(t, err, "NewPipelineSupervisor should not error")
 
 	var supervisorWg sync.WaitGroup
