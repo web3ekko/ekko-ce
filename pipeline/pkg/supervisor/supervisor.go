@@ -15,9 +15,6 @@ import (
 	"github.com/web3ekko/ekko-ce/pipeline/pkg/decoder"
 )
 
-// kvStoreKeyPrefix is used for keys in the NATS KV store for node configurations.
-const kvStoreKeyPrefix = "nodestore."
-
 // Default NATS KV store names for FetcherSupervisor
 const (
 	fetcherConfigKVNameDefault = "fetcher_configs"
@@ -142,14 +139,7 @@ func (s *PipelineSupervisor) synchronizeServices(ctx context.Context) error {
 	for _, key := range keys {
 		// Ensure we only process keys relevant to node configurations if a prefix is used elsewhere.
 		// For now, assuming all keys in this KV store are node configs or this check is handled by prefix on Get.
-		// If kvStoreKeyPrefix is defined and used for Put, Keys() might return unprefixed keys or this needs filtering.
-		// For simplicity, assuming 'key' is the direct key used in s.kvStore.Get() for node configs.
-		// If nodeID in updateNodeStatusInKV is UUID, and keyInKV = kvStoreKeyPrefix + nodeID, then keys here should match that pattern.
-		if !strings.HasPrefix(key, kvStoreKeyPrefix) { // Assuming kvStoreKeyPrefix is defined globally or on 's'
-			// log.Printf("PipelineSupervisor: Skipping key %s as it does not match node config prefix %s", key, kvStoreKeyPrefix)
-			continue // Skip keys not matching our pattern if prefix is used consistently
-		}
-
+		// All keys in this KV store are assumed to be node configs, keyed by NodeConfig.ID.
 		entry, errK := s.kvStore.Get(key)
 		if errK != nil {
 			log.Printf("PipelineSupervisor: Error fetching entry for key %s: %v", key, errK)
@@ -182,7 +172,6 @@ func (s *PipelineSupervisor) synchronizeServices(ctx context.Context) error {
 		fs, err := NewFetcherSupervisor(
 			s.supervisorCtx, // Pass the main supervisor context
 			s.natsConn,
-			fetcherConfigKVNameDefault, // Use default KV name for fetcher configs
 			fetcherDataKVNameDefault,   // Use default KV name for fetcher data
 			s.redisClient,
 			s.allNodeConfigs,     // Pass all collected node configurations
@@ -330,12 +319,11 @@ func generatePipelineID(nodeCfg common.NodeConfig) string {
 // updateNodeStatusInKV fetches a node's configuration from the KV store, updates its status fields,
 // and writes it back. This will trigger a NATS event which in turn causes synchronizeServices.
 // The nodeID here is the actual key in the KV store (e.g., the UUID of the node).
-func (s *PipelineSupervisor) updateNodeStatusInKV(nodeID string, status string, errMsg string) error {
-	s.kvMutex.Lock()
+func (s *PipelineSupervisor) updateNodeStatusInKV(nodeID, status, errMsg string) error {
+	s.kvMutex.Lock() // Use kvMutex as originally intended for KV operations
 	defer s.kvMutex.Unlock()
 
-	keyInKV := kvStoreKeyPrefix + nodeID // If nodeID is already the full key, prefix might be empty.
-
+	keyInKV := nodeID // NodeID is the direct key
 	entry, err := s.kvStore.Get(keyInKV)
 	if err != nil {
 		if err == nats.ErrKeyNotFound {

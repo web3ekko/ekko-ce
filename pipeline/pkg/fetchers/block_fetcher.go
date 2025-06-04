@@ -61,16 +61,16 @@ func NewBlockFetcher(nodeConfig ekkoCommon.NodeConfig, nc *nats.Conn, kv nats.Ke
 		nodeConfig:  nodeConfig,
 	}
 
-	if strings.ToLower(fetcher.vmType) == "evm" {
+	if strings.Contains(strings.ToLower(fetcher.nodeConfig.VMType), "evm") {
 		if fetcher.nodeConfig.HttpURL == "" {
-			return nil, fmt.Errorf("HttpURL is required for EVM BlockFetcher (%s-%s) but was empty", fetcher.vmType, fetcher.network)
+			return nil, fmt.Errorf("HttpURL is required for EVM BlockFetcher (%s-%s-%s) but was empty", fetcher.nodeConfig.Network, fetcher.nodeConfig.Subnet, fetcher.nodeConfig.VMType)
 		}
 		if rc == nil {
-			return nil, fmt.Errorf("RedisClient is required for EVM BlockFetcher (%s-%s)", fetcher.vmType, fetcher.network)
+			return nil, fmt.Errorf("RedisClient is required for EVM BlockFetcher (%s-%s-%s)", fetcher.nodeConfig.Network, fetcher.nodeConfig.Subnet, fetcher.nodeConfig.VMType)
 		}
 		client, err := ethclient.DialContext(context.Background(), fetcher.nodeConfig.HttpURL) // Use a background context for dialing initially
 		if err != nil {
-			return nil, fmt.Errorf("failed to connect to EVM node %s for BlockFetcher (%s-%s): %w", fetcher.nodeConfig.HttpURL, fetcher.vmType, fetcher.network, err)
+			return nil, fmt.Errorf("failed to connect to EVM node %s for BlockFetcher (%s-%s-%s): %w", fetcher.nodeConfig.HttpURL, fetcher.nodeConfig.Network, fetcher.nodeConfig.Subnet, fetcher.nodeConfig.VMType, err)
 		}
 		fetcher.ethClient = client
 		// The actual EVM decoder initialization needs to be aligned with how `decoder.New`
@@ -79,11 +79,16 @@ func NewBlockFetcher(nodeConfig ekkoCommon.NodeConfig, nc *nats.Conn, kv nats.Ke
 		// This will likely involve passing the redisClient to a NewTemplateManager,
 		// and then that manager to NewDecoder.
 		templateManager := decoder.NewTemplateManager(rc)
-		fetcher.evmDecoder = decoder.NewDecoder(templateManager, fetcher.network) // Pass any required ABIs if necessary, or load them in the decoder
-		log.Printf("BlockFetcher for %s-%s: EVM decoder and ethClient initialized for %s.", fetcher.vmType, fetcher.network, fetcher.nodeConfig.HttpURL)
+		fetcher.evmDecoder = decoder.NewDecoder(templateManager, fetcher.nodeConfig.Network) // Pass any required ABIs if necessary, or load them in the decoder
+		log.Printf("BlockFetcher for %s-%s-%s: EVM decoder and ethClient initialized for %s.", fetcher.nodeConfig.Network, fetcher.nodeConfig.Subnet, fetcher.nodeConfig.VMType, fetcher.nodeConfig.HttpURL)
 	}
 
 	return fetcher, nil
+}
+
+// NodeConfig returns the NodeConfig associated with this BlockFetcher.
+func (bf *BlockFetcher) NodeConfig() ekkoCommon.NodeConfig {
+	return bf.nodeConfig
 }
 
 // Run starts the BlockFetcher's main loop.
@@ -120,94 +125,119 @@ func (bf *BlockFetcher) Run(ctx context.Context) error {
 }
 
 func (bf *BlockFetcher) processMessage(ctx context.Context, msg *nats.Msg) {
+	// DEBUG logs as requested by user. Using bf.nodeConfig fields for consistency.
+	log.Printf("BlockFetcher (%s-%s-%s): DEBUG: Received NATS message. Subject: '%s'", bf.nodeConfig.Network, bf.nodeConfig.Subnet, bf.nodeConfig.VMType, msg.Subject)
+	log.Printf("BlockFetcher (%s-%s-%s): DEBUG: Raw Data: '%s'", bf.nodeConfig.Network, bf.nodeConfig.Subnet, bf.nodeConfig.VMType, string(msg.Data))
+
+	// Expected subject: <network>.<subnet>.<vmType>.newheads (4 parts)
 	tokens := strings.Split(msg.Subject, ".")
-	if len(tokens) < 5 { // ekko.heads.vmType.network.nodeID
-		log.Printf("BlockFetcher (%s-%s): Received message on unexpected subject format: %s", bf.vmType, bf.network, msg.Subject)
-		return
-	}
-	nodeID := tokens[4]
+	log.Printf("BlockFetcher (%s-%s-%s): DEBUG: Parsed Subject Tokens (length %d): %v", bf.nodeConfig.Network, bf.nodeConfig.Subnet, bf.nodeConfig.VMType, len(tokens), tokens)
 
-	log.Printf("BlockFetcher (%s-%s): Received new head event from node %s on subject %s", bf.vmType, bf.network, nodeID, msg.Subject)
-
-	entry, err := bf.kvStore.Get(nodeID)
-	if err != nil {
-		log.Printf("BlockFetcher (%s-%s): Failed to get NodeConfig for ID %s from KV store: %v", bf.vmType, bf.network, nodeID, err)
-		return
-	}
-	var nodeCfg ekkoCommon.NodeConfig
-	if err := json.Unmarshal(entry.Value(), &nodeCfg); err != nil {
-		log.Printf("BlockFetcher (%s-%s): Failed to unmarshal NodeConfig for ID %s: %v", bf.vmType, bf.network, nodeID, err)
+	if len(tokens) < 4 { // Validate subject structure matches <network>.<subnet>.<vmType>.newheads
+		log.Printf("BlockFetcher (%s-%s-%s): Received message on unexpected subject format (expected 4 parts, got %d): %s. Discarding.", bf.nodeConfig.Network, bf.nodeConfig.Subnet, bf.nodeConfig.VMType, len(tokens), msg.Subject)
 		return
 	}
 
-	if nodeCfg.HttpURL == "" {
-		log.Printf("BlockFetcher (%s-%s): HttpURL is empty for node %s. Cannot fetch block.", bf.vmType, bf.network, nodeID)
+	var newHeadEvent ekkoCommon.NewHeadEvent
+	if err := json.Unmarshal(msg.Data, &newHeadEvent); err != nil {
+		log.Printf("BlockFetcher (%s-%s-%s): Failed to unmarshal NewHeadEvent from NATS message on subject %s: %v. Data: %s. Discarding.", bf.nodeConfig.Network, bf.nodeConfig.Subnet, bf.nodeConfig.VMType, msg.Subject, err, string(msg.Data))
+		return
+	}
+
+	// Critical: Ensure this BlockFetcher instance is responsible for the NodeID in the event.
+	// The NATS subject (network.subnet.vmtype.newheads) can be generic.
+	if newHeadEvent.NodeID == "" {
+		log.Printf("BlockFetcher (%s-%s-%s): Received NewHeadEvent with empty NodeID on subject %s. Discarding. Event Data: %+v", bf.nodeConfig.Network, bf.nodeConfig.Subnet, bf.nodeConfig.VMType, msg.Subject, newHeadEvent)
+		return
+	}
+	if newHeadEvent.NodeID != bf.nodeConfig.ID {
+		// This is not an error, just this fetcher instance isn't supposed to handle this specific node's event.
+		// Another BlockFetcher instance (if one exists for newHeadEvent.NodeID) will pick it up.
+		log.Printf("BlockFetcher (%s-%s-%s): DEBUG: Skipping NewHeadEvent for NodeID %s as this fetcher is for NodeID %s. Subject: %s.", bf.nodeConfig.Network, bf.nodeConfig.Subnet, bf.nodeConfig.VMType, newHeadEvent.NodeID, bf.nodeConfig.ID, msg.Subject)
+		return
+	}
+
+	log.Printf("BlockFetcher (%s-%s-%s): Processing NewHeadEvent for its NodeID %s (Hash: %s, Number: %d) from subject %s", bf.nodeConfig.Network, bf.nodeConfig.Subnet, bf.nodeConfig.VMType, newHeadEvent.NodeID, newHeadEvent.Hash, newHeadEvent.Number, msg.Subject)
+
+	if bf.nodeConfig.HttpURL == "" {
+		log.Printf("BlockFetcher (%s-%s-%s): HttpURL is empty for this fetcher's node %s. Cannot fetch block.", bf.nodeConfig.Network, bf.nodeConfig.Subnet, bf.nodeConfig.VMType, bf.nodeConfig.ID)
 		return
 	}
 
 	var blockIdentifier string
-	if strings.ToLower(bf.vmType) == "evm" {
-		var evmMsg EVMSubscriptionMessage
-		if err := json.Unmarshal(msg.Data, &evmMsg); err != nil {
-			log.Printf("BlockFetcher (%s-%s): Failed to unmarshal EVM new head message from node %s: %v. Data: %s", bf.vmType, bf.network, nodeID, err, string(msg.Data))
-			return
-		}
-		if evmMsg.Params.Result.Hash != "" {
-			blockIdentifier = evmMsg.Params.Result.Hash
-		} else if evmMsg.Params.Result.Number != "" {
-			blockIdentifier = evmMsg.Params.Result.Number
-		} else {
-			log.Printf("BlockFetcher (%s-%s): EVM new head message from node %s lacks block hash or number.", bf.vmType, bf.network, nodeID)
-			return
-		}
+	if newHeadEvent.Hash != "" {
+		blockIdentifier = newHeadEvent.Hash
+	} else if newHeadEvent.Number != 0 { // Assuming 0 is not a valid block number to fetch by; ethclient.BlockByNumber uses *big.Int
+		blockIdentifier = hexutil.EncodeUint64(newHeadEvent.Number) // ethclient methods expect hex string for number if not using big.Int directly
 	} else {
-		blockIdentifier = string(msg.Data) // Assuming non-EVM message data is the block identifier
-		log.Printf("BlockFetcher (%s-%s): Assuming non-EVM new head message from node %s is block identifier: %s", bf.vmType, bf.network, nodeID, blockIdentifier)
+		log.Printf("BlockFetcher (%s-%s-%s): NewHeadEvent from NodeID %s (Subject: %s) lacks both block hash and number. Discarding.", bf.nodeConfig.Network, bf.nodeConfig.Subnet, bf.nodeConfig.VMType, newHeadEvent.NodeID, msg.Subject)
+		return
 	}
 
-	log.Printf("BlockFetcher (%s-%s): Attempting to fetch block %s from node %s (URL: %s)", bf.vmType, bf.network, blockIdentifier, nodeID, nodeCfg.HttpURL)
+	log.Printf("BlockFetcher (%s-%s-%s): Attempting to fetch block %s for node %s (URL: %s)", bf.nodeConfig.Network, bf.nodeConfig.Subnet, bf.nodeConfig.VMType, blockIdentifier, bf.nodeConfig.ID, bf.nodeConfig.HttpURL)
 
-	// Fetch the full block
+	// Fetch the full block using the BlockFetcher's configured ethClient (which uses bf.nodeConfig.HttpURL)
 	fullBlock, err := bf.fetchFullBlock(ctx, blockIdentifier)
 	if err != nil {
-		log.Printf("BlockFetcher (%s-%s): Failed to fetch full block %s from node %s: %v", bf.vmType, bf.network, blockIdentifier, nodeID, err)
+		log.Printf("BlockFetcher (%s-%s-%s): Failed to fetch full block %s for node %s: %v", bf.nodeConfig.Network, bf.nodeConfig.Subnet, bf.nodeConfig.VMType, blockIdentifier, bf.nodeConfig.ID, err)
 		return
 	}
-	if fullBlock == nil {
-		log.Printf("BlockFetcher (%s-%s): Block %s not found or not ready, skipping.", bf.vmType, bf.network, blockIdentifier)
+	if fullBlock == nil { // fetchFullBlock should log if not found, this is an additional guard.
+		log.Printf("BlockFetcher (%s-%s-%s): Block %s not found or not ready for node %s, skipping.", bf.nodeConfig.Network, bf.nodeConfig.Subnet, bf.nodeConfig.VMType, blockIdentifier, bf.nodeConfig.ID)
 		return
 	}
 
-	log.Printf("BlockFetcher (%s-%s): Successfully fetched block %s from node %s. Tx count: %d", bf.vmType, bf.network, fullBlock.Hash, nodeID, len(fullBlock.Transactions))
+	log.Printf("BlockFetcher (%s-%s-%s): Successfully fetched block %s (Number: %v) for node %s. Tx count: %d", bf.nodeConfig.Network, bf.nodeConfig.Subnet, bf.nodeConfig.VMType, fullBlock.Hash, fullBlock.Number, bf.nodeConfig.ID, len(fullBlock.Transactions))
 
-	// Process transactions: Decode if EVM
-	if bf.evmDecoder != nil && fullBlock.Transactions != nil {
+	// Process transactions: Decode if EVM and decoder is available
+	if bf.evmDecoder != nil && len(fullBlock.Transactions) > 0 {
+		log.Printf("BlockFetcher (%s-%s-%s): Decoding %d transactions for block %s (node %s)...", bf.nodeConfig.Network, bf.nodeConfig.Subnet, bf.nodeConfig.VMType, len(fullBlock.Transactions), fullBlock.Hash, bf.nodeConfig.ID)
 		for i := range fullBlock.Transactions {
-			if err := bf.evmDecoder.DecodeTransaction(ctx, &fullBlock.Transactions[i]); err != nil { 
-				log.Printf("BlockFetcher (%s-%s): Failed to decode tx %s (block %s, node %s): %v", bf.vmType, bf.network, fullBlock.Transactions[i].Hash, fullBlock.Hash, nodeID, err)
+			tx := &fullBlock.Transactions[i] // Get a pointer to the transaction for modification
+			if err := bf.evmDecoder.DecodeTransaction(ctx, tx); err != nil {
+				log.Printf("BlockFetcher (%s-%s-%s): Failed to decode tx %s (block %s, node %s): %v", bf.nodeConfig.Network, bf.nodeConfig.Subnet, bf.nodeConfig.VMType, tx.Hash, fullBlock.Hash, bf.nodeConfig.ID, err)
 			}
 		}
 	}
 
-	// Publish processed block
-	outputSubject := fmt.Sprintf("ekko.processed_blocks.%s.%s.%s", bf.vmType, bf.network, nodeID)
-	outputPayload, err := json.Marshal(fullBlock)
+	// Publish processed block to a subject specific to this node
+	publishSubject := fmt.Sprintf("%s.%s.%s.blocks", bf.nodeConfig.Network, bf.nodeConfig.Subnet, bf.nodeConfig.VMType)
+	blockData, err := json.Marshal(fullBlock)
 	if err != nil {
-		log.Printf("BlockFetcher (%s-%s): Failed to marshal processed block %s for publishing: %v", bf.vmType, bf.network, fullBlock.Hash, err)
-		return
+		log.Printf("BlockFetcher (%s-%s-%s): Failed to marshal processed block %s for publishing: %v", bf.nodeConfig.Network, bf.nodeConfig.Subnet, bf.nodeConfig.VMType, fullBlock.Hash, err)
+		// Continue to attempt publishing individual transactions even if block publish fails for some reason
 	}
-	if err := bf.natsConn.Publish(outputSubject, outputPayload); err != nil {
-		log.Printf("BlockFetcher (%s-%s): Failed to publish processed block %s to NATS subject %s: %v", bf.vmType, bf.network, fullBlock.Hash, outputSubject, err)
+	if err := bf.natsConn.Publish(publishSubject, blockData); err != nil {
+		log.Printf("BlockFetcher (%s-%s-%s): Failed to publish block %s to NATS subject %s: %v", bf.nodeConfig.Network, bf.nodeConfig.Subnet, bf.nodeConfig.VMType, fullBlock.Hash, publishSubject, err)
+		// Continue to attempt publishing individual transactions even if block publish fails for some reason
 	} else {
-		log.Printf("BlockFetcher (%s-%s): Published processed block %s (Tx count: %d) to %s", bf.vmType, bf.network, fullBlock.Hash, len(fullBlock.Transactions), outputSubject)
+		log.Printf("BlockFetcher (%s-%s-%s): Successfully published block %s to NATS subject %s", bf.nodeConfig.Network, bf.nodeConfig.Subnet, bf.nodeConfig.VMType, fullBlock.Hash, publishSubject)
+	}
+
+	// Publish successfully decoded individual transactions
+	for _, tx := range fullBlock.Transactions {
+		if tx.DecodedCall != nil && tx.DecodedCall.Function != "" && tx.DecodedCall.Function != "UnknownContractCall" && tx.DecodedCall.Function != "UnknownTransactionType" {
+			decodedTxData, err := json.Marshal(tx) // Marshal the whole transaction
+			if err != nil {
+				log.Printf("BlockFetcher (%s-%s-%s): Failed to marshal successfully decoded transaction %s (block %s): %v", bf.nodeConfig.Network, bf.nodeConfig.Subnet, bf.nodeConfig.VMType, tx.Hash, fullBlock.Hash, err)
+				continue // Skip this transaction
+			}
+
+			txPublishSubject := fmt.Sprintf("transactions.%s.%s.%s", bf.nodeConfig.VMType, bf.nodeConfig.Network, bf.nodeConfig.Subnet)
+			if err := bf.natsConn.Publish(txPublishSubject, decodedTxData); err != nil {
+				log.Printf("BlockFetcher (%s-%s-%s): Failed to publish decoded transaction %s to subject %s: %v", bf.nodeConfig.Network, bf.nodeConfig.Subnet, bf.nodeConfig.VMType, tx.Hash, txPublishSubject, err)
+			} else {
+				log.Printf("BlockFetcher (%s-%s-%s): Successfully published decoded transaction %s (Function: %s) to subject %s", bf.nodeConfig.Network, bf.nodeConfig.Subnet, bf.nodeConfig.VMType, tx.Hash, tx.DecodedCall.Function, txPublishSubject)
+			}
+		}
 	}
 }
 
 // fetchFullBlock fetches full block details using ethClient.
 func (bf *BlockFetcher) fetchFullBlock(ctx context.Context, blockIdentifier string) (*blockchain.Block, error) {
-	if strings.ToLower(bf.vmType) != "evm" || bf.ethClient == nil {
-		log.Printf("BlockFetcher (%s-%s): fetchFullBlock called for non-EVM type or nil ethClient.", bf.vmType, bf.network)
-		return nil, fmt.Errorf("fetchFullBlock: not an EVM fetcher or ethClient not initialized for %s-%s", bf.vmType, bf.network)
+if !strings.Contains(strings.ToLower(bf.nodeConfig.VMType), "evm") || bf.ethClient == nil {
+		log.Printf("BlockFetcher (%s-%s-%s): fetchFullBlock called for non-EVM type or nil ethClient.", bf.nodeConfig.Network, bf.nodeConfig.Subnet, bf.nodeConfig.VMType)
+		return nil, fmt.Errorf("fetchFullBlock: not an EVM fetcher or ethClient not initialized for %s-%s-%s", bf.nodeConfig.Network, bf.nodeConfig.Subnet, bf.nodeConfig.VMType)
 	}
 
 	var gethBlock *types.Block
@@ -229,14 +259,14 @@ func (bf *BlockFetcher) fetchFullBlock(ctx context.Context, blockIdentifier stri
 
 	if err != nil {
 		if err == ethereum.NotFound {
-			log.Printf("BlockFetcher (%s-%s): Block %s not found.", bf.vmType, bf.network, blockIdentifier)
+			log.Printf("BlockFetcher (%s-%s-%s): Block %s not found.", bf.nodeConfig.Network, bf.nodeConfig.Subnet, bf.nodeConfig.VMType, blockIdentifier)
 			return nil, nil // Block not found, not an error for the fetcher to retry immediately.
 		}
 		return nil, fmt.Errorf("failed to fetch block %s: %w", blockIdentifier, err)
 	}
 
 	if gethBlock == nil { // Should be covered by ethereum.NotFound, but as a safeguard.
-		log.Printf("BlockFetcher (%s-%s): Block %s not found (gethBlock is nil after fetch attempt).", bf.vmType, bf.network, blockIdentifier)
+		log.Printf("BlockFetcher (%s-%s-%s): Block %s not found (gethBlock is nil after fetch attempt).", bf.nodeConfig.Network, bf.nodeConfig.Subnet, bf.nodeConfig.VMType, blockIdentifier)
 		return nil, nil
 	}
 
@@ -245,11 +275,10 @@ func (bf *BlockFetcher) fetchFullBlock(ctx context.Context, blockIdentifier stri
 		return nil, fmt.Errorf("failed to convert fetched Geth block %s to internal representation: %w", gethBlock.Hash().Hex(), err)
 	}
 
-	log.Printf("BlockFetcher (%s-%s): Successfully fetched and converted block %s (Number: %s)", bf.vmType, bf.network, internalBlock.Hash, internalBlock.Number)
+	log.Printf("BlockFetcher (%s-%s-%s): Successfully fetched and converted block %s (Number: %v)", bf.nodeConfig.Network, bf.nodeConfig.Subnet, bf.nodeConfig.VMType, internalBlock.Hash, internalBlock.Number)
 	return internalBlock, nil
 }
 
-// convertGethBlockToInternalBlock converts a go-ethereum types.Block to blockchain.Block.
 // convertGethBlockToInternalBlock converts a go-ethereum types.Block to blockchain.Block.
 func convertGethBlockToInternalBlock(gethBlock *types.Block) (*blockchain.Block, error) {
 	if gethBlock == nil {

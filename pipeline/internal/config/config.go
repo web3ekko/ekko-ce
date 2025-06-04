@@ -61,11 +61,14 @@ func LoadFromEnv() (*Config, error) {
 
 	// Load subnet configurations
 	subnetsStr := os.Getenv("AVAX_SUBNETS")
-	if subnetsStr == "" {
-		return nil, fmt.Errorf("AVAX_SUBNETS is required (comma-separated list of subnet names)")
+	var subnetNames []string
+	if subnetsStr != "" {
+		subnetNames = strings.Split(subnetsStr, ",")
+	} else {
+		// If AVAX_SUBNETS is not set, proceed with an empty list of subnet names.
+		// The PipelineSupervisor will rely on NATS KV for dynamic node configurations.
+		subnetNames = make([]string, 0)
 	}
-
-	subnetNames := strings.Split(subnetsStr, ",")
 	subnets := make([]SubnetConfig, 0, len(subnetNames))
 
 	for _, name := range subnetNames {

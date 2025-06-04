@@ -9,6 +9,7 @@ toolchain go1.24.2
 require (
 	github.com/ethereum/go-ethereum v1.15.10
 	github.com/go-redis/redismock/v9 v9.2.0
+	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/nats-io/nats.go v1.33.1
 	github.com/redis/go-redis/v9 v9.7.3
@@ -52,7 +53,6 @@ require (
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/holiman/uint256 v1.3.2 // indirect
 	github.com/klauspost/compress v1.17.9 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
