@@ -36,6 +36,15 @@ type Block struct {
 	ParentHash   string        `json:"parentHash"`
 	Number       string        `json:"number"` // Keep as string from JSON, convert to uint64 as needed
 	Timestamp    string        `json:"timestamp"` // Keep as string from JSON, convert to uint64 as needed
+	Sha3Uncles   string        `json:"sha3Uncles"`
+	StateRoot    string        `json:"stateRoot"`
+	TransactionsRoot string    `json:"transactionsRoot"`
+	ReceiptsRoot string        `json:"receiptsRoot"`
+	LogsBloom    string        `json:"logsBloom"`
+	Difficulty   string        `json:"difficulty"`
+	GasLimit     string        `json:"gasLimit"`
+	GasUsed      string        `json:"gasUsed"`
+	ExtraData    string        `json:"extraData"`
 	Transactions []Transaction `json:"transactions"`
 	// Other fields like GasUsed, GasLimit, Miner, etc., can be added here
 	// For example, from common.Block (if that's the target structure):

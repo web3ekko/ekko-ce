@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -30,14 +31,15 @@ type FetcherConfig struct {
 
 // FetcherSupervisor manages the lifecycle of BlockFetcher instances.
 type FetcherSupervisor struct {
-	ctx               context.Context
-	cancel            context.CancelFunc
-	natsConn          *nats.Conn
-	jsCtx             nats.JetStreamContext
+	ctx                   context.Context
+	cancel                context.CancelFunc
+	natsConn              *nats.Conn
+	jsCtx                 nats.JetStreamContext
 	// fetcherConfigKV is removed as configs are now derived from allNodeConfigs
-	fetcherDataKVName string // Name of the KV store to be used by individual fetchers for their data
-	redisClient       decoder.RedisClient
-	allNodeConfigs    []ekkoCommon.NodeConfig // All node configurations provided by PipelineSupervisor
+	fetcherDataKVName     string // Name of the KV store to be used by individual fetchers for their data
+	redisClient           decoder.RedisClient
+	allNodeConfigs        []ekkoCommon.NodeConfig // All node configurations provided by PipelineSupervisor
+	filterWalletsEnabled  bool                    // New: To store the FILTER_WALLETS setting
 
 	activeFetchers map[string]*managedFetcher // Map key: "<network>.<subnet>.<vmType>"
 	mu             sync.Mutex
@@ -84,20 +86,29 @@ func NewFetcherSupervisor(
 
 	supervisorCtx, supervisorCancel := context.WithCancel(appCtx)
 
+	// Read FILTER_WALLETS environment variable
+	filterWalletsEnv := strings.ToLower(os.Getenv("FILTER_WALLETS"))
+	filterWalletsEnabled := true // Default to true
+	if filterWalletsEnv == "false" {
+		filterWalletsEnabled = false
+	}
+	log.Printf("FetcherSupervisor: Wallet filtering is %s (FILTER_WALLETS=%s)", map[bool]string{true: "ENABLED", false: "DISABLED"}[filterWalletsEnabled], os.Getenv("FILTER_WALLETS"))
+
 	// Make a copy of nodeCfgs to avoid external modification issues if the slice is reused by the caller.
 	initialNodeConfigs := make([]ekkoCommon.NodeConfig, len(nodeCfgs))
 	copy(initialNodeConfigs, nodeCfgs)
 
 	fs := &FetcherSupervisor{
-		ctx:               supervisorCtx,
-		cancel:            supervisorCancel,
-		natsConn:          nc,
-		jsCtx:             js,
+		ctx:                   supervisorCtx,
+		cancel:                supervisorCancel,
+		natsConn:              nc,
+		jsCtx:                 js,
 		// fetcherConfigKV: configKV, // Removed
-		fetcherDataKVName: fetcherDataKVName,
-		redisClient:       redisClient,
-		allNodeConfigs:    initialNodeConfigs, // Store initial nodeCfgs
-		activeFetchers:    make(map[string]*managedFetcher),
+		fetcherDataKVName:     fetcherDataKVName,
+		redisClient:           redisClient,
+		allNodeConfigs:        initialNodeConfigs, // Store initial nodeCfgs
+		filterWalletsEnabled:  filterWalletsEnabled, // New
+		activeFetchers:        make(map[string]*managedFetcher),
 	}
 
 	return fs, nil
@@ -249,7 +260,7 @@ func (fs *FetcherSupervisor) startFetcherLocked(key string, fetcherDetails Fetch
 		}
 	}
 
-	bf, err := fetchers.NewBlockFetcher(nodeForFetcher, fs.natsConn, dataKVForFetcher, fs.redisClient)
+	bf, err := fetchers.NewBlockFetcher(nodeForFetcher, fs.natsConn, dataKVForFetcher, fs.redisClient, fs.filterWalletsEnabled)
 	if err != nil {
 		log.Printf("FetcherSupervisor: Error creating BlockFetcher for %s (Node: %s): %v", key, nodeForFetcher.ID, err)
 		return

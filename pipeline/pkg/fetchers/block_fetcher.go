@@ -38,27 +38,29 @@ type EVMSubscriptionMessage struct {
 // BlockFetcher subscribes to new head events from NATS, fetches the full block,
 // decodes transactions (if applicable), and publishes the processed block.
 type BlockFetcher struct {
-	vmType      string
-	network     string
-	subnet      string // Added subnet
-	natsConn    *nats.Conn
-	kvStore     nats.KeyValue
-	redisClient decoder.RedisClient // Needed to initialize the EVM decoder
-	evmDecoder  *decoder.Decoder    // Instance of EVM decoder, nil if not EVM
-	ethClient   *ethclient.Client      // EVM client for fetching blocks
-	nodeConfig  ekkoCommon.NodeConfig // Node configuration for this fetcher
+	vmType               string
+	network              string
+	subnet               string // Added subnet
+	natsConn             *nats.Conn
+	kvStore              nats.KeyValue
+	redisClient          decoder.RedisClient // Needed to initialize the EVM decoder
+	evmDecoder           *decoder.Decoder    // Instance of EVM decoder, nil if not EVM
+	ethClient            *ethclient.Client      // EVM client for fetching blocks
+	nodeConfig           ekkoCommon.NodeConfig // Node configuration for this fetcher
+	filterWalletsEnabled bool                  // New: Flag to enable/disable wallet address filtering
 }
 
 // NewBlockFetcher creates a new BlockFetcher instance.
-func NewBlockFetcher(nodeConfig ekkoCommon.NodeConfig, nc *nats.Conn, kv nats.KeyValue, rc decoder.RedisClient) (*BlockFetcher, error) {
+func NewBlockFetcher(nodeConfig ekkoCommon.NodeConfig, nc *nats.Conn, kv nats.KeyValue, rc decoder.RedisClient, filterWalletsEnabled bool) (*BlockFetcher, error) {
 	fetcher := &BlockFetcher{
-		vmType:      nodeConfig.VMType,
-		network:     nodeConfig.Network,
-		subnet:      nodeConfig.Subnet,
-		natsConn:    nc,
-		kvStore:     kv,
-		redisClient: rc,
-		nodeConfig:  nodeConfig,
+		vmType:               nodeConfig.VMType,
+		network:              nodeConfig.Network,
+		subnet:               nodeConfig.Subnet,
+		natsConn:             nc,
+		kvStore:              kv,
+		redisClient:          rc,
+		nodeConfig:           nodeConfig,
+		filterWalletsEnabled: filterWalletsEnabled, // New
 	}
 
 	if strings.Contains(strings.ToLower(fetcher.nodeConfig.VMType), "evm") {
