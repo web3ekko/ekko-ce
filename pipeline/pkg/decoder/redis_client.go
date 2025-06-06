@@ -43,3 +43,8 @@ func (c *RedisClientAdapter) SetCmd(ctx context.Context, key string, value inter
 func (c *RedisClientAdapter) Close() error {
 	return c.client.Close()
 }
+
+// SIsMember implements RedisClient.SIsMember
+func (c *RedisClientAdapter) SIsMember(ctx context.Context, key string, member interface{}) *redis.BoolCmd {
+	return c.client.SIsMember(ctx, key, member)
+}

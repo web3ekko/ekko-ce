@@ -219,6 +219,23 @@ func (bf *BlockFetcher) processMessage(ctx context.Context, msg *nats.Msg) {
 	// Publish successfully decoded individual transactions
 	for _, tx := range fullBlock.Transactions {
 		if tx.DecodedCall != nil && tx.DecodedCall.Function != "" && tx.DecodedCall.Function != "UnknownContractCall" && tx.DecodedCall.Function != "UnknownTransactionType" {
+			// Check if wallet filtering is enabled and transaction should be included
+			if bf.filterWalletsEnabled {
+				includeTransaction, err := bf.shouldIncludeTransaction(ctx, tx)
+				if err != nil {
+					log.Printf("BlockFetcher (%s-%s-%s): Error checking if transaction %s should be included: %v", bf.nodeConfig.Network, bf.nodeConfig.Subnet, bf.nodeConfig.VMType, tx.Hash, err)
+					// Continue with transaction publication on error to avoid missing data
+				} else if !includeTransaction {
+					// Skip this transaction as neither from nor to addresses are in the watch list
+					toAddr := "<nil>"
+					if tx.To != nil {
+						toAddr = *tx.To
+					}
+					log.Printf("BlockFetcher (%s-%s-%s): DEBUG: Filtered out transaction %s (from: %s, to: %s)", bf.nodeConfig.Network, bf.nodeConfig.Subnet, bf.nodeConfig.VMType, tx.Hash, tx.From, toAddr)
+					continue
+				}
+			}
+
 			decodedTxData, err := json.Marshal(tx) // Marshal the whole transaction
 			if err != nil {
 				log.Printf("BlockFetcher (%s-%s-%s): Failed to marshal successfully decoded transaction %s (block %s): %v", bf.nodeConfig.Network, bf.nodeConfig.Subnet, bf.nodeConfig.VMType, tx.Hash, fullBlock.Hash, err)
@@ -279,6 +296,52 @@ if !strings.Contains(strings.ToLower(bf.nodeConfig.VMType), "evm") || bf.ethClie
 
 	log.Printf("BlockFetcher (%s-%s-%s): Successfully fetched and converted block %s (Number: %v)", bf.nodeConfig.Network, bf.nodeConfig.Subnet, bf.nodeConfig.VMType, internalBlock.Hash, internalBlock.Number)
 	return internalBlock, nil
+}
+
+// shouldIncludeTransaction checks if a transaction should be included based on if the from or to address exists in Redis.
+// Returns true if the transaction should be included (address exists in Redis or filtering is disabled), false otherwise.
+func (bf *BlockFetcher) shouldIncludeTransaction(ctx context.Context, tx blockchain.Transaction) (bool, error) {
+	// If filtering is disabled or Redis client is not initialized, include all transactions
+	if !bf.filterWalletsEnabled || bf.redisClient == nil {
+		return true, nil
+	}
+
+	// Get the wallet set key for this blockchain
+	redisKey := fmt.Sprintf("wallets:%s:%s:%s", bf.nodeConfig.Network, bf.nodeConfig.Subnet, bf.nodeConfig.VMType)
+	
+	// Check if the 'from' address is in Redis
+	if tx.From != "" {
+		result := bf.redisClient.SIsMember(ctx, redisKey, strings.ToLower(tx.From))
+		isMember, err := result.Result()
+		if err != nil {
+			// If there's an error checking Redis (including key doesn't exist), include the transaction by default for safety
+			log.Printf("BlockFetcher (%s-%s-%s): Error checking if 'from' address %s is in Redis: %v. Including transaction.", 
+				bf.nodeConfig.Network, bf.nodeConfig.Subnet, bf.nodeConfig.VMType, tx.From, err)
+			return true, nil
+		}
+		if isMember {
+			return true, nil
+		}
+	}
+
+	// Check if the 'to' address is in Redis
+	if tx.To != nil && *tx.To != "" {
+		result := bf.redisClient.SIsMember(ctx, redisKey, strings.ToLower(*tx.To))
+		isMember, err := result.Result()
+		if err != nil {
+			// If there's an error checking Redis (including key doesn't exist), include the transaction by default for safety
+			toAddr := *tx.To
+			log.Printf("BlockFetcher (%s-%s-%s): Error checking if 'to' address %s is in Redis: %v. Including transaction.", 
+				bf.nodeConfig.Network, bf.nodeConfig.Subnet, bf.nodeConfig.VMType, toAddr, err)
+			return true, nil
+		}
+		if isMember {
+			return true, nil
+		}
+	}
+
+	// Neither 'from' nor 'to' address is in the watch list
+	return false, nil
 }
 
 // convertGethBlockToInternalBlock converts a go-ethereum types.Block to blockchain.Block.

@@ -100,6 +100,11 @@ func (c *RedisAdapter) SetString(ctx context.Context, key string, value string, 
 
 
 
+// SIsMember implements RedisClient.SIsMember
+func (c *RedisAdapter) SIsMember(ctx context.Context, key string, member interface{}) *redis.BoolCmd {
+	return c.client.SIsMember(ctx, key, member)
+}
+
 // Close closes the Redis connection
 func (c *RedisAdapter) Close() error {
 	return c.client.Close()

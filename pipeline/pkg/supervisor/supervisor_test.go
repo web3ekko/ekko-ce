@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/redis/go-redis/v9"
 	"github.com/nats-io/nats.go"
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
@@ -58,24 +58,24 @@ type mockKeyValueEntry struct {
 	operation nats.KeyValueOp
 }
 
-func (m *mockKeyValueEntry) Bucket() string        { return m.bucket }
-func (m *mockKeyValueEntry) Key() string           { return m.key }
-func (m *mockKeyValueEntry) Value() []byte         { return m.value }
-func (m *mockKeyValueEntry) Revision() uint64      { return m.revision }
-func (m *mockKeyValueEntry) Created() time.Time    { return m.created }
-func (m *mockKeyValueEntry) Delta() uint64         { return m.delta }
+func (m *mockKeyValueEntry) Bucket() string             { return m.bucket }
+func (m *mockKeyValueEntry) Key() string                { return m.key }
+func (m *mockKeyValueEntry) Value() []byte              { return m.value }
+func (m *mockKeyValueEntry) Revision() uint64           { return m.revision }
+func (m *mockKeyValueEntry) Created() time.Time         { return m.created }
+func (m *mockKeyValueEntry) Delta() uint64              { return m.delta }
 func (m *mockKeyValueEntry) Operation() nats.KeyValueOp { return m.operation }
 
 // mockKeyValueStore implements nats.KeyValue for testing
 type mockKeyValueStore struct {
-	mu      sync.Mutex
-	data    map[string][]byte
+	mu         sync.Mutex
+	data       map[string][]byte
 	bucketName string
 }
 
 func newMockKeyValueStore(bucketName string) *mockKeyValueStore {
 	return &mockKeyValueStore{
-		data:    make(map[string][]byte),
+		data:       make(map[string][]byte),
 		bucketName: bucketName,
 	}
 }
@@ -193,7 +193,7 @@ func newMockNatsConn() *mockNatsConn {
 	// if not mocked or if it's not connected, which is acceptable if the test path
 	// doesn't hit those specific unmocked operations on the conn itself.
 	return &mockNatsConn{
-		Conn:         nats.Conn{}, 
+		Conn:         nats.Conn{},
 		publishCalls: make(map[string][][]byte),
 	}
 }
@@ -246,9 +246,9 @@ func (m *mockKeyValueStore) GetRevision(key string, rev uint64) (nats.KeyValueEn
 	// A real GetRevision would look up a specific version.
 	if rev == 0 || rev == 1 { // Simplified logic for mock
 		return &mockKeyValueEntry{
-			bucket: m.bucketName,
-			key:    key,
-			value:  val,
+			bucket:   m.bucketName,
+			key:      key,
+			value:    val,
 			revision: 1, // Assuming current revision is 1 for simplicity
 		}, nil
 	}
@@ -334,8 +334,6 @@ func (m *mockManagedPipeline) Wait() {
 	log.Printf("MockPipeline %s: wg.Wait() completed in Wait().", m.id)
 }
 
-
-
 func (m *mockManagedPipeline) UpdateNodeConfigs(configs []common.NodeConfig) error {
 	log.Printf("MockPipeline instance %p (id: %s): ENTERING UpdateNodeConfigs with %d nodes. Current updateCalled: %v", m, m.id, len(configs), m.updateCalled)
 	m.mu.Lock()
@@ -368,7 +366,6 @@ func (m *mockManagedPipeline) lastUpdateConfigs() []common.NodeConfig {
 	}
 	return m.updateNodeConfigsCalls[len(m.updateNodeConfigsCalls)-1]
 }
-
 
 // TestSynchronizeServices_NodeCreated tests the creation of a new pipeline when a node appears.
 func TestSynchronizeServices_NodeCreated(t *testing.T) {
@@ -407,7 +404,7 @@ func TestSynchronizeServices_NodeCreated(t *testing.T) {
 	natsReq := testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
 			Image:        "nats:2.10-alpine",
-			ExposedPorts: []string{"4222/tcp", "8222/tcp"}, // Added 8222/tcp
+			ExposedPorts: []string{"4222/tcp", "8222/tcp"},                        // Added 8222/tcp
 			Cmd:          []string{"-js", "-sd", "/data/jetstream", "-m", "8222"}, // Ensure monitoring port is 8222
 			Tmpfs:        map[string]string{"/data/jetstream": "rw"},
 			WaitingFor:   wait.ForHTTP("/healthz").WithPort("8222/tcp").WithStartupTimeout(10 * time.Second), // Changed strategy
@@ -538,7 +535,7 @@ func TestSynchronizeServices_NodeUpdated(t *testing.T) {
 	natsReq := testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
 			Image:        "nats:2.10-alpine",
-			ExposedPorts: []string{"4222/tcp", "8222/tcp"}, // Added 8222/tcp
+			ExposedPorts: []string{"4222/tcp", "8222/tcp"},                        // Added 8222/tcp
 			Cmd:          []string{"-js", "-sd", "/data/jetstream", "-m", "8222"}, // Ensure monitoring port is 8222
 			Tmpfs:        map[string]string{"/data/jetstream": "rw"},
 			WaitingFor:   wait.ForHTTP("/healthz").WithPort("8222/tcp").WithStartupTimeout(10 * time.Second), // Changed strategy
@@ -626,7 +623,6 @@ func TestSynchronizeServices_NodeUpdated(t *testing.T) {
 	// Ensure UpdateNodeConfigs was not called yet
 	assert.Equal(t, 1, len(createdMockPipeline.updateNodeConfigsCalls), "UpdateNodeConfigs should have been called once initially")
 
-
 	// Action: Update the node configuration
 	updatedNodeCfg := initialNodeCfg // Copy initial config
 	updatedNodeCfg.Description = "Updated Description for node-update-test-1"
@@ -638,7 +634,7 @@ func TestSynchronizeServices_NodeUpdated(t *testing.T) {
 
 	// Reset runCalled on the mock before the update synchronization to specifically check the update action
 	createdMockPipeline.mu.Lock()
-	createdMockPipeline.runCalled = false 
+	createdMockPipeline.runCalled = false
 	createdMockPipeline.mu.Unlock()
 
 	// Second synchronization: Update the pipeline
@@ -695,7 +691,7 @@ func TestSynchronizeServices_NodeDeleted(t *testing.T) {
 	natsReq := testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
 			Image:        "nats:2.10-alpine",
-			ExposedPorts: []string{"4222/tcp", "8222/tcp"}, // Added 8222/tcp
+			ExposedPorts: []string{"4222/tcp", "8222/tcp"},                        // Added 8222/tcp
 			Cmd:          []string{"-js", "-sd", "/data/jetstream", "-m", "8222"}, // Ensure monitoring port is 8222
 			Tmpfs:        map[string]string{"/data/jetstream": "rw"},
 			WaitingFor:   wait.ForHTTP("/healthz").WithPort("8222/tcp").WithStartupTimeout(10 * time.Second), // Changed strategy
@@ -752,13 +748,13 @@ func TestSynchronizeServices_NodeDeleted(t *testing.T) {
 
 	// Initial Node Configuration
 	nodeCfg := common.NodeConfig{
-		ID:          "node-delete-test-1",
-		Network:     "testnet-delete",
-		Subnet:      "testsub-delete",
-		VMType:      "evm-delete",
-		IsEnabled:   true,
-		Name:        "Test Node Delete 1",
-		HttpURL:     "http://localhost:10545",
+		ID:        "node-delete-test-1",
+		Network:   "testnet-delete",
+		Subnet:    "testsub-delete",
+		VMType:    "evm-delete",
+		IsEnabled: true,
+		Name:      "Test Node Delete 1",
+		HttpURL:   "http://localhost:10545",
 	}
 	key := kvStoreKeyPrefix + nodeCfg.ID
 	initialData, _ := json.Marshal(nodeCfg)
@@ -839,7 +835,7 @@ func TestSynchronizeServices_NodeDisabledEnabled(t *testing.T) {
 	natsReq := testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
 			Image:        "nats:2.10-alpine",
-			ExposedPorts: []string{"4222/tcp", "8222/tcp"}, // Added 8222/tcp
+			ExposedPorts: []string{"4222/tcp", "8222/tcp"},                        // Added 8222/tcp
 			Cmd:          []string{"-js", "-sd", "/data/jetstream", "-m", "8222"}, // Ensure monitoring port is 8222
 			Tmpfs:        map[string]string{"/data/jetstream": "rw"},
 			WaitingFor:   wait.ForHTTP("/healthz").WithPort("8222/tcp").WithStartupTimeout(10 * time.Second), // Changed strategy
@@ -1021,7 +1017,7 @@ func TestSynchronizeServices_MultipleNodesInGroup(t *testing.T) {
 	natsReq := testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
 			Image:        "nats:2.10-alpine",
-			ExposedPorts: []string{"4222/tcp", "8222/tcp"}, // Added 8222/tcp
+			ExposedPorts: []string{"4222/tcp", "8222/tcp"},                        // Added 8222/tcp
 			Cmd:          []string{"-js", "-sd", "/data/jetstream", "-m", "8222"}, // Ensure monitoring port is 8222
 			Tmpfs:        map[string]string{"/data/jetstream": "rw"},
 			WaitingFor:   wait.ForHTTP("/healthz").WithPort("8222/tcp").WithStartupTimeout(10 * time.Second), // Changed strategy
@@ -1102,7 +1098,7 @@ func TestSynchronizeServices_MultipleNodesInGroup(t *testing.T) {
 		Subnet:    "testsub-multi",
 		VMType:    "evm-multi",
 		IsEnabled: true,
-		HttpURL:    "http://localhost:8545",
+		HttpURL:   "http://localhost:8545",
 	}
 	nodeCfg2 := common.NodeConfig{
 		ID:        "node2-multi",
@@ -1110,7 +1106,7 @@ func TestSynchronizeServices_MultipleNodesInGroup(t *testing.T) {
 		Subnet:    "testsub-multi", // Same group
 		VMType:    "evm-multi",     // Same group
 		IsEnabled: true,
-		HttpURL:    "http://localhost:8546",
+		HttpURL:   "http://localhost:8546",
 	}
 
 	const testKVStoreKeyPrefix = "nodestore."
@@ -1150,11 +1146,15 @@ func TestSynchronizeServices_MultipleNodesInGroup(t *testing.T) {
 	assert.Equal(t, 1, pipelinesCreatedCount, "One pipeline should be created for the group")
 	require.NotNil(t, currentMockPipeline, "A pipeline should have been created")
 	assert.Len(t, lastInitialNodes, 2, "Pipeline should be initialized with two nodes")
-	
+
 	var foundNode1, foundNode2 bool
 	for _, n := range lastInitialNodes {
-		if n.ID == nodeCfg1.ID { foundNode1 = true }
-		if n.ID == nodeCfg2.ID { foundNode2 = true }
+		if n.ID == nodeCfg1.ID {
+			foundNode1 = true
+		}
+		if n.ID == nodeCfg2.ID {
+			foundNode2 = true
+		}
 	}
 	assert.True(t, foundNode1, "Node1 should be in initial nodes")
 	assert.True(t, foundNode2, "Node2 should be in initial nodes")
@@ -1179,7 +1179,7 @@ func TestSynchronizeServices_MultipleNodesInGroup(t *testing.T) {
 	currentMockPipeline.updateCalled = false // Reset for this specific check
 	mockPipelineLock.Unlock()
 
-	updatedNodeCfg1 := nodeCfg1 // Create a new var to avoid modifying the original nodeCfg1 for later scenarios
+	updatedNodeCfg1 := nodeCfg1                       // Create a new var to avoid modifying the original nodeCfg1 for later scenarios
 	updatedNodeCfg1.HttpURL = "http://localhost:7777" // New distinct URL
 	data1, err = json.Marshal(updatedNodeCfg1)
 	require.NoError(t, err)
@@ -1209,7 +1209,7 @@ func TestSynchronizeServices_MultipleNodesInGroup(t *testing.T) {
 	assert.True(t, currentMockPipeline.updateCalled, "mockManagedPipeline.updateCalled should be true after node update")
 	// Ensure at least one new call was made. If UpdateNodeConfigs is called multiple times rapidly, this might need adjustment.
 	require.GreaterOrEqual(t, len(currentMockPipeline.updateNodeConfigsCalls), initialUpdateCallCount+1, "UpdateNodeConfigs should have been called at least once more")
-	
+
 	lastUpdateArgs := currentMockPipeline.updateNodeConfigsCalls[len(currentMockPipeline.updateNodeConfigsCalls)-1]
 	assert.Len(t, lastUpdateArgs, 2, "UpdateNodeConfigs should be called with 2 nodes after update")
 
@@ -1258,7 +1258,7 @@ func TestSynchronizeServices_MultipleNodesInGroup(t *testing.T) {
 	mockPipelineLock.Lock()
 	assert.True(t, currentMockPipeline.updateCalled, "mockManagedPipeline.updateCalled should be true after disabling node1")
 	require.GreaterOrEqual(t, len(currentMockPipeline.updateNodeConfigsCalls), initialUpdateCallCount+1, "UpdateNodeConfigs should have been called again after disabling node1")
-	
+
 	lastUpdateArgs = currentMockPipeline.updateNodeConfigsCalls[len(currentMockPipeline.updateNodeConfigsCalls)-1]
 	// Only nodeCfg2 should be active now
 	assert.Len(t, lastUpdateArgs, 1, "UpdateNodeConfigs should be called with 1 active node (nodeCfg2) after disabling node1")
@@ -1302,7 +1302,7 @@ func TestSynchronizeServices_MultipleNodesInGroup(t *testing.T) {
 	mockPipelineLock.Lock()
 	assert.True(t, currentMockPipeline.updateCalled, "mockManagedPipeline.updateCalled should be true after disabling node2")
 	require.GreaterOrEqual(t, len(currentMockPipeline.updateNodeConfigsCalls), initialUpdateCallCount+1, "UpdateNodeConfigs should have been called again after disabling node2")
-	
+
 	lastUpdateArgs = currentMockPipeline.updateNodeConfigsCalls[len(currentMockPipeline.updateNodeConfigsCalls)-1]
 	// Both nodes are now disabled, so UpdateNodeConfigs should be called with an empty list or nil
 	assert.Empty(t, lastUpdateArgs, "UpdateNodeConfigs should be called with 0 active nodes after disabling node2")
@@ -1324,22 +1324,22 @@ func TestSynchronizeServices_MultipleNodesInGroup(t *testing.T) {
 
 	// --- Test Scenario: Re-enable node1 (should create new pipeline) ---
 	t.Log("Testing re-enabling node1 (should create new pipeline)...")
-mockPipelineLock.Lock()
-initialUpdateCallCount = len(currentMockPipeline.updateNodeConfigsCalls) // Recapture count
-currentMockPipeline.updateCalled = false
-initialStopCalled = currentMockPipeline.stopCalled // Check that pipeline is NOT stopped
-mockPipelineLock.Unlock()
+	mockPipelineLock.Lock()
+	initialUpdateCallCount = len(currentMockPipeline.updateNodeConfigsCalls) // Recapture count
+	currentMockPipeline.updateCalled = false
+	initialStopCalled = currentMockPipeline.stopCalled // Check that pipeline is NOT stopped
+	mockPipelineLock.Unlock()
 
-disabledNodeCfg1 = updatedNodeCfg1 // Continue from the previously updated state of nodeCfg1
-disabledNodeCfg1.IsEnabled = false
-data1, err = json.Marshal(disabledNodeCfg1)
-require.NoError(t, err)
-_, err = kv.Put(key1, data1) // Update node1 in KV store to be disabled
-require.NoError(t, err)
+	disabledNodeCfg1 = updatedNodeCfg1 // Continue from the previously updated state of nodeCfg1
+	disabledNodeCfg1.IsEnabled = false
+	data1, err = json.Marshal(disabledNodeCfg1)
+	require.NoError(t, err)
+	_, err = kv.Put(key1, data1) // Update node1 in KV store to be disabled
+	require.NoError(t, err)
 
-// Manually publish to the 'nodes' subject to trigger the supervisor's event-based sync
-err = nc.Publish("nodes", nil)
-require.NoError(t, err, "Publishing to 'nodes' subject should not error")
+	// Manually publish to the 'nodes' subject to trigger the supervisor's event-based sync
+	err = nc.Publish("nodes", nil)
+	require.NoError(t, err, "Publishing to 'nodes' subject should not error")
 	// At this point, both nodeCfg1 (as disabledNodeCfg1) and nodeCfg2 (as disabledNodeCfg2) are disabled in KV.
 	// The previous pipeline instance was stopped.
 	// We expect the factory to be called to create a new pipeline instance.
@@ -1366,7 +1366,7 @@ require.NoError(t, err, "Publishing to 'nodes' subject should not error")
 		// Log current state for debugging
 		log.Printf("Eventually check (re-enable node1): currentMockPipeline=%p, oldPipelineInstance=%p", currentMockPipeline, oldPipelineInstance)
 		if currentMockPipeline != nil {
-			log.Printf("Eventually check (re-enable node1): currentMockPipeline.id=%s, runCalled=%v, stopCalled=%v, updateCalled=%v, isStopped=%v", 
+			log.Printf("Eventually check (re-enable node1): currentMockPipeline.id=%s, runCalled=%v, stopCalled=%v, updateCalled=%v, isStopped=%v",
 				currentMockPipeline.id, currentMockPipeline.runCalled, currentMockPipeline.stopCalled, currentMockPipeline.updateCalled, currentMockPipeline.IsStopped())
 		} else {
 			log.Printf("Eventually check (re-enable node1): currentMockPipeline is nil")
@@ -1377,7 +1377,7 @@ require.NoError(t, err, "Publishing to 'nodes' subject should not error")
 			currentMockPipeline.runCalled &&
 			!currentMockPipeline.IsStopped() && // Use IsStopped() which handles its own lock for m.stopCalled
 			currentMockPipeline.updateCalled
-		
+
 		return conditionMet
 	}, 10*time.Second, 200*time.Millisecond, "New pipeline for re-enabled node1 should be created, running, and updated")
 
@@ -1408,14 +1408,14 @@ require.NoError(t, err, "Publishing to 'nodes' subject should not error")
 		// Subsequent checks on updateCalls[0] might panic if numCalls is 0, but this assert.Fail will catch it first.
 		assert.Fail(t, fmt.Sprintf("UpdateNodeConfigs called %d times for new pipeline. Expected 1 (or 2 identical if a known issue). Calls: %v", numCalls, updateCalls))
 	}
-	
+
 	lastUpdateArgs = currentMockPipeline.updateNodeConfigsCalls[0]
 	assert.Len(t, lastUpdateArgs, 1, "UpdateNodeConfigs should be called with 1 active node (reEnabledNodeCfg1)")
 	if len(lastUpdateArgs) == 1 {
 		assert.Equal(t, reEnabledNodeCfg1.ID, lastUpdateArgs[0].ID, "The active node should be reEnabledNodeCfg1")
 		assert.True(t, lastUpdateArgs[0].IsEnabled, "The active node (reEnabledNodeCfg1) should be enabled")
 	}
-	
+
 	currentMockPipeline.updateCalled = false // Reset for the next scenario
 	mockPipelineLock.Unlock()
 

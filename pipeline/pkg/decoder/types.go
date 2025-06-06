@@ -14,6 +14,7 @@ import (
 type RedisClient interface {
 	Get(ctx context.Context, key string) *redis.StringCmd
 	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.StatusCmd
+	SIsMember(ctx context.Context, key string, member interface{}) *redis.BoolCmd
 	Close() error
 }
 
