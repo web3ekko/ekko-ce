@@ -1,38 +1,38 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Title, 
-  Text, 
-  Card, 
-  Stack, 
-  Badge, 
-  Group, 
-  Button, 
+import {
+  Title,
+  Text,
+  Card,
+  Stack,
+  Badge,
+  Group,
+  Button,
   TextInput,
   Pagination,
   Select,
   ActionIcon,
   Tabs,
   Divider,
-  Table
+  Table,
 } from '@mantine/core';
-import { 
-  IconSearch, 
-  IconRefresh, 
-  IconExchange, 
-  IconArrowUp, 
+import {
+  IconSearch,
+  IconRefresh,
+  IconExchange,
+  IconArrowUp,
   IconArrowDown,
   IconFilter,
   IconWifi,
-  IconWifiOff
+  IconWifiOff,
 } from '@tabler/icons-react';
 
 import { useAppDispatch, useAppSelector } from '@/store';
 import RealtimeTransactionService from '@/services/realtime/RealtimeTransactionService';
-import { 
-  selectAllRealtimeTransactions, 
-  selectIsConnectingToRealtime, 
-  selectIsConnectedToRealtime, 
-  selectRealtimeConnectionError 
+import {
+  selectAllRealtimeTransactions,
+  selectIsConnectingToRealtime,
+  selectIsConnectedToRealtime,
+  selectRealtimeConnectionError,
 } from '@/store/selectors/realtimeTransactionsSelectors';
 import type { RealtimeTransaction } from '@/store/slices/realtimeTransactionsSlice';
 
@@ -47,7 +47,7 @@ export default function Transactions() {
   const [activePage, setActivePage] = useState(1);
   const [pageSize, setPageSize] = useState('10');
   const [activeTab, setActiveTab] = useState('all');
-  
+
   // Effect for WebSocket connection management
   useEffect(() => {
     RealtimeTransactionService.connect();
@@ -57,24 +57,28 @@ export default function Transactions() {
   }, []); // Empty dependency array means this runs once on mount and cleanup on unmount
 
   // Filter transactions based on search query and active tab
-  const filteredTransactions = liveTransactions.filter(tx => {
-    const matchesSearch = 
-      (
-        tx.hash.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        tx.from.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (tx.to && tx.to.toLowerCase().includes(searchQuery.toLowerCase())) || // Handle null 'to'
-        (tx.decoded_call?.function && tx.decoded_call.function.toLowerCase().includes(searchQuery.toLowerCase()))
-      );
-    
+  const filteredTransactions = liveTransactions.filter((tx) => {
+    const matchesSearch =
+      tx.hash.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      tx.from.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (tx.to && tx.to.toLowerCase().includes(searchQuery.toLowerCase())) || // Handle null 'to'
+      (tx.decoded_call?.function &&
+        tx.decoded_call.function.toLowerCase().includes(searchQuery.toLowerCase()));
+
     if (activeTab === 'all') return matchesSearch;
     if (activeTab === 'send') return matchesSearch && tx.transactionType === 'send';
     if (activeTab === 'receive') return matchesSearch && tx.transactionType === 'receive';
-    if (activeTab === 'contract') return matchesSearch && (tx.transactionType === 'contract_interaction' || tx.transactionType === 'contract_creation');
+    if (activeTab === 'contract')
+      return (
+        matchesSearch &&
+        (tx.transactionType === 'contract_interaction' ||
+          tx.transactionType === 'contract_creation')
+      );
     if (activeTab === 'pending') return matchesSearch && tx.status === 'pending';
-    
+
     return matchesSearch;
   });
-  
+
   // Calculate pagination
   const totalPages = Math.ceil(filteredTransactions.length / parseInt(pageSize));
   const paginatedTransactions = filteredTransactions.slice(
@@ -85,11 +89,16 @@ export default function Transactions() {
   // Helper function to get transaction icon based on type
   const getTransactionIcon = (type: RealtimeTransaction['transactionType']) => {
     switch (type) {
-      case 'send': return <IconArrowUp size={18} color="red" />;
-      case 'receive': return <IconArrowDown size={18} color="green" />;
-      case 'contract_interaction': return <IconExchange size={18} color="blue" />;
-      case 'contract_creation': return <IconExchange size={18} color="purple" />; // Different color for creation
-      default: return <IconExchange size={18} />;
+      case 'send':
+        return <IconArrowUp size={18} color="red" />;
+      case 'receive':
+        return <IconArrowDown size={18} color="green" />;
+      case 'contract_interaction':
+        return <IconExchange size={18} color="blue" />;
+      case 'contract_creation':
+        return <IconExchange size={18} color="purple" />; // Different color for creation
+      default:
+        return <IconExchange size={18} />;
     }
   };
 
@@ -105,14 +114,20 @@ export default function Transactions() {
       <Group justify="space-between" mb="lg">
         <div>
           <Title order={2}>Transactions</Title>
-          <Text c="dimmed" size="sm">View and analyze blockchain transactions</Text>
+          <Text c="dimmed" size="sm">
+            View and analyze blockchain transactions
+          </Text>
         </div>
         <Group>
-          <Button leftSection={<IconFilter size={16} />} variant="light">Filter</Button>
-          <Button leftSection={<IconExchange size={16} />} variant="filled">New Transaction</Button>
+          <Button leftSection={<IconFilter size={16} />} variant="light">
+            Filter
+          </Button>
+          <Button leftSection={<IconExchange size={16} />} variant="filled">
+            New Transaction
+          </Button>
         </Group>
       </Group>
-      
+
       <Card withBorder mb="md">
         <Group justify="space-between" mb="md">
           <TextInput
@@ -133,15 +148,37 @@ export default function Transactions() {
               data={['5', '10', '20', '50']}
               style={{ width: '100px' }}
             />
-            {isConnecting && <Badge color="yellow" leftSection={<IconWifi size={14}/>}>Connecting...</Badge>}
-            {isConnected && <Badge color="green" leftSection={<IconWifi size={14}/>}>Connected</Badge>}
-            {connectionError && <Badge color="red" leftSection={<IconWifiOff size={14}/>}>{connectionError}</Badge>}
-            <ActionIcon variant="light" color="blue" size="lg" aria-label="Reconnect" onClick={() => { RealtimeTransactionService.disconnect(); RealtimeTransactionService.connect();}} title="Reconnect">
+            {isConnecting && (
+              <Badge color="yellow" leftSection={<IconWifi size={14} />}>
+                Connecting...
+              </Badge>
+            )}
+            {isConnected && (
+              <Badge color="green" leftSection={<IconWifi size={14} />}>
+                Connected
+              </Badge>
+            )}
+            {connectionError && (
+              <Badge color="red" leftSection={<IconWifiOff size={14} />}>
+                {connectionError}
+              </Badge>
+            )}
+            <ActionIcon
+              variant="light"
+              color="blue"
+              size="lg"
+              aria-label="Reconnect"
+              onClick={() => {
+                RealtimeTransactionService.disconnect();
+                RealtimeTransactionService.connect();
+              }}
+              title="Reconnect"
+            >
               <IconRefresh size={18} />
             </ActionIcon>
           </Group>
         </Group>
-        
+
         <Tabs value={activeTab} onChange={(value) => setActiveTab(value || 'all')} mb="md">
           <Tabs.List>
             <Tabs.Tab value="all">All</Tabs.Tab>
@@ -151,7 +188,7 @@ export default function Transactions() {
             <Tabs.Tab value="pending">Pending</Tabs.Tab>
           </Tabs.List>
         </Tabs>
-        
+
         <Table striped highlightOnHover>
           <Table.Thead>
             <Table.Tr>
@@ -166,7 +203,7 @@ export default function Transactions() {
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
-            {paginatedTransactions.map(tx => (
+            {paginatedTransactions.map((tx) => (
               <Table.Tr key={tx.hash}>
                 <Table.Td>
                   <Group gap="xs">
@@ -175,39 +212,57 @@ export default function Transactions() {
                   </Group>
                 </Table.Td>
                 <Table.Td>
-                  <Text size="sm" style={{ fontFamily: 'monospace' }}>{tx.hash}</Text>
+                  <Text size="sm" style={{ fontFamily: 'monospace' }}>
+                    {tx.hash}
+                  </Text>
                 </Table.Td>
                 <Table.Td>
-                  <Text size="sm" style={{ fontFamily: 'monospace' }}>{tx.from}</Text>
+                  <Text size="sm" style={{ fontFamily: 'monospace' }}>
+                    {tx.from}
+                  </Text>
                 </Table.Td>
                 <Table.Td>
-                  <Text size="sm" style={{ fontFamily: 'monospace' }}>{tx.to}</Text>
+                  <Text size="sm" style={{ fontFamily: 'monospace' }}>
+                    {tx.to}
+                  </Text>
                 </Table.Td>
                 <Table.Td>
                   {/* TODO: Format large numbers appropriately */}
-                  <Text size="sm" c="dimmed">{tx.value}</Text>
+                  <Text size="sm" c="dimmed">
+                    {tx.value}
+                  </Text>
                 </Table.Td>
                 <Table.Td>
-                  <Text size="sm" c="dimmed">{tx.network || tx.tokenSymbol || 'N/A'}</Text>
+                  <Text size="sm" c="dimmed">
+                    {tx.network || tx.tokenSymbol || 'N/A'}
+                  </Text>
                 </Table.Td>
                 <Table.Td>
-                  <Text size="sm" c="dimmed">{formatDate(tx.timestamp)}</Text>
+                  <Text size="sm" c="dimmed">
+                    {formatDate(tx.timestamp)}
+                  </Text>
                 </Table.Td>
                 <Table.Td>
-                  <Badge color={tx.status === 'Confirmed' ? 'green' : tx.status === 'pending' ? 'yellow' : 'gray'}>{tx.status || 'N/A'}</Badge>
+                  <Badge
+                    color={
+                      tx.status === 'Confirmed'
+                        ? 'green'
+                        : tx.status === 'pending'
+                          ? 'yellow'
+                          : 'gray'
+                    }
+                  >
+                    {tx.status || 'N/A'}
+                  </Badge>
                 </Table.Td>
               </Table.Tr>
             ))}
           </Table.Tbody>
         </Table>
-        
+
         {filteredTransactions.length > parseInt(pageSize) && (
           <Group justify="center" mt="xl">
-            <Pagination 
-              value={activePage} 
-              onChange={setActivePage} 
-              total={totalPages} 
-            />
+            <Pagination value={activePage} onChange={setActivePage} total={totalPages} />
           </Group>
         )}
       </Card>

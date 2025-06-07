@@ -30,7 +30,10 @@ export const fetchWallets = createAsyncThunk(
 // Async thunk to create a wallet
 export const createWallet = createAsyncThunk(
   'wallets/createWallet',
-  async (walletData: Omit<Wallet, 'id' | 'created_at' | 'updated_at'>, { dispatch, rejectWithValue }) => {
+  async (
+    walletData: Omit<Wallet, 'id' | 'created_at' | 'updated_at'>,
+    { dispatch, rejectWithValue }
+  ) => {
     try {
       const newWallet = await WalletService.createWallet(walletData);
       dispatch(fetchWallets()); // Refresh the list after creating
@@ -110,7 +113,7 @@ const walletsSlice = createSlice({
       })
       // Create Wallet
       .addCase(createWallet.pending, (state) => {
-        state.loading = true; 
+        state.loading = true;
       })
       .addCase(createWallet.fulfilled, (state) => {
         state.loading = false; // fetchWallets will update the list and loading state
@@ -148,7 +151,7 @@ const walletsSlice = createSlice({
       })
       .addCase(fetchWalletById.fulfilled, (state, action: PayloadAction<Wallet>) => {
         const fetchedWallet = action.payload;
-        const index = state.wallets.findIndex(w => w.id === fetchedWallet.id);
+        const index = state.wallets.findIndex((w) => w.id === fetchedWallet.id);
         if (index !== -1) {
           state.wallets[index] = fetchedWallet; // Update existing
         } else {

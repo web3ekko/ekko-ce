@@ -1,14 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from '@/store';
-import { fetchWallets, createWallet, deleteWallet, updateWallet, clearWalletsError } from '@/store/slices/walletsSlice';
-import { 
-  Title, 
-  Text, 
-  Card, 
-  Grid, 
-  Badge, 
-  Group, 
-  Button, 
+import {
+  fetchWallets,
+  createWallet,
+  deleteWallet,
+  updateWallet,
+  clearWalletsError,
+} from '@/store/slices/walletsSlice';
+import {
+  Title,
+  Text,
+  Card,
+  Grid,
+  Badge,
+  Group,
+  Button,
   TextInput,
   Pagination,
   Select,
@@ -20,11 +26,21 @@ import {
   Divider,
   Loader,
   Alert,
-  Center
+  Center,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useNavigate } from 'react-router-dom';
-import { IconSearch, IconPlus, IconRefresh, IconWallet, IconCheck, IconX, IconTrash, IconEdit, IconNetwork } from '@tabler/icons-react';
+import {
+  IconSearch,
+  IconPlus,
+  IconRefresh,
+  IconWallet,
+  IconCheck,
+  IconX,
+  IconTrash,
+  IconEdit,
+  IconNetwork,
+} from '@tabler/icons-react';
 
 import type { Wallet } from '@/@types/wallet';
 
@@ -84,7 +100,7 @@ export default function Wallets() {
   const [activePage, setActivePage] = useState(1);
   const [pageSize, setPageSize] = useState('10');
   const [modalOpened, setModalOpened] = useState(false);
-  
+
   // Form for adding a new wallet
   const form = useForm<WalletFormValues>({
     initialValues: {
@@ -106,7 +122,7 @@ export default function Wallets() {
         const btcRegex = /^(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,39}$/;
         const solanaRegex = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
         const avaxXRegex = /^X-[a-zA-Z0-9]{39}$/;
-        
+
         switch (form.values.blockchain) {
           case 'ETH':
           case 'MATIC':
@@ -124,7 +140,7 @@ export default function Wallets() {
       },
     },
   });
-  
+
   // Fetch wallets on component mount
   useEffect(() => {
     dispatch(fetchWallets());
@@ -133,7 +149,7 @@ export default function Wallets() {
   const handleRefreshWallets = () => {
     dispatch(fetchWallets());
   };
-  
+
   // Handle form submission for new wallet
   const handleSubmit = async (values: WalletFormValues) => {
     const walletPayload = {
@@ -155,7 +171,7 @@ export default function Wallets() {
       console.error('Failed to create wallet:', err);
     }
   };
-  
+
   // Handle wallet deletion
   const handleDeleteWallet = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this wallet?')) {
@@ -166,7 +182,7 @@ export default function Wallets() {
       }
     }
   };
-  
+
   // Toggle wallet status
   const handleToggleStatus = async (wallet: Wallet) => {
     const newStatus = wallet.status === 'active' ? 'inactive' : 'active';
@@ -176,13 +192,14 @@ export default function Wallets() {
       console.error('Failed to update wallet status:', err);
     }
   };
-  
+
   // Filter wallets based on search query
-  const filteredWallets = wallets.filter(wallet => 
-    wallet.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    wallet.address.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredWallets = wallets.filter(
+    (wallet) =>
+      wallet.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      wallet.address.toLowerCase().includes(searchQuery.toLowerCase())
   );
-  
+
   // Calculate pagination
   const totalPages = Math.ceil(filteredWallets.length / parseInt(pageSize));
   const paginatedWallets = filteredWallets.slice(
@@ -195,20 +212,22 @@ export default function Wallets() {
       <Group justify="space-between" mb="lg">
         <div>
           <Title order={2}>Wallets</Title>
-          <Text c="dimmed" size="sm">Manage and monitor your blockchain wallets</Text>
+          <Text c="dimmed" size="sm">
+            Manage and monitor your blockchain wallets
+          </Text>
         </div>
-        <Button 
-          leftSection={<IconPlus size={16} />} 
+        <Button
+          leftSection={<IconPlus size={16} />}
           variant="filled"
           onClick={() => setModalOpened(true)}
         >
           Add Wallet
         </Button>
-        
+
         {/* Add Wallet Modal */}
-        <Modal 
-          opened={modalOpened} 
-          onClose={() => setModalOpened(false)} 
+        <Modal
+          opened={modalOpened}
+          onClose={() => setModalOpened(false)}
           title="Add New Wallet"
           size="md"
         >
@@ -220,7 +239,7 @@ export default function Wallets() {
                 required
                 {...form.getInputProps('name')}
               />
-              
+
               <Select
                 label="Blockchain/Network"
                 placeholder="Select blockchain/network"
@@ -238,13 +257,15 @@ export default function Wallets() {
                   form.setFieldValue('blockchain', value || '');
                   // Update subnet options and reset subnet if the new network doesn't have the current one
                   const newSubnetOptions = subnetOptionsByNetwork[value || ''] || [];
-                  const currentSubnetIsValid = newSubnetOptions.some(opt => opt.value === form.values.subnet);
+                  const currentSubnetIsValid = newSubnetOptions.some(
+                    (opt) => opt.value === form.values.subnet
+                  );
                   if (!currentSubnetIsValid) {
                     form.setFieldValue('subnet', newSubnetOptions[0]?.value || '');
                   }
                 }}
               />
-              
+
               <TextInput
                 label="Address"
                 placeholder="e.g., 0x... or bc1..."
@@ -259,36 +280,40 @@ export default function Wallets() {
                 data={subnetOptionsByNetwork[form.values.blockchain] || []}
                 {...form.getInputProps('subnet')}
               />
-              
+
               <Textarea
                 label="Description"
                 placeholder="Optional description for this wallet"
                 {...form.getInputProps('description')}
               />
-              
+
               <Switch
                 label="Active"
                 checked={form.values.isActive}
                 onChange={(event) => form.setFieldValue('isActive', event.currentTarget.checked)}
               />
-              
+
               <Divider />
-              
+
               <Group justify="flex-end">
-                <Button variant="light" onClick={() => setModalOpened(false)}>Cancel</Button>
-                <Button type="submit" leftSection={<IconCheck size={16} />}>Add Wallet</Button>
+                <Button variant="light" onClick={() => setModalOpened(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" leftSection={<IconCheck size={16} />}>
+                  Add Wallet
+                </Button>
               </Group>
             </Stack>
           </form>
         </Modal>
       </Group>
-      
+
       {error && (
         <Alert color="red" title="Error" mb="md" onClose={() => dispatch(clearWalletsError())}>
           {error}
         </Alert>
       )}
-      
+
       <Card withBorder mb="md">
         <Group justify="space-between" mb="md">
           <TextInput
@@ -309,10 +334,10 @@ export default function Wallets() {
               data={['5', '10', '20', '50']}
               style={{ width: '100px' }}
             />
-            <ActionIcon 
-              variant="light" 
-              color="blue" 
-              size="lg" 
+            <ActionIcon
+              variant="light"
+              color="blue"
+              size="lg"
               aria-label="Refresh"
               onClick={handleRefreshWallets}
             >
@@ -320,7 +345,7 @@ export default function Wallets() {
             </ActionIcon>
           </Group>
         </Group>
-        
+
         {loading && filteredWallets.length === 0 ? (
           <Center p="xl">
             <Loader />
@@ -329,61 +354,65 @@ export default function Wallets() {
           <Center mt="xl" mb="xl">
             <Stack align="center">
               <IconWallet size={48} stroke={1.5} color="gray" />
-              <Text size="lg" fw={500}>No wallets found</Text>
-              <Text size="sm" c="dimmed" ta="center">Create your first wallet by clicking the "Add Wallet" button above.</Text>
+              <Text size="lg" fw={500}>
+                No wallets found
+              </Text>
+              <Text size="sm" c="dimmed" ta="center">
+                Create your first wallet by clicking the "Add Wallet" button above.
+              </Text>
             </Stack>
           </Center>
         ) : (
           <Grid>
-          {paginatedWallets.map(wallet => (
-            <Grid.Col span={{ base: 12, md: 6, lg: 4 }} key={wallet.id}>
-              <Card 
-                withBorder 
-                p="md" 
-                radius="md" 
-                onClick={() => navigate(`/ekko/wallets/${wallet.id}`)}
-                style={{ cursor: 'pointer' }}
-              >
-                <Group justify="space-between" mb="xs">
-                  <Group>
-                    <IconWallet size={20} />
-                    <Text fw={700}>{wallet.name}</Text>
+            {paginatedWallets.map((wallet) => (
+              <Grid.Col span={{ base: 12, md: 6, lg: 4 }} key={wallet.id}>
+                <Card
+                  withBorder
+                  p="md"
+                  radius="md"
+                  onClick={() => navigate(`/ekko/wallets/${wallet.id}`)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <Group justify="space-between" mb="xs">
+                    <Group>
+                      <IconWallet size={20} />
+                      <Text fw={700}>{wallet.name}</Text>
+                    </Group>
+                    <Badge
+                      color={wallet.status === 'active' ? 'green' : 'red'}
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => handleToggleStatus(wallet)}
+                    >
+                      {wallet.status === 'active' ? 'Active' : 'Inactive'}
+                    </Badge>
                   </Group>
-                  <Badge 
-                    color={wallet.status === 'active' ? 'green' : 'red'}
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => handleToggleStatus(wallet)}
-                  >
-                    {wallet.status === 'active' ? 'Active' : 'Inactive'}
-                  </Badge>
-                </Group>
-                <Text size="sm" c="dimmed" mb="md" title={wallet.address}>{truncateAddress(wallet.address)}</Text>
-                <Group justify="space-between">
-                  <Text>Balance:</Text>
-                  <Text fw={700}>{wallet.balance} {wallet.blockchain_symbol}</Text>
-                </Group>
-                <Group justify="flex-end" mt="md">
-                  <ActionIcon 
-                    color="red" 
-                    variant="subtle"
-                    onClick={() => handleDeleteWallet(wallet.id)}
-                  >
-                    <IconTrash size={16} />
-                  </ActionIcon>
-                </Group>
-              </Card>
-            </Grid.Col>
-          ))}
-        </Grid>
+                  <Text size="sm" c="dimmed" mb="md" title={wallet.address}>
+                    {truncateAddress(wallet.address)}
+                  </Text>
+                  <Group justify="space-between">
+                    <Text>Balance:</Text>
+                    <Text fw={700}>
+                      {wallet.balance} {wallet.blockchain_symbol}
+                    </Text>
+                  </Group>
+                  <Group justify="flex-end" mt="md">
+                    <ActionIcon
+                      color="red"
+                      variant="subtle"
+                      onClick={() => handleDeleteWallet(wallet.id)}
+                    >
+                      <IconTrash size={16} />
+                    </ActionIcon>
+                  </Group>
+                </Card>
+              </Grid.Col>
+            ))}
+          </Grid>
         )}
-        
+
         {filteredWallets.length > parseInt(pageSize) && (
           <Group justify="center" mt="xl">
-            <Pagination 
-              value={activePage} 
-              onChange={setActivePage} 
-              total={totalPages} 
-            />
+            <Pagination value={activePage} onChange={setActivePage} total={totalPages} />
           </Group>
         )}
       </Card>

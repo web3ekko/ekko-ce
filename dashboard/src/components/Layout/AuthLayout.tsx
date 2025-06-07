@@ -1,9 +1,9 @@
-import Views from "@/components/Layout/Views";
+import Views from '@/components/Layout/Views';
 
-export default function AuthLayout(){
-  return(
+export default function AuthLayout() {
+  return (
     <>
-      <Views/>
+      <Views />
     </>
-  )
+  );
 }

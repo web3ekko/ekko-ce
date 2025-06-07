@@ -1,7 +1,3 @@
 export default function Pages() {
-  return (
-    <>
-      Pages
-    </>
-  )
+  return <>Pages</>;
 }

@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Title, 
-  Text, 
-  Card, 
-  Grid, 
-  Badge, 
-  Group, 
-  Button, 
+import {
+  Title,
+  Text,
+  Card,
+  Grid,
+  Badge,
+  Group,
+  Button,
   TextInput,
   ActionIcon,
   Table,
@@ -17,28 +17,28 @@ import {
   Center,
   Loader,
   Switch,
-  Anchor
+  Anchor,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { 
-  IconSearch, 
-  IconPlus, 
-  IconRefresh, 
-  IconServer, 
+import {
+  IconSearch,
+  IconPlus,
+  IconRefresh,
+  IconServer,
   IconChevronRight,
   IconCheck,
   IconX,
-  IconAlertTriangle
+  IconAlertTriangle,
 } from '@tabler/icons-react';
-import { nodesApi, Node, CreateNodePayload } from '@/services/api/ekko'; 
+import { nodesApi, Node, CreateNodePayload } from '@/services/api/ekko';
 
 const networkSubnetOptions: Record<string, string[]> = {
-  'Ethereum': ['Mainnet', 'Sepolia', 'Goerli'],
-  'Avalanche': ['Mainnet', 'Fuji Testnet'],
-  'Polygon': ['Mainnet', 'Mumbai Testnet'],
+  Ethereum: ['Mainnet', 'Sepolia', 'Goerli'],
+  Avalanche: ['Mainnet', 'Fuji Testnet'],
+  Polygon: ['Mainnet', 'Mumbai Testnet'],
   'BNB Smart Chain': ['Mainnet', 'Testnet'],
-  'Arbitrum': ['One', 'Goerli'],
-  'Optimism': ['Mainnet', 'Goerli'],
+  Arbitrum: ['One', 'Goerli'],
+  Optimism: ['Mainnet', 'Goerli'],
   // Add more networks and their subnets as needed
 };
 
@@ -81,7 +81,7 @@ export default function Nodes() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [updatingNodeId, setUpdatingNodeId] = useState<string | null>(null);
-  
+
   // Form for creating a new node
   const form = useForm({
     initialValues: {
@@ -96,19 +96,21 @@ export default function Nodes() {
       name: (value) => (value.trim().length > 0 ? null : 'Name is required'),
       websocket_url: (value) => {
         if (value.trim().length === 0) return 'WebSocket URL is required';
-        if (!value.startsWith('ws://') && !value.startsWith('wss://')) return 'WebSocket URL must start with ws:// or wss://';
+        if (!value.startsWith('ws://') && !value.startsWith('wss://'))
+          return 'WebSocket URL must start with ws:// or wss://';
         return null;
       },
       http_url: (value) => {
         if (value.trim().length === 0) return 'HTTP URL is required';
-        if (!value.startsWith('http://') && !value.startsWith('https://')) return 'HTTP URL must start with http:// or https://';
+        if (!value.startsWith('http://') && !value.startsWith('https://'))
+          return 'HTTP URL must start with http:// or https://';
         return null;
       },
       network: (value) => (value ? null : 'Network is required'),
       subnet: (value) => (value ? null : 'Subnet is required'),
     },
   });
-  
+
   const navigate = useNavigate();
 
   const handleToggleNodeEnabled = async (nodeToUpdate: Node, isEnabled: boolean) => {
@@ -116,10 +118,8 @@ export default function Nodes() {
     const originalNodes = [...nodes]; // Store original state for potential rollback
 
     // Optimistic update
-    setNodes(currentNodes =>
-      currentNodes.map(n =>
-        n.id === nodeToUpdate.id ? { ...n, is_enabled: isEnabled } : n
-      )
+    setNodes((currentNodes) =>
+      currentNodes.map((n) => (n.id === nodeToUpdate.id ? { ...n, is_enabled: isEnabled } : n))
     );
 
     try {
@@ -146,7 +146,7 @@ export default function Nodes() {
       const fullPayload: Node = {
         ...nodeToUpdate, // ensure all existing fields are present
         ...payload, // override with specific changes
-        is_enabled: isEnabled // explicitly set is_enabled
+        is_enabled: isEnabled, // explicitly set is_enabled
       };
       await nodesApi.updateNode(fullPayload);
       // Optionally, show a success notification
@@ -159,7 +159,7 @@ export default function Nodes() {
     }
     setUpdatingNodeId(null);
   };
-  
+
   // Function to fetch nodes from API
   const fetchNodes = async () => {
     try {
@@ -168,21 +168,31 @@ export default function Nodes() {
       console.log('Nodes.tsx: Fetched nodes API response:', JSON.stringify(response, null, 2)); // Log the whole response object
       // Assuming response is PaginatedResponse<Node> as per ekko.ts type
       if (response && response.data) {
-        console.log('Nodes.tsx: Setting nodes with response.data:', JSON.stringify(response.data, null, 2));
+        console.log(
+          'Nodes.tsx: Setting nodes with response.data:',
+          JSON.stringify(response.data, null, 2)
+        );
         setNodes(response.data);
       } else {
-        console.error('Nodes.tsx: API response for nodes did not have a .data property or response was null/undefined. Response:', response);
+        console.error(
+          'Nodes.tsx: API response for nodes did not have a .data property or response was null/undefined. Response:',
+          response
+        );
         // If the API returns a direct array, response.data would be undefined.
         // In that case, we might want to setNodes(response) if response is Node[]
         // For now, let's assume PaginatedResponse and log an error if it's not matching.
         setNodes([]); // Set to empty array to prevent crash, but indicates an issue
       }
       setError(null);
-    } catch (err: any) { // Added :any for better inspection
+    } catch (err: any) {
+      // Added :any for better inspection
       console.error('Nodes.tsx: Error fetching nodes RAW:', err);
       console.error('Nodes.tsx: Error fetching nodes JSON:', JSON.stringify(err, null, 2));
       if (err.response) {
-        console.error('Nodes.tsx: Error response data:', JSON.stringify(err.response.data, null, 2));
+        console.error(
+          'Nodes.tsx: Error response data:',
+          JSON.stringify(err.response.data, null, 2)
+        );
         console.error('Nodes.tsx: Error response status:', err.response.status);
       }
       setError('Failed to load nodes. Please try again.');
@@ -190,17 +200,17 @@ export default function Nodes() {
       setLoading(false);
     }
   };
-  
+
   // Fetch nodes on component mount
   useEffect(() => {
     fetchNodes();
   }, []);
-  
+
   // Handle form submission
   const handleSubmit = async (values: typeof form.values) => {
     try {
       setLoading(true);
-      
+
       const nodeToCreate: CreateNodePayload = {
         name: values.name,
         network: values.network,
@@ -210,12 +220,12 @@ export default function Nodes() {
         vm: values.vm,
         type: 'API', // Optional: backend defaults to 'API'
       };
-      
+
       await nodesApi.createNode(nodeToCreate);
-      
+
       // Refresh nodes list
       await fetchNodes();
-      
+
       // Reset form and close modal
       form.reset();
       setModalOpened(false);
@@ -228,38 +238,49 @@ export default function Nodes() {
   };
 
   // Filter nodes based on search query and active tab
-  const filteredNodes = nodes.filter(node => {
-    const matchesSearch = 
-      node.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+  const filteredNodes = nodes.filter((node) => {
+    const matchesSearch =
+      node.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       node.network.toLowerCase().includes(searchQuery.toLowerCase()) ||
       node.http_url.toLowerCase().includes(searchQuery.toLowerCase());
-    
+
     if (activeTab === 'all') return matchesSearch;
     if (activeTab === 'online') return matchesSearch && node.status === 'Online';
-    if (activeTab === 'issues') return matchesSearch && (node.status === 'Degraded' || node.status === 'Offline');
-    
+    if (activeTab === 'issues')
+      return matchesSearch && (node.status === 'Degraded' || node.status === 'Offline');
+
     return matchesSearch;
   });
 
   // Helper function to get status color
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Online': return 'green';
-      case 'Pending': return 'yellow'; 
-      case 'Degraded': return 'orange'; 
-      case 'Offline': return 'red';
-      default: return 'gray';
+      case 'Online':
+        return 'green';
+      case 'Pending':
+        return 'yellow';
+      case 'Degraded':
+        return 'orange';
+      case 'Offline':
+        return 'red';
+      default:
+        return 'gray';
     }
   };
 
   // Helper function to get status icon
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'Online': return <IconCheck size={14} />;
-      case 'Pending': return <IconRefresh size={14} />; 
-      case 'Degraded': return <IconAlertTriangle size={14} />;
-      case 'Offline': return <IconX size={14} />;
-      default: return <IconServer size={14} />; 
+      case 'Online':
+        return <IconCheck size={14} />;
+      case 'Pending':
+        return <IconRefresh size={14} />;
+      case 'Degraded':
+        return <IconAlertTriangle size={14} />;
+      case 'Offline':
+        return <IconX size={14} />;
+      default:
+        return <IconServer size={14} />;
     }
   };
 
@@ -268,11 +289,19 @@ export default function Nodes() {
       <Group justify="space-between" mb="lg">
         <div>
           <Title order={2}>Blockchain Nodes</Title>
-          <Text c="dimmed" size="sm">Monitor and manage your blockchain nodes</Text>
+          <Text c="dimmed" size="sm">
+            Monitor and manage your blockchain nodes
+          </Text>
         </div>
-        <Button leftSection={<IconPlus size={16} />} variant="filled" onClick={() => setModalOpened(true)}>Add Node</Button>
+        <Button
+          leftSection={<IconPlus size={16} />}
+          variant="filled"
+          onClick={() => setModalOpened(true)}
+        >
+          Add Node
+        </Button>
       </Group>
-      
+
       <Card withBorder mb="md">
         <Group justify="space-between" mb="md">
           <TextInput
@@ -286,7 +315,7 @@ export default function Nodes() {
             <IconRefresh size={18} />
           </ActionIcon>
         </Group>
-        
+
         <Tabs value={activeTab} onChange={(value) => value && setActiveTab(value)} mb="md">
           <Tabs.List>
             <Tabs.Tab value="all">All Nodes</Tabs.Tab>
@@ -294,7 +323,7 @@ export default function Nodes() {
             <Tabs.Tab value="issues">Issues</Tabs.Tab>
           </Tabs.List>
         </Tabs>
-        
+
         <Table verticalSpacing="sm">
           <Table.Thead>
             <Table.Tr>
@@ -306,20 +335,28 @@ export default function Nodes() {
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
-            {filteredNodes.map(node => (
+            {filteredNodes.map((node) => (
               <Table.Tr key={node.id}>
-                <Table.Td onClick={() => navigate(`/ekko/nodes/${node.id}`)} style={{ cursor: 'pointer' }}>
+                <Table.Td
+                  onClick={() => navigate(`/ekko/nodes/${node.id}`)}
+                  style={{ cursor: 'pointer' }}
+                >
                   <Group gap="sm">
                     <IconServer size={16} />
                     <Text size="sm">{node.name}</Text>
                   </Group>
                 </Table.Td>
-                <Table.Td onClick={() => navigate(`/ekko/nodes/${node.id}`)} style={{ cursor: 'pointer' }}>
-                  <Text size="sm">{node.network} ({node.subnet})</Text>
+                <Table.Td
+                  onClick={() => navigate(`/ekko/nodes/${node.id}`)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <Text size="sm">
+                    {node.network} ({node.subnet})
+                  </Text>
                 </Table.Td>
                 <Table.Td>
-                  <Badge 
-                    size="sm" 
+                  <Badge
+                    size="sm"
                     color={getStatusColor(node.status)}
                     leftSection={getStatusIcon(node.status)}
                   >
@@ -339,10 +376,10 @@ export default function Nodes() {
           </Table.Tbody>
         </Table>
       </Card>
-      
+
       {/* Node Details Cards */}
       <Grid mt="md">
-        {filteredNodes.slice(0, 3).map(node => (
+        {filteredNodes.slice(0, 3).map((node) => (
           <Grid.Col span={{ base: 12, md: 6, lg: 4 }} key={node.id}>
             <Card withBorder p="md" radius="md">
               <Group justify="space-between" mb="xs">
@@ -350,20 +387,20 @@ export default function Nodes() {
                   <IconServer size={20} />
                   <Text fw={700}>{node.name}</Text>
                 </Group>
-                <Badge color={getStatusColor(node.status)}>
-                  {node.status}
-                </Badge>
+                <Badge color={getStatusColor(node.status)}>{node.status}</Badge>
               </Group>
-              
+
               <Group justify="space-between" mt="md">
                 <Text size="sm">Network / Subnet:</Text>
-                <Text size="sm" fw={500}>{node.network} ({node.subnet})</Text>
+                <Text size="sm" fw={500}>
+                  {node.network} ({node.subnet})
+                </Text>
               </Group>
             </Card>
           </Grid.Col>
         ))}
       </Grid>
-      
+
       {/* Add Node Modal */}
       <Modal
         opened={modalOpened}
@@ -379,7 +416,7 @@ export default function Nodes() {
             <Loader size="md" />
           </Center>
         )}
-        
+
         {!loading && (
           <form onSubmit={form.onSubmit(handleSubmit)}>
             <TextInput
@@ -393,7 +430,7 @@ export default function Nodes() {
             <Select
               label="Network"
               placeholder="Select network"
-              data={Object.keys(networkSubnetOptions).map(net => ({ value: net, label: net }))}
+              data={Object.keys(networkSubnetOptions).map((net) => ({ value: net, label: net }))}
               required
               mb="md"
               {...form.getInputProps('network')}
@@ -405,14 +442,21 @@ export default function Nodes() {
 
             <Select
               label="Subnet"
-              placeholder={form.values.network ? "Select subnet" : "Select network first"}
-              data={form.values.network ? networkSubnetOptions[form.values.network]?.map(sub => ({ value: sub, label: sub })) || [] : []}
+              placeholder={form.values.network ? 'Select subnet' : 'Select network first'}
+              data={
+                form.values.network
+                  ? networkSubnetOptions[form.values.network]?.map((sub) => ({
+                      value: sub,
+                      label: sub,
+                    })) || []
+                  : []
+              }
               required
               mb="md"
               disabled={!form.values.network || !networkSubnetOptions[form.values.network]}
               {...form.getInputProps('subnet')}
             />
-            
+
             <TextInput
               label="WebSocket URL"
               placeholder="wss://node.example.com:9650/ext/bc/ws"
@@ -420,7 +464,7 @@ export default function Nodes() {
               mb="md"
               {...form.getInputProps('websocket_url')}
             />
-            
+
             <TextInput
               label="HTTP URL"
               placeholder="https://node.example.com:9650/ext/bc/C/rpc"
@@ -428,7 +472,7 @@ export default function Nodes() {
               mb="md"
               {...form.getInputProps('http_url')}
             />
-            
+
             <Select
               label="Virtual Machine"
               placeholder="Select VM"
@@ -437,17 +481,18 @@ export default function Nodes() {
               required
               {...form.getInputProps('vm')}
             />
-            
+
             <Group justify="flex-end">
-              <Button variant="outline" onClick={() => {
-                setModalOpened(false);
-                form.reset();
-              }}>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setModalOpened(false);
+                  form.reset();
+                }}
+              >
                 Cancel
               </Button>
-              <Button type="submit">
-                Add Node
-              </Button>
+              <Button type="submit">Add Node</Button>
             </Group>
           </form>
         )}

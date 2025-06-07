@@ -1,4 +1,4 @@
-import i18n from './locales'
+import i18n from './locales';
 
-export { dateLocales } from './locales'
-export default i18n
+export { dateLocales } from './locales';
+export default i18n;

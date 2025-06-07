@@ -16,11 +16,17 @@ import {
   Center as MantineCenter,
   Breadcrumbs,
   Anchor,
-  Stack, 
-  Badge
+  Stack,
+  Badge,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconDeviceFloppy, IconArrowLeft, IconAlertCircle, IconPencil, IconX } from '@tabler/icons-react';
+import {
+  IconDeviceFloppy,
+  IconArrowLeft,
+  IconAlertCircle,
+  IconPencil,
+  IconX,
+} from '@tabler/icons-react';
 import { nodesApi, Node } from '@/services/api/ekko';
 
 // Define a type for the form values to ensure type safety
@@ -56,7 +62,7 @@ const NodeDetailPage: React.FC = () => {
       http_url: '',
       websocket_url: 'wss://example.com', // Placeholder, now required
       type: 'API', // Default type
-      vm: 'EVM',   // Default VM, now required
+      vm: 'EVM', // Default VM, now required
       is_enabled: true,
     },
     validate: {
@@ -111,7 +117,7 @@ const NodeDetailPage: React.FC = () => {
       fetchNodeDetails();
     } else {
       console.warn('[NodeDetailPage] useEffect (fetch data): nodeId is missing.');
-      setError("Node ID is missing from URL.");
+      setError('Node ID is missing from URL.');
       setLoading(false);
       setNode(null);
     }
@@ -121,7 +127,9 @@ const NodeDetailPage: React.FC = () => {
   useEffect(() => {
     console.log('[NodeDetailPage] useEffect (populate form): Triggered. Node:', node);
     if (node) {
-      console.log('[NodeDetailPage] useEffect (populate form): Node data exists, setting form values.');
+      console.log(
+        '[NodeDetailPage] useEffect (populate form): Node data exists, setting form values.'
+      );
       form.setValues({
         name: node.name || '',
         network: node.network || '',
@@ -134,9 +142,9 @@ const NodeDetailPage: React.FC = () => {
       });
     } else {
       console.log('[NodeDetailPage] useEffect (populate form): Node data is null, resetting form.');
-      form.reset(); 
+      form.reset();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [node, form.setValues]); // Using form.setValues as it's more stable
 
   const handleSubmit = async (values: NodeFormValues) => {
@@ -153,7 +161,10 @@ const NodeDetailPage: React.FC = () => {
       ...node, // Spread existing node data to preserve fields not in the form (like id, status, created_at etc.)
       ...values, // Spread form values to update changed fields
     };
-    console.log('[NodeDetailPage] handleSubmit: Attempting to update with payload:', updatedNodeData);
+    console.log(
+      '[NodeDetailPage] handleSubmit: Attempting to update with payload:',
+      updatedNodeData
+    );
 
     try {
       const result = await nodesApi.updateNode(updatedNodeData);
@@ -168,7 +179,8 @@ const NodeDetailPage: React.FC = () => {
       });
     } catch (err: any) {
       console.error('[NodeDetailPage] handleSubmit: API error caught.', err);
-      const errorMessage = err.response?.data?.detail || err.message || 'Please check console for details.';
+      const errorMessage =
+        err.response?.data?.detail || err.message || 'Please check console for details.';
       setError(`Failed to update node: ${errorMessage}`);
       notifications.show({
         title: 'Update Failed',
@@ -184,28 +196,50 @@ const NodeDetailPage: React.FC = () => {
   const breadcrumbsItems = [
     { title: 'Ekko', href: '/ekko' },
     { title: 'Nodes', href: '/ekko/nodes' },
-    { title: node ? node.name : (nodeId || 'Detail'), href: `/ekko/nodes/${nodeId}` },
+    { title: node ? node.name : nodeId || 'Detail', href: `/ekko/nodes/${nodeId}` },
   ].map((item, index) => (
-    <Anchor component="button" onClick={() => navigate(item.href)} key={index} style={{fontSize: 'var(--mantine-font-size-sm)'}}>
+    <Anchor
+      component="button"
+      onClick={() => navigate(item.href)}
+      key={index}
+      style={{ fontSize: 'var(--mantine-font-size-sm)' }}
+    >
       {item.title}
     </Anchor>
   ));
-  
+
   // --- Rendering Logic ---
-  console.log('[NodeDetailPage] Render: Evaluating conditions - loading:', loading, 'error:', error, 'node:', node);
+  console.log(
+    '[NodeDetailPage] Render: Evaluating conditions - loading:',
+    loading,
+    'error:',
+    error,
+    'node:',
+    node
+  );
 
   if (loading) {
     console.log('[NodeDetailPage] Render: Showing Loading state.');
-    return <MantineCenter style={{ height: 'calc(100vh - 120px)' }}><Loader size="xl" /></MantineCenter>;
+    return (
+      <MantineCenter style={{ height: 'calc(100vh - 120px)' }}>
+        <Loader size="xl" />
+      </MantineCenter>
+    );
   }
 
-  if (error && !node) { // Show full page error only if node data couldn't be loaded at all
+  if (error && !node) {
+    // Show full page error only if node data couldn't be loaded at all
     console.log('[NodeDetailPage] Render: Showing Critical Error state -', error);
     return (
       <Container fluid p="md">
         <Breadcrumbs mb="md">{breadcrumbsItems}</Breadcrumbs>
         <MantineCenter style={{ height: 'calc(100vh - 200px)' }}>
-          <MantineAlert title="Error Loading Node" color="red" radius="md" icon={<IconAlertCircle />}>
+          <MantineAlert
+            title="Error Loading Node"
+            color="red"
+            radius="md"
+            icon={<IconAlertCircle />}
+          >
             {error}
           </MantineAlert>
         </MantineCenter>
@@ -214,7 +248,9 @@ const NodeDetailPage: React.FC = () => {
   }
 
   if (!node) {
-    console.log('[NodeDetailPage] Render: Showing Node Not Found state (node is null and not loading/critical error).');
+    console.log(
+      '[NodeDetailPage] Render: Showing Node Not Found state (node is null and not loading/critical error).'
+    );
     return (
       <Container fluid p="md">
         <Breadcrumbs mb="md">{breadcrumbsItems}</Breadcrumbs>
@@ -231,16 +267,27 @@ const NodeDetailPage: React.FC = () => {
   const typeOptions = ['API', 'Validator', 'Archive', 'Full', 'Other'];
   const vmOptions = ['EVM', 'Core', 'Custom', 'Other'];
 
-  console.log('[NodeDetailPage] Render: Showing Main Content with node:', node, 'isEditing:', isEditing);
+  console.log(
+    '[NodeDetailPage] Render: Showing Main Content with node:',
+    node,
+    'isEditing:',
+    isEditing
+  );
   return (
     <Container fluid p="md">
       <Breadcrumbs mb="lg">{breadcrumbsItems}</Breadcrumbs>
       <Paper shadow="sm" p="lg" withBorder>
         <Group justify="space-between" mb="xl">
-          <Title order={2}>{isEditing ? `Edit Node: ${node.name}` : `Node Details: ${node.name}`}</Title>
+          <Title order={2}>
+            {isEditing ? `Edit Node: ${node.name}` : `Node Details: ${node.name}`}
+          </Title>
           <Group>
             {!isEditing && (
-              <Button leftSection={<IconPencil size={16} />} onClick={() => setIsEditing(true)} variant="outline">
+              <Button
+                leftSection={<IconPencil size={16} />}
+                onClick={() => setIsEditing(true)}
+                variant="outline"
+              >
                 Edit
               </Button>
             )}
@@ -248,7 +295,15 @@ const NodeDetailPage: React.FC = () => {
         </Group>
 
         {error && isEditing && (
-          <MantineAlert title="Update Error" color="red" radius="md" withCloseButton onClose={() => setError(null)} mb="md" icon={<IconAlertCircle />}>
+          <MantineAlert
+            title="Update Error"
+            color="red"
+            radius="md"
+            withCloseButton
+            onClose={() => setError(null)}
+            mb="md"
+            icon={<IconAlertCircle />}
+          >
             {error}
           </MantineAlert>
         )}
@@ -326,25 +381,64 @@ const NodeDetailPage: React.FC = () => {
                 {...form.getInputProps('vm')}
               />
             </Grid.Col>
-            <Grid.Col span={{ base: 12, md: 6 }} style={{ display: 'flex', alignItems: 'flex-end' }}>
+            <Grid.Col
+              span={{ base: 12, md: 6 }}
+              style={{ display: 'flex', alignItems: 'flex-end' }}
+            >
               <Switch
                 label="Enabled"
-                description={isEditing ? "Toggle node's operational status" : (form.values.is_enabled ? "Node is currently operational" : "Node is currently disabled")}
+                description={
+                  isEditing
+                    ? "Toggle node's operational status"
+                    : form.values.is_enabled
+                      ? 'Node is currently operational'
+                      : 'Node is currently disabled'
+                }
                 disabled={!isEditing}
                 checked={form.values.is_enabled}
                 onChange={(event) => form.setFieldValue('is_enabled', event.currentTarget.checked)}
-                mt={isEditing ? "sm" : undefined} 
+                mt={isEditing ? 'sm' : undefined}
               />
             </Grid.Col>
 
             {!isEditing && (
               <>
-                <Grid.Col span={{ base: 12 }}><Stack gap="xs" mt="md">
-                  <Text c="dimmed" size="sm">Additional Information</Text>
-                  <Group><Text fw={500} w={120}>Status:</Text> <Badge color={node.status === 'Online' ? 'green' : (node.status === 'Offline' ? 'red' : 'yellow')} variant="light">{node.status || 'N/A'}</Badge></Group>
-                  <Group><Text fw={500} w={120}>Created At:</Text> <Text>{new Date(node.created_at).toLocaleString()}</Text></Group>
-                  <Group><Text fw={500} w={120}>Last Updated:</Text> <Text>{new Date(node.updated_at).toLocaleString()}</Text></Group>
-                </Stack></Grid.Col>
+                <Grid.Col span={{ base: 12 }}>
+                  <Stack gap="xs" mt="md">
+                    <Text c="dimmed" size="sm">
+                      Additional Information
+                    </Text>
+                    <Group>
+                      <Text fw={500} w={120}>
+                        Status:
+                      </Text>{' '}
+                      <Badge
+                        color={
+                          node.status === 'Online'
+                            ? 'green'
+                            : node.status === 'Offline'
+                              ? 'red'
+                              : 'yellow'
+                        }
+                        variant="light"
+                      >
+                        {node.status || 'N/A'}
+                      </Badge>
+                    </Group>
+                    <Group>
+                      <Text fw={500} w={120}>
+                        Created At:
+                      </Text>{' '}
+                      <Text>{new Date(node.created_at).toLocaleString()}</Text>
+                    </Group>
+                    <Group>
+                      <Text fw={500} w={120}>
+                        Last Updated:
+                      </Text>{' '}
+                      <Text>{new Date(node.updated_at).toLocaleString()}</Text>
+                    </Group>
+                  </Stack>
+                </Grid.Col>
               </>
             )}
           </Grid>
@@ -355,20 +449,26 @@ const NodeDetailPage: React.FC = () => {
                 variant="default"
                 onClick={() => {
                   setIsEditing(false);
-                  if (node) form.setValues({
-                    name: node.name || '', network: node.network || '', subnet: node.subnet || '',
-                    http_url: node.http_url || '', websocket_url: node.websocket_url,
-                    type: node.type || 'API', vm: node.vm,
-                    is_enabled: node.is_enabled !== undefined ? node.is_enabled : true
-                  }); else form.reset();
+                  if (node)
+                    form.setValues({
+                      name: node.name || '',
+                      network: node.network || '',
+                      subnet: node.subnet || '',
+                      http_url: node.http_url || '',
+                      websocket_url: node.websocket_url,
+                      type: node.type || 'API',
+                      vm: node.vm,
+                      is_enabled: node.is_enabled !== undefined ? node.is_enabled : true,
+                    });
+                  else form.reset();
                   setError(null);
                 }}
-                leftSection={<IconX size={16}/>}
+                leftSection={<IconX size={16} />}
                 disabled={isSaving}
               >
                 Cancel
               </Button>
-              <Button type="submit" loading={isSaving} leftSection={<IconDeviceFloppy size={16}/>}>
+              <Button type="submit" loading={isSaving} leftSection={<IconDeviceFloppy size={16} />}>
                 Save Changes
               </Button>
             </Group>

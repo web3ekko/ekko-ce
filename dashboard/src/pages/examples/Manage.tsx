@@ -1,7 +1,3 @@
-export default function Manage(){
-  return(
-    <>
-    Manage
-    </>
-  )
+export default function Manage() {
+  return <>Manage</>;
 }

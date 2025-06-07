@@ -1,5 +1,5 @@
-import ApiService from "@/services/ApiService";
-import {SignInResponse} from "@/@types/auth";
+import ApiService from '@/services/ApiService';
+import { SignInResponse } from '@/@types/auth';
 
 export const AuthService = {
   async signIn(email: string, password: string): Promise<SignInResponse> {
@@ -7,8 +7,8 @@ export const AuthService = {
       url: '/token',
       method: 'POST',
       data: new URLSearchParams({ username: email, password: password }).toString(),
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-    })
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    });
     return res.data;
-  }
-}
+  },
+};

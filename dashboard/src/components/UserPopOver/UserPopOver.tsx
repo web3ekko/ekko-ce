@@ -1,10 +1,9 @@
-import {Button, Popover, Text} from "@mantine/core";
-import {useState} from "react";
-import PopOverTargetContent from "@/components/UserPopOver/PopOverTargetContent";
+import { Button, Popover, Text } from '@mantine/core';
+import { useState } from 'react';
+import PopOverTargetContent from '@/components/UserPopOver/PopOverTargetContent';
 
 export default function UserPopOver() {
   const [displayPopOver, setDisplayPopOver] = useState<boolean>(false);
-
 
   return (
     <div>
@@ -12,11 +11,11 @@ export default function UserPopOver() {
         width={200}
         position="right"
         opened={displayPopOver}
-        offset={{mainAxis: 13, crossAxis: 0}}
+        offset={{ mainAxis: 13, crossAxis: 0 }}
       >
         <Popover.Target>
-          <div onClick={() => setDisplayPopOver(prevState => !prevState)}>
-            <PopOverTargetContent/>
+          <div onClick={() => setDisplayPopOver((prevState) => !prevState)}>
+            <PopOverTargetContent />
           </div>
         </Popover.Target>
         <Popover.Dropdown>
@@ -26,5 +25,5 @@ export default function UserPopOver() {
         </Popover.Dropdown>
       </Popover>
     </div>
-  )
+  );
 }

@@ -13,7 +13,7 @@ export interface RealtimeTransaction {
   input: string;
   decoded_call?: DecodedCallData;
   // Additional fields that might come from NATS or be derived
-  timestamp?: number | string; 
+  timestamp?: number | string;
   blockNumber?: number;
   status?: string; // e.g., 'confirmed', 'pending'
   // For simplicity, let's assume the backend bridge might add a 'network' or 'tokenSymbol' if relevant
@@ -56,7 +56,7 @@ const realtimeTransactionsSlice = createSlice({
       state.isConnected = false;
       state.error = action.payload || 'Connection closed';
       // Optionally clear transactions on disconnect, or keep them
-      // state.transactions = []; 
+      // state.transactions = [];
     },
     connectionError: (state, action: PayloadAction<string>) => {
       state.isConnecting = false;
@@ -66,7 +66,7 @@ const realtimeTransactionsSlice = createSlice({
     newTransactionReceived: (state, action: PayloadAction<RealtimeTransaction>) => {
       // Add to the beginning of the array to show newest first
       // Potentially add logic to prevent duplicates if the stream might send them
-      if (!state.transactions.find(tx => tx.hash === action.payload.hash)) {
+      if (!state.transactions.find((tx) => tx.hash === action.payload.hash)) {
         state.transactions.unshift(action.payload);
       }
       // Optional: Limit the number of transactions stored
@@ -77,7 +77,7 @@ const realtimeTransactionsSlice = createSlice({
     },
     clearRealtimeTransactions: (state) => {
       state.transactions = [];
-    }
+    },
   },
 });
 
@@ -87,7 +87,7 @@ export const {
   connectionClosed,
   connectionError,
   newTransactionReceived,
-  clearRealtimeTransactions
+  clearRealtimeTransactions,
 } = realtimeTransactionsSlice.actions;
 
 export default realtimeTransactionsSlice.reducer;

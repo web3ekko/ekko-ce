@@ -23,32 +23,34 @@ export function useWallets(initialPage = 1, initialPageSize = 10): UseWalletsRes
   const [currentPage, setCurrentPage] = useState(initialPage);
   const [pageSize, setPageSize] = useState(initialPageSize);
 
-  const fetchWallets = useCallback(async (params?: PaginationParams) => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const paginationParams = {
-        page: params?.page || currentPage,
-        limit: params?.limit || pageSize,
-        sort: params?.sort,
-        order: params?.order
-      };
-      
-      const response = await walletsApi.getWallets(paginationParams);
-      
-      setWallets(response.data);
-      setTotalWallets(response.total);
-      setTotalPages(response.totalPages);
-      setCurrentPage(response.page);
-      
-    } catch (err) {
-      console.error('Error fetching wallets:', err);
-      setError('Failed to load wallets. Please try again later.');
-    } finally {
-      setLoading(false);
-    }
-  }, [currentPage, pageSize]);
+  const fetchWallets = useCallback(
+    async (params?: PaginationParams) => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const paginationParams = {
+          page: params?.page || currentPage,
+          limit: params?.limit || pageSize,
+          sort: params?.sort,
+          order: params?.order,
+        };
+
+        const response = await walletsApi.getWallets(paginationParams);
+
+        setWallets(response.data);
+        setTotalWallets(response.total);
+        setTotalPages(response.totalPages);
+        setCurrentPage(response.page);
+      } catch (err) {
+        console.error('Error fetching wallets:', err);
+        setError('Failed to load wallets. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    },
+    [currentPage, pageSize]
+  );
 
   // Change page
   const setPage = useCallback((page: number) => {
@@ -66,16 +68,16 @@ export function useWallets(initialPage = 1, initialPageSize = 10): UseWalletsRes
     fetchWallets();
   }, [fetchWallets, currentPage, pageSize]);
 
-  return { 
-    wallets, 
-    loading, 
-    error, 
-    totalWallets, 
-    totalPages, 
-    currentPage, 
-    pageSize, 
-    fetchWallets, 
-    setPage, 
-    setPageSize: setPageSizeValue 
+  return {
+    wallets,
+    loading,
+    error,
+    totalWallets,
+    totalPages,
+    currentPage,
+    pageSize,
+    fetchWallets,
+    setPage,
+    setPageSize: setPageSizeValue,
   };
 }

@@ -1,1 +1,1 @@
-export * from './themeSlice'
+export * from './themeSlice';

@@ -1,12 +1,12 @@
-import type {NavigationTree} from '@/@types/navigation';
+import type { NavigationTree } from '@/@types/navigation';
 import {
-  IconDashboard, 
-  IconWallet, 
-  IconBell, 
-  IconExchange, 
+  IconDashboard,
+  IconWallet,
+  IconBell,
+  IconExchange,
   IconSettings,
   IconServer,
-  IconArrowsRightLeft
+  IconArrowsRightLeft,
 } from '@tabler/icons-react';
 
 const navigationConfig: NavigationTree[] = [
@@ -17,7 +17,7 @@ const navigationConfig: NavigationTree[] = [
     translateKey: '',
     icon: IconDashboard,
     authority: [],
-    subMenu: []
+    subMenu: [],
   },
   {
     key: 'wallets',
@@ -26,7 +26,7 @@ const navigationConfig: NavigationTree[] = [
     translateKey: '',
     icon: IconWallet,
     authority: [],
-    subMenu: []
+    subMenu: [],
   },
   {
     key: 'alerts',
@@ -35,7 +35,7 @@ const navigationConfig: NavigationTree[] = [
     translateKey: '',
     icon: IconBell,
     authority: [],
-    subMenu: []
+    subMenu: [],
   },
   {
     key: 'transactions',
@@ -44,7 +44,7 @@ const navigationConfig: NavigationTree[] = [
     translateKey: '',
     icon: IconExchange,
     authority: [],
-    subMenu: []
+    subMenu: [],
   },
   {
     key: 'workflows',
@@ -53,7 +53,7 @@ const navigationConfig: NavigationTree[] = [
     translateKey: '',
     icon: IconArrowsRightLeft,
     authority: [],
-    subMenu: []
+    subMenu: [],
   },
   {
     key: 'nodes',
@@ -62,7 +62,7 @@ const navigationConfig: NavigationTree[] = [
     translateKey: '',
     icon: IconServer,
     authority: [],
-    subMenu: []
+    subMenu: [],
   },
   {
     key: 'settings',
@@ -71,7 +71,7 @@ const navigationConfig: NavigationTree[] = [
     translateKey: '',
     icon: IconSettings,
     authority: [],
-    subMenu: []
+    subMenu: [],
   },
 ];
 

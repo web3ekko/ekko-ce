@@ -23,32 +23,34 @@ export function useTransactions(initialPage = 1, initialPageSize = 10): UseTrans
   const [currentPage, setCurrentPage] = useState(initialPage);
   const [pageSize, setPageSize] = useState(initialPageSize);
 
-  const fetchTransactions = useCallback(async (params?: PaginationParams) => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const paginationParams = {
-        page: params?.page || currentPage,
-        limit: params?.limit || pageSize,
-        sort: params?.sort,
-        order: params?.order
-      };
-      
-      const response = await transactionsApi.getTransactions(paginationParams);
-      
-      setTransactions(response.data);
-      setTotalTransactions(response.total);
-      setTotalPages(response.totalPages);
-      setCurrentPage(response.page);
-      
-    } catch (err) {
-      console.error('Error fetching transactions:', err);
-      setError('Failed to load transactions. Please try again later.');
-    } finally {
-      setLoading(false);
-    }
-  }, [currentPage, pageSize]);
+  const fetchTransactions = useCallback(
+    async (params?: PaginationParams) => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const paginationParams = {
+          page: params?.page || currentPage,
+          limit: params?.limit || pageSize,
+          sort: params?.sort,
+          order: params?.order,
+        };
+
+        const response = await transactionsApi.getTransactions(paginationParams);
+
+        setTransactions(response.data);
+        setTotalTransactions(response.total);
+        setTotalPages(response.totalPages);
+        setCurrentPage(response.page);
+      } catch (err) {
+        console.error('Error fetching transactions:', err);
+        setError('Failed to load transactions. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    },
+    [currentPage, pageSize]
+  );
 
   // Change page
   const setPage = useCallback((page: number) => {
@@ -66,16 +68,16 @@ export function useTransactions(initialPage = 1, initialPageSize = 10): UseTrans
     fetchTransactions();
   }, [fetchTransactions, currentPage, pageSize]);
 
-  return { 
-    transactions, 
-    loading, 
-    error, 
-    totalTransactions, 
-    totalPages, 
-    currentPage, 
-    pageSize, 
-    fetchTransactions, 
-    setPage, 
-    setPageSize: setPageSizeValue 
+  return {
+    transactions,
+    loading,
+    error,
+    totalTransactions,
+    totalPages,
+    currentPage,
+    pageSize,
+    fetchTransactions,
+    setPage,
+    setPageSize: setPageSizeValue,
   };
 }

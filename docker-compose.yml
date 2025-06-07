@@ -8,6 +8,7 @@ volumes:
   nats_data:
   redis_data:
   minio_data:
+  api_data:
 
 services:
   pipeline:
@@ -91,8 +92,12 @@ services:
     environment:
       - NATS_URL=nats://nats:4222
       - TEST_MODE="true"
+      - DUCKDB_PATH=/app/data/ekko.db
+      - MIGRATION_MODE="false"
+      - ENABLE_JETSTREAM_SYNC="true"
     volumes:
       - ./api:/app
+      - api_data:/app/data
     restart: unless-stopped
     networks:
       - pipeline-network

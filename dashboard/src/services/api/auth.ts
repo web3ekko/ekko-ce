@@ -5,20 +5,24 @@ import { SignInCredential, SignUpCredential, SignInResponse } from '@/@types/aut
 export const authApi = {
   signIn: async (email: string, password: string): Promise<SignInResponse> => {
     try {
-      const response = await api.post('/token', { username: email, password: password }, { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
-      
+      const response = await api.post(
+        '/token',
+        { username: email, password: password },
+        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+      );
+
       // Store the token in localStorage for the interceptor to use
       if (response.data.access_token) {
         localStorage.setItem('auth_token', response.data.access_token);
       }
-      
+
       return response.data;
     } catch (error) {
       console.error('Error during sign in:', error);
       throw error;
     }
   },
-  
+
   signUp: async (credentials: SignUpCredential): Promise<SignInResponse> => {
     try {
       const response = await api.post('/users/sign-up', credentials);
@@ -28,12 +32,12 @@ export const authApi = {
       throw error;
     }
   },
-  
+
   signOut: async (): Promise<void> => {
     try {
       // Remove token from localStorage
       localStorage.removeItem('auth_token');
-      
+
       // Optional: Call backend to invalidate token
       await api.post('/users/sign-out');
     } catch (error) {
@@ -42,7 +46,7 @@ export const authApi = {
       localStorage.removeItem('auth_token');
     }
   },
-  
+
   verifyToken: async (): Promise<boolean> => {
     try {
       const response = await api.get('/users/verify-token');
@@ -52,7 +56,7 @@ export const authApi = {
       return false;
     }
   },
-  
+
   forgotPassword: async (email: string): Promise<void> => {
     try {
       await api.post('/users/forgot-password', { email });
@@ -61,7 +65,7 @@ export const authApi = {
       throw error;
     }
   },
-  
+
   resetPassword: async (token: string, newPassword: string): Promise<void> => {
     try {
       await api.post('/users/reset-password', { token, newPassword });
@@ -70,7 +74,7 @@ export const authApi = {
       throw error;
     }
   },
-  
+
   getCurrentUser: async (): Promise<any> => {
     try {
       const response = await api.get('/users/me');
@@ -79,7 +83,7 @@ export const authApi = {
       console.error('Error fetching current user:', error);
       throw error;
     }
-  }
+  },
 };
 
 export default authApi;

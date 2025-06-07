@@ -20,7 +20,19 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
-import { IconEdit, IconCheck, IconX, IconArrowLeft, IconWallet, IconNetwork, IconCurrencyEthereum, IconCurrencyBitcoin, IconCoin, IconQuestionMark, IconBox } from '@tabler/icons-react';
+import {
+  IconEdit,
+  IconCheck,
+  IconX,
+  IconArrowLeft,
+  IconWallet,
+  IconNetwork,
+  IconCurrencyEthereum,
+  IconCurrencyBitcoin,
+  IconCoin,
+  IconQuestionMark,
+  IconBox,
+} from '@tabler/icons-react';
 
 import { useAppDispatch, useAppSelector } from '@/store';
 import { fetchWalletById, updateWallet } from '@/store/slices/walletsSlice';
@@ -57,9 +69,13 @@ export default function WalletDetailPage() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const { wallets: allWallets, loading: walletsGlobalLoading, error: walletsGlobalError } = useAppSelector((state) => state.wallets);
+  const {
+    wallets: allWallets,
+    loading: walletsGlobalLoading,
+    error: walletsGlobalError,
+  } = useAppSelector((state) => state.wallets);
   // Attempt to find the wallet in the global state first
-  const walletFromStore = allWallets.find(w => w.id === id);
+  const walletFromStore = allWallets.find((w) => w.id === id);
 
   const form = useForm<Partial<WalletFormValues>>({
     initialValues: {
@@ -115,7 +131,7 @@ export default function WalletDetailPage() {
         loadWallet();
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, dispatch, walletFromStore]); // Removed allWallets, form from deps
 
   const handleEditToggle = () => {
@@ -148,7 +164,9 @@ export default function WalletDetailPage() {
 
       // The updateWallet thunk expects Partial<Wallet>, but we send a complete object
       // to satisfy the backend's PUT requirement.
-      const updatedWalletResult = await dispatch(updateWallet({ id, data: completeWalletDataForUpdate })).unwrap();
+      const updatedWalletResult = await dispatch(
+        updateWallet({ id, data: completeWalletDataForUpdate })
+      ).unwrap();
       setLocalWallet(updatedWalletResult); // Update local state with the response from API
       form.setValues({
         name: updatedWalletResult.name,
@@ -177,9 +195,24 @@ export default function WalletDetailPage() {
     }
   };
 
-  if (pageLoading) return <Group justify="center" mt="xl"><Loader /></Group>;
-  if (pageError) return <Text color="red" ta="center" mt="xl">{pageError}</Text>;
-  if (!localWallet) return <Text ta="center" mt="xl">Wallet not found.</Text>;
+  if (pageLoading)
+    return (
+      <Group justify="center" mt="xl">
+        <Loader />
+      </Group>
+    );
+  if (pageError)
+    return (
+      <Text color="red" ta="center" mt="xl">
+        {pageError}
+      </Text>
+    );
+  if (!localWallet)
+    return (
+      <Text ta="center" mt="xl">
+        Wallet not found.
+      </Text>
+    );
 
   return (
     <Paper p="xl" withBorder>
@@ -187,7 +220,12 @@ export default function WalletDetailPage() {
         <Grid.Col span={12}>
           <Group justify="space-between" mb="xl">
             <Tooltip label="Back to Wallets List">
-              <ActionIcon onClick={() => navigate('/wallets')} variant="light" size="lg" title="Back to Wallets List">
+              <ActionIcon
+                onClick={() => navigate('/wallets')}
+                variant="light"
+                size="lg"
+                title="Back to Wallets List"
+              >
                 <IconArrowLeft size={20} />
               </ActionIcon>
             </Tooltip>
@@ -195,7 +233,11 @@ export default function WalletDetailPage() {
               {editing ? `Editing: ${localWallet.name}` : localWallet.name}
             </Title>
             {!editing ? (
-              <Button leftSection={<IconEdit size={16} />} onClick={handleEditToggle} variant="outline">
+              <Button
+                leftSection={<IconEdit size={16} />}
+                onClick={handleEditToggle}
+                variant="outline"
+              >
                 Edit Wallet
               </Button>
             ) : (
@@ -224,16 +266,31 @@ export default function WalletDetailPage() {
                 />
                 <Grid>
                   <Grid.Col span={{ base: 12, md: 6 }}>
-                    <Text fw={500} size="sm">Address</Text>
-                    <Text c="dimmed" style={{ wordBreak: 'break-all' }}>{localWallet.address}</Text>
+                    <Text fw={500} size="sm">
+                      Address
+                    </Text>
+                    <Text c="dimmed" style={{ wordBreak: 'break-all' }}>
+                      {localWallet.address}
+                    </Text>
                   </Grid.Col>
                   <Grid.Col span={{ base: 12, md: 6 }}>
-                    <Text fw={500} size="sm">Blockchain</Text>
-                    <Text><strong>Blockchain:</strong> {localWallet.blockchain_symbol}</Text>
+                    <Text fw={500} size="sm">
+                      Blockchain
+                    </Text>
+                    <Text>
+                      <strong>Blockchain:</strong> {localWallet.blockchain_symbol}
+                    </Text>
                   </Grid.Col>
                   <Grid.Col span={{ base: 12, md: 6 }}>
-                    <Text fw={500} size="sm">Subnet/Network</Text>
-                    <Group><Text fw={700}>ID:</Text><Text size="sm" c="dimmed">{localWallet.id}</Text></Group>
+                    <Text fw={500} size="sm">
+                      Subnet/Network
+                    </Text>
+                    <Group>
+                      <Text fw={700}>ID:</Text>
+                      <Text size="sm" c="dimmed">
+                        {localWallet.id}
+                      </Text>
+                    </Group>
                   </Grid.Col>
                   <Grid.Col span={{ base: 12, md: 6 }}>
                     <Switch
@@ -248,7 +305,7 @@ export default function WalletDetailPage() {
                   <Button variant="default" onClick={handleEditToggle} disabled={saving}>
                     Cancel
                   </Button>
-                  <Button type="submit" loading={saving} leftSection={<IconCheck size={16}/>}>
+                  <Button type="submit" loading={saving} leftSection={<IconCheck size={16} />}>
                     Save Changes
                   </Button>
                 </Group>
@@ -261,39 +318,76 @@ export default function WalletDetailPage() {
               <Grid gutter="xl">
                 <Grid.Col span={{ base: 12, sm: 6 }}>
                   <Text fw={500}>Name:</Text>
-                  <Group><Text fw={700}>Name:</Text><Text>{localWallet.name}</Text></Group>
+                  <Group>
+                    <Text fw={700}>Name:</Text>
+                    <Text>{localWallet.name}</Text>
+                  </Group>
                 </Grid.Col>
                 <Grid.Col span={{ base: 12, sm: 6 }}>
                   <Text fw={500}>Status:</Text>
-                  <Group><Text fw={700}>Status:</Text><Badge color={localWallet.isActive ? 'green' : 'gray'}>{localWallet.isActive ? 'Active' : 'Inactive'}</Badge></Group>
+                  <Group>
+                    <Text fw={700}>Status:</Text>
+                    <Badge color={localWallet.isActive ? 'green' : 'gray'}>
+                      {localWallet.isActive ? 'Active' : 'Inactive'}
+                    </Badge>
+                  </Group>
                 </Grid.Col>
                 <Grid.Col span={12}>
                   <Text fw={500}>Address:</Text>
-                  <Text style={{ wordBreak: 'break-all' }} title={localWallet.address}>{localWallet.address}</Text>
+                  <Text style={{ wordBreak: 'break-all' }} title={localWallet.address}>
+                    {localWallet.address}
+                  </Text>
                 </Grid.Col>
                 <Grid.Col span={{ base: 12, sm: 6 }}>
                   <Text fw={500}>Blockchain:</Text>
-                  <Group><Text fw={700}>Blockchain:</Text><Text><strong>Blockchain:</strong> {localWallet.blockchain_symbol}</Text></Group>
+                  <Group>
+                    <Text fw={700}>Blockchain:</Text>
+                    <Text>
+                      <strong>Blockchain:</strong> {localWallet.blockchain_symbol}
+                    </Text>
+                  </Group>
                 </Grid.Col>
                 <Grid.Col span={{ base: 12, sm: 6 }}>
                   <Text fw={500}>Subnet/Network:</Text>
-                  <Group><Text fw={700}>Subnet/Network:</Text><Text c="dimmed">{localWallet.subnet}</Text></Group>
+                  <Group>
+                    <Text fw={700}>Subnet/Network:</Text>
+                    <Text c="dimmed">{localWallet.subnet}</Text>
+                  </Group>
                 </Grid.Col>
                 {localWallet.description && (
                   <Grid.Col span={12}>
                     <Text fw={500}>Description:</Text>
-                    <Paper p="xs" withBorder radius="sm" style={{backgroundColor: 'var(--mantine-color-gray-0)'}}>
+                    <Paper
+                      p="xs"
+                      withBorder
+                      radius="sm"
+                      style={{ backgroundColor: 'var(--mantine-color-gray-0)' }}
+                    >
                       <Text style={{ whiteSpace: 'pre-wrap' }}>{localWallet.description}</Text>
                     </Paper>
                   </Grid.Col>
                 )}
                 <Grid.Col span={{ base: 12, sm: 6 }}>
                   <Text fw={500}>Created At:</Text>
-                  <Group><Text fw={700}>Created:</Text><Text size="sm" c="dimmed">{localWallet.created_at ? new Date(localWallet.created_at).toLocaleString() : 'N/A'}</Text></Group>
+                  <Group>
+                    <Text fw={700}>Created:</Text>
+                    <Text size="sm" c="dimmed">
+                      {localWallet.created_at
+                        ? new Date(localWallet.created_at).toLocaleString()
+                        : 'N/A'}
+                    </Text>
+                  </Group>
                 </Grid.Col>
                 <Grid.Col span={{ base: 12, sm: 6 }}>
                   <Text fw={500}>Last Updated:</Text>
-                  <Group><Text fw={700}>Last Updated:</Text><Text size="sm" c="dimmed">{localWallet.updated_at ? new Date(localWallet.updated_at).toLocaleString() : 'N/A'}</Text></Group>
+                  <Group>
+                    <Text fw={700}>Last Updated:</Text>
+                    <Text size="sm" c="dimmed">
+                      {localWallet.updated_at
+                        ? new Date(localWallet.updated_at).toLocaleString()
+                        : 'N/A'}
+                    </Text>
+                  </Group>
                 </Grid.Col>
               </Grid>
             </Stack>

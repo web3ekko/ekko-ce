@@ -1,14 +1,14 @@
-import { combineReducers } from '@reduxjs/toolkit'
-import common, { CommonState } from './commonSlice'
+import { combineReducers } from '@reduxjs/toolkit';
+import common, { CommonState } from './commonSlice';
 
 const reducer = combineReducers({
   common,
-})
+});
 
 export type BaseState = {
-  common: CommonState
-}
+  common: CommonState;
+};
 
-export * from './commonSlice'
+export * from './commonSlice';
 
-export default reducer
+export default reducer;

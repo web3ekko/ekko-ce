@@ -16,7 +16,7 @@ export interface Wallet {
 export interface MonitoredWalletInfo {
   address: string;
   network: string; // e.g., 'eth', 'polygon' (derived from Wallet.blockchain_symbol)
-  subnet: string;  // e.g., 'mainnet', 'sepolia' (currently hardcoded, to be added to Wallet type)
+  subnet: string; // e.g., 'mainnet', 'sepolia' (currently hardcoded, to be added to Wallet type)
 }
 
 export interface WalletFormValues {

@@ -23,32 +23,34 @@ export function useAlerts(initialPage = 1, initialPageSize = 10): UseAlertsResul
   const [currentPage, setCurrentPage] = useState(initialPage);
   const [pageSize, setPageSize] = useState(initialPageSize);
 
-  const fetchAlerts = useCallback(async (params?: PaginationParams) => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const paginationParams = {
-        page: params?.page || currentPage,
-        limit: params?.limit || pageSize,
-        sort: params?.sort,
-        order: params?.order
-      };
-      
-      const response = await alertsApi.getAlerts(paginationParams);
-      
-      setAlerts(response.data);
-      setTotalAlerts(response.total);
-      setTotalPages(response.totalPages);
-      setCurrentPage(response.page);
-      
-    } catch (err) {
-      console.error('Error fetching alerts:', err);
-      setError('Failed to load alerts. Please try again later.');
-    } finally {
-      setLoading(false);
-    }
-  }, [currentPage, pageSize]);
+  const fetchAlerts = useCallback(
+    async (params?: PaginationParams) => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const paginationParams = {
+          page: params?.page || currentPage,
+          limit: params?.limit || pageSize,
+          sort: params?.sort,
+          order: params?.order,
+        };
+
+        const response = await alertsApi.getAlerts(paginationParams);
+
+        setAlerts(response.data);
+        setTotalAlerts(response.total);
+        setTotalPages(response.totalPages);
+        setCurrentPage(response.page);
+      } catch (err) {
+        console.error('Error fetching alerts:', err);
+        setError('Failed to load alerts. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    },
+    [currentPage, pageSize]
+  );
 
   // Change page
   const setPage = useCallback((page: number) => {
@@ -66,16 +68,16 @@ export function useAlerts(initialPage = 1, initialPageSize = 10): UseAlertsResul
     fetchAlerts();
   }, [fetchAlerts, currentPage, pageSize]);
 
-  return { 
-    alerts, 
-    loading, 
-    error, 
-    totalAlerts, 
-    totalPages, 
-    currentPage, 
-    pageSize, 
-    fetchAlerts, 
-    setPage, 
-    setPageSize: setPageSizeValue 
+  return {
+    alerts,
+    loading,
+    error,
+    totalAlerts,
+    totalPages,
+    currentPage,
+    pageSize,
+    fetchAlerts,
+    setPage,
+    setPageSize: setPageSizeValue,
   };
 }

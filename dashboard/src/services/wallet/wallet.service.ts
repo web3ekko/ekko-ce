@@ -1,5 +1,5 @@
-import ApiService from "@/services/ApiService";
-import type { Wallet } from "@/@types/wallet";
+import ApiService from '@/services/ApiService';
+import type { Wallet } from '@/@types/wallet';
 
 // Helper function to handle API errors
 const handleApiError = (error: any, operation: string) => {
@@ -25,7 +25,7 @@ export const WalletService = {
     try {
       const res = await ApiService.fetchData<null, Wallet[]>({
         url: '/wallets',
-        method: 'GET'
+        method: 'GET',
       });
       return res.data;
     } catch (error) {
@@ -37,7 +37,7 @@ export const WalletService = {
     try {
       const res = await ApiService.fetchData<null, Wallet>({
         url: `/wallets/${id}`,
-        method: 'GET'
+        method: 'GET',
       });
       return res.data;
     } catch (error) {
@@ -45,13 +45,15 @@ export const WalletService = {
     }
   },
 
-  async createWallet(walletData: Omit<Wallet, 'id' | 'created_at' | 'updated_at'>): Promise<Wallet> {
+  async createWallet(
+    walletData: Omit<Wallet, 'id' | 'created_at' | 'updated_at'>
+  ): Promise<Wallet> {
     try {
       console.log('Creating wallet with data:', walletData);
       const res = await ApiService.fetchData<Partial<Wallet>, Wallet>({
         url: '/wallets',
         method: 'POST',
-        data: walletData
+        data: walletData,
       });
       console.log('Wallet created successfully:', res.data);
       return res.data;
@@ -65,7 +67,7 @@ export const WalletService = {
       const res = await ApiService.fetchData<Partial<Wallet>, Wallet>({
         url: `/wallets/${id}`,
         method: 'PUT',
-        data: walletData
+        data: walletData,
       });
       return res.data;
     } catch (error) {
@@ -77,10 +79,10 @@ export const WalletService = {
     try {
       await ApiService.fetchData<null, void>({
         url: `/wallets/${id}`,
-        method: 'DELETE'
+        method: 'DELETE',
       });
     } catch (error) {
       handleApiError(error, 'delete wallet');
     }
-  }
+  },
 };

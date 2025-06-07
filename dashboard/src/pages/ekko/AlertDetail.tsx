@@ -83,31 +83,38 @@ export default function AlertDetail() {
   // Helper function to get alert icon based on type
   const getAlertIcon = (type: string) => {
     switch (type) {
-      case 'Price': return <IconChartBar size={18} />;
-      case 'Transaction': return <IconCurrencyDollar size={18} />;
-      default: return <IconBell size={18} />;
+      case 'Price':
+        return <IconChartBar size={18} />;
+      case 'Transaction':
+        return <IconCurrencyDollar size={18} />;
+      default:
+        return <IconBell size={18} />;
     }
   };
 
   // Helper function to get priority color
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'High': return 'red';
-      case 'Medium': return 'yellow';
-      case 'Low': return 'blue';
-      default: return 'gray';
+      case 'High':
+        return 'red';
+      case 'Medium':
+        return 'yellow';
+      case 'Low':
+        return 'blue';
+      default:
+        return 'gray';
     }
   };
 
   // Fetch alert and jobspec data
   const fetchAlertData = async () => {
     if (!id) return;
-    
+
     try {
       setLoading(true);
       const alertData = await AlertService.getAlert(id);
       setAlert(alertData);
-      
+
       // Initialize form with alert data
       form.setValues({
         type: alertData.type || 'Price',
@@ -118,7 +125,7 @@ export default function AlertDetail() {
         threshold: parseFloat(alertData.query?.match(/[0-9.]+/)?.[0] || '10'),
         enableNotifications: alertData.notifications_enabled !== false,
       });
-      
+
       setError(null);
     } catch (err) {
       console.error('Error fetching alert:', err);
@@ -131,7 +138,7 @@ export default function AlertDetail() {
   // Fetch jobspec data
   const fetchJobspec = async () => {
     if (!id) return;
-    
+
     try {
       setJobspecLoading(true);
       const data = await AlertService.getAlertJobspec(id);
@@ -143,28 +150,27 @@ export default function AlertDetail() {
       setJobspecLoading(false);
     }
   };
-  
+
   // Generate job spec
   const handleGenerateJobSpec = async () => {
     if (!id) return;
-    
+
     try {
       setGeneratingJobSpec(true);
       const result = await AlertService.generateJobSpec(id);
-      
+
       // Update local state with the new job spec
       setJobspec(result);
-      
+
       // Set the active tab to jobspec to show the result
       setActiveTab('jobspec');
-      
+
       // Show success notification
       notifications.show({
         title: 'Success',
         message: 'Job specification was successfully generated',
-        color: 'green'
+        color: 'green',
       });
-      
     } catch (err) {
       console.error('Error generating job spec:', err);
       setError('Failed to generate job specification. Please try again.');
@@ -193,10 +199,10 @@ export default function AlertDetail() {
   // Handle form submission to update alert
   const handleSubmit = async (values: AlertFormValues) => {
     if (!alert || !id) return;
-    
+
     try {
       setSaving(true);
-      
+
       // Create alert update object
       const updatedAlert = {
         id: id,
@@ -209,9 +215,9 @@ export default function AlertDetail() {
         query: values.query,
         notifications_enabled: values.enableNotifications,
       };
-      
+
       await AlertService.updateAlert(id, updatedAlert);
-      
+
       // Refresh alert data and exit edit mode
       await fetchAlertData();
       await fetchJobspec(); // Refresh jobspec too as it depends on alert data
@@ -229,18 +235,24 @@ export default function AlertDetail() {
   const updateAlertMessage = (type: string, threshold: number, walletId: string) => {
     let message = '';
     let query = '';
-    
+
     // Get wallet info
-    const selectedWallet = wallets.find(w => w.id === walletId);
-    const walletName = selectedWallet ? (selectedWallet.name || 'selected wallet') : 'selected wallet';
+    const selectedWallet = wallets.find((w) => w.id === walletId);
+    const walletName = selectedWallet
+      ? selectedWallet.name || 'selected wallet'
+      : 'selected wallet';
     const cryptoSymbol = selectedWallet ? selectedWallet.blockchain_symbol : 'AVAX';
-    
+
     // Format wallet name
     let formattedWalletName = walletName;
-    if (formattedWalletName && !formattedWalletName.includes('(') && !formattedWalletName.includes('Wallet')) {
+    if (
+      formattedWalletName &&
+      !formattedWalletName.includes('(') &&
+      !formattedWalletName.includes('Wallet')
+    ) {
       formattedWalletName = `${formattedWalletName} (Wallet)`;
     }
-    
+
     switch (type) {
       case 'Price':
         message = `Alert when price changes by ${threshold}%`;
@@ -254,7 +266,7 @@ export default function AlertDetail() {
         message = 'Custom alert';
         query = '';
     }
-    
+
     form.setFieldValue('message', message);
     form.setFieldValue('query', query);
   };
@@ -262,7 +274,7 @@ export default function AlertDetail() {
   // Handle delete alert
   const handleDelete = async () => {
     if (!id || !window.confirm('Are you sure you want to delete this alert?')) return;
-    
+
     try {
       setLoading(true);
       await AlertService.deleteAlert(id);
@@ -291,9 +303,7 @@ export default function AlertDetail() {
           {error}
         </MantineAlert>
         <Group justify="center">
-          <Button onClick={() => navigate('/ekko/alerts')}>
-            Back to Alerts
-          </Button>
+          <Button onClick={() => navigate('/ekko/alerts')}>Back to Alerts</Button>
         </Group>
       </Card>
     );
@@ -308,11 +318,11 @@ export default function AlertDetail() {
           </ActionIcon>
           <Title order={3}>Alert Details</Title>
         </Group>
-        
+
         <Group>
-          <ActionIcon 
-            variant="light" 
-            color="blue" 
+          <ActionIcon
+            variant="light"
+            color="blue"
             onClick={() => {
               fetchAlertData();
               fetchJobspec();
@@ -321,20 +331,17 @@ export default function AlertDetail() {
           >
             <IconRefresh size={16} />
           </ActionIcon>
-          
+
           {!editing ? (
-            <Button 
-              leftSection={<IconEdit size={16} />} 
-              onClick={() => setEditing(true)}
-            >
+            <Button leftSection={<IconEdit size={16} />} onClick={() => setEditing(true)}>
               Edit
             </Button>
           ) : (
             <Group>
-              <Button 
-                variant="light" 
-                color="gray" 
-                leftSection={<IconX size={16} />} 
+              <Button
+                variant="light"
+                color="gray"
+                leftSection={<IconX size={16} />}
                 onClick={() => {
                   setEditing(false);
                   fetchAlertData(); // Reset form
@@ -342,8 +349,8 @@ export default function AlertDetail() {
               >
                 Cancel
               </Button>
-              <Button 
-                color="blue" 
+              <Button
+                color="blue"
                 leftSection={<IconCheck size={16} />}
                 type="submit"
                 form="alert-edit-form"
@@ -353,9 +360,9 @@ export default function AlertDetail() {
               </Button>
             </Group>
           )}
-          
-          <Button 
-            color="red" 
+
+          <Button
+            color="red"
             variant="light"
             leftSection={<IconTrash size={16} />}
             onClick={handleDelete}
@@ -364,20 +371,26 @@ export default function AlertDetail() {
           </Button>
         </Group>
       </Group>
-      
+
       {error && (
-        <MantineAlert color="red" title="Error" mb="md" withCloseButton onClose={() => setError(null)}>
+        <MantineAlert
+          color="red"
+          title="Error"
+          mb="md"
+          withCloseButton
+          onClose={() => setError(null)}
+        >
           {error}
         </MantineAlert>
       )}
-      
+
       <Card withBorder mb="md">
         <Tabs value={activeTab} onChange={setActiveTab}>
           <Tabs.List>
             <Tabs.Tab value="details">Details</Tabs.Tab>
             <Tabs.Tab value="jobspec">Job Specification</Tabs.Tab>
           </Tabs.List>
-          
+
           <Tabs.Panel value="details" pt="md">
             {editing ? (
               <form id="alert-edit-form" onSubmit={form.onSubmit(handleSubmit)}>
@@ -388,7 +401,11 @@ export default function AlertDetail() {
                     {...form.getInputProps('type')}
                     onChange={(value) => {
                       form.setFieldValue('type', value);
-                      updateAlertMessage(value, form.values.threshold, form.values.related_wallet_id);
+                      updateAlertMessage(
+                        value,
+                        form.values.threshold,
+                        form.values.related_wallet_id
+                      );
                     }}
                   >
                     <Group mt="xs">
@@ -396,16 +413,16 @@ export default function AlertDetail() {
                       <Radio value="Transaction" label="Transaction Alert" />
                     </Group>
                   </Radio.Group>
-                  
+
                   <Select
                     label="Related Wallet"
                     placeholder="Select wallet (optional)"
                     data={[
                       { value: '', label: 'None' },
-                      ...wallets.map(wallet => ({
+                      ...wallets.map((wallet) => ({
                         value: wallet.id,
-                        label: `${wallet.name || 'Wallet'} (${wallet.blockchain_symbol}) - ${wallet.address.substring(0, 6)}...${wallet.address.substring(wallet.address.length - 4)}`
-                      }))
+                        label: `${wallet.name || 'Wallet'} (${wallet.blockchain_symbol}) - ${wallet.address.substring(0, 6)}...${wallet.address.substring(wallet.address.length - 4)}`,
+                      })),
                     ]}
                     clearable
                     error={form.errors.related_wallet_id}
@@ -415,9 +432,11 @@ export default function AlertDetail() {
                       updateAlertMessage(form.values.type, form.values.threshold, value || '');
                     }}
                   />
-                  
+
                   <div>
-                    <Text size="sm" fw={500} mb="xs">Threshold {form.values.type === 'Price' ? '(%)' : '(Amount)'}</Text>
+                    <Text size="sm" fw={500} mb="xs">
+                      Threshold {form.values.type === 'Price' ? '(%)' : '(Amount)'}
+                    </Text>
                     <NumberInput
                       min={1}
                       max={form.values.type === 'Price' ? 50 : 100}
@@ -425,24 +444,26 @@ export default function AlertDetail() {
                       label={`${form.values.type === 'Price' ? 'Percent change' : 'Transaction amount'}`}
                       {...form.getInputProps('threshold')}
                       onChange={(value: string | number) => {
-                        const numValue = typeof value === 'string' ? parseFloat(value) || 10 : value || 10;
+                        const numValue =
+                          typeof value === 'string' ? parseFloat(value) || 10 : value || 10;
                         form.setFieldValue('threshold', numValue);
-                        updateAlertMessage(form.values.type, numValue, form.values.related_wallet_id);
+                        updateAlertMessage(
+                          form.values.type,
+                          numValue,
+                          form.values.related_wallet_id
+                        );
                       }}
                     />
                   </div>
-                  
-                  <Radio.Group
-                    label="Priority"
-                    {...form.getInputProps('priority')}
-                  >
+
+                  <Radio.Group label="Priority" {...form.getInputProps('priority')}>
                     <Group mt="xs">
                       <Radio value="Low" label="Low" />
                       <Radio value="Medium" label="Medium" />
                       <Radio value="High" label="High" />
                     </Group>
                   </Radio.Group>
-                  
+
                   <Textarea
                     label="Alert Message"
                     placeholder="Alert description"
@@ -451,7 +472,7 @@ export default function AlertDetail() {
                     error={form.errors.message}
                     {...form.getInputProps('message')}
                   />
-                  
+
                   <Textarea
                     label="Query Condition"
                     placeholder="Condition that triggers this alert"
@@ -459,12 +480,14 @@ export default function AlertDetail() {
                     minRows={2}
                     {...form.getInputProps('query')}
                   />
-                  
+
                   <Switch
                     label="Enable Notifications"
                     description="Receive notifications when this alert is triggered"
                     checked={form.values.enableNotifications}
-                    onChange={(event) => form.setFieldValue('enableNotifications', event.currentTarget.checked)}
+                    onChange={(event) =>
+                      form.setFieldValue('enableNotifications', event.currentTarget.checked)
+                    }
                   />
                 </Stack>
               </form>
@@ -479,29 +502,33 @@ export default function AlertDetail() {
                         <Text>{alert.type}</Text>
                       </Group>
                     </Group>
-                    
+
                     <Group>
                       <Text fw={700}>Message:</Text>
-                      <Text 
-                        p="xs" 
-                        bg={alert.type === 'Price' ? 'rgba(25, 113, 194, 0.1)' : 'rgba(255, 151, 0, 0.1)'}
-                        style={{ 
-                          borderRadius: '4px', 
+                      <Text
+                        p="xs"
+                        bg={
+                          alert.type === 'Price'
+                            ? 'rgba(25, 113, 194, 0.1)'
+                            : 'rgba(255, 151, 0, 0.1)'
+                        }
+                        style={{
+                          borderRadius: '4px',
                           fontWeight: 500,
-                          color: alert.type === 'Price' ? '#1864ab' : '#d97706'
+                          color: alert.type === 'Price' ? '#1864ab' : '#d97706',
                         }}
                       >
                         {alert.message}
                       </Text>
                     </Group>
-                    
+
                     <Group>
                       <Text fw={700}>Status:</Text>
                       <Badge color={alert.status === 'Open' ? 'blue' : 'green'}>
                         {alert.status}
                       </Badge>
                     </Group>
-                    
+
                     <Group>
                       <Text fw={700}>Priority:</Text>
                       <Badge color={getPriorityColor(alert.priority || 'Medium')}>
@@ -510,20 +537,20 @@ export default function AlertDetail() {
                     </Group>
                   </Stack>
                 </Grid.Col>
-                
+
                 <Grid.Col span={6}>
                   <Stack>
                     <Group>
                       <Text fw={700}>Created:</Text>
                       <Text>{new Date(alert.time).toLocaleString()}</Text>
                     </Group>
-                    
+
                     <Group>
                       <Text fw={700}>Related Wallet:</Text>
                       <Text>
                         {(() => {
                           if (alert.related_wallet_id) {
-                            const wallet = wallets.find(w => w.id === alert.related_wallet_id);
+                            const wallet = wallets.find((w) => w.id === alert.related_wallet_id);
                             if (wallet) {
                               return `${wallet.name || wallet.blockchain_symbol} (${wallet.address.substring(0, 6)}...${wallet.address.substring(wallet.address.length - 4)})`;
                             }
@@ -533,14 +560,14 @@ export default function AlertDetail() {
                         })()}
                       </Text>
                     </Group>
-                    
+
                     <Group>
                       <Text fw={700}>Notifications:</Text>
                       <Badge color={alert.notifications_enabled !== false ? 'green' : 'gray'}>
                         {alert.notifications_enabled !== false ? 'Enabled' : 'Disabled'}
                       </Badge>
                     </Group>
-                    
+
                     <Group>
                       <Text fw={700}>Query Condition:</Text>
                       <Paper p="xs" withBorder style={{ fontFamily: 'monospace' }}>
@@ -552,7 +579,7 @@ export default function AlertDetail() {
               </Grid>
             ) : null}
           </Tabs.Panel>
-          
+
           <Tabs.Panel value="jobspec" pt="md">
             <Group justify="space-between" mb="md">
               <Text fw={700}>Job Specification</Text>
@@ -567,7 +594,10 @@ export default function AlertDetail() {
               </Button>
             </Group>
             {jobspecLoading || generatingJobSpec ? (
-              <Box p="xl" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+              <Box
+                p="xl"
+                style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+              >
                 <Loader />
               </Box>
             ) : jobspec ? (
@@ -576,14 +606,14 @@ export default function AlertDetail() {
                   <Text fw={700}>Job Name:</Text>
                   <Text>{jobspec.jobspec?.job_name || 'Unnamed Job'}</Text>
                 </Group>
-                
+
                 <Group>
                   <Text fw={700}>Schedule:</Text>
                   <Text>{jobspec.jobspec?.schedule || 'Not specified'}</Text>
                 </Group>
-                
+
                 <Divider my="sm" />
-                
+
                 <Text fw={700}>Job Specification:</Text>
                 <Paper p="md" withBorder style={{ maxHeight: '500px', overflow: 'auto' }}>
                   <Code block>{jobspec.prettified}</Code>

@@ -18,6 +18,7 @@ from app.alert_processor import start_alert_processor, stop_alert_processor
 from app.models import Node
 from app.alert_job_utils import generate_job_spec_from_alert
 from app.logging_config import alert_logger, api_logger, job_spec_logger
+from app.startup import initialize_database_system, cleanup_database_system, get_database_status
 
 # Models
 class Wallet(BaseModel):
@@ -56,10 +57,10 @@ alert_processor_task = None
 async def lifespan(app: FastAPI):
     # Startup: connect to NATS and start background processing
     global nc, js, running
-    
+
     # Get NATS URL from environment variable
     nats_url = os.getenv("NATS_URL", "nats://localhost:4222")
-    
+
     try:
         # Connect to NATS
         print(f"Connecting to NATS at {nats_url}")
@@ -70,35 +71,43 @@ async def lifespan(app: FastAPI):
         print(f"LIFESPAN: app.state.js set to: {app.state.js} (type: {type(app.state.js)})") # Store js in app.state
         set_events_js(js) # Set js for events module
         set_settings_js(js) # Set js for settings routers
-        
+
         # This is critical for event publishing to work properly
         print("Initializing event publishing system...")
         set_events_js(js)
-        
+
         # Test event publishing
         try:
             await publish_event("system.startup", {"status": "initializing"}, ignore_errors=True)
             print("✅ Event system initialized successfully")
         except Exception as event_error:
             print(f"⚠️ Warning: Event system initialization issue: {event_error}")
-        
+
+        # Initialize database system
+        print("Initializing database system...")
+        try:
+            await initialize_database_system(js)
+            print("✅ Database system initialized successfully")
+        except Exception as db_error:
+            print(f"⚠️ Warning: Database initialization issue: {db_error}")
+
         # Ensure streams exist
         await ensure_streams()
-        
+
         # Start background task for processing messages
         asyncio.create_task(process_messages())
-        
+
         # Start alert processor as a background task
         global alert_processor_task
         alert_processor_task = asyncio.create_task(start_alert_processor(js, interval_seconds=60))
         print("Alert processor background task started")
-        
+
         print("FastAPI service started successfully")
         yield
     finally:
         # Shutdown: stop background processing and close NATS connection
         running = False
-        
+
         # Stop alert processor
         if alert_processor_task:
             await stop_alert_processor()
@@ -109,7 +118,14 @@ async def lifespan(app: FastAPI):
                 print("Alert processor task cancelled successfully")
             except Exception as e:
                 print(f"Error cancelling alert processor task: {e}")
-        
+
+        # Cleanup database system
+        try:
+            await cleanup_database_system()
+            print("Database system cleanup completed")
+        except Exception as e:
+            print(f"Error during database cleanup: {e}")
+
         # Close NATS connection
         if nc:
             await nc.close()
@@ -495,6 +511,20 @@ async def delete_wallet(wallet_id: str, background_tasks: BackgroundTasks):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error deleting wallet: {str(e)}")
+
+# Database health endpoint
+@app.get("/database/health")
+async def get_database_health():
+    """Get database system health status."""
+    try:
+        status = get_database_status()
+        return status
+    except Exception as e:
+        return {
+            "database_healthy": False,
+            "error": str(e),
+            "status": "error"
+        }
 
 # Alert routes
 @app.get("/alerts", response_model=List[Alert])

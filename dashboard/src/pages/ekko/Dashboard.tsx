@@ -1,13 +1,13 @@
-import React from "react";
-import { 
-  Grid, 
-  Card, 
-  Text, 
-  Group, 
-  RingProgress, 
-  Table, 
-  Badge, 
-  Title, 
+import React from 'react';
+import {
+  Grid,
+  Card,
+  Text,
+  Group,
+  RingProgress,
+  Table,
+  Badge,
+  Title,
   Paper,
   SimpleGrid,
   useMantineTheme,
@@ -17,14 +17,14 @@ import {
   ActionIcon,
   Tooltip as MantineTooltip,
   Box,
-  Select
-} from "@mantine/core";
-import { 
-  IconArrowUpRight, 
-  IconArrowDownRight, 
-  IconWallet, 
-  IconAlertCircle, 
-  IconCoin, 
+  Select,
+} from '@mantine/core';
+import {
+  IconArrowUpRight,
+  IconArrowDownRight,
+  IconWallet,
+  IconAlertCircle,
+  IconCoin,
   IconGauge,
   IconExchange,
   IconBell,
@@ -33,10 +33,21 @@ import {
   IconChevronRight,
   IconArrowsRightLeft,
   IconEye,
-  IconPlus
-} from "@tabler/icons-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { useAppSelector } from "@/store";
+  IconPlus,
+} from '@tabler/icons-react';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+} from 'recharts';
+import { useAppSelector } from '@/store';
 import { useNavigate } from 'react-router-dom';
 
 // Mock data for demonstration
@@ -61,11 +72,56 @@ const transactionData = [
 ];
 
 const recentTransactions = [
-  { hash: '0x1a2b...3c4d', type: 'Transfer', amount: '0.25 ETH', status: 'Confirmed', time: '5 min ago', from: '0xabc...123', to: '0xdef...456', chain: 'ETH' },
-  { hash: '0x5e6f...7g8h', type: 'Swap', amount: '150 USDT', status: 'Pending', time: '12 min ago', from: '0x789...abc', to: '0xdef...789', chain: 'ETH' },
-  { hash: '0x9i0j...1k2l', type: 'Deposit', amount: '1.5 AVAX', status: 'Confirmed', time: '25 min ago', from: '0xghi...jkl', to: '0xmno...pqr', chain: 'AVAX' },
-  { hash: '0x3m4n...5o6p', type: 'Withdraw', amount: '0.1 BTC', status: 'Failed', time: '30 min ago', from: '0xstu...vwx', to: '0xyz...123', chain: 'BTC' },
-  { hash: '0x7q8r...9s0t', type: 'Transfer', amount: '500 MATIC', status: 'Confirmed', time: '45 min ago', from: '0x456...789', to: '0xabc...def', chain: 'MATIC' },
+  {
+    hash: '0x1a2b...3c4d',
+    type: 'Transfer',
+    amount: '0.25 ETH',
+    status: 'Confirmed',
+    time: '5 min ago',
+    from: '0xabc...123',
+    to: '0xdef...456',
+    chain: 'ETH',
+  },
+  {
+    hash: '0x5e6f...7g8h',
+    type: 'Swap',
+    amount: '150 USDT',
+    status: 'Pending',
+    time: '12 min ago',
+    from: '0x789...abc',
+    to: '0xdef...789',
+    chain: 'ETH',
+  },
+  {
+    hash: '0x9i0j...1k2l',
+    type: 'Deposit',
+    amount: '1.5 AVAX',
+    status: 'Confirmed',
+    time: '25 min ago',
+    from: '0xghi...jkl',
+    to: '0xmno...pqr',
+    chain: 'AVAX',
+  },
+  {
+    hash: '0x3m4n...5o6p',
+    type: 'Withdraw',
+    amount: '0.1 BTC',
+    status: 'Failed',
+    time: '30 min ago',
+    from: '0xstu...vwx',
+    to: '0xyz...123',
+    chain: 'BTC',
+  },
+  {
+    hash: '0x7q8r...9s0t',
+    type: 'Transfer',
+    amount: '500 MATIC',
+    status: 'Confirmed',
+    time: '45 min ago',
+    from: '0x456...789',
+    to: '0xabc...def',
+    chain: 'MATIC',
+  },
 ];
 
 const chainDistribution = [
@@ -76,20 +132,79 @@ const chainDistribution = [
 ];
 
 const activeWallets = [
-  { id: '1', name: 'Main ETH Wallet', address: '0x1a2b...3c4d', balance: 2.45, chain: 'ETH', color: '#4c6ef5', lastActivity: '2 hours ago' },
-  { id: '2', name: 'Trading BTC', address: '0x5e6f...7g8h', balance: 0.15, chain: 'BTC', color: '#f59f00', lastActivity: '5 hours ago' },
-  { id: '3', name: 'AVAX Staking', address: '0x9i0j...1k2l', balance: 45.75, chain: 'AVAX', color: '#e03131', lastActivity: '1 day ago' },
+  {
+    id: '1',
+    name: 'Main ETH Wallet',
+    address: '0x1a2b...3c4d',
+    balance: 2.45,
+    chain: 'ETH',
+    color: '#4c6ef5',
+    lastActivity: '2 hours ago',
+  },
+  {
+    id: '2',
+    name: 'Trading BTC',
+    address: '0x5e6f...7g8h',
+    balance: 0.15,
+    chain: 'BTC',
+    color: '#f59f00',
+    lastActivity: '5 hours ago',
+  },
+  {
+    id: '3',
+    name: 'AVAX Staking',
+    address: '0x9i0j...1k2l',
+    balance: 45.75,
+    chain: 'AVAX',
+    color: '#e03131',
+    lastActivity: '1 day ago',
+  },
 ];
 
 const activeAlerts = [
-  { id: '1', type: 'Price', message: 'ETH price dropped below $2,000', priority: 'High', time: '15 minutes ago', color: '#e03131' },
-  { id: '2', type: 'Wallet Activity', message: 'Unusual withdrawal from Wallet #3', priority: 'Medium', time: '32 minutes ago', color: '#f59f00' },
-  { id: '3', type: 'Node Status', message: 'AVAX node connection lost', priority: 'High', time: '45 minutes ago', color: '#e03131' },
+  {
+    id: '1',
+    type: 'Price',
+    message: 'ETH price dropped below $2,000',
+    priority: 'High',
+    time: '15 minutes ago',
+    color: '#e03131',
+  },
+  {
+    id: '2',
+    type: 'Wallet Activity',
+    message: 'Unusual withdrawal from Wallet #3',
+    priority: 'Medium',
+    time: '32 minutes ago',
+    color: '#f59f00',
+  },
+  {
+    id: '3',
+    type: 'Node Status',
+    message: 'AVAX node connection lost',
+    priority: 'High',
+    time: '45 minutes ago',
+    color: '#e03131',
+  },
 ];
 
 const activeWorkflows = [
-  { id: '1', name: 'Price Alert to Transaction', status: 'Active', lastRun: '2 hours ago', triggers: 1, actions: 2 },
-  { id: '2', name: 'Daily Portfolio Summary', status: 'Active', lastRun: '1 day ago', triggers: 1, actions: 1 },
+  {
+    id: '1',
+    name: 'Price Alert to Transaction',
+    status: 'Active',
+    lastRun: '2 hours ago',
+    triggers: 1,
+    actions: 2,
+  },
+  {
+    id: '2',
+    name: 'Daily Portfolio Summary',
+    status: 'Active',
+    lastRun: '1 day ago',
+    triggers: 1,
+    actions: 1,
+  },
 ];
 
 const nodeStatus = [
@@ -168,7 +283,7 @@ export default function Dashboard() {
   // No classes needed with inline styles
   const navigate = useNavigate();
   const username = useAppSelector((state) => state.auth.user?.email?.split('@')[0] || 'User');
-  
+
   // Helper functions
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -206,7 +321,7 @@ export default function Dashboard() {
   const goToWallets = () => navigate('/wallets');
   const goToWorkflows = () => navigate('/workflows');
   const goToNodes = () => navigate('/nodes');
-  const goToSettings = () => navigate('/settings');  
+  const goToSettings = () => navigate('/settings');
 
   return (
     <>
@@ -216,14 +331,26 @@ export default function Dashboard() {
           <Text c="dimmed">Welcome back, {username}!</Text>
         </div>
         <Group>
-          <Text fw={500} c="dimmed">Today: {new Date().toLocaleDateString()}</Text>
-          <Button variant="light" leftSection={<IconSettings size={16} />} onClick={goToSettings}>Settings</Button>
+          <Text fw={500} c="dimmed">
+            Today: {new Date().toLocaleDateString()}
+          </Text>
+          <Button variant="light" leftSection={<IconSettings size={16} />} onClick={goToSettings}>
+            Settings
+          </Button>
         </Group>
       </Group>
 
       {/* Stats Cards */}
       <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="sm" mb="md">
-        <Card withBorder p="sm" radius="md" component="a" href="#" onClick={goToWallets} style={{ cursor: 'pointer' }}>
+        <Card
+          withBorder
+          p="sm"
+          radius="md"
+          component="a"
+          href="#"
+          onClick={goToWallets}
+          style={{ cursor: 'pointer' }}
+        >
           <Group justify="space-between">
             <div>
               <Text c="dimmed" size="xs" tt="uppercase" fw={700}>
@@ -238,13 +365,30 @@ export default function Dashboard() {
           <Text c="dimmed" size="sm" mt="md">
             <Text component="span" c="green" fw={700}>
               +{walletData[walletData.length - 1].value}%
-            </Text>{" "}
+            </Text>{' '}
             from last month
           </Text>
-          <Button variant="subtle" rightSection={<IconChevronRight size={14} />} mt="xs" size="xs" fullWidth onClick={goToWallets}>View Wallets</Button>
+          <Button
+            variant="subtle"
+            rightSection={<IconChevronRight size={14} />}
+            mt="xs"
+            size="xs"
+            fullWidth
+            onClick={goToWallets}
+          >
+            View Wallets
+          </Button>
         </Card>
 
-        <Card withBorder p="sm" radius="md" component="a" href="#" onClick={goToAlerts} style={{ cursor: 'pointer' }}>
+        <Card
+          withBorder
+          p="sm"
+          radius="md"
+          component="a"
+          href="#"
+          onClick={goToAlerts}
+          style={{ cursor: 'pointer' }}
+        >
           <Group justify="space-between">
             <div>
               <Text c="dimmed" size="xs" tt="uppercase" fw={700}>
@@ -259,13 +403,30 @@ export default function Dashboard() {
           <Text c="dimmed" size="sm" mt="md">
             <Text component="span" c="red" fw={700}>
               +2
-            </Text>{" "}
+            </Text>{' '}
             new alerts today
           </Text>
-          <Button variant="subtle" rightSection={<IconChevronRight size={14} />} mt="xs" size="xs" fullWidth onClick={goToAlerts}>View Alerts</Button>
+          <Button
+            variant="subtle"
+            rightSection={<IconChevronRight size={14} />}
+            mt="xs"
+            size="xs"
+            fullWidth
+            onClick={goToAlerts}
+          >
+            View Alerts
+          </Button>
         </Card>
 
-        <Card withBorder p="sm" radius="md" component="a" href="#" onClick={goToTransactions} style={{ cursor: 'pointer' }}>
+        <Card
+          withBorder
+          p="sm"
+          radius="md"
+          component="a"
+          href="#"
+          onClick={goToTransactions}
+          style={{ cursor: 'pointer' }}
+        >
           <Group justify="space-between">
             <div>
               <Text c="dimmed" size="xs" tt="uppercase" fw={700}>
@@ -280,31 +441,59 @@ export default function Dashboard() {
           <Text c="dimmed" size="sm" mt="md">
             <Text component="span" c="green" fw={700}>
               +2.3%
-            </Text>{" "}
+            </Text>{' '}
             from yesterday
           </Text>
-          <Button variant="subtle" rightSection={<IconChevronRight size={14} />} mt="xs" size="xs" fullWidth onClick={goToTransactions}>View Transactions</Button>
+          <Button
+            variant="subtle"
+            rightSection={<IconChevronRight size={14} />}
+            mt="xs"
+            size="xs"
+            fullWidth
+            onClick={goToTransactions}
+          >
+            View Transactions
+          </Button>
         </Card>
 
-        <Card withBorder p="sm" radius="md" component="a" href="#" onClick={goToNodes} style={{ cursor: 'pointer' }}>
+        <Card
+          withBorder
+          p="sm"
+          radius="md"
+          component="a"
+          href="#"
+          onClick={goToNodes}
+          style={{ cursor: 'pointer' }}
+        >
           <Group justify="space-between">
             <div>
               <Text c="dimmed" size="xs" tt="uppercase" fw={700}>
                 Network Status
               </Text>
               <Text fw={700} size="xl">
-                {nodeStatus.filter(node => node.status === 'Healthy').length}/{nodeStatus.length} Healthy
+                {nodeStatus.filter((node) => node.status === 'Healthy').length}/{nodeStatus.length}{' '}
+                Healthy
               </Text>
             </div>
             <IconServer size={30} color={theme.colors.green[6]} />
           </Group>
           <Text c="dimmed" size="sm" mt="md">
             <Text component="span" c="yellow" fw={700}>
-              {nodeStatus.filter(node => node.status !== 'Healthy').length}
-            </Text>{" "}
-            {nodeStatus.filter(node => node.status !== 'Healthy').length === 1 ? 'node' : 'nodes'} with issues
+              {nodeStatus.filter((node) => node.status !== 'Healthy').length}
+            </Text>{' '}
+            {nodeStatus.filter((node) => node.status !== 'Healthy').length === 1 ? 'node' : 'nodes'}{' '}
+            with issues
           </Text>
-          <Button variant="subtle" rightSection={<IconChevronRight size={14} />} mt="xs" size="xs" fullWidth onClick={goToNodes}>View Nodes</Button>
+          <Button
+            variant="subtle"
+            rightSection={<IconChevronRight size={14} />}
+            mt="xs"
+            size="xs"
+            fullWidth
+            onClick={goToNodes}
+          >
+            View Nodes
+          </Button>
         </Card>
       </SimpleGrid>
 
@@ -335,7 +524,12 @@ export default function Dashboard() {
                 <XAxis dataKey="name" />
                 <YAxis />
                 <Tooltip />
-                <Line type="monotone" dataKey="value" stroke={theme.colors.blue[6]} strokeWidth={2} />
+                <Line
+                  type="monotone"
+                  dataKey="value"
+                  stroke={theme.colors.blue[6]}
+                  strokeWidth={2}
+                />
               </LineChart>
             </ResponsiveContainer>
           </Card>
@@ -367,8 +561,15 @@ export default function Dashboard() {
                   <tr key={index} style={{ cursor: 'pointer' }} onClick={goToTransactions}>
                     <td style={tableCellStyle}>
                       <Group gap="xs">
-                        <div style={{ width: 6, height: 6, backgroundColor: chainDistribution.find(c => c.chain === tx.chain)?.color || '#aaa', 
-                          borderRadius: '50%' }} />
+                        <div
+                          style={{
+                            width: 6,
+                            height: 6,
+                            backgroundColor:
+                              chainDistribution.find((c) => c.chain === tx.chain)?.color || '#aaa',
+                            borderRadius: '50%',
+                          }}
+                        />
                         <Text size="sm">{tx.hash}</Text>
                       </Group>
                     </td>
@@ -384,7 +585,9 @@ export default function Dashboard() {
                       </Badge>
                     </td>
                     <td style={tableCellStyle}>
-                      <Text size="sm" c="dimmed">{tx.time}</Text>
+                      <Text size="sm" c="dimmed">
+                        {tx.time}
+                      </Text>
                     </td>
                   </tr>
                 ))}
@@ -412,18 +615,28 @@ export default function Dashboard() {
                 </MantineTooltip>
               </Group>
             </div>
-            
+
             {activeWorkflows.length > 0 ? (
               <div>
                 {activeWorkflows.map((workflow, index) => (
-                  <Paper key={index} withBorder p="xs" radius="md" mb="xs" style={{ cursor: 'pointer' }} onClick={goToWorkflows}>
+                  <Paper
+                    key={index}
+                    withBorder
+                    p="xs"
+                    radius="md"
+                    mb="xs"
+                    style={{ cursor: 'pointer' }}
+                    onClick={goToWorkflows}
+                  >
                     <Group justify="space-between">
                       <div>
                         <Group>
                           <IconArrowsRightLeft size={20} />
                           <div>
                             <Text fw={500}>{workflow.name}</Text>
-                            <Text size="xs" c="dimmed">Last run: {workflow.lastRun}</Text>
+                            <Text size="xs" c="dimmed">
+                              Last run: {workflow.lastRun}
+                            </Text>
                           </div>
                         </Group>
                       </div>
@@ -441,7 +654,9 @@ export default function Dashboard() {
               </div>
             ) : (
               <div>
-                <Text c="dimmed" ta="center" my="md">No active workflows</Text>
+                <Text c="dimmed" ta="center" my="md">
+                  No active workflows
+                </Text>
                 <Button variant="light" fullWidth onClick={goToWorkflows}>
                   Create Workflow
                 </Button>
@@ -454,7 +669,9 @@ export default function Dashboard() {
         <Grid.Col span={{ base: 12, md: 4 }}>
           {/* Chain Distribution */}
           <Card withBorder p="sm" radius="md" mb="xs" style={sectionCardStyle}>
-            <Title order={5} mb="xs">Chain Distribution</Title>
+            <Title order={5} mb="xs">
+              Chain Distribution
+            </Title>
             <Box mx="auto" style={{ width: '100%', height: 160 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -480,7 +697,14 @@ export default function Dashboard() {
             <Group justify="space-between">
               {chainDistribution.map((item, index) => (
                 <Group key={index} gap="xs">
-                  <div style={{ width: 8, height: 8, backgroundColor: item.color, borderRadius: '50%' }} />
+                  <div
+                    style={{
+                      width: 8,
+                      height: 8,
+                      backgroundColor: item.color,
+                      borderRadius: '50%',
+                    }}
+                  />
                   <Text size="xs">{item.chain}</Text>
                 </Group>
               ))}
@@ -498,18 +722,39 @@ export default function Dashboard() {
               </MantineTooltip>
             </div>
             {activeWallets.map((wallet, index) => (
-              <Paper key={index} withBorder p="xs" radius="md" mb="xs" style={{ cursor: 'pointer' }} onClick={goToWallets}>
+              <Paper
+                key={index}
+                withBorder
+                p="xs"
+                radius="md"
+                mb="xs"
+                style={{ cursor: 'pointer' }}
+                onClick={goToWallets}
+              >
                 <Group justify="space-between">
                   <Group>
-                    <div style={{ width: 8, height: 8, backgroundColor: wallet.color, borderRadius: '50%' }} />
+                    <div
+                      style={{
+                        width: 8,
+                        height: 8,
+                        backgroundColor: wallet.color,
+                        borderRadius: '50%',
+                      }}
+                    />
                     <div>
                       <Text fw={500}>{wallet.name}</Text>
-                      <Text size="xs" c="dimmed">{wallet.address}</Text>
+                      <Text size="xs" c="dimmed">
+                        {wallet.address}
+                      </Text>
                     </div>
                   </Group>
-                  <Text fw={700}>{wallet.balance} {wallet.chain}</Text>
+                  <Text fw={700}>
+                    {wallet.balance} {wallet.chain}
+                  </Text>
                 </Group>
-                <Text size="xs" c="dimmed" mt="xs">Last activity: {wallet.lastActivity}</Text>
+                <Text size="xs" c="dimmed" mt="xs">
+                  Last activity: {wallet.lastActivity}
+                </Text>
               </Paper>
             ))}
             <Button variant="light" fullWidth mt="xs" onClick={goToWallets}>
@@ -528,10 +773,25 @@ export default function Dashboard() {
               </MantineTooltip>
             </div>
             {activeAlerts.map((alert, index) => (
-              <Paper key={index} withBorder p="xs" radius="md" mb="xs" style={{ cursor: 'pointer' }} onClick={goToAlerts}>
+              <Paper
+                key={index}
+                withBorder
+                p="xs"
+                radius="md"
+                mb="xs"
+                style={{ cursor: 'pointer' }}
+                onClick={goToAlerts}
+              >
                 <Group justify="space-between">
                   <Group>
-                    <div style={{ width: 8, height: 8, backgroundColor: alert.color, borderRadius: '50%' }} />
+                    <div
+                      style={{
+                        width: 8,
+                        height: 8,
+                        backgroundColor: alert.color,
+                        borderRadius: '50%',
+                      }}
+                    />
                     <div>
                       <Text fw={500}>{alert.type}</Text>
                       <Text size="xs">{alert.message}</Text>
@@ -539,7 +799,9 @@ export default function Dashboard() {
                   </Group>
                   <Badge color={getPriorityColor(alert.priority)}>{alert.priority}</Badge>
                 </Group>
-                <Text size="xs" c="dimmed" mt="xs">{alert.time}</Text>
+                <Text size="xs" c="dimmed" mt="xs">
+                  {alert.time}
+                </Text>
               </Paper>
             ))}
             <Button variant="light" fullWidth mt="xs" onClick={goToAlerts}>
@@ -558,7 +820,15 @@ export default function Dashboard() {
               </MantineTooltip>
             </div>
             {nodeStatus.map((node, index) => (
-              <Paper key={index} withBorder p="xs" radius="md" mb="xs" style={{ cursor: 'pointer' }} onClick={goToNodes}>
+              <Paper
+                key={index}
+                withBorder
+                p="xs"
+                radius="md"
+                mb="xs"
+                style={{ cursor: 'pointer' }}
+                onClick={goToNodes}
+              >
                 <Group justify="space-between">
                   <Text fw={500}>{node.name}</Text>
                   <Badge color={getStatusColor(node.status)}>{node.status}</Badge>

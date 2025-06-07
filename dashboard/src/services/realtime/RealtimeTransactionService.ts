@@ -60,7 +60,8 @@ const RealtimeTransactionService = {
 
         // Logic to subscribe to wallet addresses
         const currentNc = nc; // Assign to a new const for type narrowing
-        if (!currentNc) {    // Check the new const
+        if (!currentNc) {
+          // Check the new const
           console.error('NATS connection not available for subscription.');
           store.dispatch(connectionError('NATS connection lost before subscription.'));
           return;
@@ -72,8 +73,15 @@ const RealtimeTransactionService = {
           const sub = currentNc.subscribe(subject, {
             callback: (err, msg) => {
               if (err) {
-                console.error(`Error in NATS subscription to ${subject} for wallet ${wallet.address}:`, err);
-                store.dispatch(connectionError(`Subscription error for ${subject} (${wallet.address}): ${err.message}`));
+                console.error(
+                  `Error in NATS subscription to ${subject} for wallet ${wallet.address}:`,
+                  err
+                );
+                store.dispatch(
+                  connectionError(
+                    `Subscription error for ${subject} (${wallet.address}): ${err.message}`
+                  )
+                );
                 return;
               }
               try {
@@ -81,7 +89,12 @@ const RealtimeTransactionService = {
                 console.log(`Received transaction on subject ${msg.subject}:`, transactionData);
                 store.dispatch(newTransactionReceived(transactionData));
               } catch (e) {
-                console.error('Error parsing incoming NATS message:', e, 'Raw data:', sc.decode(msg.data));
+                console.error(
+                  'Error parsing incoming NATS message:',
+                  e,
+                  'Raw data:',
+                  sc.decode(msg.data)
+                );
               }
             },
           });
@@ -89,27 +102,33 @@ const RealtimeTransactionService = {
         });
 
         // Handle connection closure
-        await nc.closed().then((err) => {
-          const reason = err ? err.message : 'NATS connection closed.';
-          console.log('NATS connection closed event:', reason);
-          store.dispatch(connectionClosed(reason));
-          nc = null;
-          subscriptions = []; // Clear subscriptions as they are no longer valid
-        }).catch(err => {
-          // This catch is for errors during the nc.closed() promise itself, not for the close event error
-          console.error('Error awaiting NATS connection closure:', err);
-          store.dispatch(connectionClosed('NATS connection closed with error.'));
-          nc = null;
-          subscriptions = [];
-        });
-
+        await nc
+          .closed()
+          .then((err) => {
+            const reason = err ? err.message : 'NATS connection closed.';
+            console.log('NATS connection closed event:', reason);
+            store.dispatch(connectionClosed(reason));
+            nc = null;
+            subscriptions = []; // Clear subscriptions as they are no longer valid
+          })
+          .catch((err) => {
+            // This catch is for errors during the nc.closed() promise itself, not for the close event error
+            console.error('Error awaiting NATS connection closure:', err);
+            store.dispatch(connectionClosed('NATS connection closed with error.'));
+            nc = null;
+            subscriptions = [];
+          });
       } catch (err: any) {
         const errMsg = `Failed to connect to NATS: ${err.message || err.toString()}`;
         console.error(errMsg, err);
         store.dispatch(connectionError(errMsg));
         // Ensure nc is null if connection failed
         if (nc && !nc.isClosed()) {
-          await nc.close().catch(closeErr => console.error('Error closing NATS during connect error:', closeErr));
+          await nc
+            .close()
+            .catch((closeErr) =>
+              console.error('Error closing NATS during connect error:', closeErr)
+            );
         }
         nc = null;
         subscriptions = [];
@@ -117,7 +136,8 @@ const RealtimeTransactionService = {
     })();
   },
 
-  disconnect: async () => { // Made async for nc.close() or nc.drain()
+  disconnect: async () => {
+    // Made async for nc.close() or nc.drain()
     if (nc) {
       console.log('Disconnecting NATS...');
       try {
@@ -133,7 +153,7 @@ const RealtimeTransactionService = {
     // nc = null; // This will be handled by the closed event handler
     // subscriptions will also be cleared by the closed event handler or here if needed
   },
-  
+
   // Example: send a message if needed later
   // sendMessage: (message: any) => {
   //   if (socket && socket.readyState === WebSocket.OPEN) {

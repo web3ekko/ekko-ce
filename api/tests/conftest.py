@@ -4,51 +4,120 @@ import pytest
 import nats
 import json
 import uuid
+import tempfile
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 
 # Set test environment variables
-os.environ["NATS_URL"] = os.getenv("NATS_URL", "nats://nats:4222")
 os.environ["TEST_MODE"] = "true"
 
 # Configure pytest to use asyncio
 pytest_plugins = ["pytest_asyncio"]
 
-# Note: We're not defining our own event_loop fixture anymore
-# as pytest-asyncio provides one for us
+# Testcontainer fixtures
+@pytest.fixture(scope="session")
+def nats_container():
+    """Start a NATS container with JetStream for testing."""
+    from testcontainers.generic import GenericContainer
+
+    container = GenericContainer("nats:2.10-alpine")
+    container.with_command("-js -m 8222")
+    container.with_exposed_ports(4222, 8222)
+
+    with container as nats:
+        # Set environment variable for other fixtures
+        nats_url = f"nats://localhost:{nats.get_exposed_port(4222)}"
+        os.environ["TEST_NATS_URL"] = nats_url
+        yield nats
 
 @pytest.fixture(scope="session")
-async def nats_connection():
+def test_database():
+    """Create a temporary DuckDB database for testing."""
+    import tempfile
+    import os
+
+    # Create temporary database file path (but don't create the file)
+    db_fd, db_path = tempfile.mkstemp(suffix='.db')
+    os.close(db_fd)  # Close the file descriptor
+    os.unlink(db_path)  # Remove the empty file so DuckDB can create it properly
+
+    # Set environment variable for database path
+    os.environ["TEST_DUCKDB_PATH"] = db_path
+
+    yield db_path
+
+    # Cleanup
+    try:
+        os.unlink(db_path)
+    except OSError:
+        pass
+
+@pytest.fixture(scope="session")
+async def nats_connection(nats_container):
     """Create a NATS connection for testing."""
-    nc = await nats.connect(os.environ["NATS_URL"])
+    nats_url = nats_container.get_connection_url()
+    nc = await nats.connect(nats_url)
     yield nc
     await nc.close()
+
+@pytest.fixture(scope="session")
+def db_manager(test_database):
+    """Create a database manager for testing."""
+    from app.database.connection import DatabaseManager
+
+    # Override the database path for testing
+    original_path = os.environ.get("DUCKDB_PATH")
+    os.environ["DUCKDB_PATH"] = test_database
+
+    # Create database manager
+    manager = DatabaseManager()
+
+    yield manager
+
+    # Cleanup
+    manager.close_all_connections()
+
+    # Restore original path
+    if original_path:
+        os.environ["DUCKDB_PATH"] = original_path
+    elif "DUCKDB_PATH" in os.environ:
+        del os.environ["DUCKDB_PATH"]
+
+@pytest.fixture(scope="session")
+def db_schema(db_manager):
+    """Initialize database schema for testing."""
+    from app.database.migrations import MigrationManager
+
+    migration_manager = MigrationManager()
+    migration_manager.initialize_database()
+
+    yield migration_manager
 
 @pytest.fixture(scope="session")
 async def jetstream(nats_connection):
     """Create a JetStream context for testing."""
     js = nats_connection.jetstream()
-    
+
     # Create test buckets
     test_buckets = [
-        "test_users", 
-        "test_wallets", 
-        "test_alerts", 
+        "test_users",
+        "test_wallets",
+        "test_alerts",
         "test_wallet_balances",
         "test_workflows",
         "test_workflow_executions",
         "test_agents",
         "test_alert_rules"
     ]
-    
+
     for bucket in test_buckets:
         try:
             await js.key_value(bucket=bucket)
         except Exception:
             await js.create_key_value(bucket=bucket)
-    
+
     yield js
-    
+
     # Clean up test data
     for bucket in test_buckets:
         try:
@@ -58,6 +127,43 @@ async def jetstream(nats_connection):
                 await kv.delete(key)
         except Exception as e:
             print(f"Error cleaning up {bucket}: {e}")
+
+# Repository fixtures
+@pytest.fixture
+def user_repository(db_schema, jetstream):
+    """Create a UserRepository for testing."""
+    from app.repositories import UserRepository
+
+    repo = UserRepository()
+    repo.set_jetstream(jetstream)
+    return repo
+
+@pytest.fixture
+def wallet_repository(db_schema, jetstream):
+    """Create a WalletRepository for testing."""
+    from app.repositories import WalletRepository
+
+    repo = WalletRepository()
+    repo.set_jetstream(jetstream)
+    return repo
+
+@pytest.fixture
+def alert_repository(db_schema, jetstream):
+    """Create an AlertRepository for testing."""
+    from app.repositories import AlertRepository
+
+    repo = AlertRepository()
+    repo.set_jetstream(jetstream)
+    return repo
+
+@pytest.fixture
+def wallet_balance_repository(db_schema, jetstream):
+    """Create a WalletBalanceRepository for testing."""
+    from app.repositories import WalletBalanceRepository
+
+    repo = WalletBalanceRepository()
+    repo.set_jetstream(jetstream)
+    return repo
 
 @pytest.fixture
 async def clean_test_data(jetstream):
@@ -205,10 +311,17 @@ def sample_agent_data(sample_user_data):
 @pytest.fixture(scope="session")
 def nats_container():
     """Start a NATS container for testing."""
+    import os
     from testcontainers.nats import NatsContainer
-    
+
+    # Set Docker socket path for macOS Docker Desktop
+    docker_socket_path = os.path.expanduser("~/.docker/run/docker.sock")
+    if os.path.exists(docker_socket_path):
+        os.environ["DOCKER_HOST"] = f"unix://{docker_socket_path}"
+
     # Start a NATS container with JetStream enabled
-    with NatsContainer(image="nats:latest", command=["-js"]) as nats:
+    # Use the enable_jetstream() method as shown in the docs
+    with NatsContainer().enable_jetstream() as nats:
         yield nats
 
 @pytest.fixture

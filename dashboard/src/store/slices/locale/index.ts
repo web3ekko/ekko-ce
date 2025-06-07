@@ -1,1 +1,1 @@
-export * from './localeSlice'
+export * from './localeSlice';
