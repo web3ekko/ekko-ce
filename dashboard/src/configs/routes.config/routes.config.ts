@@ -42,6 +42,12 @@ export const protectedRoutes = [
     authority: [],
   },
   {
+    key: 'analytics',
+    path: '/analytics',
+    component: lazy(() => import('@/pages/ekko/Analytics')),
+    authority: [],
+  },
+  {
     key: 'workflows',
     path: '/workflows',
     component: lazy(() => import('@/pages/ekko/Workflows')),

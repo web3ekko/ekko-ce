@@ -23,10 +23,17 @@ export default function SignIn() {
 
   async function handleSubmit(values: { email: string; password: string }) {
     setLoading(true);
+    console.log('Attempting login with:', values);
     try {
       const res = await signIn(values);
+      console.log('Login response:', res);
+      if (res?.status === 'failed') {
+        console.error('Login failed:', res.message);
+        alert('Login failed: ' + res.message);
+      }
     } catch (e) {
-      console.log(e);
+      console.error('Login error:', e);
+      alert('Login error: ' + e);
     } finally {
       setLoading(false);
     }

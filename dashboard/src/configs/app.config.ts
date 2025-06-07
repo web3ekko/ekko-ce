@@ -14,7 +14,7 @@ const appConfig: AppConfig = {
   apiPrefix: 'http://localhost:8000',
   authenticatedEntryPath: '/dashboard',
   unAuthenticatedEntryPath: '/sign-in',
-  enableMock: false,
+  enableMock: true,
   locale: 'en',
 };
 

@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Title,
   Text,
-  Card,
-  Stack,
   Badge,
   Group,
   Button,
@@ -12,8 +9,13 @@ import {
   Select,
   ActionIcon,
   Tabs,
-  Divider,
   Table,
+  Stack,
+  Center,
+  Loader,
+  Tooltip,
+  Box,
+  rem,
 } from '@mantine/core';
 import {
   IconSearch,
@@ -24,7 +26,11 @@ import {
   IconFilter,
   IconWifi,
   IconWifiOff,
+  IconDownload,
+  IconCopy,
+  IconExternalLink,
 } from '@tabler/icons-react';
+import { IOSCard, IOSPageWrapper } from '@/components/UI/IOSCard';
 
 import { useAppDispatch, useAppSelector } from '@/store';
 import RealtimeTransactionService from '@/services/realtime/RealtimeTransactionService';
@@ -109,27 +115,41 @@ export default function Transactions() {
     return new Date(date).toLocaleString();
   };
 
+  // Helper functions
+  const truncateHash = (hash: string) => {
+    return `${hash.substring(0, 6)}...${hash.substring(hash.length - 4)}`;
+  };
+
+  const truncateAddress = (address: string) => {
+    return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    // You could add a notification here
+  };
+
   return (
-    <div>
-      <Group justify="space-between" mb="lg">
-        <div>
-          <Title order={2}>Transactions</Title>
-          <Text c="dimmed" size="sm">
-            View and analyze blockchain transactions
-          </Text>
-        </div>
+    <IOSPageWrapper
+      title="Transactions"
+      subtitle="View and analyze blockchain transactions"
+      action={
         <Group>
-          <Button leftSection={<IconFilter size={16} />} variant="light">
-            Filter
+          <Button
+            variant="light"
+            leftSection={<IconDownload size={16} />}
+          >
+            Export
           </Button>
           <Button leftSection={<IconExchange size={16} />} variant="filled">
             New Transaction
           </Button>
         </Group>
-      </Group>
+      }
+    >
 
-      <Card withBorder mb="md">
-        <Group justify="space-between" mb="md">
+      <IOSCard>
+        <Group justify="space-between" mb="md" p="md">
           <TextInput
             placeholder="Search transactions..."
             leftSection={<IconSearch size={16} />}
@@ -189,83 +209,125 @@ export default function Transactions() {
           </Tabs.List>
         </Tabs>
 
-        <Table striped highlightOnHover>
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>Type</Table.Th>
-              <Table.Th>Hash</Table.Th>
-              <Table.Th>From</Table.Th>
-              <Table.Th>To</Table.Th>
-              <Table.Th>Value</Table.Th>
-              <Table.Th>Network/Token</Table.Th>
-              <Table.Th>Time</Table.Th>
-              <Table.Th>Status</Table.Th>
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
+        {paginatedTransactions.length === 0 ? (
+          <Center p="xl">
+            <Stack align="center">
+              <Text c="dimmed">No transactions found</Text>
+              <Text size="sm" c="dimmed">
+                {isConnected ? 'Waiting for new transactions...' : 'Connect to see live transactions'}
+              </Text>
+            </Stack>
+          </Center>
+        ) : (
+          <Stack gap="sm" p="md">
             {paginatedTransactions.map((tx) => (
-              <Table.Tr key={tx.hash}>
-                <Table.Td>
-                  <Group gap="xs">
-                    {getTransactionIcon(tx.transactionType)}
-                    <Text size="sm">{tx.transactionType || 'N/A'}</Text>
+              <IOSCard key={tx.hash} interactive>
+                <Group justify="space-between" p="md">
+                  <Group>
+                    <Box
+                      style={{
+                        padding: rem(8),
+                        borderRadius: rem(8),
+                        backgroundColor: '#f2f2f7',
+                      }}
+                    >
+                      {getTransactionIcon(tx.transactionType)}
+                    </Box>
+
+                    <Box>
+                      <Group gap="xs" mb="xs">
+                        <Text fw={600} tt="capitalize">{tx.transactionType || 'Transaction'}</Text>
+                        <Badge
+                          color={
+                            tx.status === 'Confirmed'
+                              ? 'green'
+                              : tx.status === 'pending'
+                                ? 'orange'
+                                : 'gray'
+                          }
+                          variant="light"
+                        >
+                          {tx.status || 'Unknown'}
+                        </Badge>
+                      </Group>
+
+                      <Group gap="sm">
+                        <Tooltip label="Copy hash">
+                          <Button
+                            variant="subtle"
+                            size="xs"
+                            leftSection={<IconCopy size={12} />}
+                            onClick={() => copyToClipboard(tx.hash)}
+                          >
+                            {truncateHash(tx.hash)}
+                          </Button>
+                        </Tooltip>
+
+                        <Text size="sm" c="dimmed">
+                          {formatDate(tx.timestamp)}
+                        </Text>
+
+                        <Badge variant="outline" size="sm">
+                          {tx.network || tx.tokenSymbol || 'Unknown'}
+                        </Badge>
+                      </Group>
+                    </Box>
                   </Group>
-                </Table.Td>
-                <Table.Td>
-                  <Text size="sm" style={{ fontFamily: 'monospace' }}>
-                    {tx.hash}
-                  </Text>
-                </Table.Td>
-                <Table.Td>
-                  <Text size="sm" style={{ fontFamily: 'monospace' }}>
-                    {tx.from}
-                  </Text>
-                </Table.Td>
-                <Table.Td>
-                  <Text size="sm" style={{ fontFamily: 'monospace' }}>
-                    {tx.to}
-                  </Text>
-                </Table.Td>
-                <Table.Td>
-                  {/* TODO: Format large numbers appropriately */}
-                  <Text size="sm" c="dimmed">
-                    {tx.value}
-                  </Text>
-                </Table.Td>
-                <Table.Td>
-                  <Text size="sm" c="dimmed">
-                    {tx.network || tx.tokenSymbol || 'N/A'}
-                  </Text>
-                </Table.Td>
-                <Table.Td>
-                  <Text size="sm" c="dimmed">
-                    {formatDate(tx.timestamp)}
-                  </Text>
-                </Table.Td>
-                <Table.Td>
-                  <Badge
-                    color={
-                      tx.status === 'Confirmed'
-                        ? 'green'
-                        : tx.status === 'pending'
-                          ? 'yellow'
-                          : 'gray'
-                    }
-                  >
-                    {tx.status || 'N/A'}
-                  </Badge>
-                </Table.Td>
-              </Table.Tr>
+
+                  <Box style={{ textAlign: 'right' }}>
+                    <Text fw={600} size="lg">
+                      {tx.value || '0'} {tx.tokenSymbol || 'ETH'}
+                    </Text>
+                    <Text size="sm" c="dimmed">
+                      {tx.decoded_call?.function || 'Transfer'}
+                    </Text>
+                  </Box>
+
+                  <ActionIcon variant="subtle" size="sm">
+                    <IconExternalLink size={16} />
+                  </ActionIcon>
+                </Group>
+
+                <Group justify="space-between" p="md" pt={0}>
+                  <Group gap="sm">
+                    <Text size="sm" c="dimmed">From:</Text>
+                    <Tooltip label="Copy address">
+                      <Button
+                        variant="subtle"
+                        size="xs"
+                        onClick={() => copyToClipboard(tx.from)}
+                      >
+                        {truncateAddress(tx.from)}
+                      </Button>
+                    </Tooltip>
+                  </Group>
+
+                  {tx.to && (
+                    <Group gap="sm">
+                      <Text size="sm" c="dimmed">To:</Text>
+                      <Tooltip label="Copy address">
+                        <Button
+                          variant="subtle"
+                          size="xs"
+                          onClick={() => copyToClipboard(tx.to!)}
+                        >
+                          {truncateAddress(tx.to)}
+                        </Button>
+                      </Tooltip>
+                    </Group>
+                  )}
+                </Group>
+              </IOSCard>
             ))}
-          </Table.Tbody>
-        </Table>
+          </Stack>
+        )}
 
         {filteredTransactions.length > parseInt(pageSize) && (
-          <Group justify="center" mt="xl">
+          <Group justify="center" mt="xl" p="md">
             <Pagination value={activePage} onChange={setActivePage} total={totalPages} />
           </Group>
         )}
-      </Card>
-    </div>
+      </IOSCard>
+    </IOSPageWrapper>
   );
 }

@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
 import {
-  Title,
   Text,
-  Card,
   Grid,
   Group,
   Button,
   Select,
   SegmentedControl,
-  RingProgress,
   Stack,
+  SimpleGrid,
+  Box,
+  rem,
 } from '@mantine/core';
 import {
   IconChartBar,
@@ -17,7 +17,9 @@ import {
   IconChartPie,
   IconRefresh,
   IconWallet,
+  IconDownload,
 } from '@tabler/icons-react';
+import { IOSCard, IOSPageWrapper, IOSSectionHeader } from '@/components/UI/IOSCard';
 import {
   LineChart,
   Line,
@@ -87,14 +89,10 @@ export default function Analytics() {
   const change24h = 3.45;
 
   return (
-    <div>
-      <Group justify="space-between" mb="lg">
-        <div>
-          <Title order={2}>Analytics</Title>
-          <Text c="dimmed" size="sm">
-            Blockchain performance metrics and insights
-          </Text>
-        </div>
+    <IOSPageWrapper
+      title="Analytics"
+      subtitle="Blockchain performance metrics and insights"
+      action={
         <Group>
           <Select
             value={timeRange}
@@ -105,110 +103,146 @@ export default function Analytics() {
               { value: 'month', label: '30 Days' },
               { value: 'year', label: '1 Year' },
             ]}
-            style={{ width: '120px' }}
+            style={{ width: rem(120) }}
           />
+          <Button
+            variant="light"
+            leftSection={<IconDownload size={16} />}
+          >
+            Export
+          </Button>
           <Button leftSection={<IconRefresh size={16} />} variant="light">
             Refresh
           </Button>
         </Group>
-      </Group>
+      }
+    >
 
       {/* Summary Cards */}
-      <Grid mb="md">
-        <Grid.Col span={{ base: 12, md: 6, lg: 3 }}>
-          <Card withBorder p="lg">
-            <Group justify="space-between">
-              <div>
-                <Text size="xs" c="dimmed">
-                  Total Portfolio Value
-                </Text>
-                <Text fw={700} size="lg">
-                  {formatCurrency(totalPortfolioValue)}
-                </Text>
-              </div>
-              <IconWallet size={30} color="#228be6" />
-            </Group>
-          </Card>
-        </Grid.Col>
+      <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="md" mb="xl">
+        <IOSCard elevated>
+          <Group justify="space-between" p="lg">
+            <Box>
+              <Text size="xs" c="dimmed" tt="uppercase" fw={500}>
+                Total Portfolio Value
+              </Text>
+              <Text fw={700} size="lg">
+                {formatCurrency(totalPortfolioValue)}
+              </Text>
+            </Box>
+            <Box
+              style={{
+                padding: rem(8),
+                borderRadius: rem(8),
+                backgroundColor: '#f2f2f7',
+              }}
+            >
+              <IconWallet size={20} color="#007AFF" />
+            </Box>
+          </Group>
+        </IOSCard>
 
-        <Grid.Col span={{ base: 12, md: 6, lg: 3 }}>
-          <Card withBorder p="lg">
-            <Group justify="space-between">
-              <div>
-                <Text size="xs" c="dimmed">
-                  24h Change
-                </Text>
-                <Text fw={700} size="lg" c={change24h >= 0 ? 'green' : 'red'}>
-                  {change24h >= 0 ? '+' : ''}
-                  {change24h}%
-                </Text>
-              </div>
-              <IconChartLine size={30} color={change24h >= 0 ? '#40c057' : '#fa5252'} />
-            </Group>
-          </Card>
-        </Grid.Col>
+        <IOSCard elevated>
+          <Group justify="space-between" p="lg">
+            <Box>
+              <Text size="xs" c="dimmed" tt="uppercase" fw={500}>
+                24h Change
+              </Text>
+              <Text fw={700} size="lg" c={change24h >= 0 ? 'green' : 'red'}>
+                {change24h >= 0 ? '+' : ''}
+                {change24h}%
+              </Text>
+            </Box>
+            <Box
+              style={{
+                padding: rem(8),
+                borderRadius: rem(8),
+                backgroundColor: '#f2f2f7',
+              }}
+            >
+              <IconChartLine size={20} color={change24h >= 0 ? '#34C759' : '#FF3B30'} />
+            </Box>
+          </Group>
+        </IOSCard>
 
-        <Grid.Col span={{ base: 12, md: 6, lg: 3 }}>
-          <Card withBorder p="lg">
-            <Group justify="space-between">
-              <div>
-                <Text size="xs" c="dimmed">
-                  Total Transactions
-                </Text>
-                <Text fw={700} size="lg">
-                  159
-                </Text>
-              </div>
-              <IconChartBar size={30} color="#be4bdb" />
-            </Group>
-          </Card>
-        </Grid.Col>
+        <IOSCard elevated>
+          <Group justify="space-between" p="lg">
+            <Box>
+              <Text size="xs" c="dimmed" tt="uppercase" fw={500}>
+                Total Transactions
+              </Text>
+              <Text fw={700} size="lg">
+                159
+              </Text>
+            </Box>
+            <Box
+              style={{
+                padding: rem(8),
+                borderRadius: rem(8),
+                backgroundColor: '#f2f2f7',
+              }}
+            >
+              <IconChartBar size={20} color="#FF9500" />
+            </Box>
+          </Group>
+        </IOSCard>
 
-        <Grid.Col span={{ base: 12, md: 6, lg: 3 }}>
-          <Card withBorder p="lg">
-            <Group justify="space-between">
-              <div>
-                <Text size="xs" c="dimmed">
-                  Active Wallets
-                </Text>
-                <Text fw={700} size="lg">
-                  4
-                </Text>
-              </div>
-              <IconWallet size={30} color="#fd7e14" />
-            </Group>
-          </Card>
-        </Grid.Col>
-      </Grid>
-
-      {/* Chart Controls */}
-      <Group mb="md">
-        <SegmentedControl
-          value={chartType}
-          onChange={setChartType}
-          data={[
-            { label: 'Price', value: 'price' },
-            { label: 'Transactions', value: 'transactions' },
-            { label: 'Asset Distribution', value: 'distribution' },
-          ]}
-        />
-
-        {chartType === 'price' && (
-          <Select
-            value={selectedAsset}
-            onChange={(value) => setSelectedAsset(value || 'AVAX')}
-            data={[
-              { value: 'AVAX', label: 'AVAX' },
-              { value: 'ETH', label: 'ETH' },
-              { value: 'BTC', label: 'BTC' },
-            ]}
-            style={{ width: '100px' }}
-          />
-        )}
-      </Group>
+        <IOSCard elevated>
+          <Group justify="space-between" p="lg">
+            <Box>
+              <Text size="xs" c="dimmed" tt="uppercase" fw={500}>
+                Active Wallets
+              </Text>
+              <Text fw={700} size="lg">
+                4
+              </Text>
+            </Box>
+            <Box
+              style={{
+                padding: rem(8),
+                borderRadius: rem(8),
+                backgroundColor: '#f2f2f7',
+              }}
+            >
+              <IconWallet size={20} color="#8E8E93" />
+            </Box>
+          </Group>
+        </IOSCard>
+      </SimpleGrid>
 
       {/* Charts */}
-      <Card withBorder p="lg" h={400}>
+      <IOSCard>
+        <IOSSectionHeader
+          title="Performance Charts"
+          subtitle="Visualize your portfolio data"
+          action={
+            <Group>
+              <SegmentedControl
+                value={chartType}
+                onChange={setChartType}
+                data={[
+                  { label: 'Price', value: 'price' },
+                  { label: 'Transactions', value: 'transactions' },
+                  { label: 'Distribution', value: 'distribution' },
+                ]}
+              />
+              {chartType === 'price' && (
+                <Select
+                  value={selectedAsset}
+                  onChange={(value) => setSelectedAsset(value || 'AVAX')}
+                  data={[
+                    { value: 'AVAX', label: 'AVAX' },
+                    { value: 'ETH', label: 'ETH' },
+                    { value: 'BTC', label: 'BTC' },
+                  ]}
+                  style={{ width: rem(100) }}
+                />
+              )}
+            </Group>
+          }
+        />
+
+        <Box p="md" style={{ height: rem(400) }}>
         {chartType === 'price' && (
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={PRICE_DATA} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
@@ -263,7 +297,8 @@ export default function Analytics() {
             </Stack>
           </Group>
         )}
-      </Card>
-    </div>
+        </Box>
+      </IOSCard>
+    </IOSPageWrapper>
   );
 }

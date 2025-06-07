@@ -10,7 +10,6 @@ import {
 import {
   Title,
   Text,
-  Card,
   Grid,
   Badge,
   Group,
@@ -28,6 +27,7 @@ import {
   Alert,
   Center,
 } from '@mantine/core';
+import { IOSCard, IOSPageWrapper } from '@/components/UI/IOSCard';
 import { useForm } from '@mantine/form';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -208,14 +208,10 @@ export default function Wallets() {
   );
 
   return (
-    <div>
-      <Group justify="space-between" mb="lg">
-        <div>
-          <Title order={2}>Wallets</Title>
-          <Text c="dimmed" size="sm">
-            Manage and monitor your blockchain wallets
-          </Text>
-        </div>
+    <IOSPageWrapper
+      title="Wallets"
+      subtitle="Manage and monitor your blockchain wallets"
+      action={
         <Button
           leftSection={<IconPlus size={16} />}
           variant="filled"
@@ -223,90 +219,90 @@ export default function Wallets() {
         >
           Add Wallet
         </Button>
+      }
+    >
+      {/* Add Wallet Modal */}
+      <Modal
+        opened={modalOpened}
+        onClose={() => setModalOpened(false)}
+        title="Add New Wallet"
+        size="md"
+      >
+        <form onSubmit={form.onSubmit(handleSubmit)}>
+          <Stack gap="md">
+            <TextInput
+              label="Wallet Name"
+              placeholder="Main Wallet"
+              required
+              {...form.getInputProps('name')}
+            />
 
-        {/* Add Wallet Modal */}
-        <Modal
-          opened={modalOpened}
-          onClose={() => setModalOpened(false)}
-          title="Add New Wallet"
-          size="md"
-        >
-          <form onSubmit={form.onSubmit(handleSubmit)}>
-            <Stack gap="md">
-              <TextInput
-                label="Wallet Name"
-                placeholder="Main Wallet"
-                required
-                {...form.getInputProps('name')}
-              />
+            <Select
+              label="Blockchain/Network"
+              placeholder="Select blockchain/network"
+              data={[
+                { value: 'ETH', label: 'Ethereum' },
+                { value: 'AVAX', label: 'Avalanche' },
+                { value: 'MATIC', label: 'Polygon' },
+                { value: 'SOL', label: 'Solana' },
+                { value: 'BTC', label: 'Bitcoin' },
+                // Add more as needed
+              ]}
+              required
+              {...form.getInputProps('blockchain')}
+              onChange={(value) => {
+                form.setFieldValue('blockchain', value || '');
+                // Update subnet options and reset subnet if the new network doesn't have the current one
+                const newSubnetOptions = subnetOptionsByNetwork[value || ''] || [];
+                const currentSubnetIsValid = newSubnetOptions.some(
+                  (opt) => opt.value === form.values.subnet
+                );
+                if (!currentSubnetIsValid) {
+                  form.setFieldValue('subnet', newSubnetOptions[0]?.value || '');
+                }
+              }}
+            />
 
-              <Select
-                label="Blockchain/Network"
-                placeholder="Select blockchain/network"
-                data={[
-                  { value: 'ETH', label: 'Ethereum' },
-                  { value: 'AVAX', label: 'Avalanche' },
-                  { value: 'MATIC', label: 'Polygon' },
-                  { value: 'SOL', label: 'Solana' },
-                  { value: 'BTC', label: 'Bitcoin' },
-                  // Add more as needed
-                ]}
-                required
-                {...form.getInputProps('blockchain')}
-                onChange={(value) => {
-                  form.setFieldValue('blockchain', value || '');
-                  // Update subnet options and reset subnet if the new network doesn't have the current one
-                  const newSubnetOptions = subnetOptionsByNetwork[value || ''] || [];
-                  const currentSubnetIsValid = newSubnetOptions.some(
-                    (opt) => opt.value === form.values.subnet
-                  );
-                  if (!currentSubnetIsValid) {
-                    form.setFieldValue('subnet', newSubnetOptions[0]?.value || '');
-                  }
-                }}
-              />
+            <TextInput
+              label="Address"
+              placeholder="e.g., 0x... or bc1..."
+              required
+              {...form.getInputProps('address')}
+            />
 
-              <TextInput
-                label="Address"
-                placeholder="e.g., 0x... or bc1..."
-                required
-                {...form.getInputProps('address')}
-              />
+            <Select
+              label="Subnet/Chain"
+              placeholder="Select subnet/chain"
+              required
+              data={subnetOptionsByNetwork[form.values.blockchain] || []}
+              {...form.getInputProps('subnet')}
+            />
 
-              <Select
-                label="Subnet/Chain"
-                placeholder="Select subnet/chain"
-                required
-                data={subnetOptionsByNetwork[form.values.blockchain] || []}
-                {...form.getInputProps('subnet')}
-              />
+            <Textarea
+              label="Description"
+              placeholder="Optional description for this wallet"
+              {...form.getInputProps('description')}
+            />
 
-              <Textarea
-                label="Description"
-                placeholder="Optional description for this wallet"
-                {...form.getInputProps('description')}
-              />
+            <Switch
+              label="Active"
+              checked={form.values.isActive}
+              onChange={(event) => form.setFieldValue('isActive', event.currentTarget.checked)}
+            />
 
-              <Switch
-                label="Active"
-                checked={form.values.isActive}
-                onChange={(event) => form.setFieldValue('isActive', event.currentTarget.checked)}
-              />
+            <Divider />
 
-              <Divider />
-
-              <Group justify="flex-end">
-                <Button variant="light" onClick={() => setModalOpened(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" leftSection={<IconCheck size={16} />}>
-                  Add Wallet
-                </Button>
-              </Group>
-            </Stack>
-          </form>
-        </Modal>
-      </Group>
+            <Group justify="flex-end">
+              <Button variant="light" onClick={() => setModalOpened(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" leftSection={<IconCheck size={16} />}>
+                Add Wallet
+              </Button>
+            </Group>
+          </Stack>
+        </form>
+      </Modal>
 
       {error && (
         <Alert color="red" title="Error" mb="md" onClose={() => dispatch(clearWalletsError())}>
@@ -314,8 +310,8 @@ export default function Wallets() {
         </Alert>
       )}
 
-      <Card withBorder mb="md">
-        <Group justify="space-between" mb="md">
+      <IOSCard>
+        <Group justify="space-between" mb="md" p="md">
           <TextInput
             placeholder="Search wallets..."
             leftSection={<IconSearch size={16} />}
@@ -363,25 +359,27 @@ export default function Wallets() {
             </Stack>
           </Center>
         ) : (
-          <Grid>
+          <Grid p="md">
             {paginatedWallets.map((wallet) => (
               <Grid.Col span={{ base: 12, md: 6, lg: 4 }} key={wallet.id}>
-                <Card
-                  withBorder
-                  p="md"
-                  radius="md"
+                <IOSCard
+                  interactive
+                  elevated
                   onClick={() => navigate(`/ekko/wallets/${wallet.id}`)}
-                  style={{ cursor: 'pointer' }}
+                  p="md"
                 >
                   <Group justify="space-between" mb="xs">
                     <Group>
-                      <IconWallet size={20} />
+                      <IconWallet size={20} color="#007AFF" />
                       <Text fw={700}>{wallet.name}</Text>
                     </Group>
                     <Badge
                       color={wallet.status === 'active' ? 'green' : 'red'}
                       style={{ cursor: 'pointer' }}
-                      onClick={() => handleToggleStatus(wallet)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggleStatus(wallet);
+                      }}
                     >
                       {wallet.status === 'active' ? 'Active' : 'Inactive'}
                     </Badge>
@@ -399,23 +397,26 @@ export default function Wallets() {
                     <ActionIcon
                       color="red"
                       variant="subtle"
-                      onClick={() => handleDeleteWallet(wallet.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteWallet(wallet.id);
+                      }}
                     >
                       <IconTrash size={16} />
                     </ActionIcon>
                   </Group>
-                </Card>
+                </IOSCard>
               </Grid.Col>
             ))}
           </Grid>
         )}
 
         {filteredWallets.length > parseInt(pageSize) && (
-          <Group justify="center" mt="xl">
+          <Group justify="center" mt="xl" p="md">
             <Pagination value={activePage} onChange={setActivePage} total={totalPages} />
           </Group>
         )}
-      </Card>
-    </div>
+      </IOSCard>
+    </IOSPageWrapper>
   );
 }
