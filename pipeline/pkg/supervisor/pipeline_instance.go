@@ -5,16 +5,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/nats-io/nats.go"
 	"github.com/web3ekko/ekko-ce/pipeline/pkg/common"
 	"github.com/web3ekko/ekko-ce/pipeline/pkg/decoder" // For RedisClient if BlockFetcher needs it
 	// We will likely use blockchain.WebSocketSource directly or adapt it
 	"github.com/web3ekko/ekko-ce/pipeline/pkg/blockchain" 
-	// For NATSSink and potentially blockchain.Block type if not moved
-	// ekkoPipeline "github.com/web3ekko/ekko-ce/pipeline/internal/pipeline" // This import is no longer used
+	// For transaction persistence to Arrow files
+	"github.com/web3ekko/ekko-ce/pipeline/pkg/persistence"
 )
 
 // NodeStatusUpdater defines the callback function signature for updating node status.
@@ -148,10 +151,10 @@ type ManagedPipeline struct {
 	source  HeadSource         // Abstracted source
 	// sink    *ekkoPipeline.NATSSink // Re-use or adapt NATSSink - We will publish directly using natsConn for now
 
-	ctx    context.Context
-	cancel context.CancelFunc
-	wg     sync.WaitGroup
-	mu     sync.Mutex // For protecting access to nodeConfigs and activeNodeConfig
+	ctx              context.Context
+	cancel           context.CancelFunc  // For canceling the context
+	wg               sync.WaitGroup      // For synchronizing goroutines
+	arrowWriter      *persistence.ArrowWriter // For transaction persistence
 }
 
 // NewManagedPipeline creates and initializes a new ManagedPipeline instance.
@@ -167,6 +170,51 @@ func NewManagedPipeline(
 ) (ManagedPipelineInterface, error) {
 	if len(initialNodes) == 0 {
 		return nil, fmt.Errorf("cannot create ManagedPipeline for %s-%s-%s with no nodes", network, subnet, vmType)
+	}
+
+	// Configure and initialize the ArrowWriter for transaction persistence
+	// Get MinIO configuration from environment variables
+	endpoint := getEnvWithDefault("MINIO_ENDPOINT", "localhost:9000")
+	accessKey := getEnvWithDefault("MINIO_ACCESS_KEY", "minioadmin")
+	secretKey := getEnvWithDefault("MINIO_SECRET_KEY", "minioadmin")
+	bucketName := getEnvWithDefault("MINIO_BUCKET", "blockchain-data")
+	useSSL := getEnvBoolWithDefault("MINIO_USE_SSL", false)
+	
+	// Configure MinIO for ArrowWriter
+	minioConfig := persistence.MinioConfig{
+		Endpoint:   endpoint,
+		AccessKey:  accessKey,
+		SecretKey:  secretKey,
+		UseSSL:     useSSL,
+		BucketName: bucketName,
+		BasePath:   "transactions", // Base path for Arrow files
+	}
+	
+	// Initialize MinIO storage - ensureBucketExists is called automatically in NewMinioStorage
+	_, err := persistence.NewMinioStorage(minioConfig)
+	if err != nil {
+		log.Printf("NewManagedPipeline: Failed to initialize MinIO storage: %v", err)
+		return nil, fmt.Errorf("failed to initialize MinIO storage: %w", err)
+	}
+	
+	log.Printf("NewManagedPipeline: Successfully connected to MinIO and ensured bucket %s exists", bucketName)
+	
+	arrowWriterConfig := persistence.ArrowWriterConfig{
+		BatchSize:     25, // Default batch size, can be made configurable
+		FlushInterval: 10 * time.Second, // Default flush interval, can be made configurable
+		MinioConfig:   minioConfig,
+		NatsURL:            natsConn.ConnectedUrl(), // Use the current NATS connection URL
+		NatsSubjectPattern: fmt.Sprintf("ekko.%s.%s.%s.persistence", 
+			strings.ToLower(network),
+			strings.ToLower(subnet),
+			strings.ToLower(vmType)),
+	}
+	
+	arrowWriter, err := persistence.NewArrowWriter(arrowWriterConfig)
+	if err != nil {
+		log.Printf("NewManagedPipeline: Failed to create ArrowWriter for network=%s subnet=%s vm_type=%s: %v", 
+			network, subnet, vmType, err)
+		return nil, fmt.Errorf("failed to create ArrowWriter: %w", err)
 	}
 
 	mpCtx, mpCancel := context.WithCancel(parentCtx)
@@ -197,7 +245,7 @@ func NewManagedPipeline(
 	// Stream/Subject determination will also be part of the Run/publish logic.
 	log.Printf("ManagedPipeline [%s]: NATS connection available for direct publishing.", pipelineID)
 
-	mp := &ManagedPipeline{
+	return &ManagedPipeline{
 		id:               pipelineID,
 		network:          network,
 		subnet:           subnet,
@@ -208,19 +256,16 @@ func NewManagedPipeline(
 		redisClient:      redisClient,
 		statusUpdater:    statusUpdater,
 		source:           sourceAdapter,
-		// sink:             sink, // Removed, will publish directly
 		ctx:              mpCtx,
 		cancel:           mpCancel,
-	}
-
-	return mp, nil
+		arrowWriter:      arrowWriter,
+	}, nil
 }
 
+// ... rest of the code remains the same ...
 // UpdateNodeConfigs updates the list of nodes for this pipeline. It re-evaluates the active node
 // and reconfigures the underlying source if the active node or its connection details change.
 func (mp *ManagedPipeline) UpdateNodeConfigs(newNodes []common.NodeConfig) error {
-	mp.mu.Lock()
-	defer mp.mu.Unlock()
 
 	log.Printf("ManagedPipeline [%s]: Updating node configurations with %d new nodes.", mp.id, len(newNodes))
 	mp.nodeConfigs = newNodes // Store all current nodes for this pipeline
@@ -330,6 +375,14 @@ func (mp *ManagedPipeline) Run() error {
 	mp.wg.Add(1)
 	defer mp.wg.Done()
 
+	// Check if already running
+	if mp.ctx != nil {
+		return fmt.Errorf("ManagedPipeline [%s]: already running", mp.id)
+	}
+
+	// Create a context that will control the lifecycle of this pipeline
+	mp.ctx, mp.cancel = context.WithCancel(context.Background())
+
 	log.Printf("ManagedPipeline [%s]: Starting Run loop for active node %s (%s)", mp.id, mp.activeNodeConfig.ID, mp.activeNodeConfig.Name)
 
 	if mp.source == nil {
@@ -342,12 +395,27 @@ func (mp *ManagedPipeline) Run() error {
 
 	// Start the source
 	if err := mp.source.Start(mp.ctx); err != nil {
-		log.Printf("ManagedPipeline [%s]: Error starting source for node %s: %v", mp.id, mp.activeNodeConfig.Name, err)
-		if mp.statusUpdater != nil {
-			go mp.statusUpdater(mp.activeNodeConfig.ID, common.NodeStatusError, fmt.Sprintf("failed to start source: %v", err))
-		}
-		return fmt.Errorf("failed to start source for pipeline %s: %w", mp.id, err)
+		log.Printf("ManagedPipeline [%s]: Failed to start source: %v", mp.id, err)
+		return fmt.Errorf("failed to start source: %w", err)
 	}
+	
+	// Start the ArrowWriter for transaction persistence
+	log.Printf("ManagedPipeline [%s]: Starting ArrowWriter for transaction persistence", mp.id)
+	mp.wg.Add(1)
+	go func() {
+		defer mp.wg.Done()
+		if err := mp.arrowWriter.Start(mp.ctx); err != nil && err != context.Canceled {
+			log.Printf("ManagedPipeline [%s]: ArrowWriter stopped with error: %v", mp.id, err)
+			// Update node status if there's an error with the ArrowWriter
+			if mp.statusUpdater != nil {
+				mp.statusUpdater(mp.activeNodeConfig.ID, common.NodeStatusUnhealthy, 
+					fmt.Sprintf("ArrowWriter failed: %v", err))
+			}
+		} else {
+			log.Printf("ManagedPipeline [%s]: ArrowWriter stopped gracefully", mp.id)
+		}
+	}()
+
 	log.Printf("ManagedPipeline [%s]: Source started successfully for node %s.", mp.id, mp.activeNodeConfig.Name)
 	if mp.statusUpdater != nil {
 		// Update status to Active once source has successfully started
@@ -440,10 +508,16 @@ func (mp *ManagedPipeline) Run() error {
 }
 
 // Stop signals the ManagedPipeline to shut down gracefully by cancelling its context.
+// This will also stop the ArrowWriter via the context cancellation.
 func (mp *ManagedPipeline) Stop() {
 	log.Printf("ManagedPipeline [%s]: Signaling stop...", mp.id)
-	mp.cancel() // Trigger context cancellation. Run() loop will handle source.Close().
+	if mp.cancel != nil {
+		mp.cancel() // Trigger context cancellation. Run() loop will handle source.Close() and ArrowWriter shutdown.
+	}
 }
+
+// Stop signals the ManagedPipeline to shut down gracefully by cancelling its context.
+// This will also stop the ArrowWriter via the context cancellation.
 
 // Wait blocks until the ManagedPipeline's Run method has completed and all associated goroutines are done.
 func (mp *ManagedPipeline) Wait() {
@@ -453,3 +527,29 @@ func (mp *ManagedPipeline) Wait() {
 }
 
 // TODO: Adapt blockchain.WebSocketSource to implement HeadSource interface (if not already done by WebSocketSourceAdapter's methods)
+
+// Helper functions for environment variable parsing
+
+// getEnvWithDefault gets an environment variable or returns a default value if not found
+func getEnvWithDefault(key, defaultValue string) string {
+	value, exists := os.LookupEnv(key)
+	if !exists {
+		return defaultValue
+	}
+	return value
+}
+
+// getEnvBoolWithDefault gets a boolean environment variable or returns a default value if not found
+func getEnvBoolWithDefault(key string, defaultValue bool) bool {
+	value, exists := os.LookupEnv(key)
+	if !exists {
+		return defaultValue
+	}
+	
+	boolValue, err := strconv.ParseBool(value)
+	if err != nil {
+		return defaultValue
+	}
+	
+	return boolValue
+}
