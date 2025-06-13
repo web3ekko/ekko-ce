@@ -292,6 +292,128 @@ graph TD
 
 ## 🔄 Data Flow
 
+### Service-Specific NATS Usage
+
+#### 🔧 Pipeline Service (Go)
+- **Publishes to**: `transactions.{vmtype}.{network}.{subnet}`
+- **Stream**: `BLOCKCHAIN`
+- **Purpose**: Publishes processed blockchain transactions
+- **Configuration**: Per-subnet configuration in `config.yaml`
+
+#### 🦀 Delta Writer Service (Rust)
+- **Subscribes to**: `transactions.>` (all transaction subjects)
+- **Consumer**: `transactions-writer` (durable)
+- **Stream**: `BLOCKCHAIN`
+- **Purpose**: Consumes transactions and writes to Delta Lake tables
+- **Subject Parsing**: Extracts network/subnet for table routing
+
+#### 🐍 API Service (Python)
+- **Subscribes to**: `tx.*` (legacy pattern)
+- **Consumer**: `api-processor` (durable)
+- **Stream**: `transactions`
+- **Purpose**: Real-time wallet updates and notifications
+- **Additional Streams**: `users`, `wallet_balances`, `alerts`
+
+#### 📊 Dashboard Service
+- **Subscribes to**: Real-time updates via WebSocket
+- **Purpose**: Live transaction monitoring and alerts
+- **Connection**: Direct WebSocket to API service
+
+### NATS JetStream Configuration
+
+#### Stream Configurations
+
+```yaml
+# BLOCKCHAIN Stream (Primary)
+name: BLOCKCHAIN
+subjects: ["transactions.>"]
+retention: limits
+max_age: 24h
+storage: file
+replicas: 1
+
+# transactions-test Stream (Testing)
+name: transactions-test
+subjects: ["transactions.test.>"]
+retention: limits
+max_msgs: 1000000
+max_bytes: 1GB
+storage: file
+
+# Legacy transactions Stream (API)
+name: transactions
+subjects: ["tx.*"]
+retention: interest
+storage: file
+```
+
+#### Consumer Configurations
+
+```yaml
+# Delta Writer Consumer
+name: transactions-writer
+stream: BLOCKCHAIN
+filter_subject: transactions.>
+ack_policy: explicit
+max_deliver: 3
+ack_wait: 30s
+durable: true
+
+# API Consumer
+name: api-processor
+stream: transactions
+filter_subject: tx.*
+ack_policy: explicit
+max_deliver: 1
+durable: true
+```
+
+### Complete System Flow
+
+```mermaid
+graph TD
+    A[Pipeline Go Service] --> B[NATS JetStream]
+    B --> C[Delta Writer Rust Service]
+    C --> D[MinIO Delta Tables]
+    D --> E[API Python Service]
+    E --> F[Dashboard React App]
+
+    subgraph "NATS Streams & Subjects"
+        B1[BLOCKCHAIN Stream]
+        B2[transactions.subnet-evm.avalanche.mainnet]
+        B3[transactions.evm.ethereum.mainnet]
+        B4[transactions.evm.polygon.mainnet]
+        B5[transactions Stream]
+        B6[tx.wallet_id]
+    end
+
+    subgraph "Delta Lake Tables"
+        D1[events/avalanche/mainnet/]
+        D2[events/ethereum/mainnet/]
+        D3[events/polygon/mainnet/]
+    end
+
+    A --> B1
+    B1 --> B2
+    B1 --> B3
+    B1 --> B4
+
+    B2 --> C
+    B3 --> C
+    B4 --> C
+
+    C --> D1
+    C --> D2
+    C --> D3
+
+    B5 --> B6
+    B6 --> E
+
+    D1 --> E
+    D2 --> E
+    D3 --> E
+```
+
 ## 🛠️ Development
 
 ### Building
@@ -318,6 +440,70 @@ cargo test --test integration
 
 # Load testing
 cargo test --test load_test --release
+
+# Test NATS subject parsing and event processing
+python3 test_service.py
+```
+
+### Testing NATS Subject Patterns
+
+The `test_service.py` script demonstrates the complete subject pattern flow:
+
+```python
+# Test subjects that will be processed
+test_subjects = [
+    "transactions.test.subnet-evm.avalanche.mainnet",
+    "transactions.test.subnet-evm.avalanche.fuji",
+    "transactions.test.evm.ethereum.mainnet",
+    "transactions.test.evm.polygon.mainnet"
+]
+
+# Expected parsing results:
+# avalanche/mainnet -> events/avalanche/mainnet/
+# avalanche/fuji    -> events/avalanche/fuji/
+# ethereum/mainnet  -> events/ethereum/mainnet/
+# polygon/mainnet   -> events/polygon/mainnet/
+```
+
+#### Running the Test
+
+1. **Start the service**:
+   ```bash
+   RUST_LOG=debug cargo run --release
+   ```
+
+2. **Send test events**:
+   ```bash
+   python3 test_service.py
+   ```
+
+3. **Verify processing**:
+   - Check service logs for subject parsing
+   - Verify events stored by network/subnet
+   - Confirm message acknowledgment
+
+#### Expected Output
+
+```
+📤 Sending 5 test events with production subjects...
+📨 Sent event 1/5 to transactions.test.subnet-evm.avalanche.mainnet
+📨 Sent event 2/5 to transactions.test.subnet-evm.avalanche.fuji
+📨 Sent event 3/5 to transactions.test.evm.ethereum.mainnet
+📨 Sent event 4/5 to transactions.test.evm.polygon.mainnet
+📨 Sent event 5/5 to transactions.test.subnet-evm.avalanche.mainnet
+✅ Successfully sent 5 events
+```
+
+Service logs will show:
+```
+🏷️  Parsed subject - Network: avalanche, Subnet: mainnet
+✅ Stored event for avalanche/mainnet
+🏷️  Parsed subject - Network: avalanche, Subnet: fuji
+✅ Stored event for avalanche/fuji
+🏷️  Parsed subject - Network: ethereum, Subnet: mainnet
+✅ Stored event for ethereum/mainnet
+🏷️  Parsed subject - Network: polygon, Subnet: mainnet
+✅ Stored event for polygon/mainnet
 ```
 
 ## 📊 Monitoring
@@ -347,6 +533,80 @@ RUST_LOG=debug
 
 # Service-specific debug
 RUST_LOG=info,ekko_delta_writer=debug
+```
+
+## 🔧 Troubleshooting NATS
+
+### Common Issues
+
+#### Stream Not Found
+```bash
+# Check existing streams
+nats stream list
+
+# Create missing stream
+nats stream add BLOCKCHAIN --subjects "transactions.>" --storage file --retention limits
+```
+
+#### Consumer Issues
+```bash
+# Check consumer status
+nats consumer info BLOCKCHAIN transactions-writer
+
+# Reset consumer (if needed)
+nats consumer rm BLOCKCHAIN transactions-writer
+```
+
+#### Subject Pattern Debugging
+
+Enable debug logging to see subject parsing:
+```bash
+RUST_LOG=debug cargo run
+```
+
+Look for these log patterns:
+```
+🏷️  Parsed subject - Network: avalanche, Subnet: mainnet
+✅ Stored event for avalanche/mainnet
+```
+
+#### Message Flow Verification
+
+1. **Check stream messages**:
+   ```bash
+   nats stream info BLOCKCHAIN
+   ```
+
+2. **Monitor consumer lag**:
+   ```bash
+   nats consumer info BLOCKCHAIN transactions-writer
+   ```
+
+3. **View pending messages**:
+   ```bash
+   nats consumer next BLOCKCHAIN transactions-writer --count 1
+   ```
+
+### NATS CLI Commands
+
+```bash
+# Install NATS CLI
+go install github.com/nats-io/natscli/nats@latest
+
+# Connect to NATS server
+export NATS_URL=nats://localhost:4222
+
+# List all streams
+nats stream list
+
+# List all consumers for a stream
+nats consumer list BLOCKCHAIN
+
+# Publish test message
+nats pub transactions.test.evm.ethereum.mainnet '{"test": "data"}'
+
+# Subscribe to subjects
+nats sub "transactions.>"
 ```
 
 ## 🔮 Future Enhancements
