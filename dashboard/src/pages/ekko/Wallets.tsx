@@ -154,11 +154,12 @@ export default function Wallets() {
   const handleSubmit = async (values: WalletFormValues) => {
     const walletPayload = {
       blockchain_symbol: values.blockchain,
-      subnet: values.subnet, // Added subnet
+      subnet: values.subnet,
       address: values.address,
       name: values.name,
       balance: 0, // Initial balance, or let backend decide
       status: values.isActive ? 'active' : 'inactive',
+      description: values.description || '', // Include description
     };
 
     try {

@@ -31,17 +31,17 @@ type FetcherConfig struct {
 
 // FetcherSupervisor manages the lifecycle of BlockFetcher instances.
 type FetcherSupervisor struct {
-	ctx                   context.Context
-	cancel                context.CancelFunc
-	natsConn              *nats.Conn
-	jsCtx                 nats.JetStreamContext
+	ctx      context.Context
+	cancel   context.CancelFunc
+	natsConn *nats.Conn
+	jsCtx    nats.JetStreamContext
 	// fetcherConfigKV is removed as configs are now derived from allNodeConfigs
-	fetcherDataKVName     string // Name of the KV store to be used by individual fetchers for their data
-	redisClient           decoder.RedisClient
-	allNodeConfigs        []ekkoCommon.NodeConfig // All node configurations provided by PipelineSupervisor
-	filterWalletsEnabled  bool                    // New: To store the FILTER_WALLETS setting
+	fetcherDataKVName    string // Name of the KV store to be used by individual fetchers for their data
+	redisClient          decoder.RedisClient
+	allNodeConfigs       []ekkoCommon.NodeConfig // All node configurations provided by PipelineSupervisor
+	filterWalletsEnabled bool                    // New: To store the FILTER_WALLETS setting
 
-	activeFetchers map[string]*managedFetcher // Map key: "<network>.<subnet>.<vmType>"
+	activeFetchers map[string]*managedFetcher // Map key: "<nodeID>"
 	mu             sync.Mutex
 	wg             sync.WaitGroup
 }
@@ -99,16 +99,16 @@ func NewFetcherSupervisor(
 	copy(initialNodeConfigs, nodeCfgs)
 
 	fs := &FetcherSupervisor{
-		ctx:                   supervisorCtx,
-		cancel:                supervisorCancel,
-		natsConn:              nc,
-		jsCtx:                 js,
+		ctx:      supervisorCtx,
+		cancel:   supervisorCancel,
+		natsConn: nc,
+		jsCtx:    js,
 		// fetcherConfigKV: configKV, // Removed
-		fetcherDataKVName:     fetcherDataKVName,
-		redisClient:           redisClient,
-		allNodeConfigs:        initialNodeConfigs, // Store initial nodeCfgs
-		filterWalletsEnabled:  filterWalletsEnabled, // New
-		activeFetchers:        make(map[string]*managedFetcher),
+		fetcherDataKVName:    fetcherDataKVName,
+		redisClient:          redisClient,
+		allNodeConfigs:       initialNodeConfigs,   // Store initial nodeCfgs
+		filterWalletsEnabled: filterWalletsEnabled, // New
+		activeFetchers:       make(map[string]*managedFetcher),
 	}
 
 	return fs, nil
@@ -152,10 +152,10 @@ func (fs *FetcherSupervisor) Run() error {
 // node configurations changes. It updates the internal list and triggers a synchronization.
 func (fs *FetcherSupervisor) UpdateNodeConfigs(newConfigs []ekkoCommon.NodeConfig) {
 	log.Printf("FetcherSupervisor: Received updated node configurations. Count: %d. Triggering sync.", len(newConfigs))
-	
+
 	fs.mu.Lock()
 	fs.allNodeConfigs = make([]ekkoCommon.NodeConfig, len(newConfigs)) // Create a new slice
-	copy(fs.allNodeConfigs, newConfigs)                               // Copy contents
+	copy(fs.allNodeConfigs, newConfigs)                                // Copy contents
 	fs.mu.Unlock()
 
 	// Trigger synchronization in a goroutine to avoid blocking the caller (PipelineSupervisor).
@@ -175,29 +175,17 @@ func (fs *FetcherSupervisor) synchronizeFetchers() error {
 
 	log.Printf("FetcherSupervisor: Starting fetcher synchronization based on %d node configurations...", len(fs.allNodeConfigs))
 
-	desiredFetchers := make(map[string]FetcherConfig) // Key: <network>.<subnet>.<vmType>
+	desiredFetchers := make(map[string]ekkoCommon.NodeConfig) // Key: <nodeID>
 
 	for _, nodeCfg := range fs.allNodeConfigs {
 		if !nodeCfg.IsEnabled {
 			continue // Only consider enabled nodes for fetchers
 		}
 
-		fetcherKey := fmt.Sprintf("%s.%s.%s",
-			strings.ToLower(nodeCfg.Network),
-			strings.ToLower(nodeCfg.Subnet),
-			strings.ToLower(nodeCfg.VMType))
+		fetcherKey := nodeCfg.ID // Use node ID as the unique key
 
-		if _, exists := desiredFetchers[fetcherKey]; !exists {
-			// Use original casing from NodeConfig for consistency in FetcherConfig struct
-			// but the fetcherKey for map lookups is lowercased.
-			cfg := FetcherConfig{
-				Network: nodeCfg.Network, 
-				Subnet:  nodeCfg.Subnet,
-				VMType:  nodeCfg.VMType,
-			}
-			desiredFetchers[fetcherKey] = cfg
-			log.Printf("FetcherSupervisor: Identified desired fetcher type: Key=%s, Network=%s, Subnet=%s, VMType=%s", fetcherKey, cfg.Network, cfg.Subnet, cfg.VMType)
-		}
+		desiredFetchers[fetcherKey] = nodeCfg
+		log.Printf("FetcherSupervisor: Identified desired fetcher for node: ID=%s, Name=%s, Network=%s, Subnet=%s, VMType=%s", fetcherKey, nodeCfg.Name, nodeCfg.Network, nodeCfg.Subnet, nodeCfg.VMType)
 	}
 
 	// Stop fetchers that are running but no longer desired
@@ -209,30 +197,10 @@ func (fs *FetcherSupervisor) synchronizeFetchers() error {
 	}
 
 	// Start fetchers that are desired but not yet running
-	for fetcherKey, fetcherConf := range desiredFetchers { // Use fetcherKey and fetcherConf for clarity
+	for fetcherKey, nodeConfig := range desiredFetchers { // fetcherKey is nodeID, nodeConfig is the NodeConfig
 		if _, exists := fs.activeFetchers[fetcherKey]; !exists {
-			var selectedNodeConfig *ekkoCommon.NodeConfig
-			// Iterate over a copy of allNodeConfigs taken at the beginning of this locked section
-			// to ensure consistency if allNodeConfigs is updated concurrently (though UpdateNodeConfigs also locks).
-			currentConfigsSnapshot := fs.allNodeConfigs
-			for i, nc := range currentConfigsSnapshot { 
-				if nc.IsEnabled &&
-					strings.EqualFold(nc.Network, fetcherConf.Network) &&
-					strings.EqualFold(nc.Subnet, fetcherConf.Subnet) &&
-					strings.EqualFold(nc.VMType, fetcherConf.VMType) {
-					// Pass the actual NodeConfig from the snapshot, not a pointer to loop variable 'nc'
-					selectedNodeConfig = &currentConfigsSnapshot[i] 
-					break
-				}
-			}
-
-			if selectedNodeConfig == nil {
-				log.Printf("FetcherSupervisor: Could not find an enabled NodeConfig for desired fetcher type %s. Skipping start.", fetcherKey)
-				continue
-			}
-
-			log.Printf("FetcherSupervisor: Starting new fetcher for type %s using Node %s (%s).", fetcherKey, selectedNodeConfig.Name, selectedNodeConfig.ID)
-			fs.startFetcherLocked(fetcherKey, fetcherConf, *selectedNodeConfig) // Call internal locked version, pass concrete NodeConfig
+			log.Printf("FetcherSupervisor: Starting new fetcher for node %s (%s) - Network: %s, Subnet: %s, VMType: %s", nodeConfig.Name, nodeConfig.ID, nodeConfig.Network, nodeConfig.Subnet, nodeConfig.VMType)
+			fs.startFetcherLocked(fetcherKey, nodeConfig) // Pass nodeID and NodeConfig directly
 		}
 	}
 
@@ -241,12 +209,11 @@ func (fs *FetcherSupervisor) synchronizeFetchers() error {
 }
 
 // startFetcherLocked starts a new BlockFetcher instance. Assumes fs.mu is held.
-// key is the fetcher type identifier (<network>.<subnet>.<vmType>).
-// fetcherDetails contains the parsed Network, Subnet, VMType.
-// nodeForFetcher is a specific, enabled NodeConfig that matches this type and will be used to instantiate the BlockFetcher.
-func (fs *FetcherSupervisor) startFetcherLocked(key string, fetcherDetails FetcherConfig, nodeForFetcher ekkoCommon.NodeConfig) {
+// key is the node identifier (nodeID).
+// nodeForFetcher is the specific NodeConfig that will be used to instantiate the BlockFetcher.
+func (fs *FetcherSupervisor) startFetcherLocked(key string, nodeForFetcher ekkoCommon.NodeConfig) {
 	// Ensure data KV store for the fetcher
-	// It's assumed that the fetcherDataKVName refers to a single KV store shared by all fetchers, 
+	// It's assumed that the fetcherDataKVName refers to a single KV store shared by all fetchers,
 	// or that BlockFetcher internally handles namespacing if needed.
 	dataKVForFetcher, err := fs.jsCtx.KeyValue(fs.fetcherDataKVName)
 	if err != nil {
@@ -281,11 +248,11 @@ func (fs *FetcherSupervisor) startFetcherLocked(key string, fetcherDetails Fetch
 
 	go func(managedF *managedFetcher, cKey string, nodeID string) {
 		defer managedF.wg.Done() // Signal this fetcher's goroutine completion
-		defer fs.wg.Done()      // Signal to supervisor that one of its main tasks is done
+		defer fs.wg.Done()       // Signal to supervisor that one of its main tasks is done
 
 		log.Printf("FetcherSupervisor: Goroutine starting for BlockFetcher %s (Node: %s)", cKey, nodeID)
 		runErr := managedF.instance.Run(managedF.ctx) // This blocks until the fetcher stops or context is cancelled
-		
+
 		if runErr != nil {
 			log.Printf("FetcherSupervisor: BlockFetcher %s (Node: %s) Run loop exited with error: %v", cKey, nodeID, runErr)
 		} else {
@@ -306,10 +273,10 @@ func (fs *FetcherSupervisor) startFetcherLocked(key string, fetcherDetails Fetch
 				delete(fs.activeFetchers, cKey)
 			}
 		} else if managedF.ctx.Err() != nil {
-		    // If managedF.ctx.Err() is not nil, it means stopFetcherLocked or shutdownAllFetchers was called.
-		    // stopFetcherLocked already removes it from activeFetchers. shutdownAllFetchers clears the map.
-		    // So, no explicit delete(fs.activeFetchers, cKey) is needed here for that case.
-		    log.Printf("FetcherSupervisor: BlockFetcher %s (Node: %s) was stopped by supervisor directive.", cKey, nodeID)
+			// If managedF.ctx.Err() is not nil, it means stopFetcherLocked or shutdownAllFetchers was called.
+			// stopFetcherLocked already removes it from activeFetchers. shutdownAllFetchers clears the map.
+			// So, no explicit delete(fs.activeFetchers, cKey) is needed here for that case.
+			log.Printf("FetcherSupervisor: BlockFetcher %s (Node: %s) was stopped by supervisor directive.", cKey, nodeID)
 		}
 		fs.mu.Unlock()
 
@@ -326,8 +293,8 @@ func (fs *FetcherSupervisor) stopFetcherLocked(key string, mf *managedFetcher) {
 		log.Printf("FetcherSupervisor: stopFetcherLocked called for key %s with nil managedFetcher.", key)
 		return
 	}
-	log.Printf("FetcherSupervisor: Stopping BlockFetcher for %s (Node: %s)...", key, mf.instance.NodeConfig().ID) 
-	
+	log.Printf("FetcherSupervisor: Stopping BlockFetcher for %s (Node: %s)...", key, mf.instance.NodeConfig().ID)
+
 	delete(fs.activeFetchers, key) // Remove from active list immediately under lock
 	log.Printf("FetcherSupervisor: Removed %s from active fetchers map.", key)
 
@@ -342,7 +309,7 @@ func (fs *FetcherSupervisor) shutdownAllFetchers() {
 	fs.mu.Lock()
 	log.Printf("FetcherSupervisor: Shutting down all %d active fetchers...", len(fs.activeFetchers))
 	activeFetchersToShutdown := make([]*managedFetcher, 0, len(fs.activeFetchers))
-	
+
 	// First, signal all fetchers to stop and collect them
 	for key, mf := range fs.activeFetchers {
 		log.Printf("FetcherSupervisor: Signaling shutdown for fetcher %s (Node: %s)", key, mf.instance.NodeConfig().ID)
@@ -350,7 +317,7 @@ func (fs *FetcherSupervisor) shutdownAllFetchers() {
 		activeFetchersToShutdown = append(activeFetchersToShutdown, mf)
 	}
 	fs.activeFetchers = make(map[string]*managedFetcher) // Clear the map of active fetchers immediately
-	fs.mu.Unlock() // Release lock before waiting
+	fs.mu.Unlock()                                       // Release lock before waiting
 
 	// Wait for all fetchers to complete their shutdown outside the lock
 	log.Printf("FetcherSupervisor: Waiting for %d fetchers to confirm shutdown...", len(activeFetchersToShutdown))

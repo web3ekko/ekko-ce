@@ -91,7 +91,7 @@ export interface Node {
   subnet: string; // e.g., 'Mainnet', 'Fuji Testnet', 'Sepolia'
   http_url: string; // Primary HTTP/RPC endpoint
   websocket_url: string; // WebSocket endpoint
-  vm: string; // e.g., 'EVM'
+  vm_type: string; // e.g., 'EVM'
   type: string; // e.g., 'API', 'Validator'
   status: string; // e.g., 'Pending', 'Online', 'Offline', 'Syncing'
   is_enabled: boolean; // User-controlled flag for pipeline usage
@@ -112,7 +112,7 @@ export interface CreateNodePayload {
   subnet: string;
   http_url: string;
   websocket_url: string;
-  vm: string;
+  vm_type: string;
   type?: string; // Defaulted to 'API' by backend if not sent
 }
 
@@ -478,6 +478,15 @@ export const nodesApi = {
         `[ekko.ts] Error updating node ${node.id} - Full JSON.stringify:`,
         JSON.stringify(error, Object.getOwnPropertyNames(error), 2)
       );
+      throw error;
+    }
+  },
+
+  deleteNode: async (id: string): Promise<void> => {
+    try {
+      await api.delete(`/nodes/${id}`);
+    } catch (error) {
+      console.error(`Error deleting node ${id}:`, error);
       throw error;
     }
   },

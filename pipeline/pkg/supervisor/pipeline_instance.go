@@ -14,8 +14,9 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/web3ekko/ekko-ce/pipeline/pkg/common"
 	"github.com/web3ekko/ekko-ce/pipeline/pkg/decoder" // For RedisClient if BlockFetcher needs it
+
 	// We will likely use blockchain.WebSocketSource directly or adapt it
-	"github.com/web3ekko/ekko-ce/pipeline/pkg/blockchain" 
+	"github.com/web3ekko/ekko-ce/pipeline/pkg/blockchain"
 	// For transaction persistence to Arrow files
 	"github.com/web3ekko/ekko-ce/pipeline/pkg/persistence"
 )
@@ -32,7 +33,7 @@ type ManagedPipelineInterface interface {
 	UpdateNodeConfigs(newNodes []common.NodeConfig) error
 	// ID returns the unique identifier of the pipeline (e.g., network-subnet-vmtype)
 	// This might be useful for logging or identification from the supervisor side if needed.
-	// ID() string 
+	// ID() string
 }
 
 // HeadSource defines an interface for components that provide a stream of blockchain head data.
@@ -129,7 +130,7 @@ func (a *WebSocketSourceAdapter) UpdateEndpoints(websocketURL string, httpURL st
 	// For now, let ManagedPipeline's Run loop or UpdateNodeConfigs handle the restart logic via Close() then Start().
 	if a.ws != nil {
 		a.ws.Close() // Close the old connection
-		a.ws = nil      // Nullify to indicate it needs re-starting
+		a.ws = nil   // Nullify to indicate it needs re-starting
 	}
 	a.mu.Unlock()
 	// The caller (ManagedPipeline) will need to call Start() again on this adapter.
@@ -148,13 +149,13 @@ type ManagedPipeline struct {
 	redisClient      decoder.RedisClient // Or the adapter for BlockFetcher if used
 	statusUpdater    NodeStatusUpdater   // Callback to PipelineSupervisor.updateNodeStatusInKV
 
-	source  HeadSource         // Abstracted source
+	source HeadSource // Abstracted source
 	// sink    *ekkoPipeline.NATSSink // Re-use or adapt NATSSink - We will publish directly using natsConn for now
 
-	ctx              context.Context
-	cancel           context.CancelFunc  // For canceling the context
-	wg               sync.WaitGroup      // For synchronizing goroutines
-	arrowWriter      *persistence.ArrowWriter // For transaction persistence
+	ctx         context.Context
+	cancel      context.CancelFunc       // For canceling the context
+	wg          sync.WaitGroup           // For synchronizing goroutines
+	arrowWriter *persistence.ArrowWriter // For transaction persistence
 }
 
 // NewManagedPipeline creates and initializes a new ManagedPipeline instance.
@@ -179,7 +180,7 @@ func NewManagedPipeline(
 	secretKey := getEnvWithDefault("MINIO_SECRET_KEY", "minioadmin")
 	bucketName := getEnvWithDefault("MINIO_BUCKET", "blockchain-data")
 	useSSL := getEnvBoolWithDefault("MINIO_USE_SSL", false)
-	
+
 	// Configure MinIO for ArrowWriter
 	minioConfig := persistence.MinioConfig{
 		Endpoint:   endpoint,
@@ -189,30 +190,30 @@ func NewManagedPipeline(
 		BucketName: bucketName,
 		BasePath:   "transactions", // Base path for Arrow files
 	}
-	
+
 	// Initialize MinIO storage - ensureBucketExists is called automatically in NewMinioStorage
 	_, err := persistence.NewMinioStorage(minioConfig)
 	if err != nil {
 		log.Printf("NewManagedPipeline: Failed to initialize MinIO storage: %v", err)
 		return nil, fmt.Errorf("failed to initialize MinIO storage: %w", err)
 	}
-	
+
 	log.Printf("NewManagedPipeline: Successfully connected to MinIO and ensured bucket %s exists", bucketName)
-	
+
 	arrowWriterConfig := persistence.ArrowWriterConfig{
-		BatchSize:     25, // Default batch size, can be made configurable
+		BatchSize:     25,               // Default batch size, can be made configurable
 		FlushInterval: 10 * time.Second, // Default flush interval, can be made configurable
 		MinioConfig:   minioConfig,
-		NatsURL:            natsConn.ConnectedUrl(), // Use the current NATS connection URL
-		NatsSubjectPattern: fmt.Sprintf("ekko.%s.%s.%s.persistence", 
+		NatsURL:       natsConn.ConnectedUrl(), // Use the current NATS connection URL
+		NatsSubjectPattern: fmt.Sprintf("ekko.%s.%s.%s.persistence",
 			strings.ToLower(network),
 			strings.ToLower(subnet),
 			strings.ToLower(vmType)),
 	}
-	
+
 	arrowWriter, err := persistence.NewArrowWriter(arrowWriterConfig)
 	if err != nil {
-		log.Printf("NewManagedPipeline: Failed to create ArrowWriter for network=%s subnet=%s vm_type=%s: %v", 
+		log.Printf("NewManagedPipeline: Failed to create ArrowWriter for network=%s subnet=%s vm_type=%s: %v",
 			network, subnet, vmType, err)
 		return nil, fmt.Errorf("failed to create ArrowWriter: %w", err)
 	}
@@ -271,13 +272,16 @@ func (mp *ManagedPipeline) UpdateNodeConfigs(newNodes []common.NodeConfig) error
 	mp.nodeConfigs = newNodes // Store all current nodes for this pipeline
 
 	// Select the new active node from the updated list
+	// Strategy: Use the last enabled node (newest) to allow new nodes to become active
 	var newPotentialActiveNode common.NodeConfig
 	foundEnabledNode := false
-	for _, node := range newNodes {
+	for i := len(newNodes) - 1; i >= 0; i-- {
+		node := newNodes[i]
 		if node.IsEnabled {
 			newPotentialActiveNode = node
 			foundEnabledNode = true
-			break // Using the first enabled node
+			log.Printf("ManagedPipeline [%s]: Selected node %s (%s) as potential active node (newest enabled strategy).", mp.id, node.ID, node.Name)
+			break // Using the last enabled node (newest)
 		}
 	}
 
@@ -357,7 +361,7 @@ func (mp *ManagedPipeline) UpdateNodeConfigs(newNodes []common.NodeConfig) error
 		log.Printf("ManagedPipeline [%s]: Source reconfigured and restarted successfully with active node %s (%s).", mp.id, mp.activeNodeConfig.ID, mp.activeNodeConfig.Name)
 		if mp.statusUpdater != nil {
 			go mp.statusUpdater(mp.activeNodeConfig.ID, common.NodeStatusActive, "") // New/updated active node is now Active
-			if oldActiveNodeID != "" && oldActiveNodeID != mp.activeNodeConfig.ID { // If there was a different old active node
+			if oldActiveNodeID != "" && oldActiveNodeID != mp.activeNodeConfig.ID {  // If there was a different old active node
 				go mp.statusUpdater(oldActiveNodeID, common.NodeStatusStale, "no longer the active node for this pipeline")
 			}
 		}
@@ -398,7 +402,7 @@ func (mp *ManagedPipeline) Run() error {
 		log.Printf("ManagedPipeline [%s]: Failed to start source: %v", mp.id, err)
 		return fmt.Errorf("failed to start source: %w", err)
 	}
-	
+
 	// Start the ArrowWriter for transaction persistence
 	log.Printf("ManagedPipeline [%s]: Starting ArrowWriter for transaction persistence", mp.id)
 	mp.wg.Add(1)
@@ -408,7 +412,7 @@ func (mp *ManagedPipeline) Run() error {
 			log.Printf("ManagedPipeline [%s]: ArrowWriter stopped with error: %v", mp.id, err)
 			// Update node status if there's an error with the ArrowWriter
 			if mp.statusUpdater != nil {
-				mp.statusUpdater(mp.activeNodeConfig.ID, common.NodeStatusUnhealthy, 
+				mp.statusUpdater(mp.activeNodeConfig.ID, common.NodeStatusUnhealthy,
 					fmt.Sprintf("ArrowWriter failed: %v", err))
 			}
 		} else {
@@ -468,7 +472,7 @@ func (mp *ManagedPipeline) Run() error {
 				// Potentially skip publishing or use a default if this case is problematic
 			}
 
-			log.Printf("ManagedPipeline [%s]: Received NewHeadEvent from node %s (Event NodeID: %s): Hash %s, Number %d", 
+			log.Printf("ManagedPipeline [%s]: Received NewHeadEvent from node %s (Event NodeID: %s): Hash %s, Number %d",
 				mp.id, mp.activeNodeConfig.Name, newHead.NodeID, newHead.Hash, newHead.Number)
 
 			payload, err := json.Marshal(newHead) // Marshal the received NewHeadEvent
@@ -545,11 +549,11 @@ func getEnvBoolWithDefault(key string, defaultValue bool) bool {
 	if !exists {
 		return defaultValue
 	}
-	
+
 	boolValue, err := strconv.ParseBool(value)
 	if err != nil {
 		return defaultValue
 	}
-	
+
 	return boolValue
 }

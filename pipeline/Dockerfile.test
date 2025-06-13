@@ -1,0 +1,37 @@
+# Test Dockerfile for DuckDB Go client
+FROM golang:1.23-bullseye
+
+WORKDIR /app
+
+# Install build dependencies for DuckDB (requires C++ compiler and libraries)
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    gcc \
+    g++ \
+    libc6-dev \
+    pkg-config \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy go.mod and go.sum first for better caching
+COPY go.mod go.sum ./
+
+# Download dependencies with CGO enabled
+RUN CGO_ENABLED=1 go mod download
+
+# Copy source code
+COPY . .
+
+# Build the test application with CGO enabled for DuckDB
+RUN CGO_ENABLED=1 \
+    go build -mod=mod -o test-duckdb ./cmd/test-duckdb
+
+# Set environment variables for MinIO testing
+ENV MINIO_ENDPOINT=minio:9000
+ENV MINIO_ACCESS_KEY=minioadmin
+ENV MINIO_SECRET_KEY=minioadmin
+ENV MINIO_BUCKET=blockchain-data
+ENV MINIO_USE_SSL=false
+
+# Run the test
+CMD ["./test-duckdb"]

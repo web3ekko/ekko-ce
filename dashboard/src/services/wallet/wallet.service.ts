@@ -75,14 +75,56 @@ export const WalletService = {
     }
   },
 
-  async deleteWallet(id: string): Promise<void> {
+  async deleteWallet(id: string): Promise<any> {
     try {
-      await ApiService.fetchData<null, void>({
+      const res = await ApiService.fetchData<null, any>({
         url: `/wallets/${id}`,
         method: 'DELETE',
       });
+      return res.data;
     } catch (error) {
-      handleApiError(error, 'delete wallet');
+      return handleApiError(error, 'delete wallet');
+    }
+  },
+
+  // Validate wallet address format
+  validateWalletAddress(address: string, blockchain: string): boolean {
+    if (!address || typeof address !== 'string') {
+      return false;
+    }
+
+    // Check if address starts with 0x and has proper length
+    const hexPattern = /^0x[a-fA-F0-9]{40}$/;
+    return hexPattern.test(address);
+  },
+
+  // Format wallet address for display (truncate with ellipsis)
+  formatWalletAddress(address: string, startChars: number = 8, endChars: number = 6): string {
+    if (!address || address.length <= startChars + endChars) {
+      return address;
+    }
+
+    return `${address.slice(0, startChars)}...${address.slice(-endChars)}`;
+  },
+
+  // Get wallet balance from blockchain
+  async getWalletBalance(address: string, blockchain: string): Promise<{ balance: number; symbol: string }> {
+    try {
+      const res = await ApiService.fetchData<any, { balance: number; symbol: string }>({
+        url: '/wallets/balance',
+        method: 'POST',
+        data: {
+          address,
+          blockchain_symbol: blockchain,
+        },
+      });
+      return res.data;
+    } catch (error) {
+      return handleApiError(error, 'fetch wallet balance');
     }
   },
 };
+
+// Export as both named export and default for compatibility
+export const walletService = WalletService;
+export default WalletService;

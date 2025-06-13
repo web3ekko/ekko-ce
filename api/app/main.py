@@ -14,6 +14,27 @@ from contextlib import asynccontextmanager
 from app.routes.settings import router as settings_router, set_js as set_settings_js
 from app.main_extension import auth_router, user_router, wallet_router
 from app.events import set_js as set_events_js, publish_event
+
+# Import transactions router
+try:
+    from app.real_transactions import router as transactions_router
+    TRANSACTIONS_AVAILABLE = True
+except ImportError as e:
+    print(f"Warning: Real transactions router not available, falling back to simple: {e}")
+    try:
+        from app.simple_transactions import router as transactions_router
+        TRANSACTIONS_AVAILABLE = True
+    except ImportError as e2:
+        print(f"Warning: No transactions router available: {e2}")
+        TRANSACTIONS_AVAILABLE = False
+
+# Import Delta events router
+try:
+    from app.delta_events import router as delta_events_router
+    DELTA_EVENTS_AVAILABLE = True
+except ImportError as e:
+    print(f"Warning: Delta events router not available: {e}")
+    DELTA_EVENTS_AVAILABLE = False
 from app.alert_processor import start_alert_processor, stop_alert_processor
 from app.models import Node
 from app.alert_job_utils import generate_job_spec_from_alert
@@ -148,6 +169,21 @@ app.include_router(settings_router, prefix="/api/settings", tags=["settings"])
 app.include_router(auth_router)  # For /token endpoint
 app.include_router(user_router)  # For /users endpoints
 app.include_router(wallet_router) # For /wallet-balances endpoints
+
+# Include transactions router if available
+if TRANSACTIONS_AVAILABLE:
+    app.include_router(transactions_router, prefix="/api", tags=["transactions"])
+    print("✅ Transactions router included with /api prefix")
+else:
+    print("⚠️ Transactions router not available")
+
+# Include Delta events router if available
+if DELTA_EVENTS_AVAILABLE:
+    app.include_router(delta_events_router, prefix="/api", tags=["delta-events"])
+    print("✅ Delta events router included with /api prefix")
+else:
+    print("⚠️ Delta events router not available")
+
 set_settings_js(js)
 
 # Ensure required JetStream streams and KV stores exist
@@ -338,6 +374,8 @@ class WalletCreate(BaseModel):
     name: str
     balance: float = 0.0
     status: str = "active"
+    subnet: str = "mainnet"  # Added subnet field
+    description: Optional[str] = None  # Added description field
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
 
@@ -1030,23 +1068,53 @@ async def create_node(node: Node, background_tasks: BackgroundTasks):
             # Create the KV bucket if it doesn't exist
             await js.create_key_value(bucket="nodes")
             kv = await js.key_value(bucket="nodes")
-        
+
+        # Check for duplicate network + subnet + vmtype combination
+        try:
+            keys = await kv.keys()
+
+            # Check all existing nodes for duplicate network/subnet/vmtype
+            for key in keys:
+                existing_data = await kv.get(key)
+                if isinstance(existing_data.value, bytes):
+                    json_str = existing_data.value.decode('utf-8')
+                else:
+                    json_str = existing_data.value
+                existing_node = json.loads(json_str)
+
+                # Check if the combination already exists
+                if (existing_node.get("network", "").lower() == node.network.lower() and
+                    existing_node.get("subnet", "").lower() == node.subnet.lower() and
+                    existing_node.get("vm_type", "").lower() == node.vm_type.lower()):
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"A node with network '{node.network}', subnet '{node.subnet}', and VM type '{node.vm_type}' already exists. Only one node per network/subnet/vmtype combination is allowed."
+                    )
+        except HTTPException:
+            raise
+        except Exception:
+            # If there's an error reading existing nodes, continue with creation
+            # This handles the case where the bucket is empty or has issues
+            pass
+
         # Create a complete node object
         current_time = datetime.now().isoformat()
         node_data = node.dict()
         node_data["created_at"] = current_time
         node_data["updated_at"] = current_time
-        
+
         # Convert node to JSON string
         node_json = json.dumps(node_data)
-        
+
         # Store node in KV store
         await kv.put(node_data["id"], node_json.encode('utf-8'))
-        
+
         # Publish event
         background_tasks.add_task(publish_event, "node.created", node_data, ignore_errors=True)
-        
+
         return node_data
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error creating node: {str(e)}")
 
@@ -1055,7 +1123,7 @@ async def update_node(node_id: str, node: Node, background_tasks: BackgroundTask
     try:
         # Access KV store
         kv = await js.key_value(bucket="nodes")
-        
+
         # Check if node exists
         try:
             existing_data = await kv.get(node_id)
@@ -1069,22 +1137,52 @@ async def update_node(node_id: str, node: Node, background_tasks: BackgroundTask
             if "no key exists" in str(e).lower():
                 raise HTTPException(status_code=404, detail="Node not found")
             raise
-        
+
+        # Check for duplicate network + subnet + vmtype combination (excluding current node)
+        try:
+            keys = await kv.keys()
+
+            # Check all existing nodes for duplicate network/subnet/vmtype
+            for key in keys:
+                if key == node_id:  # Skip the current node being updated
+                    continue
+
+                other_data = await kv.get(key)
+                if isinstance(other_data.value, bytes):
+                    json_str = other_data.value.decode('utf-8')
+                else:
+                    json_str = other_data.value
+                other_node = json.loads(json_str)
+
+                # Check if the combination already exists in another node
+                if (other_node.get("network", "").lower() == node.network.lower() and
+                    other_node.get("subnet", "").lower() == node.subnet.lower() and
+                    other_node.get("vm_type", "").lower() == node.vm_type.lower()):
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Another node with network '{node.network}', subnet '{node.subnet}', and VM type '{node.vm_type}' already exists. Only one node per network/subnet/vmtype combination is allowed."
+                    )
+        except HTTPException:
+            raise
+        except Exception:
+            # If there's an error reading existing nodes, continue with update
+            pass
+
         # Update node data
         node_data = node.dict()
         node_data["id"] = node_id  # Ensure ID is set correctly
         node_data["created_at"] = existing_node.get("created_at")
         node_data["updated_at"] = datetime.now().isoformat()
-        
+
         # Convert node to JSON string
         node_json = json.dumps(node_data)
-        
+
         # Store updated node in KV store
         await kv.put(node_id, node_json.encode('utf-8'))
-        
+
         # Publish event
         background_tasks.add_task(publish_event, "node.updated", node_data, ignore_errors=True)
-        
+
         return node_data
     except HTTPException:
         raise

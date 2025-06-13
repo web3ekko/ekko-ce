@@ -10,7 +10,7 @@ export type ForgotPasswordReq = {
 export interface SignInResponse {
   id: string;
   fullName: string;
-  authority: [];
+  authority: string[];
   phoneNumber: string;
   email: string;
   access_token: string;

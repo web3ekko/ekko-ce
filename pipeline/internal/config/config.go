@@ -52,6 +52,15 @@ type Config struct {
 	RequestTimeout time.Duration
 	NetworkType    string
 	CacheType      string
+
+	// DuckLake configuration (SQLite catalog + MinIO storage)
+	DuckLakeEnabled       bool
+	DuckLakeCatalogType   string
+	DuckLakeCatalogPath   string
+	DuckLakeDataPath      string
+	DuckLakeBucketName    string
+	DuckLakeBatchSize     int
+	DuckLakeFlushInterval time.Duration
 }
 
 // LoadFromEnv loads configuration from environment variables
@@ -147,16 +156,32 @@ func LoadFromEnv() (*Config, error) {
 	retryDelay := getEnvAsDuration("RETRY_DELAY", 5*time.Second)
 	requestTimeout := getEnvAsDuration("REQUEST_TIMEOUT", 10*time.Second)
 
+	// Load DuckLake configuration (SQLite catalog + MinIO storage)
+	duckLakeEnabled := getEnvWithDefault("DUCKLAKE_ENABLED", "false") == "true"
+	duckLakeCatalogType := getEnvWithDefault("DUCKLAKE_CATALOG_TYPE", "sqlite")
+	duckLakeCatalogPath := getEnvWithDefault("DUCKLAKE_CATALOG_PATH", "/data/ducklake/catalog.sqlite")
+	duckLakeDataPath := getEnvWithDefault("DUCKLAKE_DATA_PATH", "s3://ducklake-data/data")
+	duckLakeBucketName := getEnvWithDefault("DUCKLAKE_BUCKET_NAME", "ducklake-data")
+	duckLakeBatchSize := getEnvAsInt("DUCKLAKE_BATCH_SIZE", 1000)
+	duckLakeFlushInterval := getEnvAsDuration("DUCKLAKE_FLUSH_INTERVAL", 30*time.Second)
+
 	return &Config{
-		NetworkType:    networkType,
-		Subnets:        subnets,
-		NatsURL:        natsURL,
-		CacheType:      cacheType,
-		RedisURL:       redisURL,
-		DecoderWorkers: decoderWorkers,
-		MaxRetries:     maxRetries,
-		RetryDelay:     retryDelay,
-		RequestTimeout: requestTimeout,
+		NetworkType:           networkType,
+		Subnets:               subnets,
+		NatsURL:               natsURL,
+		CacheType:             cacheType,
+		RedisURL:              redisURL,
+		DecoderWorkers:        decoderWorkers,
+		MaxRetries:            maxRetries,
+		RetryDelay:            retryDelay,
+		RequestTimeout:        requestTimeout,
+		DuckLakeEnabled:       duckLakeEnabled,
+		DuckLakeCatalogType:   duckLakeCatalogType,
+		DuckLakeCatalogPath:   duckLakeCatalogPath,
+		DuckLakeDataPath:      duckLakeDataPath,
+		DuckLakeBucketName:    duckLakeBucketName,
+		DuckLakeBatchSize:     duckLakeBatchSize,
+		DuckLakeFlushInterval: duckLakeFlushInterval,
 	}, nil
 }
 

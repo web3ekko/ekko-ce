@@ -1,0 +1,44 @@
+[package]
+name = "ekko-delta-writer"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+# Async runtime
+tokio = { version = "1.0", features = ["full"] }
+
+# NATS
+async-nats = "0.33"
+futures = "0.3"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+
+# Configuration
+dotenvy = "0.15"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Error handling
+anyhow = "1.0"
+
+# HTTP for metrics
+hyper = { version = "0.14", features = ["full"] }
+tokio-util = "0.7"
+
+# UUID
+uuid = { version = "1.0", features = ["v4", "serde"] }
+
+# Delta Lake and Arrow - temporarily disabled for testing
+# deltalake = { version = "0.16", features = ["s3", "json"] }
+# arrow = "47.0"
+# arrow-array = "47.0"
+# arrow-schema = "47.0"
+# object_store = { version = "0.7", features = ["aws"] }
+
+[dev-dependencies]
+testcontainers = "0.15"

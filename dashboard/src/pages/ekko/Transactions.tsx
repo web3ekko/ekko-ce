@@ -9,13 +9,14 @@ import {
   Select,
   ActionIcon,
   Tabs,
-  Table,
   Stack,
   Center,
   Loader,
   Tooltip,
   Box,
   rem,
+  Alert,
+  MultiSelect,
 } from '@mantine/core';
 import {
   IconSearch,
@@ -32,7 +33,7 @@ import {
 } from '@tabler/icons-react';
 import { IOSCard, IOSPageWrapper } from '@/components/UI/IOSCard';
 
-import { useAppDispatch, useAppSelector } from '@/store';
+import { useAppSelector } from '@/store';
 import RealtimeTransactionService from '@/services/realtime/RealtimeTransactionService';
 import {
   selectAllRealtimeTransactions,
@@ -40,57 +41,120 @@ import {
   selectIsConnectedToRealtime,
   selectRealtimeConnectionError,
 } from '@/store/selectors/realtimeTransactionsSelectors';
+import { useTransactions } from '@/hooks/useTransactions';
+import { Transaction } from '@/services/api/transactions.service';
 import type { RealtimeTransaction } from '@/store/slices/realtimeTransactionsSlice';
 
-// Mock transactions removed, will use live data
+// Note: Dummy data removed - using real API exclusively
 export default function Transactions() {
-  const dispatch = useAppDispatch(); // if needed for any direct dispatches, though service handles most
+  // Real-time connection state (for status display)
   const liveTransactions = useAppSelector(selectAllRealtimeTransactions);
   const isConnecting = useAppSelector(selectIsConnectingToRealtime);
   const isConnected = useAppSelector(selectIsConnectedToRealtime);
   const connectionError = useAppSelector(selectRealtimeConnectionError);
+
+  // Local state for UI
   const [searchQuery, setSearchQuery] = useState('');
-  const [activePage, setActivePage] = useState(1);
-  const [pageSize, setPageSize] = useState('10');
   const [activeTab, setActiveTab] = useState('all');
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [networkFilter, setNetworkFilter] = useState<string[]>([]);
 
-  // Effect for WebSocket connection management
-  useEffect(() => {
-    RealtimeTransactionService.connect();
-    return () => {
-      RealtimeTransactionService.disconnect();
-    };
-  }, []); // Empty dependency array means this runs once on mount and cleanup on unmount
-
-  // Filter transactions based on search query and active tab
-  const filteredTransactions = liveTransactions.filter((tx) => {
-    const matchesSearch =
-      tx.hash.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      tx.from.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (tx.to && tx.to.toLowerCase().includes(searchQuery.toLowerCase())) || // Handle null 'to'
-      (tx.decoded_call?.function &&
-        tx.decoded_call.function.toLowerCase().includes(searchQuery.toLowerCase()));
-
-    if (activeTab === 'all') return matchesSearch;
-    if (activeTab === 'send') return matchesSearch && tx.transactionType === 'send';
-    if (activeTab === 'receive') return matchesSearch && tx.transactionType === 'receive';
-    if (activeTab === 'contract')
-      return (
-        matchesSearch &&
-        (tx.transactionType === 'contract_interaction' ||
-          tx.transactionType === 'contract_creation')
-      );
-    if (activeTab === 'pending') return matchesSearch && tx.status === 'pending';
-
-    return matchesSearch;
+  // Use the new API-based transactions hook
+  const {
+    transactions: apiTransactions,
+    loading,
+    error,
+    total,
+    hasMore,
+    query,
+    updateQuery,
+    refresh,
+    loadMore,
+    exportTransactions,
+  } = useTransactions({
+    autoRefresh: false, // Disabled to prevent infinite requests
+    refreshInterval: 30000, // 30 seconds
+    initialQuery: {
+      limit: 20,
+      networks: ['avalanche'], // Keep Avalanche filtering as requested
+      sortBy: 'timestamp',
+      sortOrder: 'desc',
+    },
   });
 
-  // Calculate pagination
-  const totalPages = Math.ceil(filteredTransactions.length / parseInt(pageSize));
-  const paginatedTransactions = filteredTransactions.slice(
-    (activePage - 1) * parseInt(pageSize),
-    activePage * parseInt(pageSize)
-  );
+  // Effect for WebSocket connection management (for real-time updates)
+  // Disabled to prevent connection issues
+  // useEffect(() => {
+  //   RealtimeTransactionService.connect();
+  //   return () => {
+  //     RealtimeTransactionService.disconnect();
+  //   };
+  // }, []);
+
+  // Handle search and filtering (disabled to prevent loops)
+  // useEffect(() => {
+  //   if (searchQuery) {
+  //     updateQuery({
+  //       search: searchQuery,
+  //       offset: 0, // Reset to first page when searching
+  //     });
+  //   } else {
+  //     updateQuery({
+  //       search: undefined,
+  //       offset: 0,
+  //     });
+  //   }
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, [searchQuery]); // Removed updateQuery to prevent infinite loops
+
+  // Handle tab filtering (disabled to prevent loops)
+  // useEffect(() => {
+  //   const transactionTypes: string[] = [];
+  //   const statuses: string[] = [];
+
+  //   switch (activeTab) {
+  //     case 'send':
+  //       transactionTypes.push('send');
+  //       break;
+  //     case 'receive':
+  //       transactionTypes.push('receive');
+  //       break;
+  //     case 'contract':
+  //       transactionTypes.push('contract_interaction', 'contract_creation');
+  //       break;
+  //     case 'pending':
+  //       statuses.push('pending');
+  //       break;
+  //     default:
+  //       // 'all' - no filters
+  //       break;
+  //   }
+
+  //   updateQuery({
+  //     transactionTypes: transactionTypes.length > 0 ? transactionTypes : undefined,
+  //     status: statuses.length > 0 ? statuses : undefined,
+  //     offset: 0, // Reset to first page when changing tabs
+  //   });
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, [activeTab]); // Removed updateQuery to prevent infinite loops
+
+  // Use API transactions exclusively
+  const displayTransactions = apiTransactions;
+
+  // Handle page size changes
+  const handlePageSizeChange = (newPageSize: string) => {
+    updateQuery({
+      limit: parseInt(newPageSize),
+      offset: 0, // Reset to first page
+    });
+  };
+
+  // Handle load more for API pagination
+  const handleLoadMore = () => {
+    if (hasMore && !loading) {
+      loadMore();
+    }
+  };
 
   // Helper function to get transaction icon based on type
   const getTransactionIcon = (type: RealtimeTransaction['transactionType']) => {
@@ -132,12 +196,14 @@ export default function Transactions() {
   return (
     <IOSPageWrapper
       title="Transactions"
-      subtitle="View and analyze blockchain transactions"
+      subtitle="View and analyze blockchain transactions (for tracked wallets)"
       action={
         <Group>
           <Button
             variant="light"
             leftSection={<IconDownload size={16} />}
+            onClick={exportTransactions}
+            disabled={loading}
           >
             Export
           </Button>
@@ -160,12 +226,9 @@ export default function Transactions() {
           <Group>
             <Select
               label="Items per page"
-              value={pageSize}
-              onChange={(value) => {
-                setPageSize(value || '10');
-                setActivePage(1);
-              }}
-              data={['5', '10', '20', '50']}
+              value={query.limit?.toString() || '20'}
+              onChange={(value) => handlePageSizeChange(value || '20')}
+              data={['10', '20', '50', '100']}
               style={{ width: '100px' }}
             />
             {isConnecting && (
@@ -209,18 +272,36 @@ export default function Transactions() {
           </Tabs.List>
         </Tabs>
 
-        {paginatedTransactions.length === 0 ? (
+        {loading ? (
+          <Center p="xl">
+            <Loader size="md" />
+          </Center>
+        ) : error ? (
+          <Center p="xl">
+            <Alert color="red" title="Error loading transactions">
+              {error}
+              <Button variant="light" size="sm" onClick={refresh} mt="sm">
+                Retry
+              </Button>
+            </Alert>
+          </Center>
+        ) : displayTransactions.length === 0 ? (
           <Center p="xl">
             <Stack align="center">
               <Text c="dimmed">No transactions found</Text>
               <Text size="sm" c="dimmed">
-                {isConnected ? 'Waiting for new transactions...' : 'Connect to see live transactions'}
+                {loading
+                  ? 'Loading transactions...'
+                  : total === 0
+                    ? 'No transactions available for monitored wallets'
+                    : 'Try adjusting your search criteria'
+                }
               </Text>
             </Stack>
           </Center>
         ) : (
           <Stack gap="sm" p="md">
-            {paginatedTransactions.map((tx) => (
+            {displayTransactions.map((tx: Transaction | RealtimeTransaction) => (
               <IOSCard key={tx.hash} interactive>
                 <Group justify="space-between" p="md">
                   <Group>
@@ -279,7 +360,8 @@ export default function Transactions() {
                       {tx.value || '0'} {tx.tokenSymbol || 'ETH'}
                     </Text>
                     <Text size="sm" c="dimmed">
-                      {tx.decoded_call?.function || 'Transfer'}
+                      {('decoded_call' in tx ? tx.decoded_call?.function :
+                        'decodedCall' in tx ? tx.decodedCall?.function : null) || 'Transfer'}
                     </Text>
                   </Box>
 
@@ -322,9 +404,26 @@ export default function Transactions() {
           </Stack>
         )}
 
-        {filteredTransactions.length > parseInt(pageSize) && (
+        {/* Load More Button for API pagination */}
+        {hasMore && (
           <Group justify="center" mt="xl" p="md">
-            <Pagination value={activePage} onChange={setActivePage} total={totalPages} />
+            <Button
+              variant="light"
+              onClick={handleLoadMore}
+              loading={loading}
+              disabled={!hasMore}
+            >
+              Load More Transactions
+            </Button>
+          </Group>
+        )}
+
+        {/* Show total count */}
+        {total > 0 && (
+          <Group justify="center" mt="sm" p="md">
+            <Text size="sm" c="dimmed">
+              Showing {displayTransactions.length} of {total} transactions
+            </Text>
           </Group>
         )}
       </IOSCard>

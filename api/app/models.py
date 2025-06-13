@@ -12,6 +12,8 @@ class Wallet(BaseModel):
     name: str
     balance: float = 0.0
     status: str = "active"
+    subnet: str = "mainnet"  # Added subnet field with default
+    description: Optional[str] = None  # Added description field
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
     
@@ -209,7 +211,7 @@ class Node(BaseModel):
     subnet: str = "Mainnet"  # e.g., Mainnet, Fuji Testnet, Sepolia
     http_url: str
     websocket_url: Optional[str] = None
-    vm: str = "EVM"  # Default to EVM
+    vm_type: str = "EVM"  # Default to EVM - renamed from 'vm' to match pipeline expectations
     type: str = "API"  # API, Validator, Full
     status: str = "Pending"  # Pending, Online, Offline, Degraded
     is_enabled: bool = True  # User-controlled flag for pipeline usage

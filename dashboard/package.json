@@ -14,6 +14,12 @@
     "prettier:write": "prettier --write \"**/*.{ts,tsx}\"",
     "vitest": "vitest run",
     "vitest:watch": "vitest",
+    "vitest:ui": "vitest --ui",
+    "vitest:coverage": "vitest run --coverage",
+    "test:transactions": "vitest run --grep=\"transactions|Transactions\"",
+    "test:api": "vitest run src/services/api",
+    "test:hooks": "vitest run src/hooks",
+    "test:integration": "vitest run --grep=\"integration|Integration\"",
     "test": "npm run typecheck && npm run prettier && npm run lint && npm run vitest && npm run build",
     "storybook": "storybook dev -p 6006",
     "storybook:build": "storybook build"

@@ -6,11 +6,11 @@ import (
 	"log"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/reugn/go-streams"
 	"github.com/web3ekko/ekko-ce/pipeline/internal/config"
+	"github.com/web3ekko/ekko-ce/pipeline/internal/storage"
 	"github.com/web3ekko/ekko-ce/pipeline/pkg/blockchain"
 	"github.com/web3ekko/ekko-ce/pipeline/pkg/decoder"
 )
@@ -25,58 +25,72 @@ type SubnetPipeline struct {
 
 // Pipeline represents the main data pipeline
 type Pipeline struct {
-	subnets   map[string]*SubnetPipeline
-	config    config.Config
-	redis     decoder.RedisClient
-	manager   *decoder.TemplateManager
-	batchSize int
-	workers   int
-	natsURL   string
+	subnets     map[string]*SubnetPipeline
+	config      config.Config
+	redis       decoder.RedisClient
+	manager     *decoder.TemplateManager
+	duckStorage *storage.DuckDBStorage
+	batchSize   int
+	workers     int
+	natsURL     string
 }
 
 // NewPipeline creates a new pipeline
 func NewPipeline(cfg config.Config, redis decoder.RedisClient) (*Pipeline, error) {
+	// Initialize DuckDB storage
+	s3Config := storage.NewS3ConfigFromEnv()
+	duckStorage, err := storage.NewDuckDBStorage(s3Config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize DuckDB storage: %w", err)
+	}
+
 	return &Pipeline{
-		subnets:   make(map[string]*SubnetPipeline),
-		config:    cfg,
-		redis:     redis,
-		manager:   decoder.NewTemplateManager(redis),
-		batchSize: 100,
-		workers:   cfg.DecoderWorkers,
-		natsURL:   cfg.NatsURL,
+		subnets:     make(map[string]*SubnetPipeline),
+		config:      cfg,
+		redis:       redis,
+		manager:     decoder.NewTemplateManager(redis),
+		duckStorage: duckStorage,
+		batchSize:   100,
+		workers:     cfg.DecoderWorkers,
+		natsURL:     cfg.NatsURL,
 	}, nil
 }
 
 // processBlock processes a block and its transactions
-func (p *Pipeline) processBlock(block *blockchain.Block) error {
-	// Start workers
-	var wg sync.WaitGroup
-	jobs := make(chan int, len(block.Transactions))
+func (p *Pipeline) processBlock(block *blockchain.Block, network, subnet, vmType string) error {
+	// Convert blockchain transactions to storage format
+	var transactions []storage.Transaction
 
-	// Start worker goroutines
-	for i := 0; i < p.workers; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for job := range jobs {
-				tx := &block.Transactions[job]
-				// Log transaction handling
-				log.Printf("Processing tx %s from block %s", tx.Hash, block.Hash)
-				// Note: We're just logging transactions now, not decoding them
-				// In a real implementation, you would process the transaction here
-				log.Printf("Processed tx %s from block %s", tx.Hash, block.Hash)
-			}
-		}()
+	for i, tx := range block.Transactions {
+		storageTransaction := storage.Transaction{
+			Network:     network,
+			Subnet:      subnet,
+			VMType:      vmType,
+			BlockTime:   time.Now(), // TODO: Use actual block timestamp when available
+			BlockHash:   block.Hash,
+			BlockNumber: int64(block.Number),
+			TxHash:      tx.Hash,
+			TxIndex:     i,
+			FromAddress: tx.From,
+			ToAddress:   &tx.To,
+			Value:       tx.Value,
+			GasPrice:    &tx.GasPrice,
+			GasLimit:    &tx.Gas,
+			Nonce:       &tx.Nonce,
+			InputData:   []byte(tx.Data),
+			Success:     true, // TODO: Determine success from receipt
+		}
+		transactions = append(transactions, storageTransaction)
 	}
 
-	// Send jobs
-	for i := range block.Transactions {
-		jobs <- i
+	// Store transactions in DuckDB
+	if len(transactions) > 0 {
+		if err := p.duckStorage.StoreTransactionBatch(transactions); err != nil {
+			log.Printf("Error storing transactions in DuckDB: %v", err)
+			return fmt.Errorf("failed to store transactions: %w", err)
+		}
+		log.Printf("Successfully stored %d transactions from block %s in DuckDB", len(transactions), block.Hash)
 	}
-	close(jobs)
-
-	// Wait for completion
-	wg.Wait()
 
 	return nil
 }
@@ -132,8 +146,8 @@ func (p *Pipeline) Start(ctx context.Context) error {
 					blk := raw.(*blockchain.Block)
 					// Log receipt of block
 					log.Printf("Subnet %s: received block %s with %d transactions", subnet.config.Name, blk.Hash, len(blk.Transactions))
-					// Process block
-					if err := p.processBlock(blk); err != nil {
+					// Process block with network/subnet/vmtype info
+					if err := p.processBlock(blk, subnet.config.Network, subnet.config.Name, subnet.config.VMType); err != nil {
 						log.Printf("Subnet %s: error processing block %s: %v", subnet.config.Name, blk.Hash, err)
 						continue
 					}
@@ -166,6 +180,14 @@ func (p *Pipeline) Stop() error {
 			}
 		}
 	}
+
+	// Close DuckDB storage
+	if p.duckStorage != nil {
+		if err := p.duckStorage.Close(); err != nil {
+			log.Printf("Error closing DuckDB storage: %v", err)
+		}
+	}
+
 	return nil
 }
 

@@ -13,7 +13,7 @@ export const selectAllWallets = createSelector(
 
 // Selector to get just the addresses of all wallets
 export const selectWalletAddresses = createSelector([selectAllWallets], (wallets): string[] =>
-  wallets.map((wallet) => wallet.address)
+  (wallets || []).map((wallet) => wallet.address)
 );
 
 // Selector to get active wallet addresses (if 'status' field is used like 'active')
@@ -23,7 +23,7 @@ export const selectWalletAddresses = createSelector([selectAllWallets], (wallets
 export const selectActiveWalletAddresses = createSelector(
   [selectAllWallets],
   (wallets): string[] =>
-    wallets
+    (wallets || [])
       // .filter(wallet => wallet.status === 'active') // Example if 'status' field exists
       // .filter(wallet => wallet.isActive) // Example if 'isActive' field exists on Wallet type
       .map((wallet) => wallet.address) // Currently, sends all wallet addresses
@@ -38,7 +38,7 @@ export const selectWalletsLoading = createSelector(
 export const selectMonitoredWallets = createSelector(
   [selectAllWallets],
   (wallets): MonitoredWalletInfo[] =>
-    wallets.map((wallet) => ({
+    (wallets || []).map((wallet) => ({
       address: wallet.address,
       network: wallet.blockchain_symbol, // Use blockchain_symbol as network
       subnet: wallet.subnet, // Use the subnet from the Wallet object

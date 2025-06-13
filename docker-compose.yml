@@ -9,6 +9,8 @@ volumes:
   redis_data:
   minio_data:
   api_data:
+  ducklake_catalog:  # SQLite catalog database
+  ducklake_data:     # Local cache for DuckLake data
 
 services:
   pipeline:
@@ -21,9 +23,24 @@ services:
       - NATS_URL=nats://nats:4222
       - NATS_STREAM=blockchain
       - NATS_SUBJECT=transactions
+      # DuckLake Configuration
+      - DUCKLAKE_ENABLED=true
+      - DUCKLAKE_CATALOG_TYPE=sqlite
+      - DUCKLAKE_CATALOG_PATH=/data/ducklake/catalog.sqlite
+      - DUCKLAKE_DATA_PATH=s3://ducklake-data/data
+      - DUCKLAKE_BUCKET_NAME=ducklake-data
+      - DUCKLAKE_BATCH_SIZE=1000
+      - DUCKLAKE_FLUSH_INTERVAL=30s
+      # MinIO Configuration
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_REGION=us-east-1
+      - MINIO_SECURE=false
     env_file: ".env"
     volumes:
       - ./config.yaml:/app/config.yaml
+      - ducklake_catalog:/data/ducklake  # SQLite catalog storage
     restart: unless-stopped
     networks:
       - pipeline-network
@@ -95,14 +112,67 @@ services:
       - DUCKDB_PATH=/app/data/ekko.db
       - MIGRATION_MODE="false"
       - ENABLE_JETSTREAM_SYNC="true"
+      # DuckLake Configuration
+      - DUCKLAKE_CATALOG_TYPE=sqlite
+      - DUCKLAKE_CATALOG_PATH=/data/ducklake/catalog.sqlite
+      - DUCKLAKE_DATA_PATH=s3://ducklake-data/data
+      - DUCKLAKE_BUCKET_NAME=ducklake-data
+      # MinIO Configuration
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_REGION=us-east-1
+      - MINIO_SECURE=false
     volumes:
       - ./api:/app
       - api_data:/app/data
+      - ducklake_catalog:/data/ducklake  # Shared SQLite catalog storage
     restart: unless-stopped
     networks:
       - pipeline-network
     depends_on:
       - nats
+      - minio
+
+  transactions-writer:
+    build:
+      context: ./delta-writer
+      dockerfile: Dockerfile
+    environment:
+      - SERVICE_NAME=transactions-writer
+      - METRICS_PORT=9090
+      - NATS_URL=nats://nats:4222
+      - NATS_SUBJECT=transactions.>
+      - NATS_CONSUMER_NAME=transactions-writer
+      - NATS_STREAM_NAME=transactions
+      - S3_ENDPOINT=http://minio:9000
+      - S3_ACCESS_KEY=minioadmin
+      - S3_SECRET_KEY=minioadmin
+      - S3_REGION=us-east-1
+      - S3_BUCKET=blockchain-events
+      - S3_USE_SSL=false
+      - DELTA_TABLE_BASE_PATH=events
+      - BATCH_SIZE=1000
+      - FLUSH_INTERVAL_SECONDS=30
+      - MAX_CONCURRENT_WRITES=4
+      - WORKER_THREADS=4
+      - BUFFER_SIZE=10000
+      - RETRY_ATTEMPTS=3
+      - RETRY_DELAY_MS=1000
+      - RUST_LOG=info,ekko_delta_writer=debug
+    ports:
+      - "9090:9090"  # Metrics port
+    restart: unless-stopped
+    networks:
+      - pipeline-network
+    depends_on:
+      - nats
+      - minio
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9090/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   redis:
     image: redis:7
@@ -141,3 +211,53 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
+  minio-init:
+    image: minio/mc
+    container_name: minio-init
+    volumes:
+      - ./scripts/init-minio.sh:/init-minio.sh
+    networks:
+      - pipeline-network
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "/init-minio.sh"]
+    restart: "no"
+
+  ducklake-test:
+    image: ubuntu:22.04
+    container_name: ducklake-test
+    working_dir: /app
+    volumes:
+      - ./scripts/test-ducklake-in-container.sh:/app/test-ducklake.sh
+    environment:
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_BUCKET=blockchain-data
+      - MINIO_USE_SSL=false
+      - DEBIAN_FRONTEND=noninteractive
+    networks:
+      - pipeline-network
+    depends_on:
+      - minio
+    command: ["sleep", "infinity"]
+    restart: "no"
+
+  pipeline-duckdb-test:
+    build:
+      context: ./pipeline
+      dockerfile: Dockerfile.test
+    container_name: pipeline-duckdb-test
+    environment:
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_BUCKET=blockchain-data
+      - MINIO_USE_SSL=false
+    networks:
+      - pipeline-network
+    depends_on:
+      - minio
+    restart: "no"

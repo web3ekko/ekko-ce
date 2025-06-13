@@ -18,8 +18,13 @@ import {
   Loader,
   Switch,
   Anchor,
+  Stack,
+  Divider,
+  Textarea,
+  Alert,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
+import { modals } from '@mantine/modals';
 import {
   IconSearch,
   IconPlus,
@@ -29,8 +34,10 @@ import {
   IconCheck,
   IconX,
   IconAlertTriangle,
+  IconTrash,
 } from '@tabler/icons-react';
 import { nodesApi, Node, CreateNodePayload } from '@/services/api/ekko';
+import { IOSCard, IOSPageWrapper } from '@/components/UI/IOSCard';
 
 const networkSubnetOptions: Record<string, string[]> = {
   Ethereum: ['Mainnet', 'Sepolia', 'Goerli'],
@@ -51,7 +58,7 @@ const MOCK_NODES: Node[] = [
     subnet: 'Mainnet',
     http_url: 'https://node1.example.com:9650',
     websocket_url: 'wss://node1.example.com:9651/ext/bc/C/ws',
-    vm: 'EVM',
+    vm_type: 'EVM',
     status: 'Online',
     is_enabled: true,
     created_at: '2023-01-01T10:00:00Z',
@@ -65,7 +72,7 @@ const MOCK_NODES: Node[] = [
     subnet: 'Fuji Testnet',
     http_url: 'https://fuji1.example.com:9650',
     websocket_url: 'wss://fuji1.example.com:9651/ext/bc/C/ws',
-    vm: 'EVM',
+    vm_type: 'EVM',
     status: 'Offline',
     is_enabled: false,
     created_at: '2023-01-02T10:00:00Z',
@@ -88,9 +95,11 @@ export default function Nodes() {
       name: '',
       websocket_url: '',
       http_url: '',
-      vm: 'EVM',
+      vm_type: 'EVM',
       network: '',
       subnet: '',
+      description: '',
+      isEnabled: true,
     },
     validate: {
       name: (value) => (value.trim().length > 0 ? null : 'Name is required'),
@@ -112,6 +121,35 @@ export default function Nodes() {
   });
 
   const navigate = useNavigate();
+
+  // Handle node deletion
+  const handleDeleteNode = (nodeId: string) => {
+    const nodeToDelete = nodes.find(n => n.id === nodeId);
+    if (!nodeToDelete) return;
+
+    modals.openConfirmModal({
+      title: 'Delete Node',
+      children: (
+        <Text size="sm">
+          Are you sure you want to delete the node "{nodeToDelete.name}"? This action cannot be undone.
+        </Text>
+      ),
+      labels: { confirm: 'Delete', cancel: 'Cancel' },
+      confirmProps: { color: 'red' },
+      onConfirm: async () => {
+        try {
+          setLoading(true);
+          await nodesApi.deleteNode(nodeId);
+          await fetchNodes(); // Refresh the list
+        } catch (error) {
+          console.error('Error deleting node:', error);
+          setError('Failed to delete node. Please try again.');
+        } finally {
+          setLoading(false);
+        }
+      },
+    });
+  };
 
   const handleToggleNodeEnabled = async (nodeToUpdate: Node, isEnabled: boolean) => {
     setUpdatingNodeId(nodeToUpdate.id);
@@ -138,7 +176,7 @@ export default function Nodes() {
         subnet: nodeToUpdate.subnet,
         http_url: nodeToUpdate.http_url,
         websocket_url: nodeToUpdate.websocket_url,
-        vm: nodeToUpdate.vm,
+        vm_type: nodeToUpdate.vm_type,
         type: nodeToUpdate.type, // Assuming type can be part of an update
         is_enabled: isEnabled,
       };
@@ -217,8 +255,10 @@ export default function Nodes() {
         subnet: values.subnet,
         http_url: values.http_url,
         websocket_url: values.websocket_url,
-        vm: values.vm,
+        vm_type: values.vm_type,
         type: 'API', // Optional: backend defaults to 'API'
+        // Note: description and is_enabled might not be part of CreateNodePayload
+        // Check the backend API to see if these fields are supported
       };
 
       await nodesApi.createNode(nodeToCreate);
@@ -285,14 +325,10 @@ export default function Nodes() {
   };
 
   return (
-    <div>
-      <Group justify="space-between" mb="lg">
-        <div>
-          <Title order={2}>Blockchain Nodes</Title>
-          <Text c="dimmed" size="sm">
-            Monitor and manage your blockchain nodes
-          </Text>
-        </div>
+    <IOSPageWrapper
+      title="Blockchain Nodes"
+      subtitle="Monitor and manage your blockchain nodes"
+      action={
         <Button
           leftSection={<IconPlus size={16} />}
           variant="filled"
@@ -300,10 +336,17 @@ export default function Nodes() {
         >
           Add Node
         </Button>
-      </Group>
+      }
+    >
 
-      <Card withBorder mb="md">
-        <Group justify="space-between" mb="md">
+      {error && (
+        <Alert color="red" title="Error" mb="md" onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
+
+      <IOSCard>
+        <Group justify="space-between" mb="md" p="md">
           <TextInput
             placeholder="Search nodes..."
             leftSection={<IconSearch size={16} />}
@@ -311,7 +354,13 @@ export default function Nodes() {
             onChange={(e) => setSearchQuery(e.currentTarget.value as string)}
             style={{ width: '300px' }}
           />
-          <ActionIcon variant="light" color="blue" size="lg" aria-label="Refresh">
+          <ActionIcon
+            variant="light"
+            color="blue"
+            size="lg"
+            aria-label="Refresh"
+            onClick={fetchNodes}
+          >
             <IconRefresh size={18} />
           </ActionIcon>
         </Group>
@@ -331,7 +380,7 @@ export default function Nodes() {
               <Table.Th>Network / Subnet</Table.Th>
               <Table.Th>Status</Table.Th>
               <Table.Th>Enabled</Table.Th>
-              <Table.Th>Details</Table.Th>
+              <Table.Th>Actions</Table.Th>
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
@@ -371,11 +420,32 @@ export default function Nodes() {
                     labelPosition="left"
                   />
                 </Table.Td>
+                <Table.Td>
+                  <Group gap="xs">
+                    <ActionIcon
+                      variant="subtle"
+                      color="blue"
+                      onClick={() => navigate(`/ekko/nodes/${node.id}`)}
+                    >
+                      <IconChevronRight size={16} />
+                    </ActionIcon>
+                    <ActionIcon
+                      variant="subtle"
+                      color="red"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteNode(node.id);
+                      }}
+                    >
+                      <IconTrash size={16} />
+                    </ActionIcon>
+                  </Group>
+                </Table.Td>
               </Table.Tr>
             ))}
           </Table.Tbody>
         </Table>
-      </Card>
+      </IOSCard>
 
       {/* Node Details Cards */}
       <Grid mt="md">
@@ -419,84 +489,96 @@ export default function Nodes() {
 
         {!loading && (
           <form onSubmit={form.onSubmit(handleSubmit)}>
-            <TextInput
-              label="Node Name"
-              placeholder="AVAX-Mainnet-3"
-              required
-              mb="md"
-              {...form.getInputProps('name')}
-            />
+            <Stack gap="md">
+              <TextInput
+                label="Node Name"
+                placeholder="AVAX-Mainnet-3"
+                required
+                {...form.getInputProps('name')}
+              />
 
-            <Select
-              label="Network"
-              placeholder="Select network"
-              data={Object.keys(networkSubnetOptions).map((net) => ({ value: net, label: net }))}
-              required
-              mb="md"
-              {...form.getInputProps('network')}
-              onChange={(value) => {
-                form.setFieldValue('network', value || '');
-                form.setFieldValue('subnet', ''); // Reset subnet when network changes
-              }}
-            />
-
-            <Select
-              label="Subnet"
-              placeholder={form.values.network ? 'Select subnet' : 'Select network first'}
-              data={
-                form.values.network
-                  ? networkSubnetOptions[form.values.network]?.map((sub) => ({
-                      value: sub,
-                      label: sub,
-                    })) || []
-                  : []
-              }
-              required
-              mb="md"
-              disabled={!form.values.network || !networkSubnetOptions[form.values.network]}
-              {...form.getInputProps('subnet')}
-            />
-
-            <TextInput
-              label="WebSocket URL"
-              placeholder="wss://node.example.com:9650/ext/bc/ws"
-              required
-              mb="md"
-              {...form.getInputProps('websocket_url')}
-            />
-
-            <TextInput
-              label="HTTP URL"
-              placeholder="https://node.example.com:9650/ext/bc/C/rpc"
-              required
-              mb="md"
-              {...form.getInputProps('http_url')}
-            />
-
-            <Select
-              label="Virtual Machine"
-              placeholder="Select VM"
-              data={[{ value: 'EVM', label: 'EVM' }]}
-              mb="xl"
-              required
-              {...form.getInputProps('vm')}
-            />
-
-            <Group justify="flex-end">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setModalOpened(false);
-                  form.reset();
+              <Select
+                label="Network"
+                placeholder="Select network"
+                data={Object.keys(networkSubnetOptions).map((net) => ({ value: net, label: net }))}
+                required
+                {...form.getInputProps('network')}
+                onChange={(value) => {
+                  form.setFieldValue('network', value || '');
+                  form.setFieldValue('subnet', ''); // Reset subnet when network changes
                 }}
-              >
-                Cancel
-              </Button>
-              <Button type="submit">Add Node</Button>
-            </Group>
+              />
+
+              <Select
+                label="Subnet"
+                placeholder={form.values.network ? 'Select subnet' : 'Select network first'}
+                data={
+                  form.values.network
+                    ? networkSubnetOptions[form.values.network]?.map((sub) => ({
+                        value: sub,
+                        label: sub,
+                      })) || []
+                    : []
+                }
+                required
+                disabled={!form.values.network || !networkSubnetOptions[form.values.network]}
+                {...form.getInputProps('subnet')}
+              />
+
+              <TextInput
+                label="HTTP URL"
+                placeholder="https://node.example.com:9650/ext/bc/C/rpc"
+                required
+                {...form.getInputProps('http_url')}
+              />
+
+              <TextInput
+                label="WebSocket URL"
+                placeholder="wss://node.example.com:9650/ext/bc/ws"
+                required
+                {...form.getInputProps('websocket_url')}
+              />
+
+              <Select
+                label="Virtual Machine"
+                placeholder="Select VM"
+                data={[{ value: 'EVM', label: 'EVM' }]}
+                required
+                {...form.getInputProps('vm_type')}
+              />
+
+              <Textarea
+                label="Description"
+                placeholder="Optional description for this node"
+                {...form.getInputProps('description')}
+              />
+
+              <Switch
+                label="Enabled"
+                checked={form.values.isEnabled}
+                onChange={(event) => form.setFieldValue('isEnabled', event.currentTarget.checked)}
+              />
+
+              <Divider />
+
+              <Group justify="flex-end">
+                <Button
+                  variant="light"
+                  onClick={() => {
+                    setModalOpened(false);
+                    form.reset();
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" leftSection={<IconCheck size={16} />}>
+                  Add Node
+                </Button>
+              </Group>
+            </Stack>
           </form>
         )}
       </Modal>
-    </div>
+    </IOSPageWrapper>
   );
 }
