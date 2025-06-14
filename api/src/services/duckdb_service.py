@@ -71,54 +71,51 @@ class DuckDBService:
                 SET s3_use_ssl={'true' if settings.MINIO_SECURE else 'false'};
             """)
             
-            # Create view for transactions table pointing to MinIO with bucket-per-network-subnet
-            # Note: This creates a union view across all network-subnet buckets
-            # Temporarily commented out to test basic connection
-            # bucket_prefix = getattr(settings, 'MINIO_BUCKET_PREFIX', 'blockchain')
+            # Create a simple test transactions table for development
+            # This will be replaced with actual Delta Lake integration later
+            conn.execute("""
+                CREATE OR REPLACE TABLE transactions (
+                    hash VARCHAR PRIMARY KEY,
+                    from_address VARCHAR,
+                    to_address VARCHAR,
+                    value VARCHAR,
+                    gas VARCHAR,
+                    gas_price VARCHAR,
+                    nonce VARCHAR,
+                    input VARCHAR,
+                    block_number BIGINT,
+                    block_hash VARCHAR,
+                    transaction_index INTEGER,
+                    timestamp TIMESTAMP,
+                    network VARCHAR,
+                    subnet VARCHAR,
+                    status VARCHAR,
+                    decoded_call VARCHAR,
+                    token_symbol VARCHAR,
+                    transaction_type VARCHAR
+                )
+            """)
 
-            # conn.execute(f"""
-            #     CREATE OR REPLACE VIEW transactions AS
-            #     SELECT
-            #         tx_hash as hash,
-            #         from_address,
-            #         to_address,
-            #         value,
-            #         gas_limit as gas,
-            #         gas_price,
-            #         nonce,
-            #         input_data as input,
-            #         block_number,
-            #         block_hash,
-            #         tx_index as transaction_index,
-            #         block_time as timestamp,
-            #         network,
-            #         subnet,
-            #         CASE
-            #             WHEN success = true THEN 'confirmed'
-            #             WHEN success = false THEN 'failed'
-            #             ELSE 'pending'
-            #         END as status,
-            #         '' as decoded_call,  -- TODO: Add decoded call data
-            #         CASE
-            #             WHEN network = 'Avalanche' THEN 'AVAX'
-            #             WHEN network = 'Ethereum' THEN 'ETH'
-            #             ELSE 'UNKNOWN'
-            #         END as token_symbol,
-            #         CASE
-            #             WHEN to_address IS NULL THEN 'contract_creation'
-            #             WHEN input_data IS NULL OR input_data = '' THEN
-            #                 CASE WHEN CAST(value AS BIGINT) > 0 THEN 'send' ELSE 'receive' END
-            #             ELSE 'contract_interaction'
-            #         END as transaction_type,
-            #         vm_type,
-            #         year,
-            #         month,
-            #         day,
-            #         hour
-            #     FROM read_parquet('s3://{bucket_prefix}-*/**/*.parquet', hive_partitioning=true)
-            # """)
+            # Insert some test data to verify the connection works
+            conn.execute("""
+                INSERT OR REPLACE INTO transactions VALUES
+                ('0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+                 '0x1111111111111111111111111111111111111111',
+                 '0x2222222222222222222222222222222222222222',
+                 '1000000000000000000', '21000', '20000000000', '1', '0x',
+                 12345678, '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
+                 0, '2024-01-15 10:30:00', 'avalanche', 'mainnet', 'confirmed',
+                 NULL, 'AVAX', 'send'),
+                ('0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
+                 '0x3333333333333333333333333333333333333333',
+                 '0x4444444444444444444444444444444444444444',
+                 '500000000000000000', '21000', '25000000000', '2', '0x',
+                 12345679, '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+                 1, '2024-01-15 11:45:00', 'ethereum', 'mainnet', 'confirmed',
+                 NULL, 'ETH', 'send')
+            """)
 
-            logger.info("DuckDB connection created and configured (view creation skipped for testing)")
+            logger.info("DuckDB connection created with test transactions table")
             
             logger.info("DuckDB connection created and configured")
             return conn

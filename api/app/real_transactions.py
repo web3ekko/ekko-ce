@@ -13,8 +13,9 @@ import logging
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 try:
-    from services.duckdb_service import get_duckdb_service, DuckDBService
+    from src.services.duckdb_service import get_duckdb_service, DuckDBService
     DUCKDB_AVAILABLE = True
+    print("✅ DuckDB service imported successfully")
 except ImportError as e:
     print(f"Warning: DuckDB service not available: {e}")
     DUCKDB_AVAILABLE = False
