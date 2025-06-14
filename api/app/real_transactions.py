@@ -60,6 +60,87 @@ async def test_transactions():
     """Test endpoint to verify router is working."""
     return {"status": "ok", "message": "Real transactions router working", "duckdb_available": DUCKDB_AVAILABLE}
 
+@router.post("/populate-test-data")
+async def populate_test_data(
+    db_service: Optional[DuckDBService] = Depends(get_duckdb_service)
+):
+    """Manually populate test data for development."""
+    try:
+        if not DUCKDB_AVAILABLE or db_service is None:
+            return {"error": "DuckDB service not available"}
+
+        # Create table
+        await db_service.execute_query("""
+            CREATE OR REPLACE TABLE transactions (
+                hash VARCHAR,
+                from_address VARCHAR,
+                to_address VARCHAR,
+                value VARCHAR,
+                gas VARCHAR,
+                gas_price VARCHAR,
+                nonce VARCHAR,
+                input VARCHAR,
+                block_number BIGINT,
+                block_hash VARCHAR,
+                transaction_index INTEGER,
+                timestamp TIMESTAMP,
+                network VARCHAR,
+                subnet VARCHAR,
+                status VARCHAR,
+                token_symbol VARCHAR,
+                transaction_type VARCHAR
+            )
+        """)
+
+        # Insert test data
+        test_data = [
+            ("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+             "0x742d35Cc6634C0532925a3b8D4C9db96590e4CAF",
+             "0x8ba1f109551bD432803012645Hac136c22C501e",
+             "1000000000000000000", "21000", "25000000000", "1", "0x",
+             1000001, "0xblock1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+             0, "2024-12-19 10:00:00", "avalanche", "mainnet", "confirmed", "AVAX", "send"),
+            ("0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+             "0x8ba1f109551bD432803012645Hac136c22C501e",
+             "0x742d35Cc6634C0532925a3b8D4C9db96590e4CAF",
+             "2000000000000000000", "21000", "30000000000", "2", "0x",
+             1000002, "0xblock2345678901bcdef2345678901bcdef2345678901bcdef2345678901bc",
+             1, "2024-12-19 11:00:00", "avalanche", "mainnet", "confirmed", "AVAX", "receive"),
+            ("0xdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abc",
+             "0x1111111111111111111111111111111111111111",
+             "0x2222222222222222222222222222222222222222",
+             "500000000000000000", "21000", "20000000000", "3", "0x",
+             1000003, "0xblock3456789012cdef3456789012cdef3456789012cdef3456789012cd",
+             0, "2024-12-19 12:00:00", "ethereum", "mainnet", "confirmed", "ETH", "send"),
+            ("0x456789abcdef1234567890abcdef1234567890abcdef1234567890abcdef123",
+             "0x3333333333333333333333333333333333333333",
+             "0x4444444444444444444444444444444444444444",
+             "750000000000000000", "21000", "22000000000", "4", "0x",
+             1000004, "0xblock4567890123def4567890123def4567890123def4567890123de",
+             1, "2024-12-19 13:00:00", "polygon", "mainnet", "confirmed", "MATIC", "send"),
+            ("0x789abcdef1234567890abcdef1234567890abcdef1234567890abcdef123456",
+             "0x5555555555555555555555555555555555555555",
+             "0x6666666666666666666666666666666666666666",
+             "1500000000000000000", "21000", "18000000000", "5", "0x",
+             1000005, "0xblock5678901234ef5678901234ef5678901234ef5678901234e",
+             2, "2024-12-19 14:00:00", "avalanche", "fuji", "confirmed", "AVAX", "send")
+        ]
+
+        for tx in test_data:
+            await db_service.execute_query("""
+                INSERT INTO transactions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, list(tx))
+
+        # Verify data was inserted
+        count_result = await db_service.execute_query("SELECT COUNT(*) as count FROM transactions")
+        count = count_result[0]['count'] if count_result else 0
+
+        return {"status": "success", "message": f"Inserted {len(test_data)} transactions", "total_count": count}
+
+    except Exception as e:
+        logger.error(f"Error populating test data: {str(e)}")
+        return {"error": str(e)}
+
 @router.get("/", response_model=TransactionsListResponse)
 async def get_transactions(
     wallet_addresses: Optional[str] = Query(None, description="Comma-separated wallet addresses"),
@@ -111,19 +192,38 @@ async def get_transactions(
             # Insert test data if table is empty
             count_result = await db_service.execute_query("SELECT COUNT(*) as count FROM transactions")
             if count_result and count_result[0]['count'] == 0:
+                # Create test data that matches what Delta Writer would produce
                 test_data = [
                     ("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
                      "0x742d35Cc6634C0532925a3b8D4C9db96590e4CAF",
                      "0x8ba1f109551bD432803012645Hac136c22C501e",
                      "1000000000000000000", "21000", "25000000000", "1", "0x",
                      1000001, "0xblock1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
-                     0, "2024-12-19 10:00:00", "Avalanche", "Mainnet", "confirmed", "AVAX", "send"),
+                     0, "2024-12-19 10:00:00", "avalanche", "mainnet", "confirmed", "AVAX", "send"),
                     ("0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
                      "0x8ba1f109551bD432803012645Hac136c22C501e",
                      "0x742d35Cc6634C0532925a3b8D4C9db96590e4CAF",
                      "2000000000000000000", "21000", "30000000000", "2", "0x",
                      1000002, "0xblock2345678901bcdef2345678901bcdef2345678901bcdef2345678901bc",
-                     1, "2024-12-19 11:00:00", "Avalanche", "Mainnet", "confirmed", "AVAX", "receive")
+                     1, "2024-12-19 11:00:00", "avalanche", "mainnet", "confirmed", "AVAX", "receive"),
+                    ("0xdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abc",
+                     "0x1111111111111111111111111111111111111111",
+                     "0x2222222222222222222222222222222222222222",
+                     "500000000000000000", "21000", "20000000000", "3", "0x",
+                     1000003, "0xblock3456789012cdef3456789012cdef3456789012cdef3456789012cd",
+                     0, "2024-12-19 12:00:00", "ethereum", "mainnet", "confirmed", "ETH", "send"),
+                    ("0x456789abcdef1234567890abcdef1234567890abcdef1234567890abcdef123",
+                     "0x3333333333333333333333333333333333333333",
+                     "0x4444444444444444444444444444444444444444",
+                     "750000000000000000", "21000", "22000000000", "4", "0x",
+                     1000004, "0xblock4567890123def4567890123def4567890123def4567890123de",
+                     1, "2024-12-19 13:00:00", "polygon", "mainnet", "confirmed", "MATIC", "send"),
+                    ("0x789abcdef1234567890abcdef1234567890abcdef1234567890abcdef123456",
+                     "0x5555555555555555555555555555555555555555",
+                     "0x6666666666666666666666666666666666666666",
+                     "1500000000000000000", "21000", "18000000000", "5", "0x",
+                     1000005, "0xblock5678901234ef5678901234ef5678901234ef5678901234e",
+                     2, "2024-12-19 14:00:00", "avalanche", "fuji", "confirmed", "AVAX", "send")
                 ]
 
                 for tx in test_data:

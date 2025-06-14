@@ -34,11 +34,11 @@ tokio-util = "0.7"
 uuid = { version = "1.0", features = ["v4", "serde"] }
 
 # Delta Lake and Arrow - temporarily disabled for testing
-# deltalake = { version = "0.16", features = ["s3", "json"] }
-# arrow = "47.0"
-# arrow-array = "47.0"
-# arrow-schema = "47.0"
-# object_store = { version = "0.7", features = ["aws"] }
+# deltalake = { version = "0.15", features = ["s3", "json"] }
+# arrow = "46.0"
+# arrow-array = "46.0"
+# arrow-schema = "46.0"
+# object_store = { version = "0.6", features = ["aws"] }
 
 [dev-dependencies]
 testcontainers = "0.15"

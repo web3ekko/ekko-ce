@@ -43,7 +43,7 @@ class DuckDBService:
     async def _create_connection(self) -> duckdb.DuckDBPyConnection:
         """Create a new DuckDB connection with MinIO configuration."""
         try:
-            # Create connection
+            # Create in-memory connection for querying MinIO directly
             conn = duckdb.connect()
             
             # Install and load required extensions
@@ -51,71 +51,91 @@ class DuckDBService:
             conn.execute("LOAD httpfs;")
             
             # Configure MinIO/S3 settings
-            # Format endpoint as full URL with trailing slash
+            # Use simple endpoint format that DuckDB expects
             endpoint = settings.MINIO_ENDPOINT
-            if not endpoint.startswith(('http://', 'https://')):
-                protocol = 'https' if settings.MINIO_SECURE else 'http'
-                endpoint = f"{protocol}://{endpoint}"
-
-            # Ensure endpoint ends with /
-            if not endpoint.endswith('/'):
-                endpoint += '/'
-
             logger.info(f"Configuring DuckDB with MinIO endpoint: {endpoint}")
 
             conn.execute(f"""
                 SET s3_region='{settings.MINIO_REGION}';
+                SET s3_url_style='path';
                 SET s3_endpoint='{endpoint}';
                 SET s3_access_key_id='{settings.MINIO_ACCESS_KEY}';
                 SET s3_secret_access_key='{settings.MINIO_SECRET_KEY}';
                 SET s3_use_ssl={'true' if settings.MINIO_SECURE else 'false'};
             """)
             
-            # Create a simple test transactions table for development
-            # This will be replaced with actual Delta Lake integration later
-            conn.execute("""
-                CREATE OR REPLACE TABLE transactions (
-                    hash VARCHAR PRIMARY KEY,
-                    from_address VARCHAR,
-                    to_address VARCHAR,
-                    value VARCHAR,
-                    gas VARCHAR,
-                    gas_price VARCHAR,
-                    nonce VARCHAR,
-                    input VARCHAR,
-                    block_number BIGINT,
-                    block_hash VARCHAR,
-                    transaction_index INTEGER,
-                    timestamp TIMESTAMP,
-                    network VARCHAR,
-                    subnet VARCHAR,
-                    status VARCHAR,
-                    decoded_call VARCHAR,
-                    token_symbol VARCHAR,
-                    transaction_type VARCHAR
-                )
-            """)
+            # Install Delta extension for reading Delta Lake tables
+            try:
+                conn.execute("INSTALL delta;")
+                conn.execute("LOAD delta;")
+                logger.info("Delta extension loaded successfully")
+            except Exception as e:
+                logger.warning(f"Could not load Delta extension: {e}")
 
-            # Insert some test data to verify the connection works
-            conn.execute("""
-                INSERT OR REPLACE INTO transactions VALUES
-                ('0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
-                 '0x1111111111111111111111111111111111111111',
-                 '0x2222222222222222222222222222222222222222',
-                 '1000000000000000000', '21000', '20000000000', '1', '0x',
-                 12345678, '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
-                 0, '2024-01-15 10:30:00', 'avalanche', 'mainnet', 'confirmed',
-                 NULL, 'AVAX', 'send'),
-                ('0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
-                 '0x3333333333333333333333333333333333333333',
-                 '0x4444444444444444444444444444444444444444',
-                 '500000000000000000', '21000', '25000000000', '2', '0x',
-                 12345679, '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
-                 1, '2024-01-15 11:45:00', 'ethereum', 'mainnet', 'confirmed',
-                 NULL, 'ETH', 'send')
-            """)
+            # Create view for transactions that reads from Delta Lake tables in MinIO
+            # This creates a union view across all network/subnet Delta tables
+            bucket_name = 'blockchain-events'  # Use the correct bucket where our test data is stored
 
-            logger.info("DuckDB connection created with test transactions table")
+            try:
+                # Try to create a view that reads from Delta Lake tables
+                # The Delta Writer creates tables in format: s3://bucket/events/{network}/{subnet}/
+                conn.execute(f"""
+                    CREATE OR REPLACE VIEW transactions AS
+                    SELECT
+                        tx_hash as hash,
+                        entity.address as from_address,
+                        CASE
+                            WHEN details::JSON->>'to' IS NOT NULL
+                            THEN details::JSON->>'to'
+                            ELSE NULL
+                        END as to_address,
+                        COALESCE(details::JSON->>'value', '0') as value,
+                        COALESCE(details::JSON->>'gas', '21000') as gas,
+                        COALESCE(details::JSON->>'gasPrice', '20000000000') as gas_price,
+                        COALESCE(details::JSON->>'nonce', '0') as nonce,
+                        COALESCE(details::JSON->>'input', '0x') as input,
+                        metadata.block_number,
+                        metadata.block_hash,
+                        metadata.tx_index as transaction_index,
+                        timestamp,
+                        metadata.network,
+                        metadata.subnet,
+                        'confirmed' as status,
+                        NULL as decoded_call,
+                        CASE
+                            WHEN LOWER(metadata.network) = 'avalanche' THEN 'AVAX'
+                            WHEN LOWER(metadata.network) = 'ethereum' THEN 'ETH'
+                            WHEN LOWER(metadata.network) = 'polygon' THEN 'MATIC'
+                            ELSE 'UNKNOWN'
+                        END as token_symbol,
+                        CASE
+                            WHEN event_type = 'WalletTx' THEN 'send'
+                            ELSE 'unknown'
+                        END as transaction_type
+                    FROM delta_scan('s3://{bucket_name}/events/*/*/')
+                    WHERE event_type = 'WalletTx'
+                """)
+                logger.info(f"Created transactions view reading from Delta Lake tables in s3://{bucket_name}/events/")
+            except Exception as e:
+                logger.warning(f"Could not create Delta Lake view: {e}")
+                # Try to read from parquet files directly (no fallback to test data)
+                logger.info(f"Attempting to read parquet files from s3://{bucket_name}/transactions/")
+
+                # Test if we can access the parquet data we generated
+                test_result = conn.execute(f"SELECT COUNT(*) FROM 's3://{bucket_name}/transactions/avalanche/mainnet/transactions.parquet'").fetchone()
+                if test_result and test_result[0] > 0:
+                    conn.execute(f"""
+                        CREATE OR REPLACE VIEW transactions AS
+                        SELECT * FROM 's3://{bucket_name}/transactions/*/*/transactions.parquet'
+                    """)
+                    logger.info(f"✅ Created transactions view from parquet files - found {test_result[0]} Avalanche mainnet transactions")
+                else:
+                    logger.error("❌ No parquet data found in MinIO")
+                    raise Exception(f"No transaction data found in s3://{bucket_name}/transactions/")
+
+                # Verify the view works by testing a simple query
+                total_count = conn.execute("SELECT COUNT(*) FROM transactions").fetchone()[0]
+                logger.info(f"✅ Transactions view created successfully with {total_count} total transactions from MinIO")
             
             logger.info("DuckDB connection created and configured")
             return conn

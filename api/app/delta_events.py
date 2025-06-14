@@ -14,11 +14,17 @@ import json
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 try:
-    from services.delta_service import get_delta_service, DeltaService
+    from src.services.delta_service import get_delta_service, DeltaService
     DELTA_AVAILABLE = True
+    print("✅ Delta service imported successfully")
 except ImportError as e:
     print(f"Warning: Delta service not available: {e}")
     DELTA_AVAILABLE = False
+    # Create dummy classes for when Delta service is not available
+    class DeltaService:
+        pass
+    def get_delta_service():
+        return None
 
 logger = logging.getLogger(__name__)
 
