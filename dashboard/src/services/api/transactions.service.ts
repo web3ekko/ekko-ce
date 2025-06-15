@@ -18,13 +18,14 @@ export interface Transaction {
   network: string; // e.g., 'avalanche', 'ethereum'
   subnet: string; // e.g., 'mainnet', 'fuji'
   status: 'confirmed' | 'pending' | 'failed';
-  decodedCall?: {
-    function: string;
-    params: { [key: string]: any };
+  details?: {
+    token_symbol?: string;
+    transaction_type?: 'send' | 'receive' | 'contract_interaction' | 'contract_creation';
+    decoded_call?: {
+      function: string;
+      params: { [key: string]: any };
+    };
   };
-  // Derived fields for UI
-  tokenSymbol?: string;
-  transactionType?: 'send' | 'receive' | 'contract_interaction' | 'contract_creation';
 }
 
 // API request/response interfaces

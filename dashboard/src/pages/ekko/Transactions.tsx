@@ -157,7 +157,8 @@ export default function Transactions() {
   };
 
   // Helper function to get transaction icon based on type
-  const getTransactionIcon = (type: RealtimeTransaction['transactionType']) => {
+  const getTransactionIcon = (tx: Transaction | RealtimeTransaction) => {
+    const type = 'details' in tx ? tx.details?.transaction_type : tx.transactionType;
     switch (type) {
       case 'send':
         return <IconArrowUp size={18} color="red" />;
@@ -170,6 +171,16 @@ export default function Transactions() {
       default:
         return <IconExchange size={18} />;
     }
+  };
+
+  // Helper function to get transaction type
+  const getTransactionType = (tx: Transaction | RealtimeTransaction) => {
+    return 'details' in tx ? tx.details?.transaction_type : (tx as RealtimeTransaction).transactionType;
+  };
+
+  // Helper function to get token symbol
+  const getTokenSymbol = (tx: Transaction | RealtimeTransaction) => {
+    return 'details' in tx ? tx.details?.token_symbol : (tx as RealtimeTransaction).tokenSymbol;
   };
 
   // Helper function to format date
@@ -312,12 +323,12 @@ export default function Transactions() {
                         backgroundColor: '#f2f2f7',
                       }}
                     >
-                      {getTransactionIcon(tx.transactionType)}
+                      {getTransactionIcon(tx)}
                     </Box>
 
                     <Box>
                       <Group gap="xs" mb="xs">
-                        <Text fw={600} tt="capitalize">{tx.transactionType || 'Transaction'}</Text>
+                        <Text fw={600} tt="capitalize">{getTransactionType(tx) || 'Transaction'}</Text>
                         <Badge
                           color={
                             tx.status === 'Confirmed'
@@ -349,7 +360,7 @@ export default function Transactions() {
                         </Text>
 
                         <Badge variant="outline" size="sm">
-                          {tx.network || tx.tokenSymbol || 'Unknown'}
+                          {tx.network || getTokenSymbol(tx) || 'Unknown'}
                         </Badge>
                       </Group>
                     </Box>
@@ -357,11 +368,11 @@ export default function Transactions() {
 
                   <Box style={{ textAlign: 'right' }}>
                     <Text fw={600} size="lg">
-                      {tx.value || '0'} {tx.tokenSymbol || 'ETH'}
+                      {tx.value || '0'} {getTokenSymbol(tx) || 'ETH'}
                     </Text>
                     <Text size="sm" c="dimmed">
-                      {('decoded_call' in tx ? tx.decoded_call?.function :
-                        'decodedCall' in tx ? tx.decodedCall?.function : null) || 'Transfer'}
+                      {('details' in tx ? tx.details?.decoded_call?.function :
+                        'decoded_call' in tx ? tx.decoded_call?.function : null) || 'Transfer'}
                     </Text>
                   </Box>
 

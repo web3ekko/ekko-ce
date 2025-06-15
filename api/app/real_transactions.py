@@ -5,7 +5,7 @@ Real transactions router that connects to DuckDB with MinIO data.
 import sys
 import os
 from fastapi import APIRouter, Query, HTTPException, Depends
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 import logging
 
@@ -45,8 +45,7 @@ class TransactionResponse(BaseModel):
     network: str
     subnet: str
     status: str
-    tokenSymbol: str
-    transactionType: str
+    details: Optional[Dict[str, Any]] = None  # Contains token_symbol, transaction_type, decoded_call
 
 class TransactionsListResponse(BaseModel):
     transactions: List[TransactionResponse]
@@ -285,8 +284,8 @@ async def get_transactions(
                 network,
                 subnet,
                 status,
-                token_symbol as tokenSymbol,
-                transaction_type as transactionType
+                token_symbol,
+                transaction_type
             FROM transactions
             {where_clause}
             ORDER BY timestamp DESC, block_number DESC, transaction_index DESC
@@ -304,6 +303,13 @@ async def get_transactions(
         # Convert results to response models
         transactions = []
         for row in transactions_result:
+            # Build details object from token_symbol and transaction_type
+            details = {}
+            if row.get("token_symbol"):
+                details["token_symbol"] = row.get("token_symbol")
+            if row.get("transaction_type"):
+                details["transaction_type"] = row.get("transaction_type")
+
             # Handle None values and ensure proper field mapping
             tx_data = {
                 "hash": row.get("hash", ""),
@@ -321,8 +327,7 @@ async def get_transactions(
                 "network": row.get("network", ""),
                 "subnet": row.get("subnet", ""),
                 "status": row.get("status", "unknown"),
-                "tokenSymbol": row.get("tokenSymbol", ""),
-                "transactionType": row.get("transactionType", "unknown")
+                "details": details if details else None
             }
             transactions.append(TransactionResponse(**tx_data))
 
