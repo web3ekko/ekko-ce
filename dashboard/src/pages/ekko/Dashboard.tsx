@@ -223,7 +223,7 @@ export default function Dashboard() {
             change="+5.2% today"
             changeType="positive"
             icon={<IconTrendingUp size={20} color="#34C759" />}
-            onClick={() => navigate('/analytics')}
+            onClick={() => navigate('/workflows')}
           />
           <StatsCard
             title="Recent Transactions"
@@ -300,9 +300,9 @@ export default function Dashboard() {
                   variant="light"
                   fullWidth
                   leftSection={<IconTrendingUp size={16} />}
-                  onClick={() => navigate('/analytics')}
+                  onClick={() => navigate('/workflows')}
                 >
-                  View Analytics
+                  View Workflows
                 </Button>
                 <Button
                   variant="light"

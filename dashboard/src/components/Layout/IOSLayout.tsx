@@ -43,7 +43,7 @@ export const IOSLayout: React.FC<IOSLayoutProps> = ({ children }) => {
   return (
     <AppShell
       navbar={{
-        width: isMobile ? 0 : rem(80),
+        width: isMobile ? 0 : rem(88),
         breakpoint: 'md',
       }}
       header={{ height: rem(60) }}
@@ -190,7 +190,7 @@ export const IOSLayout: React.FC<IOSLayoutProps> = ({ children }) => {
         <Box
           style={{
             padding: rem(20),
-            paddingLeft: isMobile ? rem(20) : rem(100), // Account for desktop sidebar
+            paddingLeft: isMobile ? rem(20) : rem(108), // Account for desktop sidebar
           }}
         >
           {children}

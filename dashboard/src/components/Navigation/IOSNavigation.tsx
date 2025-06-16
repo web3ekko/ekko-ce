@@ -14,11 +14,11 @@ import {
   IconHome,
   IconWallet,
   IconBell,
-  IconChartBar,
   IconUsers,
   IconSettings,
   IconActivity,
   IconServer,
+  IconArrowsRightLeft,
 } from '@tabler/icons-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAppSelector } from '@/store';
@@ -33,38 +33,37 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   {
-    icon: <IconHome size={20} />,
+    icon: <IconHome size={24} />,
     label: 'Dashboard',
     path: '/dashboard',
     color: '#007AFF',
   },
   {
-    icon: <IconWallet size={20} />,
+    icon: <IconWallet size={24} />,
     label: 'Wallets',
     path: '/wallets',
     color: '#34C759',
   },
   {
-    icon: <IconBell size={20} />,
-    label: 'Alerts',
-    path: '/alerts',
-    badge: 2,
+    icon: <IconBell size={24} />,
+    label: 'Notifications',
+    path: '/notifications',
     color: '#FF9500',
   },
   {
-    icon: <IconChartBar size={20} />,
-    label: 'Analytics',
-    path: '/analytics',
+    icon: <IconArrowsRightLeft size={24} />,
+    label: 'Workflows',
+    path: '/workflows',
     color: '#8E8E93',
   },
   {
-    icon: <IconActivity size={20} />,
+    icon: <IconActivity size={24} />,
     label: 'Transactions',
     path: '/transactions',
     color: '#FF3B30',
   },
   {
-    icon: <IconServer size={20} />,
+    icon: <IconServer size={24} />,
     label: 'Nodes',
     path: '/nodes',
     color: '#9775FA',
@@ -86,9 +85,9 @@ const NavItemComponent: React.FC<NavItemProps> = ({ item, isActive, onClick }) =
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          width: rem(48),
-          height: rem(48),
-          borderRadius: rem(12),
+          width: rem(52),
+          height: rem(52),
+          borderRadius: rem(14),
           backgroundColor: isActive ? item.color : 'transparent',
           color: isActive ? '#ffffff' : item.color,
           transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -110,13 +109,14 @@ const NavItemComponent: React.FC<NavItemProps> = ({ item, isActive, onClick }) =
             color="red"
             style={{
               position: 'absolute',
-              top: rem(-4),
-              right: rem(-4),
-              minWidth: rem(18),
-              height: rem(18),
+              top: rem(-2),
+              right: rem(-2),
+              minWidth: rem(20),
+              height: rem(20),
               padding: 0,
-              fontSize: rem(10),
+              fontSize: rem(11),
               fontWeight: 700,
+              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
             }}
           >
             {item.badge}
@@ -139,14 +139,14 @@ export const IOSNavigation: React.FC = () => {
   return (
     <Box
       style={{
-        width: rem(80),
+        width: rem(88),
         height: '100vh',
         backgroundColor: 'rgba(255, 255, 255, 0.8)',
         backdropFilter: 'blur(20px)',
         borderRight: '1px solid rgba(229, 229, 234, 0.6)',
         display: 'flex',
         flexDirection: 'column',
-        padding: rem(16),
+        padding: rem(18),
         position: 'fixed',
         left: 0,
         top: 0,
@@ -159,22 +159,23 @@ export const IOSNavigation: React.FC = () => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          marginBottom: rem(32),
+          marginBottom: rem(36),
           padding: rem(8),
         }}
       >
         <Box
           style={{
-            width: rem(32),
-            height: rem(32),
-            borderRadius: rem(8),
+            width: rem(36),
+            height: rem(36),
+            borderRadius: rem(10),
             backgroundColor: '#007AFF',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             color: '#ffffff',
             fontWeight: 700,
-            fontSize: rem(16),
+            fontSize: rem(18),
+            boxShadow: '0 2px 8px rgba(0, 122, 255, 0.3)',
           }}
         >
           E
@@ -182,7 +183,7 @@ export const IOSNavigation: React.FC = () => {
       </Box>
 
       {/* Navigation Items */}
-      <Stack gap="sm" style={{ flex: 1 }}>
+      <Stack gap="md" style={{ flex: 1 }}>
         {navItems.map((item) => (
           <NavItemComponent
             key={item.path}
@@ -194,11 +195,11 @@ export const IOSNavigation: React.FC = () => {
       </Stack>
 
       {/* Bottom Section */}
-      <Stack gap="sm">
+      <Stack gap="md">
         {/* Settings */}
         <NavItemComponent
           item={{
-            icon: <IconSettings size={20} />,
+            icon: <IconSettings size={24} />,
             label: 'Settings',
             path: '/settings',
             color: '#8E8E93',

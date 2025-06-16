@@ -65,6 +65,19 @@ class Alert(BaseModel):
     query: Optional[str] = None
     notifications_enabled: Optional[bool] = True
 
+# Notification destination model
+class NotificationDestination(BaseModel):
+    id: str
+    type: str  # 'email', 'telegram', 'discord'
+    name: str
+    address: str
+    enabled: bool = True
+    created_at: str
+
+# Notification settings model
+class NotificationSettings(BaseModel):
+    destinations: List[NotificationDestination] = []
+
 # Global NATS connection
 nc = None
 js = None
@@ -169,6 +182,8 @@ app.include_router(settings_router, prefix="/api/settings", tags=["settings"])
 app.include_router(auth_router)  # For /token endpoint
 app.include_router(user_router)  # For /users endpoints
 app.include_router(wallet_router) # For /wallet-balances endpoints
+
+
 
 # Include transactions router if available
 if TRANSACTIONS_AVAILABLE:
@@ -1214,6 +1229,37 @@ async def delete_node(node_id: str, background_tasks: BackgroundTasks):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error deleting node: {str(e)}")
+
+# Notification settings endpoints
+@app.get("/api/notifications/settings", response_model=NotificationSettings)
+async def get_notification_settings():
+    """Get current notification settings"""
+    try:
+        kv = await js.key_value(bucket="settings")
+        try:
+            data = await kv.get("notification_settings")
+            if isinstance(data.value, bytes):
+                json_str = data.value.decode('utf-8')
+            else:
+                json_str = data.value
+            return json.loads(json_str)
+        except Exception:
+            # Return default settings if none exist
+            return NotificationSettings(destinations=[])
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting notification settings: {str(e)}")
+
+@app.post("/api/notifications/settings", response_model=NotificationSettings)
+async def save_notification_settings(settings: NotificationSettings):
+    """Save notification settings"""
+    try:
+        kv = await js.key_value(bucket="settings")
+        json_data = json.dumps(settings.model_dump())
+        encoded_data = json_data.encode('utf-8')
+        await kv.put("notification_settings", encoded_data)
+        return settings
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error saving notification settings: {str(e)}")
 
 # Health check endpoint
 @app.get("/health")

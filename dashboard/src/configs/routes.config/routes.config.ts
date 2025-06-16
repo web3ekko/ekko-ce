@@ -42,12 +42,6 @@ export const protectedRoutes = [
     authority: [],
   },
   {
-    key: 'analytics',
-    path: '/analytics',
-    component: lazy(() => import('@/pages/ekko/Analytics')),
-    authority: [],
-  },
-  {
     key: 'workflows',
     path: '/workflows',
     component: lazy(() => import('@/pages/ekko/Workflows')),
@@ -63,6 +57,12 @@ export const protectedRoutes = [
     key: 'nodeDetail',
     path: '/ekko/nodes/:nodeId',
     component: lazy(() => import('@/pages/ekko/NodeDetailPage')),
+    authority: [],
+  },
+  {
+    key: 'notifications',
+    path: '/notifications',
+    component: lazy(() => import('@/pages/ekko/Notifications')),
     authority: [],
   },
   {
