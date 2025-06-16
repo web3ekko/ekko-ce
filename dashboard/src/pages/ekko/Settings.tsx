@@ -54,8 +54,6 @@ interface UserProfile {
 }
 
 interface GeneralNotificationSettings {
-  emailNotifications: boolean;
-  pushNotifications: boolean;
   alertNotifications: boolean;
   transactionNotifications: boolean;
   weeklyReports: boolean;
@@ -78,8 +76,6 @@ export default function Settings() {
   // Settings states
   const [darkMode, setDarkMode] = useState(false);
   const [generalNotifications, setGeneralNotifications] = useState<GeneralNotificationSettings>({
-    emailNotifications: true,
-    pushNotifications: true,
     alertNotifications: true,
     transactionNotifications: false,
     weeklyReports: true,
@@ -320,8 +316,6 @@ export default function Settings() {
                     {key.replace(/([A-Z])/g, ' $1').trim()}
                   </Text>
                   <Text size="sm" c="dimmed">
-                    {key === 'emailNotifications' && 'Receive updates via email'}
-                    {key === 'pushNotifications' && 'Browser push notifications'}
                     {key === 'alertNotifications' && 'Wallet and price alerts'}
                     {key === 'transactionNotifications' && 'Transaction confirmations'}
                     {key === 'weeklyReports' && 'Weekly summary reports'}
