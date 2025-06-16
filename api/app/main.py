@@ -35,7 +35,7 @@ try:
 except ImportError as e:
     print(f"Warning: Delta events router not available: {e}")
     DELTA_EVENTS_AVAILABLE = False
-from app.alert_processor import start_alert_processor, stop_alert_processor
+
 from app.models import Node
 from app.alert_job_utils import generate_job_spec_from_alert
 from app.logging_config import alert_logger, api_logger, job_spec_logger
@@ -84,7 +84,6 @@ js = None
 
 # Background task flags
 running = True
-alert_processor_task = None
 
 # Lifespan context manager to handle startup/shutdown
 @asynccontextmanager
@@ -131,27 +130,11 @@ async def lifespan(app: FastAPI):
         # Start background task for processing messages
         asyncio.create_task(process_messages())
 
-        # Start alert processor as a background task
-        global alert_processor_task
-        alert_processor_task = asyncio.create_task(start_alert_processor(js, interval_seconds=60))
-        print("Alert processor background task started")
-
         print("FastAPI service started successfully")
         yield
     finally:
         # Shutdown: stop background processing and close NATS connection
         running = False
-
-        # Stop alert processor
-        if alert_processor_task:
-            await stop_alert_processor()
-            try:
-                alert_processor_task.cancel()
-                await alert_processor_task
-            except asyncio.CancelledError:
-                print("Alert processor task cancelled successfully")
-            except Exception as e:
-                print(f"Error cancelling alert processor task: {e}")
 
         # Cleanup database system
         try:

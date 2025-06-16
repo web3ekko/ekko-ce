@@ -7,6 +7,9 @@ import {
   IconSettings,
   IconServer,
   IconArrowsRightLeft,
+  IconAlertTriangle,
+  IconBellRinging,
+  IconShield,
 } from '@tabler/icons-react';
 
 const navigationConfig: NavigationTree[] = [
@@ -33,7 +36,7 @@ const navigationConfig: NavigationTree[] = [
     path: '/alerts',
     title: 'Alerts',
     translateKey: '',
-    icon: IconBell,
+    icon: IconShield,
     authority: [],
     subMenu: [],
   },
@@ -69,7 +72,7 @@ const navigationConfig: NavigationTree[] = [
     path: '/notifications',
     title: 'Notifications',
     translateKey: '',
-    icon: IconBell,
+    icon: IconBellRinging,
     authority: [],
     subMenu: [],
   },

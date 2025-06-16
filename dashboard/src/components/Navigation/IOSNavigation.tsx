@@ -19,6 +19,7 @@ import {
   IconActivity,
   IconServer,
   IconArrowsRightLeft,
+  IconShield,
 } from '@tabler/icons-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAppSelector } from '@/store';
@@ -45,16 +46,10 @@ const navItems: NavItem[] = [
     color: '#34C759',
   },
   {
-    icon: <IconBell size={24} />,
-    label: 'Notifications',
-    path: '/notifications',
-    color: '#FF9500',
-  },
-  {
-    icon: <IconArrowsRightLeft size={24} />,
-    label: 'Workflows',
-    path: '/workflows',
-    color: '#8E8E93',
+    icon: <IconShield size={24} />,
+    label: 'Alerts',
+    path: '/alerts',
+    color: '#FF6B35',
   },
   {
     icon: <IconActivity size={24} />,
@@ -63,10 +58,22 @@ const navItems: NavItem[] = [
     color: '#FF3B30',
   },
   {
+    icon: <IconArrowsRightLeft size={24} />,
+    label: 'Workflows',
+    path: '/workflows',
+    color: '#8E8E93',
+  },
+  {
     icon: <IconServer size={24} />,
     label: 'Nodes',
     path: '/nodes',
     color: '#9775FA',
+  },
+  {
+    icon: <IconBell size={24} />,
+    label: 'Notifications',
+    path: '/notifications',
+    color: '#FF9500',
   },
 ];
 

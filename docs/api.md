@@ -1,20 +1,20 @@
 # API Reference
 
-## Alert Processor API
+## DSPy Job Specification Generator
 
-### Class: AlertProcessor
+### Overview
 
-```python
-class AlertProcessor:
-    def __init__(self, redis_url: str):
-        """Initialize the alert processor with Redis connection"""
-        
-    def process_transaction(self, transaction: Dict[str, Any]) -> None:
-        """Process a transaction against active alert rules"""
-        
-    def _get_alert_rules(self, blockchain_symbol: str) -> list:
-        """Get all alert rules for a specific blockchain from Redis"""
-```
+The API uses DSPy to convert natural language alert queries into structured job specifications with Polars code.
+
+### Key Components
+
+- `dspy_job_generator.py` - Main DSPy implementation
+- `alert_job_utils.py` - Integration with alert system
+- Background task for job spec generation
+
+### Usage
+
+When an alert is created with a natural language query, DSPy automatically generates a job specification that can be executed by external job runners.
 
 ## Redis Data Structures
 
