@@ -4,6 +4,7 @@ import json
 import uuid
 import traceback
 from typing import Dict, List, Optional, Any, Union
+from enum import Enum
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
 import nats
@@ -52,18 +53,74 @@ class Wallet(BaseModel):
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
 
+class AlertType(str, Enum):
+    WALLET = "wallet"
+    PRICE = "price"
+    TIME_BOUND = "time_bound"
+    DEFI_PROTOCOL = "defi_protocol"
+    PORTFOLIO = "portfolio"
+
+class AlertCategory(str, Enum):
+    BALANCE = "balance"
+    TRANSACTION = "transaction"
+    PRICE_MOVEMENT = "price_movement"
+    YIELD = "yield"
+    LIQUIDATION = "liquidation"
+    CUSTOM = "custom"
+
+class AlertSchedule(BaseModel):
+    type: str = "real-time"  # "real-time", "interval", "cron"
+    interval_seconds: Optional[int] = None
+    cron_expression: Optional[str] = None
+    timezone: str = "UTC"
+
+class AlertCondition(BaseModel):
+    # Natural language query (user input)
+    query: str
+
+    # Structured parameters (extracted from query)
+    parameters: Dict[str, Any] = {}
+
+    # Generated Polars code (by DSPy)
+    polars_code: Optional[str] = None
+
+    # Validation metadata
+    data_sources: List[str] = []
+    estimated_frequency: str = "real-time"
+
+class JobSpecification(BaseModel):
+    job_name: str
+    polars_code: str
+    data_sources: List[str]
+    schedule: AlertSchedule
+    validation_rules: Dict[str, Any] = {}
+
 class Alert(BaseModel):
     id: str
-    type: str
-    message: str
-    time: str
-    status: str
-    icon: Optional[str] = None
-    priority: Optional[str] = None
-    related_wallet: Optional[str] = None
-    related_wallet_id: Optional[str] = None
-    query: Optional[str] = None
-    notifications_enabled: Optional[bool] = True
+    user_id: str = "default"  # Default for backward compatibility
+    name: str
+    description: Optional[str] = None
+
+    # Type System
+    type: AlertType
+    category: AlertCategory
+
+    # Condition Definition
+    condition: AlertCondition
+
+    # Execution Settings
+    schedule: AlertSchedule = AlertSchedule()
+    enabled: bool = True
+
+    # Metadata (NO notification info)
+    created_at: str
+    updated_at: Optional[str] = None
+
+    # DSPy Generated
+    job_spec: Optional[JobSpecification] = None
+    job_spec_generated_at: Optional[str] = None
+
+
 
 # Notification destination model
 class NotificationDestination(BaseModel):
@@ -794,47 +851,77 @@ async def generate_job_spec_for_alert(alert_id: str, alert_query: str):
 @app.post("/alerts", response_model=Alert)
 async def create_alert(alert: Alert, background_tasks: BackgroundTasks):
     try:
-        alert_logger.info(f"[ALERT:{alert.id}] Creating new alert of type '{alert.type}'")
-        alert_logger.debug(f"[ALERT:{alert.id}] Full alert data: {alert.dict()}")
-        
+        alert_logger.info(f"[ALERT:{alert.id}] Creating new alert of type '{alert.type}' category '{alert.category}'")
+        alert_logger.debug(f"[ALERT:{alert.id}] Full alert data: {alert.model_dump()}")
+
         start_time = datetime.now()
-        
-        # Store the alert first without waiting for job spec
+
+        # Set default values if not provided
+        if not alert.created_at:
+            alert.created_at = datetime.now().isoformat()
+        if not alert.user_id:
+            alert.user_id = "default"
+
+        # Generate job specification if condition has query
+        if alert.condition.query and not alert.job_spec:
+            alert_logger.info(f"[ALERT:{alert.id}] Generating job specification...")
+            try:
+                from app.alert_job_utils import generate_job_spec_from_alert
+                job_spec_data = await generate_job_spec_from_alert({
+                    "id": alert.id,
+                    "type": alert.type.value,
+                    "category": alert.category.value,
+                    "query": alert.condition.query,
+                    "parameters": alert.condition.parameters
+                })
+
+                if job_spec_data:
+                    alert.job_spec = JobSpecification(**job_spec_data)
+                    alert.job_spec_generated_at = datetime.now().isoformat()
+                    alert_logger.info(f"[ALERT:{alert.id}] Job specification generated successfully")
+                else:
+                    alert_logger.warning(f"[ALERT:{alert.id}] Failed to generate job specification")
+
+            except Exception as job_error:
+                alert_logger.error(f"[ALERT:{alert.id}] Error generating job spec: {str(job_error)}")
+                # Continue without job spec for now
+
+        # Store the alert
         try:
             kv = await js.key_value(bucket="alerts")
             alert_logger.debug(f"[ALERT:{alert.id}] Connected to alerts KV store")
-            
+
             # Store the new alert - properly encode to bytes
-            json_data = json.dumps(alert.dict())
-            encoded_data = json_data.encode('utf-8')  # Convert string to bytes
+            json_data = json.dumps(alert.model_dump())
+            encoded_data = json_data.encode('utf-8')
             await kv.put(alert.id, encoded_data)
             alert_logger.info(f"[ALERT:{alert.id}] Alert stored in KV store")
-            
+
         except Exception as kv_error:
             alert_logger.error(f"[ALERT:{alert.id}] Error storing alert in KV store: {str(kv_error)}")
             alert_logger.debug(f"[ALERT:{alert.id}] KV error details: {traceback.format_exc()}")
             raise
-        
-        # Schedule job spec generation as a background task if query is provided
-        if alert.query:
-            alert_logger.info(f"[ALERT:{alert.id}] Alert has query, scheduling job spec generation")
-            background_tasks.add_task(generate_job_spec_for_alert, alert.id, alert.query)
-            alert_logger.debug(f"[ALERT:{alert.id}] Background task for job spec generation scheduled")
-        else:
-            alert_logger.debug(f"[ALERT:{alert.id}] No query provided, skipping job spec generation")
-        
-        # Publish event about new alert using centralized system
+
+        # Publish event about new alert
         try:
-            background_tasks.add_task(publish_event, "alert.created", alert.dict(), ignore_errors=True)
+            event_data = {
+                "alert_id": alert.id,
+                "user_id": alert.user_id,
+                "type": alert.type.value,
+                "category": alert.category.value,
+                "has_job_spec": alert.job_spec is not None
+            }
+            background_tasks.add_task(publish_event, "alert.created", event_data, ignore_errors=True)
             alert_logger.info(f"[ALERT:{alert.id}] Alert creation event scheduled for publishing")
         except Exception as event_error:
             alert_logger.warning(f"[ALERT:{alert.id}] Error scheduling event publication: {str(event_error)}")
-        
+
         # Calculate and log total processing time
         elapsed = (datetime.now() - start_time).total_seconds()
         alert_logger.info(f"[ALERT:{alert.id}] Alert creation completed in {elapsed:.2f} seconds")
-        
+
         return alert
+
     except Exception as e:
         alert_logger.error(f"Error creating alert: {str(e)}")
         alert_logger.debug(f"Alert creation exception details: {traceback.format_exc()}")

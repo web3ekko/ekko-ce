@@ -156,20 +156,24 @@ mod tests {
     #[test]
     fn test_config_from_env() {
         // Set test environment variables
-        env::set_var("SERVICE_NAME", "test-service");
-        env::set_var("METRICS_PORT", "8080");
-        env::set_var("BATCH_SIZE", "500");
-        
+        unsafe {
+            env::set_var("SERVICE_NAME", "test-service");
+            env::set_var("METRICS_PORT", "8080");
+            env::set_var("BATCH_SIZE", "500");
+        }
+
         let config = Config::from_env().unwrap();
-        
+
         assert_eq!(config.service_name, "test-service");
         assert_eq!(config.metrics_port, 8080);
         assert_eq!(config.batch_size, 500);
-        
+
         // Clean up
-        env::remove_var("SERVICE_NAME");
-        env::remove_var("METRICS_PORT");
-        env::remove_var("BATCH_SIZE");
+        unsafe {
+            env::remove_var("SERVICE_NAME");
+            env::remove_var("METRICS_PORT");
+            env::remove_var("BATCH_SIZE");
+        }
     }
     
     #[test]

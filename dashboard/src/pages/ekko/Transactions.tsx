@@ -158,7 +158,7 @@ export default function Transactions() {
 
   // Helper function to get transaction icon based on type
   const getTransactionIcon = (tx: Transaction | RealtimeTransaction) => {
-    const type = 'details' in tx ? tx.details?.transaction_type : tx.transactionType;
+    const type = getTransactionType(tx);
     switch (type) {
       case 'send':
         return <IconArrowUp size={18} color="red" />;

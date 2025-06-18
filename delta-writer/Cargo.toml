@@ -8,7 +8,7 @@ edition = "2024"
 tokio = { version = "1.0", features = ["full"] }
 
 # NATS
-async-nats = "0.33"
+async-nats = "0.42.0"
 futures = "0.3"
 
 # Serialization
@@ -41,4 +41,4 @@ uuid = { version = "1.0", features = ["v4", "serde"] }
 # object_store = { version = "0.6", features = ["aws"] }
 
 [dev-dependencies]
-testcontainers = "0.15"
+testcontainers = "0.24.0"

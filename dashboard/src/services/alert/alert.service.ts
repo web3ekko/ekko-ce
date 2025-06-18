@@ -74,18 +74,25 @@ export const AlertService = {
     try {
       console.log('Creating alert with data:', alertData);
 
-      // Generate ID on client side if not provided
-      const alertWithId: Alert = {
+      // Prepare alert data with defaults
+      const requestData = {
         ...alertData,
         id: alertData.id || uuidv4(),
-        time: alertData.time || new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        enabled: alertData.enabled !== false,
+        user_id: alertData.user_id || "default",
+        schedule: alertData.schedule || {
+          type: 'real-time',
+          timezone: 'UTC'
+        }
       };
 
       const res = await ApiService.fetchData<Alert, Alert>({
         url: '/alerts',
         method: 'POST',
-        data: alertWithId,
+        data: requestData,
       });
+
       console.log('Alert created successfully:', res.data);
       return res.data;
     } catch (error) {

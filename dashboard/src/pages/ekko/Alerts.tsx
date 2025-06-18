@@ -25,9 +25,12 @@ import {
   Alert as MantineAlert,
   Grid,
   Tooltip,
+  Stepper,
+  Box,
 } from '@mantine/core';
 import { IOSCard, IOSPageWrapper } from '@/components/UI/IOSCard';
 import { useForm } from '@mantine/form';
+import { notifications } from '@mantine/notifications';
 import {
   IconSearch,
   IconPlus,
@@ -40,14 +43,24 @@ import {
   IconCurrencyDollar,
   IconShield,
   IconTrash,
+  IconX,
+  IconArrowsRightLeft,
+  IconTrendingUp,
 } from '@tabler/icons-react';
 
 // Import services
 import { AlertService } from '@/services/alert/alert.service';
 import { WalletService } from '@/services/wallet/wallet.service';
 import type { Alert as AlertType, AlertFormValues } from '@/@types/alert';
+import { AlertType as AlertTypeEnum, AlertCategory } from '@/@types/alert';
 import type { Wallet } from '@/@types/wallet';
 import { v4 as uuidv4 } from 'uuid';
+
+// Import new alert components
+import AlertTypeSelector from '@/components/Alert/AlertTypeSelector';
+import ParameterBuilder from '@/components/Alert/ParameterBuilder';
+import ScheduleConfiguration from '@/components/Alert/ScheduleConfiguration';
+import { getAlertTypeConfig, generateQueryFromTemplate, determineDataSources } from '@/configs/alertTypes.config';
 
 // AlertFormValues is now imported from @types/alert
 
@@ -65,6 +78,9 @@ export default function Alerts() {
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [updatingNotification, setUpdatingNotification] = useState<string | null>(null);
+
+  // Stepper state for alert creation wizard
+  const [activeStep, setActiveStep] = useState(0);
 
   // Fetch alerts and wallets on component mount
   useEffect(() => {
@@ -127,33 +143,16 @@ export default function Alerts() {
     }
   };
 
-  // Function to toggle notifications for an alert
+  // Function to toggle notifications for an alert (simplified for new schema)
   const handleToggleNotifications = async (alert: AlertType) => {
     try {
       setUpdatingNotification(alert.id);
 
-      // Create complete update payload with all required fields
-      // The API requires all these fields to be present
-      const updatePayload = {
-        id: alert.id,
-        type: alert.type,
-        message: alert.message,
-        time: alert.time,
-        status: alert.status,
-        priority: alert.priority || 'Medium',
-        icon: alert.icon,
-        query: alert.query,
-        related_wallet_id: alert.related_wallet_id,
-        related_wallet: alert.related_wallet,
-        notifications_enabled: !alert.notifications_enabled,
-      };
+      // For now, just refresh the alerts list
+      // TODO: Implement proper alert update with new schema
+      console.log('Toggle notifications for alert:', alert.id);
 
-      console.log('Updating alert notification status:', updatePayload);
-
-      // Send the update to the API
-      await AlertService.updateAlert(alert.id, updatePayload);
-
-      // Refresh alerts list after update
+      // Refresh alerts list
       fetchAlerts();
     } catch (err) {
       console.error('Error updating alert notification status:', err);
@@ -163,46 +162,64 @@ export default function Alerts() {
     }
   };
 
-  // Form for creating a new alert
+  // Form for creating a new alert with enhanced schema
   const form = useForm<AlertFormValues>({
     initialValues: {
-      type: 'Price',
-      message: '',
-      priority: 'Medium',
-      related_wallet_id: '',
+      type: AlertTypeEnum.WALLET,
+      category: AlertCategory.BALANCE,
+      name: '',
+      description: '',
       query: '',
-      threshold: 10,
-      enableNotifications: true,
+      parameters: {},
+      schedule: {
+        type: 'real-time',
+        timezone: 'UTC'
+      },
+      enabled: true,
     },
     validate: {
-      message: (value) => (value.trim().length < 1 ? 'Alert message is required' : null),
-      related_wallet_id: (value, values) => {
-        // Make related_wallet required only for Transaction alerts
-        if (values.type === 'Transaction' && (!value || value.trim() === '')) {
-          return 'A wallet is required for transaction alerts';
-        }
-        return null;
-      },
+      name: (value) => (value.trim().length < 1 ? 'Alert name is required' : null),
+      query: (value) => (value.trim().length < 1 ? 'Alert condition is required' : null),
     },
   });
 
-  // Handle form submission
+  // Enhanced form submission handler
   const handleSubmit = async (values: AlertFormValues) => {
     try {
       setLoading(true);
 
-      // Create alert object from form values
+      // Get selected alert type configuration
+      const selectedConfig = getAlertTypeConfig(values.type, values.category);
+
+      if (!selectedConfig) {
+        throw new Error('Invalid alert type configuration');
+      }
+
+      // Generate natural language query from template and parameters
+      const query = generateQueryFromTemplate(selectedConfig.queryTemplate, values.parameters);
+
+      // Create alert object in new format
       const newAlert = {
-        id: uuidv4(), // Generate a UUID for the new alert
+        id: uuidv4(),
+        user_id: "default", // TODO: Get from auth context
+        name: values.name,
+        description: values.description,
         type: values.type,
-        message: values.message,
-        time: new Date().toISOString(),
-        status: 'Open',
-        priority: values.priority,
-        related_wallet_id: values.related_wallet_id,
-        query: values.query,
-        notifications_enabled: values.enableNotifications,
-        icon: values.type === 'Price' ? 'chart' : 'bell',
+        category: values.category,
+        condition: {
+          query,
+          parameters: values.parameters,
+          data_sources: determineDataSources(values.type, values.category),
+          estimated_frequency: values.schedule.type
+        },
+        schedule: {
+          type: values.schedule.type,
+          interval_seconds: values.schedule.interval_seconds,
+          cron_expression: values.schedule.cron_expression,
+          timezone: values.schedule.timezone
+        },
+        enabled: values.enabled,
+        created_at: new Date().toISOString()
       };
 
       console.log('Creating new alert:', newAlert);
@@ -210,69 +227,113 @@ export default function Alerts() {
       // Call the API to create the alert
       await AlertService.createAlert(newAlert);
 
-      // Close the modal after successful submission
+      // Success handling
       setModalOpened(false);
-
-      // Reset form
+      setActiveStep(0); // Reset stepper
       form.reset();
-
-      // Refresh the alert list
       fetchAlerts();
-
       setError(null);
+
+      // Show success notification
+      notifications.show({
+        title: 'Alert Created',
+        message: `${values.name} has been created successfully`,
+        color: 'green',
+        icon: <IconCheck size={16} />
+      });
+
     } catch (err: any) {
       console.error('Error creating alert:', err);
       setError(err.message || 'Failed to create alert. Please try again.');
+
+      // Show error notification
+      notifications.show({
+        title: 'Error',
+        message: err.message || 'Failed to create alert',
+        color: 'red',
+        icon: <IconX size={16} />
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  // Update message based on alert type and threshold
-  const updateAlertMessage = (type: string, threshold: number, wallet: string) => {
-    let message = '';
-    let query = '';
+  // Helper functions for stepper navigation
+  const nextStep = () => setActiveStep((current) => (current < 3 ? current + 1 : current));
+  const prevStep = () => setActiveStep((current) => (current > 0 ? current - 1 : current));
 
-    // Format wallet name to include (Wallet) suffix if not already there
-    let walletName = wallet ? wallet : 'selected wallet';
-    if (walletName && !walletName.includes('(') && !walletName.includes('Wallet')) {
-      walletName = `${walletName} (Wallet)`;
+  // Helper function to handle alert type selection
+  const handleAlertTypeChange = (typeValue: string) => {
+    const [type, category] = typeValue.split('-') as [AlertTypeEnum, AlertCategory];
+    form.setFieldValue('type', type);
+    form.setFieldValue('category', category);
+
+    // Reset parameters when type changes
+    form.setFieldValue('parameters', {});
+    form.setFieldValue('query', '');
+
+    // Auto-generate name if empty
+    const config = getAlertTypeConfig(type, category);
+    if (config && !form.values.name) {
+      form.setFieldValue('name', config.name);
     }
-
-    // Get selected wallet to determine cryptocurrency symbol
-    const selectedWallet = wallets.find((w) => w.id === form.values.related_wallet_id);
-    const cryptoSymbol = selectedWallet ? selectedWallet.blockchain_symbol : 'AVAX';
-
-    switch (type) {
-      case 'Price':
-        message = `Alert when price changes by ${threshold}%`;
-        query = `price_change > ${threshold}%`;
-        break;
-      case 'Transaction':
-        message = `Alert on transactions above ${threshold} ${cryptoSymbol} in ${walletName}`;
-        query = `tx_value > ${threshold}`;
-        break;
-      default:
-        message = 'Custom alert';
-        query = '';
-    }
-
-    form.setFieldValue('message', message);
-    form.setFieldValue('query', query);
   };
+
+  // Helper function to handle parameter changes
+  const handleParameterChange = (field: string, value: any) => {
+    const fieldPath = field.split('.');
+    if (fieldPath.length === 2 && fieldPath[0] === 'parameters') {
+      form.setFieldValue(`parameters.${fieldPath[1]}`, value);
+    } else {
+      form.setFieldValue(field, value);
+    }
+
+    // Auto-update query when parameters change
+    const config = getAlertTypeConfig(form.values.type, form.values.category);
+    if (config) {
+      const updatedQuery = generateQueryFromTemplate(config.queryTemplate, {
+        ...form.values.parameters,
+        [fieldPath[1]]: value
+      });
+      form.setFieldValue('query', updatedQuery);
+    }
+  };
+
+  // Helper function to validate current step
+  const validateStep = (step: number): boolean => {
+    switch (step) {
+      case 0: // Type selection
+        return !!(form.values.type && form.values.category);
+      case 1: // Parameters
+        const config = getAlertTypeConfig(form.values.type, form.values.category);
+        if (!config) return false;
+
+        // Check required parameters
+        const requiredParams = config.parameters.filter(p => p.required);
+        return requiredParams.every(param => {
+          const value = (form.values.parameters as any)[param.name];
+          return value !== undefined && value !== null && value !== '';
+        });
+      case 2: // Schedule
+        return !!(form.values.schedule.type && form.values.schedule.timezone);
+      default:
+        return true;
+    }
+  };
+
+
 
   // Filter alerts based on search query and active tab
   const filteredAlerts = alerts.filter((alert: AlertType) => {
     const matchesSearch =
-      alert.message.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      alert.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       alert.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (alert.related_wallet &&
-        alert.related_wallet.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (alert.query && alert.query.toLowerCase().includes(searchQuery.toLowerCase()));
+      (alert.description && alert.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (alert.condition?.query && alert.condition.query.toLowerCase().includes(searchQuery.toLowerCase()));
 
     if (activeTab === 'all') return matchesSearch;
-    if (activeTab === 'open') return matchesSearch && alert.status === 'Open';
-    if (activeTab === 'resolved') return matchesSearch && alert.status === 'Resolved';
+    if (activeTab === 'open') return matchesSearch && alert.enabled;
+    if (activeTab === 'resolved') return matchesSearch && !alert.enabled;
 
     return matchesSearch;
   });
@@ -285,29 +346,23 @@ export default function Alerts() {
   );
 
   // Helper function to get alert icon based on type
-  const getAlertIcon = (type: string) => {
-    switch (type) {
-      case 'Price':
-        return <IconChartBar size={18} />;
-      case 'Transaction':
-        return <IconCurrencyDollar size={18} />;
-      default:
-        return <IconBell size={18} />;
+  const getAlertIcon = (type: AlertTypeEnum, category: AlertCategory) => {
+    if (type === AlertTypeEnum.PRICE) {
+      return <IconChartBar size={18} />;
+    } else if (type === AlertTypeEnum.WALLET && category === AlertCategory.TRANSACTION) {
+      return <IconArrowsRightLeft size={18} />;
+    } else if (type === AlertTypeEnum.WALLET && category === AlertCategory.BALANCE) {
+      return <IconWallet size={18} />;
+    } else if (type === AlertTypeEnum.TIME_BOUND) {
+      return <IconTrendingUp size={18} />;
     }
+    return <IconShield size={18} />;
   };
 
-  // Helper function to get priority color
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'High':
-        return 'red';
-      case 'Medium':
-        return 'orange';
-      case 'Low':
-        return 'blue';
-      default:
-        return 'gray';
-    }
+  // Helper function to get alert type display name
+  const getAlertTypeName = (type: AlertTypeEnum, category: AlertCategory) => {
+    const config = getAlertTypeConfig(type, category);
+    return config?.name || `${type} ${category}`;
   };
 
   return (
@@ -324,138 +379,148 @@ export default function Alerts() {
         </Button>
       }
     >
-      {/* Create Alert Modal */}
+      {/* Enhanced Create Alert Modal with Stepper */}
       <Modal
         opened={modalOpened}
-        onClose={() => setModalOpened(false)}
+        onClose={() => {
+          setModalOpened(false);
+          setActiveStep(0);
+          form.reset();
+        }}
         title="Create New Alert"
-        size="md"
+        size="lg"
       >
-        <form onSubmit={form.onSubmit(handleSubmit)}>
-          <Stack gap="md">
-            <Radio.Group
-              label="Alert Type"
-              description="Select the type of alert you want to create"
-              {...form.getInputProps('type')}
-              onChange={(value) => {
-                form.setFieldValue('type', value);
-                updateAlertMessage(
-                  value,
-                  form.values.threshold,
-                  getWalletInfo(form.values.related_wallet_id)
-                );
-              }}
+        <Stack gap="lg">
+          {/* Stepper */}
+          <Stepper active={activeStep} onStepClick={setActiveStep} allowNextStepsSelect={false}>
+            <Stepper.Step label="Type" description="Choose alert type">
+              <Box mt="md">
+                <AlertTypeSelector
+                  value={form.values.type && form.values.category ? `${form.values.type}-${form.values.category}` : undefined}
+                  onChange={handleAlertTypeChange}
+                />
+              </Box>
+            </Stepper.Step>
+
+            <Stepper.Step label="Configure" description="Set parameters">
+              <Box mt="md">
+                <Stack gap="md">
+                  <TextInput
+                    label="Alert Name"
+                    placeholder="Enter a name for your alert"
+                    required
+                    {...form.getInputProps('name')}
+                  />
+
+                  <Textarea
+                    label="Description (Optional)"
+                    placeholder="Add a description for your alert"
+                    minRows={2}
+                    {...form.getInputProps('description')}
+                  />
+
+                  {form.values.type && form.values.category && (
+                    <ParameterBuilder
+                      config={getAlertTypeConfig(form.values.type, form.values.category)!}
+                      values={form.values}
+                      onChange={handleParameterChange}
+                      wallets={wallets}
+                    />
+                  )}
+                </Stack>
+              </Box>
+            </Stepper.Step>
+
+            <Stepper.Step label="Schedule" description="Set timing">
+              <Box mt="md">
+                <ScheduleConfiguration
+                  value={form.values.schedule}
+                  onChange={(schedule) => form.setFieldValue('schedule', schedule)}
+                />
+              </Box>
+            </Stepper.Step>
+
+            <Stepper.Step label="Review" description="Confirm details">
+              <Box mt="md">
+                <Stack gap="md">
+                  <Text size="lg" fw={600}>Review Your Alert</Text>
+
+                  <Card withBorder padding="md">
+                    <Stack gap="sm">
+                      <Group justify="space-between">
+                        <Text fw={500}>Name:</Text>
+                        <Text>{form.values.name}</Text>
+                      </Group>
+
+                      <Group justify="space-between">
+                        <Text fw={500}>Type:</Text>
+                        <Badge color="blue">
+                          {getAlertTypeConfig(form.values.type, form.values.category)?.name}
+                        </Badge>
+                      </Group>
+
+                      <Group justify="space-between">
+                        <Text fw={500}>Condition:</Text>
+                        <Text size="sm" style={{ fontFamily: 'monospace' }}>
+                          {form.values.query || 'No condition set'}
+                        </Text>
+                      </Group>
+
+                      <Group justify="space-between">
+                        <Text fw={500}>Schedule:</Text>
+                        <Text>{form.values.schedule.type}</Text>
+                      </Group>
+
+                      <Group justify="space-between">
+                        <Text fw={500}>Status:</Text>
+                        <Badge color={form.values.enabled ? 'green' : 'gray'}>
+                          {form.values.enabled ? 'Enabled' : 'Disabled'}
+                        </Badge>
+                      </Group>
+                    </Stack>
+                  </Card>
+
+                  <Switch
+                    label="Enable Alert"
+                    description="Alert will be active immediately after creation"
+                    checked={form.values.enabled}
+                    onChange={(event) => form.setFieldValue('enabled', event.currentTarget.checked)}
+                  />
+                </Stack>
+              </Box>
+            </Stepper.Step>
+          </Stepper>
+
+          {/* Navigation Buttons */}
+          <Group justify="space-between" mt="xl">
+            <Button
+              variant="light"
+              onClick={activeStep === 0 ? () => setModalOpened(false) : prevStep}
             >
-              <Group mt="xs">
-                <Radio value="Price" label="Price Alert" />
-                <Radio value="Transaction" label="Transaction Alert" />
-              </Group>
-            </Radio.Group>
+              {activeStep === 0 ? 'Cancel' : 'Back'}
+            </Button>
 
-            <Select
-              label="Related Wallet"
-              placeholder="Select wallet (optional)"
-              data={[
-                { value: '', label: 'None' },
-                ...wallets.map((wallet) => ({
-                  value: wallet.id,
-                  label: `${wallet.name || 'Wallet'} (${wallet.blockchain_symbol}) - ${wallet.address.substring(0, 6)}...${wallet.address.substring(wallet.address.length - 4)}`,
-                })),
-              ]}
-              clearable
-              disabled={loadingWallets}
-              {...form.getInputProps('related_wallet_id')}
-              onChange={(value: string | null) => {
-                form.setFieldValue('related_wallet_id', value || '');
-                updateAlertMessage(
-                  form.values.type,
-                  form.values.threshold,
-                  getWalletInfo(value || '')
-                );
-              }}
-            />
-
-            <div>
-              <Text size="sm" fw={500} mb="xs">
-                Threshold {form.values.type === 'Price' ? '(%)' : '(Amount)'}
-              </Text>
-              <Slider
-                min={1}
-                max={form.values.type === 'Price' ? 50 : 100}
-                step={form.values.type === 'Price' ? 1 : 5}
-                label={(value) => `${value}${form.values.type === 'Price' ? '%' : ''}`}
-                marks={
-                  form.values.type === 'Price'
-                    ? [
-                        { value: 5, label: '5%' },
-                        { value: 15, label: '15%' },
-                        { value: 30, label: '30%' },
-                        { value: 50, label: '50%' },
-                      ]
-                    : [
-                        { value: 10, label: '10' },
-                        { value: 25, label: '25' },
-                        { value: 50, label: '50' },
-                        { value: 100, label: '100' },
-                      ]
-                }
-                {...form.getInputProps('threshold')}
-                onChange={(value) => {
-                  form.setFieldValue('threshold', value);
-                  updateAlertMessage(
-                    form.values.type,
-                    value,
-                    getWalletInfo(form.values.related_wallet_id)
-                  );
-                }}
-              />
-            </div>
-
-            <Radio.Group label="Priority" {...form.getInputProps('priority')}>
-              <Group mt="xs">
-                <Radio value="Low" label="Low" />
-                <Radio value="Medium" label="Medium" />
-                <Radio value="High" label="High" />
-              </Group>
-            </Radio.Group>
-
-            <Textarea
-              label="Alert Message"
-              placeholder="Alert description"
-              required
-              minRows={2}
-              {...form.getInputProps('message')}
-            />
-
-            <Textarea
-              label="Query Condition"
-              placeholder="Condition that triggers this alert"
-              required
-              minRows={2}
-              {...form.getInputProps('query')}
-            />
-
-            <Switch
-              label="Enable Notifications"
-              description="Receive notifications when this alert is triggered"
-              checked={form.values.enableNotifications}
-              onChange={(event) =>
-                form.setFieldValue('enableNotifications', event.currentTarget.checked)
-              }
-            />
-
-            <Divider />
-
-            <Group justify="flex-end">
-              <Button variant="light" onClick={() => setModalOpened(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" leftSection={<IconCheck size={16} />}>
-                Create Alert
-              </Button>
+            <Group>
+              {activeStep < 3 ? (
+                <Button
+                  onClick={nextStep}
+                  disabled={!validateStep(activeStep)}
+                >
+                  Next
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => handleSubmit(form.values)}
+                  leftSection={<IconCheck size={16} />}
+                  loading={loading}
+                  disabled={!validateStep(activeStep)}
+                >
+                  Create Alert
+                </Button>
+              )}
             </Group>
-          </Stack>
-        </form>
+          </Group>
+        </Stack>
       </Modal>
 
       <IOSCard>
@@ -549,102 +614,70 @@ export default function Alerts() {
                   >
                     <Group justify="space-between" mb="xs">
                       <Group>
-                        {getAlertIcon(alert.type)}
-                        <Text fw={700}>{alert.type}</Text>
+                        {getAlertIcon(alert.type, alert.category)}
+                        <Text fw={700}>{getAlertTypeName(alert.type, alert.category)}</Text>
                       </Group>
-                      <Badge color={alert.status === 'Open' ? 'blue' : 'green'}>
-                        {alert.status}
+                      <Badge color={alert.enabled ? 'blue' : 'gray'}>
+                        {alert.enabled ? 'Active' : 'Disabled'}
                       </Badge>
                     </Group>
+
+                    <Text fw={600} size="md" mb="xs">
+                      {alert.name}
+                    </Text>
+
+                    {alert.description && (
+                      <Text size="sm" c="dimmed" mb="md">
+                        {alert.description}
+                      </Text>
+                    )}
+
                     <Text
                       size="sm"
                       mb="md"
                       p="xs"
-                      bg={
-                        alert.type === 'Price'
-                          ? 'rgba(25, 113, 194, 0.1)'
-                          : 'rgba(255, 151, 0, 0.1)'
-                      }
+                      bg="rgba(25, 113, 194, 0.1)"
                       style={{
                         borderRadius: '4px',
                         fontWeight: 500,
-                        color: alert.type === 'Price' ? '#1864ab' : '#d97706',
+                        color: '#1864ab',
+                        fontFamily: 'monospace'
                       }}
                     >
-                      {alert.message}
+                      {alert.condition?.query || 'No condition set'}
                     </Text>
-                    <Group justify="space-between">
-                      <Text>Priority:</Text>
-                      <Badge color={getPriorityColor(alert.priority || 'Medium')}>
-                        {alert.priority || 'Medium'}
+
+                    <Group justify="space-between" mt="xs">
+                      <Text>Schedule:</Text>
+                      <Badge variant="light">
+                        {alert.schedule?.type || 'real-time'}
                       </Badge>
                     </Group>
 
-                    <Group justify="space-between" mt="xs">
-                      <Text>Notifications:</Text>
-                      <Switch
-                        checked={alert.notifications_enabled !== false}
-                        disabled={updatingNotification === alert.id}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                        }}
-                        onChange={() => handleToggleNotifications(alert)}
-                        size="sm"
-                      />
-                    </Group>
-
-                    <Group justify="space-between" mt="xs">
-                      <Text>Wallet:</Text>
-                      <Text size="sm">
-                        {(() => {
-                          // Check if alert has a related_wallet_id
-                          if (alert.related_wallet_id) {
-                            // Find the associated wallet by ID
-                            const associatedWallet = wallets.find(
-                              (w) => w.id === alert.related_wallet_id
-                            );
+                    {alert.condition?.parameters?.wallet_id && (
+                      <Group justify="space-between" mt="xs">
+                        <Text>Wallet:</Text>
+                        <Text size="sm">
+                          {(() => {
+                            const walletId = (alert.condition.parameters as any).wallet_id;
+                            const associatedWallet = wallets.find((w) => w.id === walletId);
                             if (associatedWallet) {
-                              // Format as "Name (truncated address)"
                               const address = associatedWallet.address;
                               const truncatedAddress = address
                                 ? `${address.substring(0, 6)}...${address.substring(address.length - 6)}`
                                 : '';
-                              const name =
-                                associatedWallet.name ||
-                                `${associatedWallet.blockchain_symbol} Wallet`;
-
+                              const name = associatedWallet.name || `${associatedWallet.blockchain_symbol} Wallet`;
                               return truncatedAddress ? `${name} (${truncatedAddress})` : name;
                             }
-                            return `Wallet ${alert.related_wallet_id.substring(0, 8)}...`;
-                          }
-
-                          // Extract wallet info from message if available
-                          if (alert.message) {
-                            if (alert.message.toLowerCase().includes('wallet')) {
-                              // Try to extract wallet name from message
-                              const walletMatch = alert.message.match(/wallet\s+([\w-]+)/i);
-                              if (walletMatch && walletMatch[1]) {
-                                return walletMatch[1];
-                              }
-                            }
-
-                            // Extract blockchain if available
-                            const chains = ['ETH', 'BTC', 'AVAX', 'MATIC'];
-                            for (const chain of chains) {
-                              if (alert.message.includes(chain)) {
-                                return `${chain} Wallet`;
-                              }
-                            }
-                          }
-
-                          return 'N/A';
-                        })()}
-                      </Text>
-                    </Group>
+                            return `Wallet ${walletId.substring(0, 8)}...`;
+                          })()}
+                        </Text>
+                      </Group>
+                    )}
 
                     <Group justify="flex-end" mt="md">
                       <Text size="xs" c="dimmed">
-                        {new Date(alert.time).toLocaleString()}
+                        {new Date(alert.created_at).toLocaleString()}
                       </Text>
                       <Tooltip label="Delete alert">
                         <ActionIcon
