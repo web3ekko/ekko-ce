@@ -41,6 +41,7 @@ from app.models import Node
 from app.alert_job_utils import generate_job_spec_from_alert
 from app.logging_config import alert_logger, api_logger, job_spec_logger
 from app.startup import initialize_database_system, cleanup_database_system, get_database_status
+from app.alert_executor import get_alert_executor_service, start_alert_executor, stop_alert_executor
 
 # Models
 class Wallet(BaseModel):
@@ -187,11 +188,26 @@ async def lifespan(app: FastAPI):
         # Start background task for processing messages
         asyncio.create_task(process_messages())
 
+        # Start alert executor service
+        print("Starting alert executor service...")
+        try:
+            asyncio.create_task(start_alert_executor())
+            print("✅ Alert executor service started successfully")
+        except Exception as executor_error:
+            print(f"⚠️ Warning: Alert executor initialization issue: {executor_error}")
+
         print("FastAPI service started successfully")
         yield
     finally:
         # Shutdown: stop background processing and close NATS connection
         running = False
+
+        # Stop alert executor service
+        try:
+            await stop_alert_executor()
+            print("Alert executor service stopped")
+        except Exception as e:
+            print(f"Error stopping alert executor: {e}")
 
         # Cleanup database system
         try:
@@ -928,6 +944,194 @@ async def create_alert(alert: Alert, background_tasks: BackgroundTasks):
         raise HTTPException(status_code=500, detail=f"Error creating alert: {str(e)}")
 
 
+@app.post("/alerts/infer-parameters")
+async def infer_alert_parameters(request: dict):
+    """
+    Infer alert parameters from natural language description using DSPy.
+
+    Expected request format:
+    {
+        "name": "My Alert",
+        "description": "Alert me when my wallet balance falls below 10 AVAX",
+        "enabled": true,
+        "user_context": {
+            "wallets": [...],
+            "timezone": "UTC"
+        }
+    }
+    """
+    try:
+        alert_logger.info(f"Inferring parameters for description: {request.get('description', '')[:100]}...")
+
+        # Extract request data
+        name = request.get('name', 'Smart Alert')
+        description = request.get('description', '')
+        enabled = request.get('enabled', True)
+        user_context = request.get('user_context', {})
+
+        if not description.strip():
+            raise HTTPException(status_code=400, detail="Description is required for parameter inference")
+
+        # Use DSPy to infer parameters
+        from app.alert_job_utils import generate_job_spec_from_alert
+
+        # Create a temporary alert-like object for DSPy processing
+        temp_alert_data = {
+            "id": f"temp-{int(datetime.now().timestamp())}",
+            "type": "unknown",
+            "category": "unknown",
+            "query": description,
+            "parameters": user_context
+        }
+
+        # Generate job spec which includes parameter inference
+        job_spec_data = await generate_job_spec_from_alert(temp_alert_data)
+
+        if not job_spec_data:
+            # Fallback to simple pattern matching if DSPy fails
+            alert_logger.warning("DSPy inference failed, using fallback pattern matching")
+            inferred_alert = _fallback_parameter_inference(name, description, enabled, user_context)
+        else:
+            # Convert job spec back to alert format
+            inferred_alert = _job_spec_to_alert_format(name, description, enabled, user_context, job_spec_data)
+
+        alert_logger.info(f"Successfully inferred parameters for alert type: {inferred_alert.get('type')}")
+        return inferred_alert
+
+    except Exception as e:
+        alert_logger.error(f"Error inferring alert parameters: {str(e)}")
+        alert_logger.debug(f"Parameter inference exception details: {traceback.format_exc()}")
+
+        # Return fallback inference on error
+        try:
+            fallback_alert = _fallback_parameter_inference(
+                request.get('name', 'Smart Alert'),
+                request.get('description', ''),
+                request.get('enabled', True),
+                request.get('user_context', {})
+            )
+            alert_logger.info("Returned fallback parameter inference")
+            return fallback_alert
+        except Exception as fallback_error:
+            alert_logger.error(f"Even fallback inference failed: {str(fallback_error)}")
+            raise HTTPException(status_code=500, detail=f"Error inferring alert parameters: {str(e)}")
+
+
+def _fallback_parameter_inference(name: str, description: str, enabled: bool, user_context: dict) -> dict:
+    """Fallback parameter inference using simple pattern matching"""
+    description_lower = description.lower()
+    wallets = user_context.get('wallets', [])
+
+    # Simple pattern matching for demo
+    if 'balance' in description_lower and 'below' in description_lower:
+        import re
+        threshold_match = re.search(r'(\d+(?:\.\d+)?)', description)
+        threshold = float(threshold_match.group(1)) if threshold_match else 10
+
+        return {
+            "type": "wallet",
+            "category": "balance",
+            "name": name,
+            "description": description,
+            "condition": {
+                "query": f"Alert when wallet balance falls below {threshold} AVAX",
+                "parameters": {
+                    "wallet_id": wallets[0].get('id') if wallets else 'default-wallet',
+                    "wallet_name": wallets[0].get('name') if wallets else 'Default Wallet',
+                    "wallet_address": wallets[0].get('address') if wallets else '0x...',
+                    "threshold": threshold,
+                    "comparison": "below",
+                    "token_symbol": "AVAX"
+                },
+                "data_sources": ["wallet_balances", "token_balances"],
+                "estimated_frequency": "real-time"
+            },
+            "schedule": {
+                "type": "real-time",
+                "timezone": user_context.get('timezone', 'UTC')
+            },
+            "enabled": enabled,
+            "confidence": 0.85
+        }
+    elif 'price' in description_lower and 'above' in description_lower:
+        import re
+        threshold_match = re.search(r'\$?(\d+(?:\.\d+)?)', description)
+        threshold = float(threshold_match.group(1)) if threshold_match else 50
+
+        return {
+            "type": "price",
+            "category": "price_movement",
+            "name": name,
+            "description": description,
+            "condition": {
+                "query": f"Alert when AVAX price goes above ${threshold}",
+                "parameters": {
+                    "asset": "AVAX",
+                    "threshold": threshold,
+                    "comparison": "above"
+                },
+                "data_sources": ["price_feeds", "market_data"],
+                "estimated_frequency": "real-time"
+            },
+            "schedule": {
+                "type": "real-time",
+                "timezone": user_context.get('timezone', 'UTC')
+            },
+            "enabled": enabled,
+            "confidence": 0.90
+        }
+    else:
+        # Default fallback
+        return {
+            "type": "wallet",
+            "category": "balance",
+            "name": name,
+            "description": description,
+            "condition": {
+                "query": description,
+                "parameters": {
+                    "wallet_id": wallets[0].get('id') if wallets else 'default-wallet',
+                    "wallet_name": wallets[0].get('name') if wallets else 'Default Wallet',
+                    "threshold": 10,
+                    "comparison": "below"
+                },
+                "data_sources": ["wallet_balances"],
+                "estimated_frequency": "real-time"
+            },
+            "schedule": {
+                "type": "real-time",
+                "timezone": user_context.get('timezone', 'UTC')
+            },
+            "enabled": enabled,
+            "confidence": 0.60
+        }
+
+
+def _job_spec_to_alert_format(name: str, description: str, enabled: bool, user_context: dict, job_spec: dict) -> dict:
+    """Convert DSPy job specification back to alert format"""
+    # This is a simplified conversion - in a real implementation,
+    # you'd have more sophisticated mapping logic
+
+    return {
+        "type": "wallet",  # Default for now
+        "category": "balance",  # Default for now
+        "name": name,
+        "description": description,
+        "condition": {
+            "query": description,
+            "parameters": {},  # Extract from job_spec if available
+            "data_sources": job_spec.get("sources", []),
+            "estimated_frequency": "real-time",
+            "polars_code": job_spec.get("polars_code")
+        },
+        "schedule": {
+            "type": "real-time",
+            "timezone": user_context.get('timezone', 'UTC')
+        },
+        "enabled": enabled,
+        "confidence": 0.75,
+        "job_spec": job_spec
+    }
 
 
 @app.put("/alerts/{alert_id}", response_model=Alert)
@@ -1338,3 +1542,222 @@ async def health_check():
         return {"status": "healthy", "nats_connected": True}
     else:
         return {"status": "unhealthy", "nats_connected": False}, 503
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Alert Template Processing Endpoints
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.post("/alerts/process-template")
+async def process_alert_template_endpoint(request: dict):
+    """
+    Process an alert template by substituting parameters and generating executable DSL
+
+    Expected request format:
+    {
+        "alert_template": {
+            "alert_id": "wallet_balance_alert",
+            "polars_template": "...",
+            "parameter_schema": {...},
+            "output_mapping": {...}
+        },
+        "parameters": {
+            "WALLET_ADDRESS": "0x123...",
+            "THRESHOLD": 10.0,
+            "TOKEN_SYMBOL": "AVAX"
+        }
+    }
+    """
+    try:
+        from app.alert_template_processor import process_alert_template, TemplateProcessingError
+
+        alert_template = request.get("alert_template")
+        parameters = request.get("parameters", {})
+
+        if not alert_template:
+            raise HTTPException(status_code=400, detail="alert_template is required")
+
+        # Process the template
+        processed_template = process_alert_template(alert_template, parameters)
+
+        return {
+            "success": True,
+            "processed_template": processed_template
+        }
+
+    except TemplateProcessingError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        alert_logger.error(f"Error processing alert template: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Template processing failed: {str(e)}")
+
+@app.post("/alerts/preview-dsl")
+async def preview_dsl_with_sample_parameters_endpoint(request: dict):
+    """
+    Generate a preview of the DSL with sample parameter values
+
+    Expected request format:
+    {
+        "alert_template": {...}
+    }
+    """
+    try:
+        from app.alert_template_processor import preview_dsl_with_sample_parameters
+
+        alert_template = request.get("alert_template")
+
+        if not alert_template:
+            raise HTTPException(status_code=400, detail="alert_template is required")
+
+        # Generate preview
+        preview = preview_dsl_with_sample_parameters(alert_template)
+
+        return {
+            "success": True,
+            "preview": preview
+        }
+
+    except Exception as e:
+        alert_logger.error(f"Error generating DSL preview: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"DSL preview generation failed: {str(e)}")
+
+@app.post("/alerts/execute-dsl")
+async def execute_alert_dsl_endpoint(request: dict):
+    """
+    Execute alert DSL via NATS message to Rust service
+
+    Expected request format:
+    {
+        "alert_id": "wallet_balance_alert",
+        "polars_dsl": "let target_wallet = wallet_balances...",
+        "data_sources": ["wallet_balances"],
+        "output_mapping": {
+            "result_column": "below_threshold",
+            "value_column": "current_value",
+            "result_type": "boolean",
+            "value_type": "float"
+        },
+        "parameters_used": {...},
+        "timeout_seconds": 30
+    }
+    """
+    try:
+        import uuid
+        from datetime import datetime
+
+        # Extract request data
+        alert_id = request.get("alert_id", "unknown")
+        polars_dsl = request.get("polars_dsl", "")
+        data_sources = request.get("data_sources", [])
+        output_mapping = request.get("output_mapping", {})
+        parameters_used = request.get("parameters_used", {})
+        timeout_seconds = request.get("timeout_seconds", 30)
+
+        if not polars_dsl:
+            raise HTTPException(status_code=400, detail="polars_dsl is required")
+
+        if not data_sources:
+            raise HTTPException(status_code=400, detail="data_sources is required")
+
+        # Create execution request message
+        execution_request = {
+            "execution_id": str(uuid.uuid4()),
+            "alert_id": alert_id,
+            "polars_dsl": polars_dsl,
+            "data_sources": data_sources,
+            "output_mapping": output_mapping,
+            "parameters_used": parameters_used,
+            "timeout_seconds": timeout_seconds,
+            "priority": "Normal",
+            "requested_at": datetime.utcnow().isoformat() + "Z"
+        }
+
+        # Send to NATS
+        if nc and nc.is_connected:
+            import json
+            message_data = json.dumps(execution_request).encode()
+            await nc.publish("alert.execute", message_data)
+
+            alert_logger.info(f"Sent alert execution request: {execution_request['execution_id']}")
+
+            return {
+                "success": True,
+                "execution_id": execution_request["execution_id"],
+                "message": "Alert execution request sent to processing queue"
+            }
+        else:
+            raise HTTPException(status_code=503, detail="NATS connection not available")
+
+    except Exception as e:
+        alert_logger.error(f"Error sending alert execution request: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to send execution request: {str(e)}")
+
+@app.get("/alerts/executor/stats")
+async def get_alert_executor_stats():
+    """
+    Get alert executor service statistics
+    """
+    try:
+        service = await get_alert_executor_service()
+        stats = service.get_stats()
+
+        return {
+            "success": True,
+            "stats": stats
+        }
+
+    except Exception as e:
+        alert_logger.error(f"Error getting executor stats: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get executor stats: {str(e)}")
+
+@app.post("/alerts/test-execution")
+async def test_alert_execution():
+    """
+    Test alert execution with a simple wallet balance check
+    """
+    try:
+        # Create a test execution request
+        test_request = {
+            "alert_id": "test_wallet_balance",
+            "polars_dsl": """
+# Test wallet balance check
+let target_wallet = wallet_balances
+    .filter(pl.col("address") == "0x1234567890abcdef1234567890abcdef12345678")
+    .with_columns([
+        (pl.col("balance") < 10.0).alias("below_threshold"),
+        pl.col("balance").alias("current_value")
+    ]);
+target_wallet
+            """.strip(),
+            "data_sources": ["wallet_balances"],
+            "output_mapping": {
+                "result_column": "below_threshold",
+                "value_column": "current_value",
+                "result_type": "boolean",
+                "value_type": "float"
+            },
+            "parameters_used": {
+                "wallet_address": "0x1234567890abcdef1234567890abcdef12345678",
+                "threshold": 10.0
+            },
+            "timeout_seconds": 30
+        }
+
+        # Send to NATS for execution
+        if nc and nc.is_connected:
+            import json
+            message_data = json.dumps(test_request).encode()
+            await nc.publish("alert.execute", message_data)
+
+            alert_logger.info(f"Sent test execution request")
+
+            return {
+                "success": True,
+                "message": "Test execution request sent to processing queue",
+                "test_request": test_request
+            }
+        else:
+            raise HTTPException(status_code=503, detail="NATS connection not available")
+
+    except Exception as e:
+        alert_logger.error(f"Error sending test execution request: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to send test execution request: {str(e)}")

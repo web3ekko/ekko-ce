@@ -65,6 +65,7 @@ services:
     volumes:
       - nats_data:/data
       - ./nats-config/nats-server.conf:/etc/nats/nats-server.conf
+    env_file: ".env"
     networks:
       - pipeline-network
     restart: unless-stopped
@@ -89,6 +90,7 @@ services:
       - NODE_ENV=production
       - NATS_URL=nats://nats:4222
       - API_URL=http://api:8000
+    env_file: ".env"
     volumes:
       - ./dashboard:/app
       - /app/node_modules
@@ -123,6 +125,11 @@ services:
       - MINIO_SECRET_KEY=minioadmin
       - MINIO_REGION=us-east-1
       - MINIO_SECURE=false
+      # Akash Configuration
+      - AKASH_API_KEY=sk-ofmj_-f2Hoj92GkRH39-lA
+      - AKASH_BASE_URL=https://chatapi.akash.network/api/v1
+      - DEFAULT_MODEL=Meta-Llama-3-1-8B-Instruct-FP8
+    env_file: ".env"
     volumes:
       - ./api:/app
       - api_data:/app/data
@@ -160,6 +167,7 @@ services:
       - RETRY_ATTEMPTS=3
       - RETRY_DELAY_MS=1000
       - RUST_LOG=info,ekko_delta_writer=debug
+    env_file: ".env"
     ports:
       - "9090:9090"  # Metrics port
     restart: unless-stopped
@@ -181,10 +189,12 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    env_file: ".env"
     command: redis-server --appendonly yes
     networks:
       - pipeline-network
-    restart: unless-stopped
+
+
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 30s
@@ -202,6 +212,7 @@ services:
     environment:
       - MINIO_ROOT_USER=minioadmin
       - MINIO_ROOT_PASSWORD=minioadmin
+    env_file: ".env"
     command: server /data --console-address ":9001"
     networks:
       - pipeline-network

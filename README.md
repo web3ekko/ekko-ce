@@ -21,10 +21,8 @@ Ekko is an **open-source blockchain monitoring and automation platform** that he
 - **Agent System:** Deploy autonomous agents for automated trading and monitoring (with NATS JetStream integration)
 - **Data Storage and Messaging:** Hybrid system using DuckDB, Valkey, and NATS JetStream for optimal performance
 - **Modular Architecture:**
-  - **Bento:** Real-time transaction processing and alert engine
   - **React Frontend:** Modern, responsive web interface
   - **Valkey:** High-performance caching and real-time data streaming
-  - **NATS JetStream:** Distributed messaging and event streaming
   - **NATS JetStream:** Distributed messaging and event streaming for transaction data
 
 ## Quickstart
@@ -69,6 +67,50 @@ docker-compose exec api python scripts/create_ekko_user.py --email your_email@ex
 
 After creating a user, you can log in via the dashboard using the credentials you provided.
 
+## 🚨 **Alert System**
+
+Ekko CE features a powerful **AI-powered alert system** that allows you to create alerts using natural language:
+
+### **Creating Alerts**
+```bash
+# Example: Natural language input
+"Alert me when my wallet balance drops below 10 AVAX"
+
+# The system automatically:
+# 1. Infers parameters using DSPy
+# 2. Generates Polars DSL code
+# 3. Executes queries against real-time data
+# 4. Sends notifications when conditions are met
+```
+
+### **Alert Executor**
+The Alert Executor runs as a **FastAPI background task** and:
+- ✅ Processes alerts via NATS messaging
+- ✅ Executes Polars DSL queries against mock/real data
+- ✅ Supports up to 10 concurrent executions
+- ✅ Provides real-time statistics and monitoring
+
+### **Testing the Alert System**
+```bash
+# Test the alert executor
+curl -X POST "http://localhost:8000/alerts/test-execution"
+
+# Check executor statistics
+curl -X GET "http://localhost:8000/alerts/executor/stats"
+
+# Response example:
+# {
+#   "success": true,
+#   "stats": {
+#     "active_executions": 0,
+#     "max_concurrent_executions": 10,
+#     "worker_id": "worker-cdd100b8",
+#     "connected": true,
+#     "running": true
+#   }
+# }
+```
+
 ## Architecture
 
 Ekko is built with a modular architecture focusing on real-time processing and scalability:
@@ -79,12 +121,28 @@ Ekko is built with a modular architecture focusing on real-time processing and s
 - **NATS JetStream:** Handles distributed messaging and event streaming
 - **DuckDB:** Manages structured data for wallets, alerts, and workflows
 
-## Documentation
+## 📚 **Comprehensive Documentation**
 
-- [Setup Guide](docs/setup.md)
-- [Configuration](docs/configuration.md)
-- [API Reference](docs/api.md)
-- [Contributing Guide](docs/contributing.md)
+### **🚀 Quick Start & Setup**
+- **[Developer Onboarding](./docs/DEVELOPER_ONBOARDING.md)** - Get up and running in 30 minutes
+- [Setup Guide](docs/setup.md) - Detailed installation instructions
+- [Configuration](docs/configuration.md) - Environment and service configuration
+
+### **🏗️ Architecture & Development**
+- **[Service Specifications](./docs/SERVICE_SPECIFICATIONS.md)** - Complete service architecture and data flow
+- **[API Reference](./docs/API_REFERENCE.md)** - REST API endpoints with examples
+- **[NATS Subjects Reference](./docs/NATS_SUBJECTS_REFERENCE.md)** - Message schemas and communication patterns
+- **[Database Schema](./docs/DATABASE_SCHEMA.md)** - Data models and storage architecture
+
+### **🔧 Development & Contributing**
+- [API Reference](docs/api.md) - Legacy API documentation
+- [Contributing Guide](docs/contributing.md) - How to contribute to the project
+
+### **🎯 Key Features Documentation**
+- **Alert Executor**: Python-based background task for processing Polars DSL queries
+- **DSPy Integration**: AI-powered alert parameter inference from natural language
+- **Multi-Network Support**: Avalanche, Ethereum, and extensible architecture
+- **Real-Time Processing**: NATS JetStream for reliable message delivery
 
 ## Development
 

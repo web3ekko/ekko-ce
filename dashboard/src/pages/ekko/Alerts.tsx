@@ -27,6 +27,7 @@ import {
   Tooltip,
   Stepper,
   Box,
+  SegmentedControl,
 } from '@mantine/core';
 import { IOSCard, IOSPageWrapper } from '@/components/UI/IOSCard';
 import { useForm } from '@mantine/form';
@@ -60,6 +61,7 @@ import { v4 as uuidv4 } from 'uuid';
 import AlertTypeSelector from '@/components/Alert/AlertTypeSelector';
 import ParameterBuilder from '@/components/Alert/ParameterBuilder';
 import ScheduleConfiguration from '@/components/Alert/ScheduleConfiguration';
+import SmartAlertForm from '@/components/Alert/SmartAlertForm';
 import { getAlertTypeConfig, generateQueryFromTemplate, determineDataSources } from '@/configs/alertTypes.config';
 
 // AlertFormValues is now imported from @types/alert
@@ -81,6 +83,9 @@ export default function Alerts() {
 
   // Stepper state for alert creation wizard
   const [activeStep, setActiveStep] = useState(0);
+
+  // Alert creation mode state
+  const [alertMode, setAlertMode] = useState<'smart' | 'advanced'>('smart');
 
   // Fetch alerts and wallets on component mount
   useEffect(() => {
@@ -258,6 +263,73 @@ export default function Alerts() {
     }
   };
 
+  // Handle smart mode alert creation
+  const handleSmartAlertCreation = async (inferredAlert: any) => {
+    try {
+      setLoading(true);
+
+      console.log('Creating smart alert:', inferredAlert);
+
+      // Call the API to create the alert
+      await AlertService.createAlert(inferredAlert);
+
+      // Success handling
+      setModalOpened(false);
+      setActiveStep(0);
+      setAlertMode('smart');
+      form.reset();
+      fetchAlerts();
+      setError(null);
+
+      // Show success notification
+      notifications.show({
+        title: 'Smart Alert Created',
+        message: `${inferredAlert.name} has been created successfully`,
+        color: 'green',
+        icon: <IconCheck size={16} />
+      });
+
+    } catch (err: any) {
+      console.error('Error creating smart alert:', err);
+      setError(err.message || 'Failed to create alert. Please try again.');
+
+      // Show error notification
+      notifications.show({
+        title: 'Error',
+        message: err.message || 'Failed to create alert',
+        color: 'red',
+        icon: <IconX size={16} />
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle switching from smart to advanced mode
+  const handleSwitchToAdvanced = (inferredAlert?: any) => {
+    setAlertMode('advanced');
+
+    if (inferredAlert) {
+      // Pre-populate form with inferred values
+      form.setValues({
+        name: inferredAlert.name || '',
+        description: inferredAlert.description || '',
+        type: inferredAlert.type,
+        category: inferredAlert.category,
+        parameters: inferredAlert.condition?.parameters || {},
+        query: inferredAlert.condition?.query || '',
+        schedule: inferredAlert.schedule || {
+          type: 'real-time',
+          timezone: 'UTC'
+        },
+        enabled: inferredAlert.enabled ?? true
+      });
+
+      // Start at step 1 (parameters) since type is already set
+      setActiveStep(1);
+    }
+  };
+
   // Helper functions for stepper navigation
   const nextStep = () => setActiveStep((current) => (current < 3 ? current + 1 : current));
   const prevStep = () => setActiveStep((current) => (current > 0 ? current - 1 : current));
@@ -379,19 +451,39 @@ export default function Alerts() {
         </Button>
       }
     >
-      {/* Enhanced Create Alert Modal with Stepper */}
+      {/* Enhanced Create Alert Modal with Mode Toggle */}
       <Modal
         opened={modalOpened}
         onClose={() => {
           setModalOpened(false);
           setActiveStep(0);
+          setAlertMode('smart');
           form.reset();
         }}
         title="Create New Alert"
         size="lg"
       >
         <Stack gap="lg">
-          {/* Stepper */}
+          {/* Mode Toggle */}
+          <SegmentedControl
+            value={alertMode}
+            onChange={(value) => setAlertMode(value as 'smart' | 'advanced')}
+            data={[
+              { label: '🤖 Smart Mode', value: 'smart' },
+              { label: '⚙️ Advanced Mode', value: 'advanced' }
+            ]}
+            fullWidth
+          />
+
+          {alertMode === 'smart' ? (
+            <SmartAlertForm
+              onCreateAlert={handleSmartAlertCreation}
+              onSwitchToAdvanced={handleSwitchToAdvanced}
+              wallets={wallets}
+            />
+          ) : (
+            <>
+              {/* Advanced Mode Stepper */}
           <Stepper active={activeStep} onStepClick={setActiveStep} allowNextStepsSelect={false}>
             <Stepper.Step label="Type" description="Choose alert type">
               <Box mt="md">
@@ -520,6 +612,8 @@ export default function Alerts() {
               )}
             </Group>
           </Group>
+            </>
+          )}
         </Stack>
       </Modal>
 

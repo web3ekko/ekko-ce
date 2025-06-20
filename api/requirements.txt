@@ -22,3 +22,4 @@ pytz>=2025.2
 boto3>=1.28.28
 pandas>=2.0.0
 pyarrow>=10.0.0
+polars>=0.20.31
