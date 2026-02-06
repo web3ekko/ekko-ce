@@ -1,0 +1,111 @@
+# Orbstack-specific values for ekko-wasmcloud
+
+# Override base values for Orbstack environment
+wasmcloud-platform:
+  hostConfig:
+    hostReplicas: 1  # Single host for local development
+    hostLabels:
+      environment:  orbstack
+      region: local
+
+  wadm:
+    config:
+      nats:
+        url: nats://nats.ekko.svc.cluster.local:4222
+
+# Providers - reduced replicas for local development
+providers:
+  newheads:
+    replicas: 1
+    config:
+      # Only monitor mainnet for development
+      networks:
+        - name: ethereum-mainnet
+          chain: ethereum
+          network: mainnet
+          vm_type: evm
+
+  websocket:
+    replicas: 1
+
+  alertScheduler:
+    replicas: 1
+    config:
+      redis_url: redis://redis-master.ekko.svc.cluster.local:6379
+      redis_password: redis123
+
+  ducklake:
+    enabled: false  # Disable DuckLake in Orbstack to save resources
+
+# Actors - single replicas for development
+actors:
+  alertProcessor:
+    replicas: 1
+  ethProcessor:
+    replicas: 1
+  notificationRouter:
+    replicas: 1
+
+# Resource limits - reduced for Orbstack
+resources:
+  host:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+  providers:
+    limits:
+      cpu: 250m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  actors:
+    limits:
+      cpu: 200m
+      memory: 128Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+
+# Service configuration for Orbstack
+service:
+  type: NodePort
+  ports:
+    wash: 4223
+    websocket: 8080
+    metrics: 9090
+
+# Ingress for Orbstack
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: wasmcloud.ekko.local
+      paths:
+        - path: /
+          pathType: Prefix
+    - host: ws.ekko.local
+      paths:
+        - path: /
+          pathType: Prefix
+
+# Development logging
+logging:
+  level: debug
+  format: text  # More readable for development
+
+# NATS connection
+nats:
+  url: nats://nats.ekko.svc.cluster.local:4222
+
+# Redis connection
+redis:
+  url: redis://redis-master.ekko.svc.cluster.local:6379
+  password: redis123
+
+# Monitoring disabled for Orbstack
+monitoring:
+  enabled: false

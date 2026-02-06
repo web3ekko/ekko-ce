@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1536" height="512" viewBox="0 0 1536 512">
+  <defs>
+    <linearGradient id="ekkoGradientH" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2563EB" /> <!-- Blue-600 -->
+      <stop offset="100%" stop-color="#7C3AED" /> <!-- Violet-600 -->
+    </linearGradient>
+    <style>
+      text {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        font-weight: 800;
+        letter-spacing: -10px;
+      }
+    </style>
+  </defs>
+  
+  <!-- Icon Section -->
+  <g transform="translate(256, 256)">
+    <circle r="48" fill="url(#ekkoGradientH)" />
+    <circle r="96" fill="none" stroke="url(#ekkoGradientH)" stroke-width="24" stroke-opacity="0.8" />
+    <circle r="152" fill="none" stroke="url(#ekkoGradientH)" stroke-width="20" stroke-opacity="0.6" stroke-dasharray="200 100" transform="rotate(-45)" />
+    <circle r="208" fill="none" stroke="url(#ekkoGradientH)" stroke-width="16" stroke-opacity="0.4" stroke-dasharray="300 150" transform="rotate(45)" />
+  </g>
+  
+  <!-- Text Section -->
+  <text x="550" y="340" font-size="280" fill="url(#ekkoGradientH)">Ekko</text>
+</svg>

@@ -1,0 +1,58 @@
+[package]
+name = "ducklake-read-provider"
+version = "1.0.0"
+edition = "2021"
+authors = ["Ekko Team"]
+description = "wasmCloud provider for reading blockchain data from DuckLake via SQL queries"
+
+[dependencies]
+# Shared DuckLake types and utilities
+ducklake-common = { path = "../../shared/ducklake-common" }
+
+# DuckDB for database operations
+duckdb = { version = "1.0", features = ["bundled"] }
+
+# Arrow IPC stream encoding for query responses
+arrow = { workspace = true, features = ["ipc"] }
+
+# wasmCloud 1.0 provider SDK
+wasmcloud-provider-sdk = "0.16"
+
+# NATS messaging for query requests
+async-nats = { workspace = true }
+
+# Async runtime
+tokio = { version = "1.0", features = ["full"] }
+async-trait = { workspace = true }
+futures = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Error handling
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Time handling
+chrono = { version = "0.4", features = ["serde", "clock"], default-features = false }
+
+# UUID for operation tracking
+uuid = { workspace = true }
+
+[dev-dependencies]
+tokio-test = "0.4"
+tempfile = "3.8"
+
+[lib]
+name = "ducklake_read_provider"
+path = "src/lib.rs"
+
+# wasmCloud provider binary
+[[bin]]
+name = "ducklake-read-provider"
+path = "src/bin/ducklake-read-provider.rs"

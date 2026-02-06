@@ -1,0 +1,1014 @@
+apiVersion: core.oam.dev/v1beta1
+kind: Application
+metadata:
+  name: ekko-platform
+  annotations:
+    version: ${MANIFEST_VERSION}
+    description: "Ekko blockchain monitoring platform - ${ENVIRONMENT} environment"
+spec:
+  components:
+    # NATS Messaging Provider
+    # Handler links are defined on the provider, targeting actors (provider → actor)
+    # Consumer links are defined on actors, targeting the provider (actor → provider)
+    # IMPORTANT: CLUSTER_URIS must be set to connect to the correct NATS server
+    - name: nats-messaging
+      type: capability
+      properties:
+        image: ghcr.io/wasmcloud/messaging-nats:0.27.0
+        config:
+          - name: nats-messaging-config
+            properties:
+              CLUSTER_URIS: "${NATS_URL}"
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+        # Handler link to health-check actor
+        - type: link
+          properties:
+            name: health-check-handler
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [handler]
+            target:
+              name: health-check
+            source:
+              config:
+                - name: health-check-handler
+                  properties:
+                    subscriptions: "system.health"
+                    CLUSTER_URIS: "${NATS_URL}"
+        # Handler link to eth-raw-transactions actor
+        - type: link
+          properties:
+            name: eth-raw-handler
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [handler]
+            target:
+              name: eth-raw-transactions
+            source:
+              config:
+                - name: eth-raw-handler
+                  properties:
+                    # blockchain.ethereum.>.transactions.raw catches all subnets (mainnet, sepolia, etc.)
+                    subscriptions: "newheads.ethereum.mainnet.evm,blockchain.ethereum.*.transactions.raw"
+                    CLUSTER_URIS: "${NATS_URL}"
+        # Handler link to evm-logs-ingestion actor
+        - type: link
+          properties:
+            name: evm-logs-ingestion-handler
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [handler]
+            target:
+              name: evm-logs-ingestion
+            source:
+              config:
+                - name: evm-logs-ingestion-handler
+                  properties:
+                    subscriptions: "newheads.*.*.evm"
+                    CLUSTER_URIS: "${NATS_URL}"
+        # Handler link to alerts-processor actor
+        - type: link
+          properties:
+            name: alerts-processor-handler
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [handler]
+            target:
+              name: alerts-processor
+            source:
+              config:
+                - name: alerts-processor-handler
+                  properties:
+                    subscriptions: "alerts.jobs.create.>"
+                    CLUSTER_URIS: "${NATS_URL}"
+        # Handler link to btc-raw-transactions actor
+        - type: link
+          properties:
+            name: btc-raw-handler
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [handler]
+            target:
+              name: btc-raw-transactions
+            source:
+              config:
+                - name: btc-raw-handler
+                  properties:
+                    # blockchain.bitcoin.>.transactions.raw catches all subnets (mainnet, testnet)
+                    subscriptions: "newheads.*.*.btc,blockchain.bitcoin.*.transactions.raw"
+                    CLUSTER_URIS: "${NATS_URL}"
+        # Handler link to sol-raw-transactions actor
+        - type: link
+          properties:
+            name: sol-raw-handler
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [handler]
+            target:
+              name: sol-raw-transactions
+            source:
+              config:
+                - name: sol-raw-handler
+                  properties:
+                    # blockchain.solana.>.transactions.raw catches all subnets (mainnet, devnet, testnet)
+                    subscriptions: "newheads.*.*.svm,blockchain.solana.*.transactions.raw"
+                    CLUSTER_URIS: "${NATS_URL}"
+        # Handler link to eth-process-transactions actor
+        - type: link
+          properties:
+            name: eth-process-handler
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [handler]
+            target:
+              name: eth-process-transactions
+            source:
+              config:
+                - name: eth-process-handler
+                  properties:
+                    # transactions.raw.evm carries processed raw EVM transactions
+                    subscriptions: "transactions.raw.evm"
+                    CLUSTER_URIS: "${NATS_URL}"
+        # Handler link to eth-transfers-processor actor
+        - type: link
+          properties:
+            name: eth-transfers-handler
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [handler]
+            target:
+              name: eth-transfers-processor
+            source:
+              config:
+                - name: eth-transfers-handler
+                  properties:
+                    # transfer-transactions.*.*.evm.raw carries transfer-only raw transactions
+                    subscriptions: "transfer-transactions.*.*.evm.raw"
+                    CLUSTER_URIS: "${NATS_URL}"
+        # Handler link to eth-contract-creation-processor actor
+        - type: link
+          properties:
+            name: eth-contract-creation-handler
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [handler]
+            target:
+              name: eth-contract-creation-processor
+            source:
+              config:
+                - name: eth-contract-creation-handler
+                  properties:
+                    # contract-creations.ethereum.*.evm.raw catches all subnets (raw pipeline)
+                    # blockchain.ethereum.*.contracts.creation for legacy pipeline
+                    subscriptions: "contract-creations.ethereum.*.evm.raw,blockchain.ethereum.*.contracts.creation"
+                    CLUSTER_URIS: "${NATS_URL}"
+        # Handler link to eth-contract-transaction-processor actor
+        - type: link
+          properties:
+            name: eth-contract-transaction-handler
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [handler]
+            target:
+              name: eth-contract-transaction-processor
+            source:
+              config:
+                - name: eth-contract-transaction-handler
+                  properties:
+                    # contract-transactions.ethereum.*.evm.raw catches all subnets (raw pipeline)
+                    # blockchain.ethereum.*.contracts.transactions for legacy pipeline
+                    # blockchain.ethereum.*.contracts.decoded for decoded contract txns
+                    subscriptions: "contract-transactions.ethereum.*.evm.raw,blockchain.ethereum.*.contracts.transactions,blockchain.ethereum.*.contracts.decoded"
+                    CLUSTER_URIS: "${NATS_URL}"
+        # Handler link to transaction-processor actor
+        - type: link
+          properties:
+            name: transaction-processor-handler
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [handler]
+            target:
+              name: transaction-processor
+            source:
+              config:
+                - name: transaction-processor-handler
+                  properties:
+                    # blockchain.*.*.transactions.> catches all networks and all subnets
+                    subscriptions: "blockchain.*.*.transactions.>"
+                    CLUSTER_URIS: "${NATS_URL}"
+        # Handler link to transaction-ducklake-writer actor
+        - type: link
+          properties:
+            name: transaction-ducklake-writer-handler
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [handler]
+            target:
+              name: transaction-ducklake-writer
+            source:
+              config:
+                - name: transaction-ducklake-writer-handler
+                  properties:
+                    subscriptions: "blockchain.*.*.transactions.processed,blockchain.*.*.contracts.decoded"
+                    CLUSTER_URIS: "${NATS_URL}"
+        # Handler link to notification-router actor
+        - type: link
+          properties:
+            name: notification-router-handler
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [handler]
+            target:
+              name: notification-router
+            source:
+              config:
+                - name: notification-router-handler
+                  properties:
+                    subscriptions: "alerts.triggered.>,notifications.send.immediate.>"
+                    CLUSTER_URIS: "${NATS_URL}"
+        # Handler link to abi-decoder actor
+        # Subscribes to: contract-transactions for pipeline integration, abi.decode.* for direct requests
+        - type: link
+          properties:
+            name: abi-decoder-handler
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [handler]
+            target:
+              name: abi-decoder
+            source:
+              config:
+                - name: abi-decoder-handler
+                  properties:
+                    # contract-transactions.*.*.*.raw catches all networks/subnets/vm types
+                    # abi.decode.* catches decode requests for all networks/subnets
+                    subscriptions: "contract-transactions.*.*.*.raw,abi.decode.*"
+                    CLUSTER_URIS: "${NATS_URL}"
+
+    # Redis KeyValue Provider
+    - name: redis-keyvalue
+      type: capability
+      properties:
+        image: ghcr.io/wasmcloud/keyvalue-redis:0.25.0
+        config:
+          - name: redis-keyvalue-config
+            properties:
+              url: "${REDIS_URL}"
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+
+    # HTTP Client Provider
+    - name: http-client
+      type: capability
+      properties:
+        image: ghcr.io/wasmcloud/http-client:0.13.1
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+
+    # Custom Ekko Providers
+    # Note: Custom providers use PROVIDER_REGISTRY/PROVIDER_TAG for independent versioning
+    # IMPORTANT: newheads-evm provider v1.0.3+ is required (uses Unix signals instead of stdin)
+
+    # Newheads EVM Provider - Blockchain event streaming
+    - name: newheads-evm
+      type: capability
+      properties:
+        image: ${PROVIDER_REGISTRY}/newheads-evm:${PROVIDER_TAG}
+        config:
+          - name: newheads-evm-config
+            properties:
+              redis_url: "${REDIS_URL}"
+              nats_url: "${NATS_URL}"
+              enabled: "${NEWHEADS_ENABLED}"
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+
+    # Alert Scheduler Provider - Alert job scheduling
+    - name: alert-scheduler
+      type: capability
+      properties:
+        image: ${PROVIDER_REGISTRY}/alert-scheduler:${PROVIDER_TAG}
+        config:
+          - name: alert-scheduler-config
+            properties:
+              redis_url: "${REDIS_URL}"
+              nats_url: "${NATS_URL}"
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+
+    # HTTP RPC Provider - HTTP/RPC communication
+    - name: http-rpc
+      type: capability
+      properties:
+        image: ${PROVIDER_REGISTRY}/http-rpc:${PROVIDER_TAG}
+        config:
+          - name: http-rpc-config
+            properties:
+              redis_url: "${REDIS_URL}"
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+
+    # Email Notification Provider - Email alerts
+    - name: email-notification
+      type: capability
+      properties:
+        image: ${PROVIDER_REGISTRY}/email-notification:${PROVIDER_TAG}
+        config:
+          - name: email-notification-config
+            properties:
+              redis_url: "${REDIS_URL}"
+              nats_url: "${NATS_URL}"
+              resend_api_key: "${RESEND_API_KEY}"
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+
+    # WebSocket Notification Provider - Real-time notifications
+    - name: websocket-notification
+      type: capability
+      properties:
+        image: ${PROVIDER_REGISTRY}/websocket-notification:${PROVIDER_TAG}
+        config:
+          - name: websocket-notification-config
+            properties:
+              redis_url: "${REDIS_URL}"
+              nats_url: "${NATS_URL}"
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+
+    # Slack Notification Provider - Slack channel notifications
+    - name: slack-notification
+      type: capability
+      properties:
+        image: ${PROVIDER_REGISTRY}/slack-notification:${PROVIDER_TAG}
+        config:
+          - name: slack-notification-config
+            properties:
+              redis_url: "${REDIS_URL}"
+              nats_url: "${NATS_URL}"
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+
+    # Telegram Notification Provider - Telegram chat notifications
+    - name: telegram-notification
+      type: capability
+      properties:
+        image: ${PROVIDER_REGISTRY}/telegram-notification:${PROVIDER_TAG}
+        config:
+          - name: telegram-notification-config
+            properties:
+              redis_url: "${REDIS_URL}"
+              nats_url: "${NATS_URL}"
+              webhook_port: "${TELEGRAM_WEBHOOK_PORT}"
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+
+    # Webhook Notification Provider - HTTP webhook notifications
+    - name: webhook-notification
+      type: capability
+      properties:
+        image: ${PROVIDER_REGISTRY}/webhook-notification:${PROVIDER_TAG}
+        config:
+          - name: webhook-notification-config
+            properties:
+              redis_url: "${REDIS_URL}"
+              nats_url: "${NATS_URL}"
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+
+    # Polars Eval Provider - Data analytics
+    - name: polars-eval
+      type: capability
+      properties:
+        image: ${PROVIDER_REGISTRY}/polars-eval:${PROVIDER_TAG}
+        config:
+          - name: polars-eval-config
+            properties:
+              redis_url: "${REDIS_URL}"
+              nats_url: "${NATS_URL}"
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+
+    # DuckLake Write Provider - Subscribes to ducklake.*.*.*.write and persists to storage
+    - name: ducklake-write
+      type: capability
+      properties:
+        image: ${PROVIDER_REGISTRY}/ducklake-write:${DUCKLAKE_WRITE_TAG}
+        config:
+          - name: ducklake-write-config
+            properties:
+              nats_url: "${NATS_URL}"
+              redis_url: "${REDIS_URL}"
+              # S3/MinIO configuration
+              ducklake_s3_endpoint: "${S3_ENDPOINT}"
+              ducklake_s3_bucket: "${S3_BUCKET}"
+              ducklake_s3_access_key_id: "${S3_ACCESS_KEY_ID}"
+              ducklake_s3_secret_access_key: "${S3_SECRET_ACCESS_KEY}"
+              ducklake_s3_region: "us-east-1"
+              # PostgreSQL metadata catalog configuration
+              ducklake_postgres_host: "${POSTGRES_HOST}"
+              ducklake_postgres_port: "${POSTGRES_PORT}"
+              ducklake_postgres_user: "${POSTGRES_USER}"
+              ducklake_postgres_password: "${POSTGRES_PASSWORD}"
+              ducklake_postgres_database: "${DUCKLAKE_POSTGRES_DATABASE}"
+              # DuckLake subscription subject
+              ducklake_write_subject: "ducklake.*.*.*.write"
+              # Write buffering (tunable per-environment via generate-manifest.sh defaults)
+              ducklake_buffer_time_threshold_seconds: "${DUCKLAKE_BUFFER_TIME_THRESHOLD_SECONDS}"
+              ducklake_buffer_count_threshold: "${DUCKLAKE_BUFFER_COUNT_THRESHOLD}"
+              ducklake_buffer_size_threshold_mb: "${DUCKLAKE_BUFFER_SIZE_THRESHOLD_MB}"
+              ducklake_buffer_max_memory_mb: "${DUCKLAKE_BUFFER_MAX_MEMORY_MB}"
+              # Warehouse path within the S3 bucket
+              ducklake_warehouse_path: "ekko/ducklake"
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+
+    # DuckLake Read Provider - Executes SQL queries against DuckLake via NATS request/reply
+    # Subscribes: ducklake.*.*.*.query (and ducklake.schema.*)
+    - name: ducklake-read
+      type: capability
+      properties:
+        image: ${PROVIDER_REGISTRY}/ducklake-read:${PROVIDER_TAG}
+        config:
+          - name: ducklake-read-config
+            properties:
+              nats_url: "${NATS_URL}"
+              redis_url: "${REDIS_URL}"
+              # S3/MinIO configuration
+              ducklake_s3_endpoint: "${S3_ENDPOINT}"
+              ducklake_s3_bucket: "${S3_BUCKET}"
+              ducklake_s3_access_key_id: "${S3_ACCESS_KEY_ID}"
+              ducklake_s3_secret_access_key: "${S3_SECRET_ACCESS_KEY}"
+              ducklake_s3_region: "us-east-1"
+              # PostgreSQL metadata catalog configuration
+              ducklake_postgres_host: "${POSTGRES_HOST}"
+              ducklake_postgres_port: "${POSTGRES_PORT}"
+              ducklake_postgres_user: "${POSTGRES_USER}"
+              ducklake_postgres_password: "${POSTGRES_PASSWORD}"
+              ducklake_postgres_database: "${DUCKLAKE_POSTGRES_DATABASE}"
+              # DuckLake query subscription subject
+              ducklake_query_subject: "ducklake.*.*.*.query"
+              ducklake_schema_list_subject: "ducklake.schema.list"
+              ducklake_schema_get_subject: "ducklake.schema.get"
+              # Warehouse path within the S3 bucket
+              ducklake_warehouse_path: "ekko/ducklake"
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+
+    # Health Check Actor
+    - name: health-check
+      type: actor
+      properties:
+        image: ${ACTOR_REGISTRY}/health-check:${ACTOR_TAG}
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+        - type: link
+          properties:
+            target:
+              name: nats-messaging
+              config:
+                - name: nats-consumer-health-check
+                  properties:
+                    CLUSTER_URIS: "${NATS_URL}"
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer]
+
+    # ETH Raw Transactions Actor
+    - name: eth-raw-transactions
+      type: actor
+      properties:
+        image: ${ACTOR_REGISTRY}/eth-raw-transactions:${ACTOR_TAG}
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+        # Link: Send messages (consumer) - handler links are on the nats-messaging provider
+        - type: link
+          properties:
+            target:
+              name: nats-messaging
+              config:
+                - name: nats-consumer-eth-raw-transactions
+                  properties:
+                    CLUSTER_URIS: "${NATS_URL}"
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer]
+        # Link for Redis keyvalue store
+        - type: link
+          properties:
+            namespace: wasi
+            package: keyvalue
+            interfaces: [store]
+            source:
+              name: eth-raw-transactions
+            target:
+              name: redis-keyvalue
+              config:
+                - name: eth-raw-transactions-redis
+                  properties:
+                    url: "${REDIS_URL}"
+        # Link for HTTP client
+        - type: link
+          properties:
+            namespace: wasi
+            package: http
+            interfaces: [outgoing-handler]
+            source:
+              name: eth-raw-transactions
+            target:
+              name: http-client
+
+    # EVM Logs Ingestion Actor
+    - name: evm-logs-ingestion
+      type: actor
+      properties:
+        image: ${ACTOR_REGISTRY}/evm-logs-ingestion:${ACTOR_TAG}
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+        # Link: Send messages (consumer) - handler links are on the nats-messaging provider
+        - type: link
+          properties:
+            target:
+              name: nats-messaging
+              config:
+                - name: nats-consumer-evm-logs-ingestion
+                  properties:
+                    CLUSTER_URIS: "${NATS_URL}"
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer]
+        # Link for Redis keyvalue store
+        - type: link
+          properties:
+            namespace: wasi
+            package: keyvalue
+            interfaces: [store]
+            source:
+              name: evm-logs-ingestion
+            target:
+              name: redis-keyvalue
+              config:
+                - name: evm-logs-ingestion-redis
+                  properties:
+                    url: "${REDIS_URL}"
+        # Link for HTTP client
+        - type: link
+          properties:
+            namespace: wasi
+            package: http
+            interfaces: [outgoing-handler]
+            source:
+              name: evm-logs-ingestion
+            target:
+              name: http-client
+
+    # Alert Processor Actor
+    # Processes alert jobs via NATS, queries DuckLake via NATS, evaluates with Polars via NATS
+    # NOTE: HTTP removed for wasmCloud 1.0 compatibility - all external calls use NATS providers
+    - name: alerts-processor
+      type: actor
+      properties:
+        image: ${ACTOR_REGISTRY}/alerts-processor:${ACTOR_TAG}
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+        # Link for sending messages (consumer) - handler links are on the nats-messaging provider
+        # Also used for request-reply to DuckLake (ducklake.*.query) and Polars (alerts.eval.request.*)
+        - type: link
+          properties:
+            target:
+              name: nats-messaging
+              config:
+                - name: nats-consumer-alerts-processor
+                  properties:
+                    CLUSTER_URIS: "${NATS_URL}"
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer]
+        # Link for Redis keyvalue store
+        - type: link
+          properties:
+            namespace: wasi
+            package: keyvalue
+            interfaces: [store]
+            source:
+              name: alerts-processor
+            target:
+              name: redis-keyvalue
+              config:
+                - name: alerts-processor-redis
+                  properties:
+                    url: "${REDIS_URL}"
+
+    # BTC Raw Transactions Actor
+    - name: btc-raw-transactions
+      type: actor
+      properties:
+        image: ${ACTOR_REGISTRY}/btc-raw-transactions:${ACTOR_TAG}
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+        # Link: Send messages (consumer) - handler links are on the nats-messaging provider
+        - type: link
+          properties:
+            target:
+              name: nats-messaging
+              config:
+                - name: nats-consumer-btc-raw-transactions
+                  properties:
+                    CLUSTER_URIS: "${NATS_URL}"
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer]
+        # Link for Redis keyvalue store
+        - type: link
+          properties:
+            namespace: wasi
+            package: keyvalue
+            interfaces: [store]
+            source:
+              name: btc-raw-transactions
+            target:
+              name: redis-keyvalue
+              config:
+                - name: btc-raw-transactions-redis
+                  properties:
+                    url: "${REDIS_URL}"
+        # Link for HTTP client
+        - type: link
+          properties:
+            namespace: wasi
+            package: http
+            interfaces: [outgoing-handler]
+            source:
+              name: btc-raw-transactions
+            target:
+              name: http-client
+
+    # SOL Raw Transactions Actor
+    - name: sol-raw-transactions
+      type: actor
+      properties:
+        image: ${ACTOR_REGISTRY}/sol-raw-transactions:${ACTOR_TAG}
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+        # Link: Send messages (consumer) - handler links are on the nats-messaging provider
+        - type: link
+          properties:
+            target:
+              name: nats-messaging
+              config:
+                - name: nats-consumer-sol-raw-transactions
+                  properties:
+                    CLUSTER_URIS: "${NATS_URL}"
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer]
+        # Link for Redis keyvalue store
+        - type: link
+          properties:
+            namespace: wasi
+            package: keyvalue
+            interfaces: [store]
+            source:
+              name: sol-raw-transactions
+            target:
+              name: redis-keyvalue
+              config:
+                - name: sol-raw-transactions-redis
+                  properties:
+                    url: "${REDIS_URL}"
+        # Link for HTTP client
+        - type: link
+          properties:
+            namespace: wasi
+            package: http
+            interfaces: [outgoing-handler]
+            source:
+              name: sol-raw-transactions
+            target:
+              name: http-client
+
+    # ETH Process Transactions Actor
+    - name: eth-process-transactions
+      type: actor
+      properties:
+        image: ${ACTOR_REGISTRY}/eth-process-transactions:${ACTOR_TAG}
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+        # Link: Send messages (consumer) - handler links are on the nats-messaging provider
+        - type: link
+          properties:
+            target:
+              name: nats-messaging
+              config:
+                - name: nats-consumer-eth-process-transactions
+                  properties:
+                    CLUSTER_URIS: "${NATS_URL}"
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer]
+        - type: link
+          properties:
+            namespace: wasi
+            package: keyvalue
+            interfaces: [store]
+            source:
+              name: eth-process-transactions
+            target:
+              name: redis-keyvalue
+              config:
+                - name: eth-process-transactions-redis
+                  properties:
+                    url: "${REDIS_URL}"
+
+    # ETH Transfers Processor Actor
+    - name: eth-transfers-processor
+      type: actor
+      properties:
+        image: ${ACTOR_REGISTRY}/eth-transfers-processor:${ETH_TRANSFERS_PROCESSOR_TAG}
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+        # Link: Send messages (consumer) - handler links are on the nats-messaging provider
+        - type: link
+          properties:
+            target:
+              name: nats-messaging
+              config:
+                - name: nats-consumer-eth-transfers-processor
+                  properties:
+                    CLUSTER_URIS: "${NATS_URL}"
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer]
+        # Link for Redis keyvalue store
+        - type: link
+          properties:
+            namespace: wasi
+            package: keyvalue
+            interfaces: [store]
+            source:
+              name: eth-transfers-processor
+            target:
+              name: redis-keyvalue
+              config:
+                - name: eth-transfers-processor-redis
+                  properties:
+                    url: "${REDIS_URL}"
+
+    # ETH Contract Creation Processor Actor
+    - name: eth-contract-creation-processor
+      type: actor
+      properties:
+        image: ${ACTOR_REGISTRY}/eth-contract-creation-processor:${ACTOR_TAG}
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+        # Link: Send messages (consumer) - handler links are on the nats-messaging provider
+        - type: link
+          properties:
+            target:
+              name: nats-messaging
+              config:
+                - name: nats-consumer-eth-contract-creation-processor
+                  properties:
+                    CLUSTER_URIS: "${NATS_URL}"
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer]
+        # Link for Redis keyvalue store
+        - type: link
+          properties:
+            namespace: wasi
+            package: keyvalue
+            interfaces: [store]
+            source:
+              name: eth-contract-creation-processor
+            target:
+              name: redis-keyvalue
+              config:
+                - name: eth-contract-creation-processor-redis
+                  properties:
+                    url: "${REDIS_URL}"
+
+    # ETH Contract Transaction Processor Actor
+    - name: eth-contract-transaction-processor
+      type: actor
+      properties:
+        image: ${ACTOR_REGISTRY}/eth-contract-transaction-processor:${ACTOR_TAG}
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+        # Link: Send messages (consumer) - handler links are on the nats-messaging provider
+        - type: link
+          properties:
+            target:
+              name: nats-messaging
+              config:
+                - name: nats-consumer-eth-contract-transaction-processor
+                  properties:
+                    CLUSTER_URIS: "${NATS_URL}"
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer]
+        # Link for Redis keyvalue store
+        - type: link
+          properties:
+            namespace: wasi
+            package: keyvalue
+            interfaces: [store]
+            source:
+              name: eth-contract-transaction-processor
+            target:
+              name: redis-keyvalue
+              config:
+                - name: eth-contract-transaction-processor-redis
+                  properties:
+                    url: "${REDIS_URL}"
+
+    # Transaction Processor Actor
+    - name: transaction-processor
+      type: actor
+      properties:
+        image: ${ACTOR_REGISTRY}/transaction-processor:${ACTOR_TAG}
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+        # Link: Send messages (consumer) - handler links are on the nats-messaging provider
+        - type: link
+          properties:
+            target:
+              name: nats-messaging
+              config:
+                - name: nats-consumer-transaction-processor
+                  properties:
+                    CLUSTER_URIS: "${NATS_URL}"
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer]
+        - type: link
+          properties:
+            namespace: wasi
+            package: keyvalue
+            interfaces: [store]
+            source:
+              name: transaction-processor
+            target:
+              name: redis-keyvalue
+              config:
+                - name: transaction-processor-redis
+                  properties:
+                    url: "${REDIS_URL}"
+
+    # Notification Router Actor
+    - name: notification-router
+      type: actor
+      properties:
+        image: ${ACTOR_REGISTRY}/notification-router:${NOTIFICATION_ROUTER_TAG}
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+        # Link: Send messages (consumer) - handler links are on the nats-messaging provider
+        - type: link
+          properties:
+            target:
+              name: nats-messaging
+              config:
+                - name: nats-consumer-notification-router
+                  properties:
+                    CLUSTER_URIS: "${NATS_URL}"
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer]
+        # Link for Redis keyvalue store
+        - type: link
+          properties:
+            namespace: wasi
+            package: keyvalue
+            interfaces: [atomics, store]
+            source:
+              name: notification-router
+            target:
+              name: redis-keyvalue
+              config:
+                - name: notification-router-redis
+                  properties:
+                    url: "${REDIS_URL}"
+
+    # ABI Decoder Actor
+    # Decodes EVM transaction input data using Alloy library
+    # Receives contract-transactions from pipeline, fetches ABIs from Etherscan/Sourcify
+    - name: abi-decoder
+      type: actor
+      properties:
+        image: ${ACTOR_REGISTRY}/abi-decoder:${ACTOR_TAG}
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+        # Link: Send messages (consumer) - handler links are on the nats-messaging provider
+        - type: link
+          properties:
+            target:
+              name: nats-messaging
+              config:
+                - name: nats-consumer-abi-decoder
+                  properties:
+                    CLUSTER_URIS: "${NATS_URL}"
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer]
+        # Link for Redis keyvalue store (ABI cache)
+        - type: link
+          properties:
+            namespace: wasi
+            package: keyvalue
+            interfaces: [store]
+            source:
+              name: abi-decoder
+            target:
+              name: redis-keyvalue
+              config:
+                - name: abi-decoder-redis
+                  properties:
+                    url: "${REDIS_URL}"
+        # Link for HTTP client (Etherscan/Sourcify API calls)
+        - type: link
+          properties:
+            namespace: wasi
+            package: http
+            interfaces: [outgoing-handler]
+            source:
+              name: abi-decoder
+            target:
+              name: http-client
+
+    # Transaction DuckLake Writer Actor
+    # Persists decoded and processed transactions to DuckLake data lake
+    # Receives blockchain.*.*.contracts.decoded from abi-decoder, blockchain.*.*.transactions.processed from processing actors
+    - name: transaction-ducklake-writer
+      type: actor
+      properties:
+        image: ${ACTOR_REGISTRY}/transaction-ducklake-writer:${ACTOR_TAG}
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+        # Link: Send messages (consumer) - handler links are on the nats-messaging provider
+        - type: link
+          properties:
+            target:
+              name: nats-messaging
+              config:
+                - name: nats-consumer-transaction-ducklake-writer
+                  properties:
+                    CLUSTER_URIS: "${NATS_URL}"
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer]

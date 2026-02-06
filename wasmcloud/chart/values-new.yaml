@@ -1,0 +1,448 @@
+# Ekko WasmCloud Configuration
+# Simplified and consolidated actor/provider management
+
+# Global configuration
+global:
+  environment: development
+  namespace: ekko
+
+# WasmCloud Host Configuration
+wasmcloud:
+  # Host settings
+  host:
+    replicas: 1
+    latticePrefix: default
+    logLevel: info
+
+    # NATS connection (using existing cluster NATS)
+    nats:
+      url: nats://nats.ekko.svc.cluster.local:4222
+      jsDomain: default
+
+    # Host labels for provider scheduling
+    labels:
+      environment: development
+      region: local
+      capabilities: blockchain,websocket,storage
+
+  # WasmCloud Operator
+  operator:
+    enabled: true
+    image:
+      repository: ghcr.io/wasmcloud/wasmcloud-operator
+      tag: v1.0.0
+
+  # WADM (Application Deployment Manager)
+  wadm:
+    enabled: true
+    image:
+      repository: ghcr.io/wasmcloud/wadm
+      tag: v0.11.0
+
+# Actor Definitions (Consolidated)
+actors:
+  # List all actors with unified structure
+  - name: eth-raw-transactions
+    enabled: true
+    replicas: 1
+    wasmPath: actors/eth_raw_transactions
+    wasmFile: eth_raw_transactions_s.wasm
+    description: "Processes raw Ethereum transaction data"
+    capabilities:
+      - messaging
+      - keyvalue
+    config:
+      # Wildcard > catches all subnets (mainnet, sepolia, etc.)
+      natsSubject: blockchain.ethereum.>.transactions.raw
+      redisKeyPrefix: eth:raw
+
+  - name: eth-process-transactions
+    enabled: true
+    replicas: 1
+    wasmPath: actors/eth_process_transactions
+    wasmFile: eth_process_transactions_s.wasm
+    description: "Processes Ethereum transactions"
+    capabilities:
+      - messaging
+      - storage
+    config:
+      # Wildcard > catches all subnets (mainnet, sepolia, etc.)
+      natsSubject: blockchain.ethereum.>.transactions.raw
+      ducklakeTable: eth_transactions
+
+  - name: evm-logs-ingestion
+    enabled: true
+    replicas: 1
+    wasmPath: actors/evm_logs_ingestion
+    wasmFile: evm_logs_ingestion_s.wasm
+    description: "Ingests EVM logs and schedules alert evaluations"
+    capabilities:
+      - messaging
+      - keyvalue
+      - httpclient
+    config:
+      natsSubject: newheads.*.*.evm
+      redisKeyPrefix: evm:logs
+
+  - name: btc-raw-transactions
+    enabled: true
+    replicas: 1
+    wasmPath: actors/btc_raw_transactions
+    wasmFile: btc_raw_transactions_s.wasm
+    description: "Processes raw Bitcoin transaction data"
+    capabilities:
+      - messaging
+      - keyvalue
+    config:
+      # Wildcard > catches all subnets (mainnet, testnet)
+      natsSubject: blockchain.bitcoin.>.transactions.raw
+      redisKeyPrefix: btc:raw
+
+  - name: sol-raw-transactions
+    enabled: true
+    replicas: 1
+    wasmPath: actors/sol_raw_transactions
+    wasmFile: sol_raw_transactions_s.wasm
+    description: "Processes raw Solana transaction data"
+    capabilities:
+      - messaging
+      - keyvalue
+    config:
+      # Wildcard > catches all subnets (mainnet, devnet, testnet)
+      natsSubject: blockchain.solana.>.transactions.raw
+      redisKeyPrefix: sol:raw
+
+  - name: alerts-processor
+    enabled: true
+    replicas: 1
+    wasmPath: actors/alerts-processor
+    wasmFile: alerts-processor_s.wasm
+    description: "Processes alert jobs"
+    capabilities:
+      - messaging
+      - keyvalue
+    config:
+      natsSubject: alerts.jobs.create.>
+      redisKeyPrefix: alerts
+
+  - name: notification-router
+    enabled: true
+    replicas: 1
+    wasmPath: actors/notification-router
+    wasmFile: notification_router_s.wasm
+    description: "Routes notifications to appropriate channels"
+    capabilities:
+      - messaging
+      - websocket
+    config:
+      natsSubject: alerts.triggered.>, notifications.send.immediate.>
+      websocketPath: /ws/notifications
+
+  - name: transaction-processor
+    enabled: true
+    replicas: 1
+    wasmPath: actors/transaction-processor
+    wasmFile: transaction_processor_s.wasm
+    description: "General transaction processing"
+    capabilities:
+      - messaging
+      - storage
+    config:
+      natsSubject: blockchain.transactions.>
+      ducklakeTable: transactions
+
+  - name: transaction-ducklake-writer
+    enabled: true
+    replicas: 1
+    wasmPath: actors/transaction-ducklake-writer
+    wasmFile: transaction_ducklake_writer_s.wasm
+    description: "Writes transactions to DuckLake"
+    capabilities:
+      - messaging
+      - storage
+    config:
+      natsSubject: ducklake.transactions.write
+      ducklakeTable: transactions_raw
+
+  - name: abi-decoder
+    enabled: true
+    replicas: 1
+    wasmPath: actors/abi-decoder
+    wasmFile: abi_decoder_s.wasm
+    description: "Decodes smart contract ABIs"
+    capabilities:
+      - messaging
+      - keyvalue
+    config:
+      natsSubject: abi.decode
+      redisKeyPrefix: abi:cache
+
+  - name: health-check
+    enabled: true
+    replicas: 1
+    wasmPath: actors/health-check
+    wasmFile: health_check_s.wasm
+    description: "Health monitoring actor"
+    capabilities:
+      - messaging
+    config:
+      natsSubject: health.check
+      checkInterval: 30
+
+# Provider Definitions (Consolidated)
+providers:
+  # Standard WasmCloud providers
+  standard:
+    # NATS Messaging Provider (connects to existing NATS)
+    nats:
+      enabled: true
+      replicas: 1
+      image: ghcr.io/wasmcloud/messaging-nats:0.23.0
+      config:
+        clusterUris:
+          - nats://nats.ekko.svc.cluster.local:4222
+
+    # Redis KeyValue Provider (connects to existing Redis)
+    redis:
+      enabled: true
+      replicas: 1
+      image: ghcr.io/wasmcloud/keyvalue-redis:0.25.0
+      config:
+        url: redis://redis-master.ekko.svc.cluster.local:6379
+        password: redis123  # Override in secrets
+
+  # Custom Ekko providers
+  custom:
+    # Newheads EVM Provider for blockchain monitoring
+    newheads:
+      enabled: true
+      replicas: 1
+      imagePath: providers/newheads-evm
+      imageFile: newheads-provider
+      config:
+        networks:
+          - name: ethereum-mainnet
+            chain: ethereum
+            network: mainnet
+            vmType: evm
+          - name: polygon-mainnet
+            chain: polygon
+            network: mainnet
+            vmType: evm
+          - name: bsc-mainnet
+            chain: bsc
+            network: mainnet
+            vmType: evm
+
+    # WebSocket Notification Provider
+    websocket:
+      enabled: true
+      replicas: 1
+      imagePath: providers/websocket-notification-provider
+      imageFile: websocket-provider
+      config:
+        port: 8080
+        path: /ws
+        heartbeatInterval: 30
+
+    # Alert Scheduler Provider
+    alertScheduler:
+      enabled: true
+      replicas: 1
+      imagePath: providers/alert-scheduler
+      imageFile: alert-scheduler-provider
+      config:
+        redisUrl: redis://redis-master.ekko.svc.cluster.local:6379
+        checkInterval: 30
+        maxBatchSize: 100
+
+# NATS Subject Configuration (PRD-aligned hierarchy)
+# Subject pattern: blockchain.{network}.{subnet}.{resource}.{stage}
+nats:
+  subjects:
+    # Blockchain subjects: blockchain.{network}.{subnet}.transactions.{stage}
+    # Examples: blockchain.ethereum.mainnet.transactions.raw
+    #           blockchain.polygon.mumbai.transactions.processed
+    blockchain:
+      ethereum:
+        # Specific subnet patterns (for direct publishing)
+        mainnet:
+          raw: blockchain.ethereum.mainnet.transactions.raw
+          processed: blockchain.ethereum.mainnet.transactions.processed
+          transfers: blockchain.ethereum.mainnet.transactions.transfers.raw
+          contracts: blockchain.ethereum.mainnet.contracts.>
+        sepolia:
+          raw: blockchain.ethereum.sepolia.transactions.raw
+          processed: blockchain.ethereum.sepolia.transactions.processed
+        # Wildcard patterns (for subscriptions catching all subnets)
+        wildcard:
+          raw: blockchain.ethereum.>.transactions.raw
+          processed: blockchain.ethereum.>.transactions.processed
+          transfers: blockchain.ethereum.>.transactions.transfers.raw
+          contracts: blockchain.ethereum.>.contracts.>
+      bitcoin:
+        mainnet:
+          raw: blockchain.bitcoin.mainnet.transactions.raw
+          processed: blockchain.bitcoin.mainnet.transactions.processed
+        testnet:
+          raw: blockchain.bitcoin.testnet.transactions.raw
+          processed: blockchain.bitcoin.testnet.transactions.processed
+        wildcard:
+          raw: blockchain.bitcoin.>.transactions.raw
+          processed: blockchain.bitcoin.>.transactions.processed
+      solana:
+        mainnet:
+          raw: blockchain.solana.mainnet.transactions.raw
+          processed: blockchain.solana.mainnet.transactions.processed
+        devnet:
+          raw: blockchain.solana.devnet.transactions.raw
+          processed: blockchain.solana.devnet.transactions.processed
+        wildcard:
+          raw: blockchain.solana.>.transactions.raw
+          processed: blockchain.solana.>.transactions.processed
+      # Cross-network wildcards (for generic processors)
+      all:
+        raw: blockchain.>.>.transactions.raw
+        processed: blockchain.>.>.transactions.processed
+      abi:
+        decode: blockchain.abi.decode.>
+
+    # Alert subjects: alerts.jobs.{operation}.{scope}
+    alerts:
+      jobs:
+        create: alerts.jobs.create.>
+        result: alerts.jobs.result.>
+      triggered: alerts.triggered.>
+      scheduler: alerts.scheduler.>
+
+    # Notification subjects: notifications.{type}.{channel}
+    notifications:
+      immediate: notifications.send.immediate.>
+      digest: notifications.send.digest.>
+      inbox: notifications.inbox.>
+      retry: notifications.retry.>
+      delivered: notifications.delivered.>
+
+    # DuckLake subjects: ducklake.{table}.{operation}
+    ducklake:
+      write: ducklake.transactions.write
+      query: ducklake.>.query
+
+    # System subjects: system.{component}
+    system:
+      health: system.health
+      status: system.status.>
+
+# Resource Configuration
+resources:
+  # WasmCloud host resources
+  host:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+
+  # Actor resources (per actor)
+  actors:
+    limits:
+      cpu: 250m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+  # Provider resources (per provider)
+  providers:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+# Service Configuration
+service:
+  type: ClusterIP
+  ports:
+    wash: 4223      # WASH API
+    websocket: 8080 # WebSocket notifications
+    metrics: 9090   # Prometheus metrics
+
+# Ingress Configuration
+ingress:
+  enabled: false
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  hosts:
+    - host: wasmcloud.ekko.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - hosts:
+        - wasmcloud.ekko.local
+      secretName: wasmcloud-tls
+
+# Monitoring Configuration
+monitoring:
+  enabled: true
+  prometheus:
+    enabled: true
+    port: 9090
+    scrapeInterval: 30s
+
+  grafana:
+    enabled: false  # Use cluster-wide Grafana
+
+# Logging Configuration
+logging:
+  level: info
+  format: json
+
+  # Log forwarding (optional)
+  forwarding:
+    enabled: false
+    target: loki
+    url: http://loki.monitoring.svc.cluster.local:3100
+
+# Security Configuration
+security:
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    fsGroup: 1000
+
+  containerSecurityContext:
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: false  # WasmCloud needs write access
+    runAsNonRoot: true
+    runAsUser: 1000
+
+# Autoscaling Configuration
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+# Storage Configuration
+storage:
+  # Persistent volume for actor WASM files
+  actors:
+    enabled: true
+    storageClass: standard
+    size: 1Gi
+    accessMode: ReadWriteOnce
+
+  # Persistent volume for provider binaries
+  providers:
+    enabled: true
+    storageClass: standard
+    size: 1Gi
+    accessMode: ReadWriteOnce

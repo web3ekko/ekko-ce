@@ -1,0 +1,13 @@
+// World definition for transaction-processor actor
+package ekko:actors@0.1.0;
+
+/// World for the transaction processor actor
+world transaction-processor {
+    /// Import our custom capabilities
+    import ekko:messaging/handler@0.1.0;
+    import ekko:keyvalue/store@0.1.0;
+
+    /// Export the message consumer interface
+    /// The actor will handle incoming raw transaction messages
+    export ekko:messaging/consumer@0.1.0;
+}

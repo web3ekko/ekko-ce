@@ -1,0 +1,83 @@
+# Newheads EVM Provider Manifest
+# This file defines the newheads EVM provider component for Ethereum Virtual Machine compatible chains
+
+component:
+  name: newheads-evm-provider
+  type: capability-provider
+  properties:
+    image: file://./providers/newheads-evm/target/release/newheads-evm-provider
+    description: "EVM blockchain newheads streaming provider with Redis config management"
+    version: "0.1.0"
+    vendor: "ekko.zone"
+    revision: 1
+  traits:
+    - type: link
+      properties:
+        target: redis-keyvalue
+        namespace: wasmcloud
+        package: keyvalue
+        interfaces: [store]
+        values:
+          url: ${REDIS_URL:-redis://localhost:6379}
+    - type: link
+      properties:
+        target: redis-messaging
+        namespace: wasmcloud
+        package: messaging
+        interfaces: [consumer, publisher]
+        values:
+          url: ${REDIS_URL:-redis://localhost:6379}
+
+# Provider-specific configuration
+config:
+  redis:
+    url: ${REDIS_URL:-redis://localhost:6379}
+    connection_timeout: "5s"
+    command_timeout: "30s"
+    max_connections: 10
+  
+  # Default blockchain configurations will be loaded from Redis
+  # Admin API will manage these configurations
+  
+  # NATS subject patterns
+  subjects:
+    config_changes: "node:config:changed"
+    newheads_pattern: "newheads.{network}.{subnet}.evm"
+  
+  # Health monitoring
+  health:
+    check_interval: "30s"
+    connection_timeout: "10s"
+
+# Dependencies this provider requires
+dependencies:
+  providers:
+    - redis-keyvalue
+    - redis-messaging
+  interfaces:
+    - wasmcloud:keyvalue/store
+    - wasmcloud:messaging/consumer
+    - wasmcloud:messaging/publisher
+
+# Monitoring and observability
+monitoring:
+  metrics_enabled: true
+  log_level: "info"
+  trace_websockets: false
+  
+# Health check configuration
+health:
+  enabled: true
+  check_interval: "30s"
+  timeout: "10s"
+
+# Security configuration
+security:
+  # Provider runs with minimal privileges
+  # Only needs access to Redis and outbound WebSocket connections
+  network_access:
+    outbound: true  # For blockchain WebSocket connections
+    inbound: false  # Provider doesn't accept inbound connections
+  
+  # Redis access is managed through wasmCloud capabilities
+  redis_access: "read_write"  # Needs read/write for config management

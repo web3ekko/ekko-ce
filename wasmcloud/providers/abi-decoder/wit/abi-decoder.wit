@@ -1,0 +1,164 @@
+// ABI Decoder Capability Interface
+// Provides high-performance EVM ABI decoding using Alloy
+
+package ekko:abi-decoder@0.1.0;
+
+/// ABI decoding operations interface
+interface decoder {
+    /// Contract address (20 bytes hex)
+    type contract-address = string;
+    
+    /// Transaction input data (hex string)
+    type input-data = string;
+    
+    /// ABI JSON string
+    type abi-json = string;
+    
+    /// Function selector (4 bytes hex)
+    type function-selector = string;
+
+    /// Transaction input for decoding
+    record transaction-input {
+        /// Contract address being called
+        to-address: contract-address,
+        /// Transaction input data (hex)
+        input-data: input-data,
+        /// Network (e.g., "ethereum", "polygon")
+        network: string,
+        /// Subnet (e.g., "mainnet", "goerli")
+        subnet: string,
+        /// Transaction hash for context
+        transaction-hash: string,
+    }
+
+    /// Decoded function parameter
+    record decoded-parameter {
+        /// Parameter name from ABI
+        name: string,
+        /// Parameter type (e.g., "uint256", "address")
+        param-type: string,
+        /// Decoded value as string
+        value: string,
+        /// Raw hex value
+        raw-value: string,
+    }
+
+    /// Decoded function call
+    record decoded-function {
+        /// Function name
+        name: string,
+        /// Function signature (e.g., "transfer(address,uint256)")
+        signature: string,
+        /// Function selector (4 bytes hex)
+        selector: function-selector,
+        /// Decoded parameters
+        parameters: list<decoded-parameter>,
+    }
+
+    /// ABI information
+    record abi-info {
+        /// Contract address
+        contract-address: contract-address,
+        /// ABI JSON string
+        abi-json: abi-json,
+        /// Source of ABI (e.g., "etherscan", "sourcify")
+        source: string,
+        /// When ABI was cached
+        cached-at: u64,
+        /// Whether ABI is verified
+        verified: bool,
+    }
+
+    /// Decoding result
+    record decoding-result {
+        /// Original transaction input
+        input: transaction-input,
+        /// Decoding status
+        status: decoding-status,
+        /// Decoded function (if successful)
+        decoded-function: option<decoded-function>,
+        /// ABI source used
+        abi-source: option<string>,
+        /// Error message (if failed)
+        error-message: option<string>,
+        /// Processing time in milliseconds
+        processing-time-ms: u64,
+    }
+
+    /// Decoding status
+    variant decoding-status {
+        /// Successfully decoded
+        success,
+        /// Native ETH transfer (no decoding needed)
+        native-transfer,
+        /// Contract creation transaction
+        contract-creation,
+        /// ABI not found for contract
+        abi-not-found,
+        /// ABI found but decoding failed
+        decoding-failed,
+        /// Invalid input data format
+        invalid-input,
+    }
+
+    /// ABI decoder error types
+    variant decoder-error {
+        /// Contract address not found
+        contract-not-found(string),
+        /// ABI parsing error
+        abi-parse-error(string),
+        /// Input data decoding error
+        input-decode-error(string),
+        /// Cache error
+        cache-error(string),
+        /// External API error
+        api-error(string),
+        /// Configuration error
+        config-error(string),
+    }
+
+    /// Decode a single transaction input
+    decode-transaction: func(input: transaction-input) -> result<decoding-result, decoder-error>;
+
+    /// Decode multiple transactions in batch (for performance)
+    decode-batch: func(inputs: list<transaction-input>) -> result<list<decoding-result>, decoder-error>;
+
+    /// Check if ABI exists in cache
+    has-abi: func(contract-address: contract-address, network: string) -> result<bool, decoder-error>;
+
+    /// Get ABI from cache
+    get-abi: func(contract-address: contract-address, network: string) -> result<option<abi-info>, decoder-error>;
+
+    /// Cache an ABI (called by ABI downloader)
+    cache-abi: func(contract-address: contract-address, network: string, abi-json: abi-json, source: string) -> result<_, decoder-error>;
+
+    /// Remove ABI from cache
+    remove-abi: func(contract-address: contract-address, network: string) -> result<_, decoder-error>;
+
+    /// Get cache statistics
+    get-cache-stats: func() -> result<cache-stats, decoder-error>;
+
+    /// Cache statistics
+    record cache-stats {
+        /// Total ABIs in hot cache
+        hot-cache-size: u64,
+        /// Hot cache hit rate (0.0 to 1.0)
+        hot-cache-hit-rate: f64,
+        /// Redis cache hit rate (0.0 to 1.0)
+        redis-cache-hit-rate: f64,
+        /// Total decoding operations
+        total-decodings: u64,
+        /// Successful decodings
+        successful-decodings: u64,
+        /// Average decoding time (ms)
+        avg-decoding-time-ms: f64,
+    }
+}
+
+world abi-decoder-provider {
+    export decoder;
+}
+
+world abi-decoder-consumer {
+    import decoder;
+}

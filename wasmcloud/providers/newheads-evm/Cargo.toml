@@ -1,0 +1,59 @@
+[package]
+name = "newheads-evm-provider"
+version = "0.1.0"
+edition = "2021"
+authors = ["abrahamalaka <abraham@ekko.zone>"]
+description = "wasmCloud Capability Provider for EVM blockchain newheads streaming"
+
+# wasmCloud provider binary
+[[bin]]
+name = "newheads-evm-provider"
+path = "src/wasmcloud_provider.rs"
+
+[dependencies]
+# wasmCloud provider framework
+wasmcloud-provider-sdk = "0.16"
+
+# Async runtime and utilities
+tokio = { version = "1.0", features = ["full"] }
+tokio-tungstenite = { version = "0.20", default-features = false, features = ["rustls-tls-native-roots"] }
+futures-util = "0.3"
+async-trait = "0.1"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# HTTP client for RPC calls
+# Using rustls-tls-native-roots to use system certificate store
+# and avoiding trust-dns-resolver issues in musl builds
+reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls-native-roots"] }
+
+# NATS for messaging (using workspace version to avoid conflicts)
+async-nats = { workspace = true }
+
+# Redis for configuration storage
+redis = { version = "0.24", features = ["tokio-comp"] }
+
+# Provider status tracking (Redis + OTEL)
+provider-status-common = { path = "../../shared/provider-status-common" }
+
+# Note: Removed shared libraries to avoid wasmCloud dependency conflicts
+# blockchain-common = { path = "../../libs/blockchain-common" }
+# types = { path = "../../libs/types" }
+
+[dev-dependencies]
+tokio-test = "0.4"
+wiremock = "0.5"
+testcontainers = { workspace = true }
+testcontainers-modules = { workspace = true, features = ["redis", "nats"] }
+futures = "0.3"

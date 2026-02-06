@@ -1,0 +1,15 @@
+// World definition for eth_raw_transactions actor
+package ekko:actors@0.1.0;
+
+/// World for the EVM raw transactions processor actor
+world eth-raw-transactions {
+    /// Import our custom capabilities
+    import ekko:messaging/handler@0.1.0;
+    import ekko:messaging/consumer@0.1.0;
+    import ekko:keyvalue/store@0.1.0;
+    import ekko:http/client@0.1.0;
+
+    /// Export the message consumer interface
+    /// The actor will handle incoming newheads messages
+    export ekko:messaging/consumer@0.1.0;
+}

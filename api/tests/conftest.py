@@ -1,382 +1,269 @@
-import asyncio
+"""
+Django test configuration and fixtures
+Uses docker-compose services for PostgreSQL, Redis, and NATS
+"""
 import os
+import time
+from typing import Generator
+
 import pytest
-import nats
-import json
-import uuid
-import tempfile
-from datetime import datetime
-from typing import Dict, Any, List, Optional
 
-# Set test environment variables
-os.environ["TEST_MODE"] = "true"
+# Configure Django settings
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "ekko_api.settings.test")
 
-# Configure pytest to use asyncio
-pytest_plugins = ["pytest_asyncio"]
+from django.contrib.auth import get_user_model
+# Import Django modules
+from django.test import Client
+from rest_framework.test import APIClient
 
-# Testcontainer fixtures
-@pytest.fixture(scope="session")
-def nats_container():
-    """Start a NATS container with JetStream for testing."""
-    from testcontainers.generic import GenericContainer
 
-    container = GenericContainer("nats:2.10-alpine")
-    container.with_command("-js -m 8222")
-    container.with_exposed_ports(4222, 8222)
+def pytest_configure(config):
+    """
+    Called before test collection. Check that docker-compose services are running.
+    """
+    import psycopg2
+    import redis
 
-    with container as nats:
-        # Set environment variable for other fixtures
-        nats_url = f"nats://localhost:{nats.get_exposed_port(4222)}"
-        os.environ["TEST_NATS_URL"] = nats_url
-        yield nats
+    # Check PostgreSQL is running
+    max_retries = 30
+    retry_count = 0
 
-@pytest.fixture(scope="session")
-def test_database():
-    """Create a temporary DuckDB database for testing."""
-    import tempfile
-    import os
+    print("Checking PostgreSQL connection...")
+    while retry_count < max_retries:
+        try:
+            conn = psycopg2.connect(
+                host="localhost",
+                port=5432,
+                user="ekko",
+                password="ekko123",
+                database="ekko_dev",
+            )
+            conn.close()
+            print("✓ PostgreSQL is ready")
+            break
+        except Exception as e:
+            retry_count += 1
+            if retry_count >= max_retries:
+                raise RuntimeError(
+                    "PostgreSQL is not running. Please start it with:\n"
+                    "docker-compose up -d postgres"
+                )
+            time.sleep(1)
 
-    # Create temporary database file path (but don't create the file)
-    db_fd, db_path = tempfile.mkstemp(suffix='.db')
-    os.close(db_fd)  # Close the file descriptor
-    os.unlink(db_path)  # Remove the empty file so DuckDB can create it properly
-
-    # Set environment variable for database path
-    os.environ["TEST_DUCKDB_PATH"] = db_path
-
-    yield db_path
-
-    # Cleanup
+    # Check Redis is running
+    print("Checking Redis connection...")
     try:
-        os.unlink(db_path)
-    except OSError:
-        pass
+        r = redis.Redis(host="localhost", port=6379, password="redis123")
+        r.ping()
+        print("✓ Redis is ready")
+    except Exception:
+        raise RuntimeError(
+            "Redis is not running. Please start it with:\n" "docker-compose up -d redis"
+        )
 
-@pytest.fixture(scope="session")
-async def nats_connection(nats_container):
-    """Create a NATS connection for testing."""
-    nats_url = nats_container.get_connection_url()
-    nc = await nats.connect(nats_url)
-    yield nc
-    await nc.close()
-
-@pytest.fixture(scope="session")
-def db_manager(test_database):
-    """Create a database manager for testing."""
-    from app.database.connection import DatabaseManager
-
-    # Override the database path for testing
-    original_path = os.environ.get("DUCKDB_PATH")
-    os.environ["DUCKDB_PATH"] = test_database
-
-    # Create database manager
-    manager = DatabaseManager()
-
-    yield manager
-
-    # Cleanup
-    manager.close_all_connections()
-
-    # Restore original path
-    if original_path:
-        os.environ["DUCKDB_PATH"] = original_path
-    elif "DUCKDB_PATH" in os.environ:
-        del os.environ["DUCKDB_PATH"]
-
-@pytest.fixture(scope="session")
-def db_schema(db_manager):
-    """Initialize database schema for testing."""
-    from app.database.migrations import MigrationManager
-
-    migration_manager = MigrationManager()
-    migration_manager.initialize_database()
-
-    yield migration_manager
-
-@pytest.fixture(scope="session")
-async def jetstream(nats_connection):
-    """Create a JetStream context for testing."""
-    js = nats_connection.jetstream()
-
-    # Create test buckets
-    test_buckets = [
-        "test_users",
-        "test_wallets",
-        "test_alerts",
-        "test_wallet_balances",
-        "test_workflows",
-        "test_workflow_executions",
-        "test_agents",
-        "test_alert_rules"
-    ]
-
-    for bucket in test_buckets:
-        try:
-            await js.key_value(bucket=bucket)
-        except Exception:
-            await js.create_key_value(bucket=bucket)
-
-    yield js
-
-    # Clean up test data
-    for bucket in test_buckets:
-        try:
-            kv = await js.key_value(bucket=bucket)
-            keys = await kv.keys()
-            for key in keys:
-                await kv.delete(key)
-        except Exception as e:
-            print(f"Error cleaning up {bucket}: {e}")
-
-# Repository fixtures
-@pytest.fixture
-def user_repository(db_schema, jetstream):
-    """Create a UserRepository for testing."""
-    from app.repositories import UserRepository
-
-    repo = UserRepository()
-    repo.set_jetstream(jetstream)
-    return repo
 
 @pytest.fixture
-def wallet_repository(db_schema, jetstream):
-    """Create a WalletRepository for testing."""
-    from app.repositories import WalletRepository
+def client():
+    """Django test client"""
+    return Client()
 
-    repo = WalletRepository()
-    repo.set_jetstream(jetstream)
-    return repo
 
 @pytest.fixture
-def alert_repository(db_schema, jetstream):
-    """Create an AlertRepository for testing."""
-    from app.repositories import AlertRepository
+def api_client():
+    """Django REST Framework API client"""
+    return APIClient()
 
-    repo = AlertRepository()
-    repo.set_jetstream(jetstream)
-    return repo
 
 @pytest.fixture
-def wallet_balance_repository(db_schema, jetstream):
-    """Create a WalletBalanceRepository for testing."""
-    from app.repositories import WalletBalanceRepository
+def test_user(db):
+    """Create a test user"""
+    User = get_user_model()
+    user = User.objects.create_user(
+        email="test@example.com", first_name="Test", last_name="User"
+    )
+    return user
 
-    repo = WalletBalanceRepository()
-    repo.set_jetstream(jetstream)
-    return repo
 
 @pytest.fixture
-async def clean_test_data(jetstream):
-    """Clean test data before and after each test."""
-    test_buckets = [
-        "test_users", 
-        "test_wallets", 
-        "test_alerts", 
-        "test_wallet_balances",
-        "test_workflows",
-        "test_workflow_executions",
-        "test_agents",
-        "test_alert_rules"
-    ]
-    
-    # Clean before test
-    for bucket in test_buckets:
-        try:
-            kv = await jetstream.key_value(bucket=bucket)
-            keys = await kv.keys()
-            for key in keys:
-                await kv.delete(key)
-        except Exception as e:
-            print(f"Error cleaning up {bucket}: {e}")
-    
+def test_admin_user(db):
+    """Create a test admin user"""
+    User = get_user_model()
+    user = User.objects.create_user(
+        email="admin@example.com",
+        first_name="Admin",
+        last_name="User",
+        is_staff=True,
+        is_superuser=True,
+    )
+    return user
+
+
+@pytest.fixture
+def authenticated_client(api_client, test_user):
+    """Authenticated API client"""
+    api_client.force_authenticate(user=test_user)
+    return api_client
+
+
+@pytest.fixture
+def admin_client(api_client, test_admin_user):
+    """Admin authenticated API client"""
+    api_client.force_authenticate(user=test_admin_user)
+    return api_client
+
+
+# Authentication-specific fixtures
+@pytest.fixture
+def test_device(test_user, db):
+    """Create a test user device"""
+    from authentication.models import UserDevice
+
+    device = UserDevice.objects.create(
+        user=test_user,
+        device_name="Test Device",
+        device_type="web",
+        supports_passkey=True,
+        device_fingerprint="test-fingerprint",
+    )
+    return device
+
+
+@pytest.fixture
+def test_passkey_credential(test_user, db):
+    """Create a test passkey credential"""
+    from authentication.models import PasskeyCredential
+
+    credential = PasskeyCredential.objects.create(
+        user=test_user,
+        credential_id=b"test-credential-id",
+        public_key_pem="test-public-key",
+        device_type="platform",
+        device_name="Test Device",
+    )
+    return credential
+
+
+@pytest.fixture
+def test_magic_link(test_user, db):
+    """Create a test magic link"""
+    from authentication.models import EmailMagicLink
+
+    magic_link = EmailMagicLink.objects.create(
+        user=test_user, token="test-magic-link-token", purpose="login"
+    )
+    return magic_link
+
+
+@pytest.fixture
+def test_recovery_codes(test_user, db):
+    """Create test recovery codes"""
+    from authentication.models import RecoveryCode
+
+    codes = []
+    for i in range(3):
+        code = RecoveryCode.objects.create(user=test_user, code=f"TEST-CODE-{i:02d}")
+        codes.append(code)
+    return codes
+
+
+# Blockchain-specific fixtures
+@pytest.fixture
+def test_blockchain(db):
+    """Create a test blockchain"""
+    from blockchain.models import Blockchain
+
+    blockchain = Blockchain.objects.create(
+        name="Ethereum", symbol="eth", chain_type="EVM"
+    )
+    return blockchain
+
+
+@pytest.fixture
+def test_wallet(test_blockchain, db):
+    """Create a test wallet"""
+    from blockchain.models import Wallet
+
+    wallet = Wallet.objects.create(
+        blockchain=test_blockchain,
+        address="0x1234567890123456789012345678901234567890",
+        name="Test Wallet",
+        balance="1000000000000000000",  # 1 ETH in wei
+    )
+    return wallet
+
+
+# Organization-specific fixtures
+@pytest.fixture
+def test_organization(db):
+    """Create a test organization"""
+    from organizations.models import Organization
+
+    org = Organization.objects.create(
+        name="Test Organization", slug="test-org", description="A test organization"
+    )
+    return org
+
+
+@pytest.fixture
+def test_team(test_organization, db):
+    """Create a test team"""
+    from organizations.models import Team
+
+    team = Team.objects.create(
+        organization=test_organization,
+        name="Test Team",
+        slug="test-team",
+        description="A test team",
+    )
+    return team
+
+
+@pytest.fixture
+def test_team_member(test_team, test_user, db):
+    """Create a test team member"""
+    from organizations.models import TeamMember
+
+    member = TeamMember.objects.create(team=test_team, user=test_user, role="member")
+    return member
+
+
+# Utility fixtures
+@pytest.fixture
+def mock_email_backend():
+    """Mock email backend for testing"""
+    from django.core.mail import get_connection
+    from django.test import override_settings
+
+    with override_settings(
+        EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend"
+    ):
+        yield get_connection()
+
+
+@pytest.fixture
+def mock_redis_cache():
+    """Mock Redis cache for testing"""
+    from django.core.cache import cache
+
+    yield cache
+
+
+@pytest.fixture
+def transactional_db(db):
+    """Database fixture that allows transactions"""
+    # This fixture allows testing code that uses transactions
     yield
-    
-    # Clean after test
-    for bucket in test_buckets:
-        try:
-            kv = await jetstream.key_value(bucket=bucket)
-            keys = await kv.keys()
-            for key in keys:
-                await kv.delete(key)
-        except Exception as e:
-            print(f"Error cleaning up {bucket}: {e}")
 
-@pytest.fixture
-def sample_user_data():
-    """Sample user data for testing."""
-    return {
-        "id": str(uuid.uuid4()),
-        "email": f"test_{uuid.uuid4()}@example.com",
-        "full_name": "Test User",
-        "role": "user",
-        "is_active": True,
-        "created_at": datetime.now().isoformat(),
-        "updated_at": None,
-        "hashed_password": "hashed_password"
-    }
 
-@pytest.fixture
-def sample_wallet_data():
-    """Sample wallet data for testing."""
-    return {
-        "id": str(uuid.uuid4()),
-        "blockchain_symbol": "ETH",
-        "address": f"0x{uuid.uuid4().hex}",
-        "name": "Test Wallet",
-        "balance": 1.0,
-        "status": "active",
-        "created_at": datetime.now().isoformat(),
-        "updated_at": None
-    }
-
-@pytest.fixture
-def sample_alert_data():
-    """Sample alert data for testing."""
-    return {
-        "id": str(uuid.uuid4()),
-        "type": "transaction",
-        "message": "Test alert message",
-        "time": datetime.now().isoformat(),
-        "status": "new",
-        "icon": "warning",
-        "priority": "high",
-        "related_wallet_id": str(uuid.uuid4())
-    }
-
-@pytest.fixture
-def sample_wallet_balance_data(sample_wallet_data):
-    """Sample wallet balance data for testing."""
-    return {
-        "id": str(uuid.uuid4()),
-        "wallet_id": sample_wallet_data["id"],
-        "timestamp": datetime.now().isoformat(),
-        "balance": 1.5,
-        "token_price": 2000.0,
-        "fiat_value": 3000.0
-    }
-
-@pytest.fixture
-def sample_workflow_step_data():
-    """Sample workflow step data for testing."""
-    return {
-        "id": str(uuid.uuid4()),
-        "name": "Test Step",
-        "type": "trigger",
-        "config": {"condition": "balance > 1.0"},
-        "next_steps": []
-    }
-
-@pytest.fixture
-def sample_workflow_data(sample_workflow_step_data, sample_user_data):
-    """Sample workflow data for testing."""
-    return {
-        "id": str(uuid.uuid4()),
-        "name": "Test Workflow",
-        "description": "Test workflow description",
-        "enabled": True,
-        "steps": [sample_workflow_step_data],
-        "created_at": datetime.now().isoformat(),
-        "updated_at": None,
-        "created_by": sample_user_data["id"]
-    }
-
-@pytest.fixture
-def sample_workflow_execution_data(sample_workflow_data):
-    """Sample workflow execution data for testing."""
-    return {
-        "id": str(uuid.uuid4()),
-        "workflow_id": sample_workflow_data["id"],
-        "status": "running",
-        "start_time": datetime.now().isoformat(),
-        "end_time": None,
-        "result": None,
-        "error": None
-    }
-
-@pytest.fixture
-def sample_agent_data(sample_user_data):
-    """Sample agent data for testing."""
-    return {
-        "id": str(uuid.uuid4()),
-        "name": "Test Agent",
-        "type": "monitor",
-        "config": {"target": "ETH", "interval": 60},
-        "status": "inactive",
-        "last_run": None,
-        "created_at": datetime.now().isoformat(),
-        "updated_at": None,
-        "created_by": sample_user_data["id"]
-    }
-
-@pytest.fixture(scope="session")
-def nats_container():
-    """Start a NATS container for testing."""
-    import os
-    from testcontainers.nats import NatsContainer
-
-    # Set Docker socket path for macOS Docker Desktop
-    docker_socket_path = os.path.expanduser("~/.docker/run/docker.sock")
-    if os.path.exists(docker_socket_path):
-        os.environ["DOCKER_HOST"] = f"unix://{docker_socket_path}"
-
-    # Start a NATS container with JetStream enabled
-    # Use the enable_jetstream() method as shown in the docs
-    with NatsContainer().enable_jetstream() as nats:
-        yield nats
-
-@pytest.fixture
-def nats_client(nats_container):
-    """Create a NATS client connected to the test container."""
-    import nats
-    import asyncio
-    
-    # Get the NATS URL from the container
-    nats_url = nats_container.get_connection_url()
-    
-    # Run in an event loop to connect to NATS
-    async def connect():
-        nc = await nats.connect(nats_url)
-        js = nc.jetstream()
-        return nc, js
-    
-    # Connect to NATS
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    nc, js = loop.run_until_complete(connect())
-    
-    # Create test buckets
-    async def setup_buckets():
-        try:
-            # Create test buckets if they don't exist
-            await js.create_key_value(bucket="test_workflows")
-            await js.create_key_value(bucket="test_workflow_executions")
-            await js.create_key_value(bucket="test_agents")
-        except Exception as e:
-            # Bucket might already exist
-            print(f"Note: {e}")
-    
-    loop.run_until_complete(setup_buckets())
-    
-    yield nc, js
-    
-    # Clean up
-    async def cleanup():
-        await nc.close()
-        
-    loop.run_until_complete(cleanup())
-    loop.close()
-
-@pytest.fixture
-def sample_alert_rule_data(sample_user_data):
-    """Sample alert rule data for testing."""
-    return {
-        "id": str(uuid.uuid4()),
-        "name": "Test Alert Rule",
-        "description": "Test alert rule description",
-        "condition": {"type": "balance", "threshold": 1.0, "operator": "gt"},
-        "action": {"type": "notification", "channel": "email"},
-        "enabled": True,
-        "created_at": datetime.now().isoformat(),
-        "updated_at": None,
-        "created_by": sample_user_data["id"]
-    }
+@pytest.fixture(autouse=True, scope='function')
+def reset_factory_sequences():
+    """
+    Reset factory Faker seed before each test to ensure unique data generation.
+    This prevents factory collisions when using --reuse-db.
+    """
+    from faker import Faker
+    fake = Faker()
+    # Reseed with current time to ensure uniqueness across test runs
+    import time
+    fake.seed_instance(int(time.time() * 1000000))
+    yield

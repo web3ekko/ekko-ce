@@ -1,0 +1,317 @@
+# Production Environment Manifest
+# Multi-host, high-availability deployment
+apiVersion: core.oam.dev/v1beta1
+kind: Application
+metadata:
+  name: ekko-wasmcloud-prod
+  annotations:
+    version: v0.1.0
+    description: "Ekko blockchain data processing platform - Production"
+    environment: "production"
+
+spec:
+  components:
+    # === CAPABILITY PROVIDERS ===
+    
+    # NATS Messaging Provider (Clustered)
+    - name: nats-messaging
+      type: capability
+      properties:
+        image: wasmcloud.azurecr.io/nats_messaging:0.19.0
+        config:
+          - name: production-nats
+            properties:
+              cluster_uris: [
+                "nats://nats-1.ekko.zone:4222",
+                "nats://nats-2.ekko.zone:4222", 
+                "nats://nats-3.ekko.zone:4222"
+              ]
+              auth_jwt: "${NATS_JWT}"
+              auth_seed: "${NATS_SEED}"
+    
+    # Redis KeyValue Provider (Clustered)
+    - name: redis-keyvalue
+      type: capability
+      properties:
+        image: wasmcloud.azurecr.io/redis:0.22.0
+        config:
+          - name: production-redis
+            properties:
+              url: "redis://redis-cluster.ekko.zone:6379"
+              password: "${REDIS_PASSWORD}"
+              tls: true
+    
+    # HTTP Client Provider
+    - name: http-client
+      type: capability
+      properties:
+        image: wasmcloud.azurecr.io/httpclient:0.12.0
+
+    # BlobStore S3 Provider for DuckLake
+    - name: blobstore-s3
+      type: capability
+      properties:
+        image: wasmcloud.azurecr.io/blobstore_s3:0.8.0
+        config:
+          - name: production-s3
+            properties:
+              endpoint: "${S3_ENDPOINT}"
+              region: "${S3_REGION}"
+              bucket: "${S3_BUCKET}"
+              access_key_id: "${S3_ACCESS_KEY_ID}"
+              secret_access_key: "${S3_SECRET_ACCESS_KEY}"
+    
+    # === CUSTOM PROVIDERS ===
+    
+    # Newheads Provider (Multi-chain)
+    - name: newheads-provider
+      type: capability
+      properties:
+        image: ghcr.io/ekko-zone/newheads-provider:v0.1.0
+        config:
+          - name: ethereum-mainnet
+            properties:
+              network: "ethereum"
+              subnet: "mainnet"
+              vm_type: "evm"
+              chain_id: "ethereum-mainnet"
+              chain_name: "Ethereum Mainnet"
+              rpc_url: "${ETHEREUM_RPC_URL}"
+              ws_url: "${ETHEREUM_WS_URL}"
+              enabled: true
+          - name: polygon-mainnet
+            properties:
+              network: "polygon"
+              subnet: "mainnet"
+              vm_type: "evm"
+              chain_id: "polygon-mainnet"
+              chain_name: "Polygon Mainnet"
+              rpc_url: "${POLYGON_RPC_URL}"
+              ws_url: "${POLYGON_WS_URL}"
+              enabled: true
+          - name: arbitrum-mainnet
+            properties:
+              network: "arbitrum"
+              subnet: "mainnet"
+              vm_type: "evm"
+              chain_id: "arbitrum-mainnet"
+              chain_name: "Arbitrum Mainnet"
+              rpc_url: "${ARBITRUM_RPC_URL}"
+              ws_url: "${ARBITRUM_WS_URL}"
+              enabled: true
+          - name: bitcoin-mainnet
+            properties:
+              network: "bitcoin"
+              subnet: "mainnet"
+              vm_type: "utxo"
+              chain_id: "bitcoin-mainnet"
+              chain_name: "Bitcoin Mainnet"
+              rpc_url: "${BITCOIN_RPC_URL}"
+              ws_url: "${BITCOIN_WS_URL}"
+              enabled: true
+    
+    # === ACTORS ===
+    
+    # Health Check Actor
+    - name: health-check
+      type: actor
+      properties:
+        image: ghcr.io/ekko-zone/health-check:v0.1.0
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 3
+            spread:
+              - name: "zone"
+                requirements:
+                  zone: ["us-west-1a", "us-west-1b", "us-west-1c"]
+    
+    # EVM Raw Transactions Actor (wasmCloud 1.0)
+    - name: eth-raw-transactions
+      type: actor
+      properties:
+        image: ghcr.io/ekko-zone/eth-raw-transactions:v0.1.0
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 6
+            spread:
+              - name: "zone"
+                requirements:
+                  zone: ["us-west-1a", "us-west-1b", "us-west-1c"]
+        - type: link
+          properties:
+            target: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer, publisher]
+            values:
+              subscriptions: "newheads.*.*.evm"
+        - type: link
+          properties:
+            target: http-client
+            namespace: wasmcloud
+            package: httpclient
+            interfaces: [outgoing-handler]
+        - type: link
+          properties:
+            target: redis-keyvalue
+            namespace: wasmcloud
+            package: keyvalue
+            interfaces: [store]
+    
+    # UTXO Raw Transactions Actor
+    - name: btc-raw-transactions
+      type: actor
+      properties:
+        image: ghcr.io/ekko-zone/btc-raw-transactions:v0.1.0
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 3
+            spread:
+              - name: "zone"
+                requirements:
+                  zone: ["us-west-1a", "us-west-1b", "us-west-1c"]
+        - type: link
+          properties:
+            target: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer, publisher]
+            values:
+              subscriptions: "newheads.*.*.utxo"
+    
+    # SVM Raw Transactions Actor
+    - name: sol-raw-transactions
+      type: actor
+      properties:
+        image: ghcr.io/ekko-zone/sol-raw-transactions:v0.1.0
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 3
+            spread:
+              - name: "zone"
+                requirements:
+                  zone: ["us-west-1a", "us-west-1b", "us-west-1c"]
+        - type: link
+          properties:
+            target: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer, publisher]
+            values:
+              subscriptions: "newheads.*.*.svm"
+    
+    # Ethereum Process Transactions Actor (wasmCloud 1.0)
+    - name: eth-process-transactions
+      type: actor
+      properties:
+        image: ghcr.io/ekko-zone/eth-process-transactions:v0.1.0
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 6
+            spread:
+              - name: "zone"
+                requirements:
+                  zone: ["us-west-1a", "us-west-1b", "us-west-1c"]
+        - type: link
+          properties:
+            target: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer, publisher]
+            values:
+              subscriptions: "transactions.raw.evm"
+        - type: link
+          properties:
+            target: redis-keyvalue
+            namespace: wasmcloud
+            package: keyvalue
+            interfaces: [store]
+    
+    # Bitcoin Process Transactions Actor
+    - name: btc-process-transactions
+      type: actor
+      properties:
+        image: ghcr.io/ekko-zone/btc-process-transactions:v0.1.0
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 3
+            spread:
+              - name: "zone"
+                requirements:
+                  zone: ["us-west-1a", "us-west-1b", "us-west-1c"]
+        - type: link
+          properties:
+            target: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer, publisher]
+            values:
+              subscriptions: "transactions.raw.utxo"
+    
+    # Transaction Decoder Actor
+    - name: transaction-decoder
+      type: actor
+      properties:
+        image: ghcr.io/ekko-zone/transaction-decoder:v0.1.0
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 6
+            spread:
+              - name: "zone"
+                requirements:
+                  zone: ["us-west-1a", "us-west-1b", "us-west-1c"]
+        - type: link
+          properties:
+            target: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer, publisher]
+            values:
+              subscriptions: "transactions.processed.evm,abi.templates"
+        - type: link
+          properties:
+            target: redis-keyvalue
+            namespace: wasmcloud
+            package: keyvalue
+            interfaces: [store]
+
+    # Transaction Delta Writer Actor
+    - name: transaction-delta-writer
+      type: actor
+      properties:
+        image: ghcr.io/ekko-zone/transaction-delta-writer:v0.1.0
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 6
+            spread:
+              - name: "zone"
+                requirements:
+                  zone: ["us-west-1a", "us-west-1b", "us-west-1c"]
+        - type: link
+          properties:
+            target: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer]
+            values:
+              subscriptions: "transactions.processed.evm,transactions.processed.utxo,transactions.processed.svm"
+        - type: link
+          properties:
+            target: blobstore-s3
+            namespace: wasmcloud
+            package: blobstore
+            interfaces: [store]
+        - type: link
+          properties:
+            target: redis-keyvalue
+            namespace: wasmcloud
+            package: keyvalue
+            interfaces: [store]

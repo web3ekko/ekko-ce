@@ -1,0 +1,15 @@
+// World definition for evm_logs_ingestion actor
+package ekko:actors@0.1.0;
+
+/// World for the EVM logs ingestion actor
+world evm-logs-ingestion {
+    /// Import standard wasmCloud and WASI capabilities
+    import wasmcloud:messaging/consumer@0.2.0;  // For publishing messages
+    import wasi:keyvalue/store@0.2.0-draft;
+    import wasi:http/outgoing-handler@0.2.0;  // Native wasmCloud support
+    import wasi:io/poll@0.2.0;  // For polling HTTP response futures
+
+    /// Export the message handler interface
+    /// The actor will handle incoming newheads messages
+    export wasmcloud:messaging/handler@0.2.0;  // For receiving messages
+}

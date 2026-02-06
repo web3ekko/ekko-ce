@@ -1,0 +1,14 @@
+name = "transaction-ducklake-writer"
+language = "rust"
+type = "component"
+version = "0.1.0"
+
+[component]
+claims = ["wasmcloud:messaging"]
+wit_world = "transaction-ducklake-writer"
+wit_path = "./wit"
+messaging = "nats"
+
+[component.build]
+command = "cargo build --target wasm32-wasip1 --release"
+path = "../../target/wasm32-wasip1/release/transaction_ducklake_writer.wasm"

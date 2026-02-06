@@ -1,0 +1,50 @@
+[package]
+name = "slack-notification-provider"
+version = "1.0.0"
+edition = "2021"
+authors = ["Ekko Team"]
+description = "Slack notification provider for Ekko blockchain alerts"
+
+[[bin]]
+name = "slack-notification-provider"
+path = "src/bin/slack-notification-provider.rs"
+
+[lib]
+name = "slack_notification_provider"
+path = "src/lib.rs"
+
+[dependencies]
+# wasmCloud provider SDK
+wasmcloud-provider-sdk = "0.16"
+
+# Async runtime
+tokio = { workspace = true, features = ["full"] }
+
+# NATS messaging
+async-nats = { workspace = true }
+
+# Redis
+redis = { workspace = true }
+
+# HTTP client
+reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls-native-roots"] }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Utilities
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+uuid = { workspace = true, features = ["v4"] }
+chrono = { workspace = true }
+futures-util = "0.3"
+async-trait = "0.1"
+
+[dev-dependencies]
+# Testing
+mockall = "0.12"
+tokio-test = "0.4"
+wiremock = "0.6"

@@ -1,0 +1,55 @@
+{
+  "mappings": [
+    {
+      "request": {
+        "method": "POST",
+        "urlPathPattern": "/2010-04-01/Accounts/.*/Messages.json",
+        "basicAuthCredentials": {
+          "username": "test_account_sid",
+          "password": "test_auth_token"
+        }
+      },
+      "response": {
+        "status": 201,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "jsonBody": {
+          "sid": "SM{{randomValue type='ALPHANUMERIC' length='32'}}",
+          "date_created": "{{now}}",
+          "date_updated": "{{now}}",
+          "date_sent": "{{now}}",
+          "account_sid": "test_account_sid",
+          "to": "{{request.body.To}}",
+          "from": "{{request.body.From}}",
+          "body": "{{request.body.Body}}",
+          "status": "queued",
+          "num_segments": "1",
+          "direction": "outbound-api",
+          "price": "-0.00750",
+          "price_unit": "USD"
+        }
+      },
+      "priority": 1
+    },
+    {
+      "request": {
+        "method": "POST",
+        "urlPathPattern": "/2010-04-01/Accounts/.*/Messages.json",
+        "basicAuthCredentials": {
+          "absent": true
+        }
+      },
+      "response": {
+        "status": 401,
+        "jsonBody": {
+          "code": 20003,
+          "message": "Authentication Error - invalid username or password",
+          "more_info": "https://www.twilio.com/docs/errors/20003",
+          "status": 401
+        }
+      },
+      "priority": 2
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+name = "eth_contract_creation_processor"
+language = "rust"
+type = "component"
+
+[component]
+wit_world = "eth-contract-creation-processor"
+wasm_target = "wasm32-wasip1"
+
+[component.build]
+command = "cargo"
+args = ["build", "--release", "--target", "wasm32-wasip1"]
+
+[component.claims]
+name = "Ethereum Contract Creation Processor Actor"
+description = "Processes ETH contract deployment transactions with bytecode analysis and registry management"
+version = "0.1.0"
+revision = 0
+tags = ["ethereum", "contracts", "deployment", "bytecode-analysis", "registry"]
+
+[component.capabilities]
+# Messaging capabilities for pub/sub
+messaging = ["wasmcloud:messaging"]
+
+# Key-value store for contract registry and creator tracking
+keyvalue = ["wasmcloud:keyvalue"]
+
+# Logging capability
+logging = ["wasmcloud:logging"]
+
+[component.config]
+# Default configuration values
+default_network = "ethereum"
+default_subnet = "mainnet"
+default_vm_type = "evm"
+
+# Processing settings
+enable_bytecode_analysis = true
+enable_pattern_detection = true
+enable_creator_tracking = true
+batch_size = 500
+max_processing_time_ms = 15
+
+# Contract type detection thresholds
+factory_deployment_threshold = 100
+bytecode_complexity_threshold = 50
+
+# Routing configuration
+subscribe_pattern = "contract-creations.*.*.evm.raw"
+deployed_subject = "contracts.deployed.evm"
+alert_subject_pattern = "alerts.evaluate.{chain}"
+registry_subject_pattern = "contracts.registry.{chain}"
+ducklake_subject = "ducklake.contracts"

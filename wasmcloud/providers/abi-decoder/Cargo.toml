@@ -1,0 +1,71 @@
+[package]
+name = "abi-decoder-provider"
+version = "0.1.0"
+edition = "2021"
+authors = ["Ekko Team"]
+description = "ABI decoding capability provider for EVM transactions using Alloy"
+
+[lib]
+name = "abi_decoder_provider"
+path = "src/lib.rs"
+
+# wasmCloud provider binary for WADM deployment
+[[bin]]
+name = "abi-decoder-provider"
+path = "src/bin/abi-decoder-provider.rs"
+
+[dependencies]
+# wasmCloud provider SDK (for WADM deployment)
+wasmcloud-provider-sdk = "0.16"
+
+# Core wasmCloud dependencies
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+chrono = { workspace = true, features = ["serde"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+uuid = { workspace = true, features = ["v4", "serde"] }
+
+# Alloy for EVM ABI decoding
+alloy-dyn-abi = "0.8"
+alloy-json-abi = "0.8"
+alloy-primitives = "0.8"
+alloy-sol-types = "0.8"
+
+# Additional dependencies
+thiserror = "1.0"
+futures = "0.3"
+hex = "0.4"
+
+# Caching and storage
+redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
+lru = "0.12"
+
+# HTTP client for external APIs
+reqwest = { version = "0.11", features = ["json"] }
+
+# Rate limiting
+governor = "0.6"
+
+# Configuration
+config = "0.14"
+
+# Object storage (for DuckLake integration)
+object_store = { version = "0.10", features = ["aws"] }
+
+# Metrics (optional)
+prometheus = { version = "0.13", optional = true }
+
+[dev-dependencies]
+testcontainers = { workspace = true }
+testcontainers-modules = { workspace = true, features = ["redis", "minio"] }
+tempfile = "3.0"
+tokio-test = "0.4"
+serial_test = "3.0"
+
+[features]
+default = []
+metrics = ["prometheus"]

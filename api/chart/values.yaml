@@ -1,0 +1,138 @@
+# Default values for ekko-api
+replicaCount: ${API_REPLICA_COUNT:-1}
+
+image:
+  repository: ${API_IMAGE_REPOSITORY:-ekko-api}
+  tag: ${API_IMAGE_TAG:-latest}
+  pullPolicy: ${API_PULL_POLICY:-IfNotPresent}
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+service:
+  type: ClusterIP
+  port: ${API_SERVICE_PORT:-8000}
+  targetPort: 8000
+
+ingress:
+  enabled: ${API_INGRESS_ENABLED:-false}
+  className: ${API_INGRESS_CLASS:-nginx}
+  annotations: {}
+  hosts:
+    - host: ${API_HOST:-api.ekko.local}
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources:
+  limits:
+    cpu: ${API_CPU_LIMIT:-1000m}
+    memory: ${API_MEMORY_LIMIT:-1Gi}
+  requests:
+    cpu: ${API_CPU_REQUEST:-500m}
+    memory: ${API_MEMORY_REQUEST:-512Mi}
+
+autoscaling:
+  enabled: ${API_AUTOSCALING_ENABLED:-false}
+  minReplicas: ${API_MIN_REPLICAS:-2}
+  maxReplicas: ${API_MAX_REPLICAS:-10}
+  targetCPUUtilizationPercentage: ${API_CPU_TARGET:-80}
+  targetMemoryUtilizationPercentage: ${API_MEMORY_TARGET:-80}
+
+# Django Configuration
+django:
+  secretKey: ${DJANGO_SECRET_KEY}
+  debug: ${DJANGO_DEBUG:-False}
+  allowedHosts: ${DJANGO_ALLOWED_HOSTS:-*}
+  settingsModule: ${DJANGO_SETTINGS_MODULE:-ekko_api.settings.production}
+
+# Database Configuration
+database:
+  url: ${DATABASE_URL}
+  maxConnections: ${DATABASE_MAX_CONNECTIONS:-100}
+
+# Redis Configuration
+redis:
+  url: ${REDIS_URL}
+  maxConnections: ${REDIS_MAX_CONNECTIONS:-50}
+
+# NATS Configuration
+nats:
+  url: ${NATS_URL}
+  clusterId: ${NATS_CLUSTER_ID:-ekko-cluster}
+  clientId: ${NATS_CLIENT_ID:-ekko-api}
+
+# Firebase Configuration
+firebase:
+  enabled: ${FIREBASE_ENABLED:-true}
+  serviceAccountKey: '${FIREBASE_SERVICE_ACCOUNT_KEY}'
+  projectId: ${FIREBASE_PROJECT_ID}
+  authDomain: ${FIREBASE_AUTH_DOMAIN}
+  webApiKey: ${FIREBASE_WEB_API_KEY}
+
+# External Services
+externalServices:
+  huggingfaceApiKey: ${HUGGINGFACE_API_KEY}
+  huggingfaceEndpoint: ${HUGGINGFACE_ENDPOINT:-https://api-inference.huggingface.co}
+  geminiApiKey: ${GEMINI_API_KEY}
+  geminiModel: ${GEMINI_MODEL}
+
+# NLP Runtime Configuration (Django settings surface)
+nlp:
+  enabled: ${NLP_ENABLED:-true}
+  requireDspy: ${NLP_REQUIRE_DSPY:-true}
+  fallbackOnDspyFailure: ${NLP_FALLBACK_ON_DSPY_FAILURE:-false}
+  timeoutSeconds: ${NLP_TIMEOUT:-30}
+  temperature: ${NLP_TEMPERATURE:-0.1}
+  maxTokens: ${NLP_MAX_TOKENS:-4096}
+  maxRetries: ${LLM_MAX_RETRIES:-3}
+  supportedNetworks: ${NLP_SUPPORTED_NETWORKS:-ETH:mainnet,AVAX:mainnet}
+
+# NLP Pipeline Bootstrap (promote curated demos to active_version during deploy)
+nlpBootstrap:
+  enabled: ${NLP_BOOTSTRAP_ENABLED:-true}
+  pipelineId: ${NLP_PIPELINE_ID:-dspy_plan_compiler_v1}
+  pipelineVersion: ${NLP_PIPELINE_VERSION:-v1-gemma3-curated}
+  examplesFile: ${NLP_PIPELINE_EXAMPLES_FILE:-test-results/nlp_curated_demos_seed_v1.json}
+  setActive: ${NLP_PIPELINE_SET_ACTIVE:-true}
+
+# Health Checks
+healthcheck:
+  enabled: true
+  path: /health/
+  livenessProbe:
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readinessProbe:
+    initialDelaySeconds: 20
+    periodSeconds: 5
+    timeoutSeconds: 3
+    successThreshold: 1
+
+# Migrations
+migrations:
+  enabled: ${RUN_MIGRATIONS:-true}
+  command: ["python", "manage.py", "migrate", "--noinput"]
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# Pod Security Context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+# Container Security Context
+securityContext:
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: false
+  runAsNonRoot: true
+  runAsUser: 1000

@@ -1,0 +1,13 @@
+// World definition for transaction-ducklake-writer actor
+package ekko:actors@0.1.0;
+
+/// World for the transaction DuckLake writer actor
+/// Receives decoded and processed transactions and publishes to DuckLake subjects
+world transaction-ducklake-writer {
+    /// Import wasmCloud messaging consumer for publishing messages
+    import wasmcloud:messaging/consumer@0.2.0;
+    import wasi:clocks/wall-clock@0.2.0; // For timestamp fallback
+
+    /// Export the message handler interface for receiving messages
+    export wasmcloud:messaging/handler@0.2.0;
+}

@@ -1,0 +1,64 @@
+# Notification Router Actor Manifest
+# This manifest deploys the notification routing actor and its dependencies
+
+apiVersion: core.oam.dev/v1beta1
+kind: Application
+metadata:
+  name: notification-router
+  annotations:
+    version: v1.0.0
+    description: "Notification routing system for Ekko alerts"
+
+spec:
+  components:
+    - name: notification-router
+      type: actor
+      properties:
+        image: file://./actors/notification-router/build/notification_router_s.wasm
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 2
+        - type: linkdef
+          properties:
+            target: httpserver
+            values:
+              address: 0.0.0.0:8080
+
+    - name: httpserver
+      type: capability
+      properties:
+        image: wasmcloud.azurecr.io/httpserver:0.19.1
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+
+    - name: logging
+      type: capability
+      properties:
+        image: wasmcloud.azurecr.io/logging:0.14.1
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+
+  policies:
+    - name: notification-config
+      type: policy.oam.dev/v1alpha1
+      properties:
+        # Redis configuration
+        redis_url: "redis://redis:6379"
+        redis_password: "redis123"
+        
+        # NATS configuration
+        nats_url: "nats://nats:4222"
+        
+        # Router configuration
+        default_priority: "normal"
+        max_concurrent_notifications: 100
+        enable_metrics: true
+        enable_dead_letter_queue: true
+        
+        # Logging configuration
+        log_level: "info"

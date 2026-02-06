@@ -1,0 +1,14 @@
+// World definition for btc_raw_transactions actor
+package ekko:actors@0.1.0;
+
+/// World for the UTXO raw transactions processor actor
+world btc-raw-transactions {
+    /// Import standard wasmCloud and WASI capabilities
+    import wasmcloud:messaging/consumer@0.2.0;  // For publishing messages
+    import wasi:keyvalue/store@0.2.0-draft;
+    import wasi:http/outgoing-handler@0.2.0;
+
+    /// Export the message handler interface
+    /// The actor will handle incoming newheads messages
+    export wasmcloud:messaging/handler@0.2.0;  // For receiving messages
+}

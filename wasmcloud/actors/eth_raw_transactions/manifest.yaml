@@ -1,0 +1,26 @@
+# EVM Raw Transactions Service (wasmCloud 1.0 - Native Rust Service)
+#
+# This service has been migrated from wasmCloud actor to native Rust service
+# for better performance and to eliminate dependency conflicts.
+#
+# Deployment:
+#   Development: cargo run --package eth_raw_transactions --bin eth_raw_transactions
+#   Production:  Deploy as native binary with Docker/Kubernetes
+#
+# Configuration:
+#   NATS_URL: NATS server URL (default: nats://127.0.0.1:4222)
+#   REDIS_URL: Redis server URL (default: redis://127.0.0.1:6379)
+#
+# Architecture:
+#   - Subscribes to: newheads.*.*.evm (NATS)
+#   - Publishes to: transactions.raw.evm (NATS)
+#   - Configuration: nodes:{network}:{subnet}:{vm_type} (Redis)
+#   - RPC calls: Direct HTTP to blockchain nodes
+#
+# Scaling:
+#   - Run multiple instances for horizontal scaling
+#   - Each instance processes different blockchain networks
+#   - Load balancing handled by NATS consumer groups
+#
+# NOTE: This manifest is kept for reference only.
+# The service no longer runs as a wasmCloud actor.

@@ -1,0 +1,31 @@
+[package]
+name = "notification-router"
+version = "1.0.0"
+edition = "2021"
+authors = ["Ekko Team"]
+description = "Notification routing actor for distributing notifications to appropriate providers"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# WasmCloud 1.0 Component dependencies
+wit-bindgen = { workspace = true }
+wasmcloud-component = { workspace = true }
+
+# Use workspace dependencies
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+
+# Shared libraries (only if still needed)
+wasmcloud-common = { workspace = true }
+types = { workspace = true }
+alert-runtime-common = { workspace = true }
+
+# UUID generation for request tracking
+uuid = { version = "1.0", features = ["v4"] }
+
+[dev-dependencies]
+pretty_assertions = "1"

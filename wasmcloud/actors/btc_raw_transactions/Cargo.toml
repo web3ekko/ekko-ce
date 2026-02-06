@@ -1,0 +1,25 @@
+[package]
+name = "btc_raw_transactions"
+version = "0.1.0"
+edition = "2021"
+authors = ["abrahamalaka <abraham@ekko.zone>"]
+description = "wasmCloud actor for processing UTXO blockchain newheads and fetching raw transactions"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# wasmCloud 1.0 actor (uses capability interfaces)
+wit-bindgen = { workspace = true }
+wasmcloud-component = { workspace = true }
+
+# Standard Rust dependencies (WASM-compatible)
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true }
+futures = { workspace = true }
+
+[dev-dependencies]
+testcontainers = { workspace = true }

@@ -1,0 +1,5 @@
+package wasmcloud:http;
+
+world provider {
+    export wasmcloud:http/outgoing-handler;
+}

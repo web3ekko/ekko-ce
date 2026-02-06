@@ -1,0 +1,15 @@
+[package]
+name = "alert-runtime-common"
+version = "1.0.0"
+edition = "2021"
+authors = ["Ekko Team"]
+description = "Shared alert runtime message contracts (AlertTemplate v1, EvaluationContext v1, schedule/job/events)"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = "1"

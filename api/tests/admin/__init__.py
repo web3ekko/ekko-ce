@@ -1,0 +1,3 @@
+"""
+Django Admin Test Suite
+"""

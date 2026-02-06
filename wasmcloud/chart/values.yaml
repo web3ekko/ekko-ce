@@ -1,0 +1,243 @@
+# Default values for ekko-wasmcloud
+# This configures WasmCloud to use existing NATS and Redis instances
+
+# WasmCloud Platform Configuration
+wasmcloud-platform:
+  hostConfig:
+    hostReplicas: 1
+  # Disable bundled NATS since we already have it deployed
+  nats:
+    enabled: false
+
+  # WasmCloud Operator configuration
+  operator:
+    enabled: true
+    image:
+      repository: ghcr.io/wasmcloud/wasmcloud-operator
+      tag: v1.0.0
+
+  # WADM (WasmCloud Application Deployment Manager)
+  wadm:
+    enabled: true
+    image:
+      repository: ghcr.io/wasmcloud/wadm
+      tag: v0.11.0
+    config:
+      nats:
+        # Connect to our existing NATS instance
+        url: nats://nats.ekko.svc.cluster.local:4222
+
+# WADM deployment configuration
+wadm:
+  enabled: true
+  version: v0.11.0
+  logLevel: info
+
+  # Host configuration
+  hostConfig:
+    enabled: true
+    name: ekko-wasmcloud-host
+    namespace: ekko
+    hostReplicas: 1
+    lattice: default
+    # Connect to existing NATS
+    natsServer: nats://nats.ekko.svc.cluster.local:4222
+    # Host labels for provider scheduling
+    hostLabels:
+      environment: development
+      region: local
+      capabilities: "blockchain,websocket,ducklake"
+
+# Actor Configuration
+actors:
+  enabled: true
+
+  # Transaction processing actors
+  transactionProcessors:
+    - name: simple-example
+      enabled: true
+      description: "Simple working WASM actor for testing"
+    - name: eth_process_transactions
+      enabled: true  # Now enabled with proper WasmCloud interfaces
+      description: "Processes Ethereum transactions"
+    - name: eth_raw_transactions
+      enabled: true  # Now enabled with proper WasmCloud interfaces
+      description: "Handles raw Ethereum transaction data"
+    - name: evm_logs_ingestion
+      enabled: true
+      description: "Ingests EVM logs and schedules alert evaluations"
+    - name: evm_raw_transactions
+      enabled: false  # Disabled until migrated to WasmCloud interfaces
+      description: "Handles raw EVM transaction data"
+    - name: btc_process_transactions
+      enabled: false
+      description: "Processes Bitcoin transactions"
+    - name: sol_raw_transactions
+      enabled: false
+      description: "Handles raw Solana transaction data"
+
+  # Alert processing actors
+  alertProcessors:
+    - name: alerts-processor
+      enabled: false  # Enable when alert job pipeline is deployed
+      description: "Processes alert jobs"
+
+  # Notification routing actors
+  notificationRouters:
+    - name: notification-router
+      enabled: false  # Disabled until migrated to WasmCloud interfaces
+      description: "Routes notifications to appropriate channels"
+
+# WasmCloud configuration
+wasmcloud:
+  ctlHost: "nats://nats:4222"
+  hostId: "ekko-local"
+  latticePrefix: "default"
+  clusterSeed: "SAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+  jsDomain: "default"
+
+# Provider Configuration
+providers:
+  # Newheads EVM Provider for blockchain monitoring
+  newheads:
+    enabled: true
+    replicas: 1
+    config:
+      networks:
+        - name: ethereum-mainnet
+          chain: ethereum
+          network: mainnet
+          vm_type: evm
+        - name: polygon-mainnet
+          chain: polygon
+          network: mainnet
+          vm_type: evm
+        - name: bsc-mainnet
+          chain: bsc
+          network: mainnet
+          vm_type: evm
+
+  # WebSocket Notification Provider
+  websocket:
+    enabled: true
+    replicas: 1
+    config:
+      port: 8080
+      path: /ws
+
+  # Alert Scheduler Provider
+  alertScheduler:
+    enabled: true
+    replicas: 1
+    config:
+      redis_url: redis://redis-master.ekko.svc.cluster.local:6379
+      check_interval: 30
+
+  # DuckLake Provider for storage
+  ducklake:
+    enabled: true
+    replicas: 1
+    config:
+      s3_endpoint: http://minio.ekko.svc.cluster.local:9000
+      s3_bucket: ekko-ducklake
+      base_path: /data
+
+# Actor Configuration
+actors:
+  # Alert Processor Actor
+  alertProcessor:
+    enabled: true
+    replicas: 1
+    capabilities:
+      - messaging
+      - keyvalue
+
+  # Transaction Processing Actors
+  ethProcessor:
+    enabled: true
+    replicas: 1
+    capabilities:
+      - messaging
+      - ducklake
+
+  # Notification Router Actor
+  notificationRouter:
+    enabled: true
+    replicas: 1
+    capabilities:
+      - messaging
+      - websocket
+
+# NATS Configuration (using existing instance)
+nats:
+  url: nats://nats.ekko.svc.cluster.local:4222
+  subjects:
+    # PRD-aligned subject hierarchy
+    blockchain: "blockchain.>"
+    alerts: "alerts.>"
+    notifications: "notifications.>"
+    ducklake: "ducklake.>"
+    system: "system.>"
+
+# Redis Configuration (using existing instance)
+redis:
+  url: redis://redis-master.ekko.svc.cluster.local:6379
+  password: redis123  # Override in environment-specific values
+
+# Resource limits
+resources:
+  host:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+  providers:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+  actors:
+    limits:
+      cpu: 250m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+# Service configuration
+service:
+  type: ClusterIP
+  ports:
+    wash: 4223
+    websocket: 8080
+    metrics: 9090
+
+# Ingress configuration (optional)
+ingress:
+  enabled: false
+  className: nginx
+  annotations: {}
+  hosts:
+    - host: wasmcloud.ekko.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+# Monitoring
+monitoring:
+  enabled: true
+  prometheus:
+    enabled: true
+    port: 9090
+  grafana:
+    enabled: false  # We might have our own Grafana
+
+# Logging
+logging:
+  level: info
+  format: json

@@ -1,0 +1,419 @@
+# Development Environment Manifest - Updated with new ABI actors
+# Single-host deployment for local development
+apiVersion: core.oam.dev/v1beta1
+kind: Application
+metadata:
+  name: ekko-wasmcloud-dev
+  annotations:
+    version: v0.2.0
+    description: "Ekko blockchain data processing platform - Development"
+    environment: "development"
+
+spec:
+  components:
+    # === CAPABILITY PROVIDERS ===
+    
+    # NATS Messaging Provider
+    - name: nats-messaging
+      type: capability
+      properties:
+        image: wasmcloud.azurecr.io/nats_messaging:0.19.0
+        config:
+          - name: default-nats
+            properties:
+              cluster_uris: ["nats://localhost:4222"]
+              auth_jwt: ""
+              auth_seed: ""
+    
+    # Redis KeyValue Provider
+    - name: redis-keyvalue
+      type: capability
+      properties:
+        image: wasmcloud.azurecr.io/redis:0.22.0
+        config:
+          - name: default-redis
+            properties:
+              url: "redis://localhost:6379"
+    
+    # HTTP Client Provider
+    - name: http-client
+      type: capability
+      properties:
+        image: wasmcloud.azurecr.io/httpclient:0.12.0
+
+    # BlobStore S3 Provider for DuckLake
+    - name: blobstore-s3
+      type: capability
+      properties:
+        image: wasmcloud.azurecr.io/blobstore_s3:0.8.0
+        config:
+          - name: minio-config
+            properties:
+              endpoint: "http://localhost:9000"
+              region: "us-east-1"
+              bucket: "ekko-ducklake"
+              access_key_id: "minioadmin"
+              secret_access_key: "minioadmin"
+    
+    # === CUSTOM PROVIDERS ===
+
+    # DuckLake Write Provider for transaction storage
+    - name: ducklake-write
+      type: capability
+      properties:
+        image: file://./providers/ducklake-write/build/ducklake-write-provider-aarch64-linux
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+        - type: config
+          properties:
+            config:
+              nats_url: "nats://localhost:4222"
+              redis_url: "redis://localhost:6379"
+              ducklake_s3_endpoint: "${DUCKLAKE_S3_ENDPOINT}"
+              ducklake_s3_region: "${DUCKLAKE_S3_REGION}"
+              ducklake_s3_bucket: "${DUCKLAKE_S3_BUCKET}"
+              ducklake_s3_access_key_id: "${DUCKLAKE_S3_ACCESS_KEY_ID}"
+              ducklake_s3_secret_access_key: "${DUCKLAKE_S3_SECRET_ACCESS_KEY}"
+              ducklake_postgres_host: "${POSTGRES_HOST}"
+              ducklake_postgres_port: "${POSTGRES_PORT}"
+              ducklake_postgres_user: "${POSTGRES_USER}"
+              ducklake_postgres_password: "${POSTGRES_PASSWORD}"
+              ducklake_postgres_database: "ducklake_catalog"
+              ducklake_write_subject: "ducklake.>"
+              ducklake_warehouse_path: "ekko/ducklake"
+
+    # Newheads Provider
+    - name: newheads-provider
+      type: capability
+      properties:
+        image: file://./providers/newheads/target/wasm32-wasip1/release/newheads_provider.wasm
+        config:
+          - name: ethereum-mainnet
+            properties:
+              network: "ethereum"
+              subnet: "mainnet"
+              vm_type: "evm"
+              chain_id: "ethereum-mainnet"
+              chain_name: "Ethereum Mainnet"
+              rpc_url: "https://eth-mainnet.g.alchemy.com/v2/demo"
+              ws_url: "wss://eth-mainnet.g.alchemy.com/v2/demo"
+              enabled: true
+    
+    # === ACTORS ===
+    
+    # Health Check Actor
+    - name: health-check
+      type: actor
+      properties:
+        image: file://./actors/health-check/target/wasm32-wasip1/release/health_check.wasm
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+
+    # ABI Decoder Actor (NEW - replaces provider)
+    - name: abi-decoder
+      type: actor
+      properties:
+        image: file://./actors/abi-decoder/target/wasm32-wasip1/release/abi_decoder.wasm
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 3
+        - type: link
+          properties:
+            target: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer, publisher]
+            values:
+              subscriptions: "abi.decode.request,abi.decode.batch,abi.cache.request,abi.stats.request"
+        - type: link
+          properties:
+            target: redis-keyvalue
+            namespace: wasmcloud
+            package: keyvalue
+            interfaces: [store]
+            source_config:
+              - name: abi-cache
+                properties:
+                  url: "redis://localhost:6379/2"
+        - type: link
+          properties:
+            target: blobstore-s3
+            namespace: wasmcloud
+            package: blobstore
+            interfaces: [blobstore]
+            source_config:
+              - name: abi-storage
+                properties:
+                  bucket: "ekko-ducklake"
+                  prefix: "abis/"
+
+    # ABI Downloader Actor (NEW)
+    - name: abi-downloader
+      type: actor
+      properties:
+        image: file://./actors/abi-downloader/target/wasm32-wasip1/release/abi_downloader.wasm
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 2
+        - type: link
+          properties:
+            target: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer, publisher]
+            values:
+              subscriptions: "abi.download.request.*.*"
+        - type: link
+          properties:
+            target: http-client
+            namespace: wasmcloud
+            package: httpclient
+            interfaces: [outgoing-handler]
+
+    # Wallet Event Dispatcher Actor
+    - name: wallet-event-dispatcher
+      type: actor
+      properties:
+        image: file://./actors/schedulers/build/wallet_event_dispatcher_s.wasm
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 2
+        - type: link
+          properties:
+            target: nats-messaging
+            namespace: default
+            package: wasmcloud:messaging
+            interfaces: [consumer]
+            source_config:
+              - name: chain-events
+                properties:
+                  subscriptions: ["chain.ethereum.mainnet", "chain.polygon.mainnet", "chain.avalanche.mainnet"]
+        - type: link
+          properties:
+            target: redis-keyvalue
+            namespace: default
+            package: wasmcloud:keyvalue
+            interfaces: [store]
+            source_config:
+              - name: alert-cache
+                properties:
+                  url: "redis://localhost:6379/0"
+
+    # Cron Scheduler Actor
+    - name: cron-scheduler
+      type: actor
+      properties:
+        image: file://./actors/schedulers/build/cron_scheduler_s.wasm
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+        - type: link
+          properties:
+            target: nats-messaging
+            namespace: default
+            package: wasmcloud:messaging
+            interfaces: [publisher]
+        - type: link
+          properties:
+            target: redis-keyvalue
+            namespace: default
+            package: wasmcloud:keyvalue
+            interfaces: [store]
+            source_config:
+              - name: schedule-store
+                properties:
+                  url: "redis://localhost:6379/1"
+
+    # EVM Raw Transactions Actor (wasmCloud 1.0)
+    - name: eth-raw-transactions
+      type: actor
+      properties:
+        image: file://./actors/eth_raw_transactions/target/wasm32-wasip1/release/eth_raw_transactions.wasm
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 2
+        - type: link
+          properties:
+            target: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer, publisher]
+            values:
+              subscriptions: "newheads.*.*.evm"
+        - type: link
+          properties:
+            target: http-client
+            namespace: wasmcloud
+            package: httpclient
+            interfaces: [outgoing-handler]
+        - type: link
+          properties:
+            target: redis-keyvalue
+            namespace: wasmcloud
+            package: keyvalue
+            interfaces: [store]
+    
+    # UTXO Raw Transactions Actor
+    - name: btc-raw-transactions
+      type: actor
+      properties:
+        image: file://./actors/btc_raw_transactions/target/wasm32-wasip1/release/btc_raw_transactions.wasm
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 2
+        - type: link
+          properties:
+            target: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer, publisher]
+            values:
+              subscriptions: "newheads.*.*.utxo"
+        - type: link
+          properties:
+            target: http-client
+            namespace: wasmcloud
+            package: httpclient
+            interfaces: [outgoing-handler]
+        - type: link
+          properties:
+            target: redis-keyvalue
+            namespace: wasmcloud
+            package: keyvalue
+            interfaces: [store]
+
+    # Solana Raw Transactions Actor
+    - name: sol-raw-transactions
+      type: actor
+      properties:
+        image: file://./actors/sol_raw_transactions/target/wasm32-wasip1/release/sol_raw_transactions.wasm
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 2
+        - type: link
+          properties:
+            target: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer, publisher]
+            values:
+              subscriptions: "newheads.*.*.svm"
+        - type: link
+          properties:
+            target: http-client
+            namespace: wasmcloud
+            package: httpclient
+            interfaces: [outgoing-handler]
+        - type: link
+          properties:
+            target: redis-keyvalue
+            namespace: wasmcloud
+            package: keyvalue
+            interfaces: [store]
+
+    # EVM Process Transactions Actor
+    - name: eth-process-transactions
+      type: actor
+      properties:
+        image: file://./actors/eth_process_transactions/target/wasm32-wasip1/release/eth_process_transactions.wasm
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 3
+        - type: link
+          properties:
+            target: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer, publisher]
+            values:
+              subscriptions: "transactions.raw.evm"
+        - type: link
+          properties:
+            target: redis-keyvalue
+            namespace: wasmcloud
+            package: keyvalue
+            interfaces: [store]
+
+    # BTC Process Transactions Actor
+    - name: btc-process-transactions
+      type: actor
+      properties:
+        image: file://./actors/btc_process_transactions/target/wasm32-wasip1/release/btc_process_transactions.wasm
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 2
+        - type: link
+          properties:
+            target: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer, publisher]
+            values:
+              subscriptions: "transactions.raw.utxo"
+    
+    # Transaction Decoder Actor
+    - name: transaction-decoder
+      type: actor
+      properties:
+        image: file://./actors/transaction-decoder/target/wasm32-wasip1/release/transaction_decoder.wasm
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 2
+        - type: link
+          properties:
+            target: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer, publisher]
+            values:
+              subscriptions: "decode.transaction.request"
+        - type: link
+          properties:
+            target: redis-keyvalue
+            namespace: wasmcloud
+            package: keyvalue
+            interfaces: [store]
+
+    # Transaction DuckLake Writer Actor
+    - name: transaction-ducklake-writer
+      type: actor
+      properties:
+        image: file://./actors/transaction-ducklake-writer/target/wasm32-wasip1/release/transaction_ducklake_writer.wasm
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 3
+        - type: link
+          properties:
+            target: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer]
+            values:
+              subscriptions: "blockchain.>.>.transactions.processed,blockchain.>.>.contracts.decoded"
+
+  # Environment-specific policies
+  policies:
+    - name: development-policy
+      type: policy
+      properties:
+        # Allow local file system access in development
+        allow_file_load: true
+        # Enable debug logging
+        log_level: debug
+        # Disable strict security in development
+        strict_security: false

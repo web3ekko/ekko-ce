@@ -1,0 +1,181 @@
+# Link Definitions for Actors to Newheads Provider
+apiVersion: core.oam.dev/v1beta1
+kind: Application
+metadata:
+  name: newheads-links
+  annotations:
+    version: v0.1.0
+    description: "Link definitions for actors to access newheads provider"
+spec:
+  components:
+    # Link for Health Check Actor
+    - name: health-check-to-newheads
+      type: link-definition
+      properties:
+        source_id: "health-check"  # Actor component ID
+        target: "newheads-provider"  # Provider component ID
+        wit_namespace: "ekko"
+        wit_package: "newheads"
+        interfaces: ["newheads"]
+        
+        # Configuration for this link
+        config:
+          # Which chains this actor can access
+          allowed_chains:
+            - "ethereum-mainnet"
+            - "ethereum-goerli"
+          
+          # Permissions
+          permissions:
+            - "health-check"
+            - "get-stats"
+            - "list-chains"
+          
+          # Rate limiting (optional)
+          rate_limit:
+            requests_per_minute: 60
+    
+    # Link for Transaction Fetcher Actor
+    - name: transaction-fetcher-to-newheads
+      type: link-definition
+      properties:
+        source_id: "transaction-fetcher"
+        target: "newheads-provider"
+        wit_namespace: "ekko"
+        wit_package: "newheads"
+        interfaces: ["newheads"]
+        
+        config:
+          # This actor can access all configured chains
+          allowed_chains:
+            - "ethereum-mainnet"
+            - "ethereum-goerli"
+            - "ethereum-sepolia"
+            - "polygon-mainnet"
+            - "polygon-mumbai"
+          
+          # Full permissions for fetching
+          permissions:
+            - "subscribe-newheads"
+            - "unsubscribe-newheads"
+            - "get-latest-header"
+            - "get-subscription-status"
+            - "health-check"
+            - "get-stats"
+            - "list-chains"
+          
+          # Higher rate limit for active fetching
+          rate_limit:
+            requests_per_minute: 300
+          
+          # Auto-subscribe to these chains on startup
+          auto_subscribe:
+            - "ethereum-mainnet"
+    
+    # Link for Transaction Processor Actor
+    - name: transaction-processor-to-newheads
+      type: link-definition
+      properties:
+        source_id: "transaction-processor"
+        target: "newheads-provider"
+        wit_namespace: "ekko"
+        wit_package: "newheads"
+        interfaces: ["newheads"]
+        
+        config:
+          # Read-only access for monitoring
+          allowed_chains:
+            - "ethereum-mainnet"
+            - "ethereum-goerli"
+          
+          # Limited permissions - mainly for monitoring
+          permissions:
+            - "get-subscription-status"
+            - "get-stats"
+            - "health-check"
+          
+          rate_limit:
+            requests_per_minute: 60
+
+---
+# NATS Topic Configuration for Newheads
+# The provider publishes to these topics, actors subscribe to them
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: newheads-topics
+data:
+  topics.yaml: |
+    # NATS topics for newheads data
+    # Format: newheads.{network}.{subnet}.{evm_type}
+    topics:
+      # New block headers by chain
+      newheads:
+        # Ethereum chains
+        ethereum-mainnet: "newheads.ethereum.mainnet.evm"
+        ethereum-goerli: "newheads.ethereum.goerli.evm"
+        ethereum-sepolia: "newheads.ethereum.sepolia.evm"
+
+        # Polygon chains
+        polygon-mainnet: "newheads.polygon.mainnet.evm"
+        polygon-mumbai: "newheads.polygon.mumbai.evm"
+
+        # Bitcoin chains
+        bitcoin-mainnet: "newheads.bitcoin.mainnet.utxo"
+        bitcoin-testnet: "newheads.bitcoin.testnet.utxo"
+
+        # Solana chains
+        solana-mainnet: "newheads.solana.mainnet.svm"
+        solana-devnet: "newheads.solana.devnet.svm"
+      
+      # Provider status and health
+      provider:
+        health: "provider.newheads.health"
+        stats: "provider.newheads.stats"
+        errors: "provider.newheads.errors"
+
+      # Configuration management
+      config:
+        # Input subjects for configuration commands
+        provider_input: "config.provider.input"
+        chain_input_pattern: "config.{chain_id}.input"
+
+        # Output subjects for configuration responses
+        response: "config.response"
+
+        # Status updates
+        chain_added: "config.newheads.chain_added"
+        chain_removed: "config.newheads.chain_removed"
+        chain_updated: "config.newheads.chain_updated"
+        chain_enabled: "config.newheads.chain_enabled"
+        chain_disabled: "config.newheads.chain_disabled"
+
+      # Control commands for start/stop/restart
+      control:
+        input_pattern: "control.{chain_id}.input"
+        status_pattern: "status.{chain_id}.output"
+    
+    # Topic patterns for wildcard subscriptions
+    patterns:
+      # All newheads across all chains
+      all_newheads: "newheads.>"
+
+      # By network
+      ethereum_chains: "newheads.ethereum.>"
+      polygon_chains: "newheads.polygon.>"
+      bitcoin_chains: "newheads.bitcoin.>"
+      solana_chains: "newheads.solana.>"
+
+      # By subnet (mainnet vs testnets)
+      mainnet_chains: "newheads.*.mainnet.>"
+      testnet_chains: "newheads.*.*.>" # Exclude mainnet
+
+      # By VM type
+      evm_chains: "newheads.*.*.evm"
+      utxo_chains: "newheads.*.*.utxo"
+      svm_chains: "newheads.*.*.svm"
+
+      # Specific combinations
+      ethereum_mainnet: "newheads.ethereum.mainnet.evm"
+      ethereum_testnets: "newheads.ethereum.*.evm"
+      all_mainnets: "newheads.*.mainnet.*"

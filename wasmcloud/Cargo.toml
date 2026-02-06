@@ -1,0 +1,170 @@
+[workspace]
+resolver = "2"
+
+# NOTE: Most actors are temporarily excluded due to WASM compilation issues with ring dependency
+# They will be migrated to use WasmCloud interfaces instead of direct dependencies
+
+members = [
+    # Working actors - compile to WASM
+    "actors/eth_raw_transactions",  # Migrated to use capability interfaces
+    "actors/eth_process_transactions",  # Migrated to use capability interfaces
+    "actors/eth_transfers_processor",  # NEWLY MIGRATED - ETH transfer processing with balance tracking
+    "actors/eth_contract_creation_processor",  # NEWLY MIGRATED - ETH contract deployment processing
+    "actors/eth_contract_transaction_processor",  # NEWLY MIGRATED - ETH contract transaction processing with decoder coordination
+    "actors/alerts-processor",  # NEW - Unified alert processing with multi-provider support
+    "actors/btc_raw_transactions",  # Migrated to use capability interfaces
+    "actors/sol_raw_transactions",  # Migrated to use capability interfaces
+    "actors/abi-decoder",  # NEWLY MIGRATED - Core EVM ABI decoding functionality
+    "actors/evm_logs_ingestion",  # NEW - EVM log ingestion with alert scheduling
+    "actors/health-check",  # NEWLY MIGRATED - Health check endpoints
+    "actors/transaction-ducklake-writer",  # RENAMED - DuckLake transaction persistence via NATS subjects
+    "actors/notification-router",  # NEWLY MIGRATED - Notification routing and delivery
+    "actors/transaction-processor",  # NEWLY MIGRATED - Core transaction processing logic
+
+    # Providers - native builds with WIT support
+    "providers/alert-scheduler",  # NEW - Alert Scheduler Provider with Django API integration
+    "providers/ducklake-write",  # DuckLake Write Provider - NATS subject ingestion to DuckLake
+    "providers/ducklake-read",  # DuckLake Read Provider - SQL query execution against DuckLake
+    "providers/websocket-notification-provider",  # WebSocket provider for real-time alert notifications
+    "providers/email-notification-provider",  # Email provider for alert notifications (SendGrid/Firebase)
+    "providers/slack-notification-provider",  # Slack provider for alert notifications via webhooks
+    "providers/telegram-notification-provider",  # Telegram provider for alert notifications via Bot API
+    "providers/webhook-notification-provider",  # Webhook provider for alert notifications with retry/HMAC
+    "providers/newheads-evm",  # EVM blockchain newheads streaming provider
+    "providers/abi-decoder",  # EVM transaction ABI decoding provider
+    "providers/http-rpc",
+    "providers/polars-eval",
+
+    # Shared libraries
+    "shared/notification-common",  # Shared notification types and payloads
+    "shared/alert-runtime-common",  # Shared alert runtime message contracts
+    "shared/ducklake-common",  # Shared DuckLake types, schemas, and config
+    "shared/provider-status-common",  # Shared provider status tracking with Redis + OTEL
+    "shared/subject-registry",  # Centralized NATS subject patterns per PRD
+]
+
+# Default to host-testable crates (providers + shared libs).
+# Many actor crates are WASM-component focused and may not link on the native host target.
+default-members = [
+    "providers/alert-scheduler",
+    "providers/ducklake-write",
+    "providers/ducklake-read",
+    "providers/websocket-notification-provider",
+    "providers/email-notification-provider",
+    "providers/slack-notification-provider",
+    "providers/telegram-notification-provider",
+    "providers/webhook-notification-provider",
+    "providers/abi-decoder",
+    "providers/http-rpc",
+    "providers/polars-eval",
+    "shared/notification-common",
+    "shared/alert-runtime-common",
+    "shared/ducklake-common",
+    "shared/provider-status-common",
+    "shared/subject-registry",
+]
+
+# Remaining actors that need migration to WasmCloud 1.0 interfaces
+exclude = []
+
+[workspace.dependencies]
+# wasmCloud 1.0 approach: Use capabilities selectively where it makes sense
+wit-bindgen = "0.43.0"
+
+# wasmCloud 1.0 capabilities (use selectively)
+wasmcloud-component = "0.1.0"
+
+# Direct dependencies (for blockchain-specific processing)
+async-nats = "0.39"                 # Direct NATS connection
+redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }  # Direct Redis with connection manager
+reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls-native-roots"] }     # Direct HTTP client
+futures = "0.3"                     # For StreamExt trait
+
+# Async runtime (WASM-compatible features only)
+tokio = { version = "1.0", features = ["sync", "macros", "io-util", "rt", "time"] }
+async-trait = "0.1"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
+# Time handling (no default features to avoid wasm-bindgen)
+chrono = { version = "0.4", default-features = false, features = ["serde", "clock", "std"] }
+time = { version = "0.3", features = ["formatting"] }
+
+# Networking (moved to wasmCloud 1.0 section above)
+
+# Blockchain specific
+# alloy-dyn-abi = "0.7"  # May have WASM compatibility issues
+# ethers = "2.0"  # Removed due to WASM compatibility issues with ring crate
+hex = "0.4"
+hex-literal = "0.3"
+num-bigint = "0.4"
+num-traits = "0.2"
+
+# Arrow (for data processing in providers)
+arrow = "56.2.0"
+arrow-array = "56.2.0"
+arrow-schema = "56.2.0"
+parquet = "56.2.0"
+object_store = { version = "0.9", features = ["aws"] }
+
+# UUID
+uuid = { version = "1.0", features = ["v4", "serde"] }
+
+# Legacy dependencies removed - using wasmCloud 1.0
+
+# Shared libraries (placeholders)
+wasmcloud-common = { path = "../libs/wasmcloud-common" }
+blockchain-common = { path = "../libs/blockchain-common" }
+types = { path = "../libs/types" }
+notification-common = { path = "shared/notification-common" }
+alert-runtime-common = { path = "shared/alert-runtime-common" }
+ducklake-common = { path = "shared/ducklake-common" }
+provider-status-common = { path = "shared/provider-status-common" }
+subject-registry = { path = "shared/subject-registry" }
+
+# Additional dependencies for notification providers
+backoff = "0.4"
+dashmap = "5.5"
+regex = "1.10"
+bb8 = "0.8"
+bb8-redis = "0.15"
+parking_lot = "0.12"
+
+# wasmCloud testing utilities
+wasmcloud-test-util = "0.11.0"
+wasmbus-rpc = "0.15.0"
+
+# Additional dependencies for actors
+bytes = "1"
+
+# Testing
+testcontainers = "0.24"
+testcontainers-modules = "0.12"
+
+# AWS SDK - pinned to versions compatible with Rust 1.87.0
+aws-config = "1.5"
+aws-sdk-s3 = "1.55"
+
+
+
+
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[profile.dev]
+opt-level = 0
+debug = true

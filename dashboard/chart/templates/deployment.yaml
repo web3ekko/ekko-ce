@@ -1,0 +1,118 @@
+{{- $dashboard := default dict .Values.dashboard -}}
+{{- $react := default dict .Values.reactApp -}}
+{{- $config := default dict .Values.config -}}
+{{- $api := default dict .Values.api -}}
+{{- $global := default dict .Values.global -}}
+{{- $monitoring := default dict .Values.monitoring -}}
+{{- $sentry := default dict $monitoring.sentry -}}
+{{- $apiDomain := $api.domain | default $global.domain | default "api.ekko.local" -}}
+{{- $apiUrl := $dashboard.apiUrl | default $react.apiUrl | default $config.apiUrl | default (printf "https://%s" $apiDomain) -}}
+{{- $wsUrl := $dashboard.wsUrl | default $react.wsUrl | default $config.wsUrl | default (printf "wss://%s" $apiDomain) -}}
+{{- $environment := $react.environment | default $config.environment | default $global.environment | default "local" -}}
+{{- $sentryDsn := $react.sentryDsn | default $sentry.dsn -}}
+{{- $gaId := $react.googleAnalyticsId | default $dashboard.googleAnalyticsId | default $config.googleAnalyticsId -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ekko-dashboard.fullname" . }}
+  labels:
+    {{- include "ekko-dashboard.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "ekko-dashboard.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+      labels:
+        {{- include "ekko-dashboard.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: {{ include "ekko-dashboard.fullname" . }}-nginx
+        - name: cache
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.targetPort }}
+              protocol: TCP
+          env:
+            - name: VITE_API_URL
+              value: {{ $apiUrl | quote }}
+            - name: VITE_WS_URL
+              value: {{ $wsUrl | quote }}
+            - name: VITE_ENVIRONMENT
+              value: {{ $environment | quote }}
+            {{- if $sentryDsn }}
+            - name: VITE_SENTRY_DSN
+              value: {{ $sentryDsn | quote }}
+            {{- end }}
+            {{- if $gaId }}
+            - name: VITE_GA_ID
+              value: {{ $gaId | quote }}
+            {{- end }}
+            # Additional environment variables from global config
+            - name: NEXT_PUBLIC_API_URL
+              value: {{ $apiUrl | quote }}
+            - name: NEXT_PUBLIC_WS_URL
+              value: {{ $wsUrl | quote }}
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+              readOnly: true
+            - name: cache
+              mountPath: /var/cache/nginx
+            - name: tmp
+              mountPath: /tmp
+          {{- if .Values.healthcheck.enabled }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.healthcheck.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.healthcheck.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.healthcheck.livenessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.healthcheck.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.healthcheck.livenessProbe.failureThreshold }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.healthcheck.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.healthcheck.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.healthcheck.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.healthcheck.readinessProbe.timeoutSeconds }}
+            successThreshold: {{ .Values.healthcheck.readinessProbe.successThreshold }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

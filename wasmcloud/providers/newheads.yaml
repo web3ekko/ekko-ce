@@ -1,0 +1,113 @@
+# wasmCloud Provider Configuration for Newheads Provider
+apiVersion: core.oam.dev/v1beta1
+kind: Application
+metadata:
+  name: newheads-provider
+  annotations:
+    version: v0.1.0
+    description: "Blockchain newheads streaming provider"
+spec:
+  components:
+    - name: newheads-provider
+      type: capability-provider
+      properties:
+        # Provider binary (will be built from source)
+        image: file://./providers/newheads/target/release/newheads-provider
+        
+        # Provider configuration
+        config:
+          # Default chain configurations
+          chains:
+            ethereum-mainnet:
+              chain_id: "ethereum-mainnet"
+              chain_name: "Ethereum Mainnet"
+              rpc_url: "${ETHEREUM_RPC_URL:-https://mainnet.infura.io/v3/YOUR_PROJECT_ID}"
+              ws_url: "${ETHEREUM_WS_URL:-wss://mainnet.infura.io/ws/v3/YOUR_PROJECT_ID}"
+              chain_type: "ethereum"
+              network_id: 1
+              enabled: "${ETHEREUM_ENABLED:-false}"
+            
+            ethereum-goerli:
+              chain_id: "ethereum-goerli"
+              chain_name: "Ethereum Goerli Testnet"
+              rpc_url: "${ETHEREUM_GOERLI_RPC_URL:-https://goerli.infura.io/v3/YOUR_PROJECT_ID}"
+              ws_url: "${ETHEREUM_GOERLI_WS_URL:-wss://goerli.infura.io/ws/v3/YOUR_PROJECT_ID}"
+              chain_type: "ethereum-goerli"
+              network_id: 5
+              enabled: "${ETHEREUM_GOERLI_ENABLED:-false}"
+          
+          # Provider settings
+          settings:
+            # Reconnection settings
+            reconnect_interval: 5000  # milliseconds
+            max_reconnect_attempts: 10
+            
+            # Health check settings
+            health_check_interval: 30000  # milliseconds
+            
+            # Logging level
+            log_level: "${LOG_LEVEL:-info}"
+        
+        # Resource limits
+        resources:
+          memory: "256Mi"
+          cpu: "100m"
+        
+        # Health check configuration
+        health:
+          path: "/health"
+          port: 8080
+          interval: 30
+          timeout: 5
+          retries: 3
+        
+        # Environment variables
+        env:
+          - name: RUST_LOG
+            value: "${LOG_LEVEL:-info}"
+          - name: PROVIDER_NAME
+            value: "newheads-provider"
+          - name: CONFIG_PATH
+            value: "/config"
+        
+        # Volume mounts for configuration
+        volumes:
+          - name: config
+            path: "/config"
+            source: "./providers/newheads/config"
+      
+      # Provider traits/capabilities
+      traits:
+        - type: expose
+          properties:
+            port: 8080
+            protocol: HTTP
+        
+        - type: logging
+          properties:
+            level: info
+            format: json
+        
+        - type: monitoring
+          properties:
+            metrics_enabled: true
+            metrics_port: 9090
+            health_check_enabled: true
+
+---
+# Service definition for the provider
+apiVersion: v1
+kind: Service
+metadata:
+  name: newheads-provider-service
+spec:
+  selector:
+    app: newheads-provider
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+    - name: metrics
+      port: 9090
+      targetPort: 9090
+  type: ClusterIP

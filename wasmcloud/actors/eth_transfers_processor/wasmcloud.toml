@@ -1,0 +1,53 @@
+name = "eth_transfers_processor"
+language = "rust"
+type = "component"
+
+[component]
+wit_world = "eth-transfers-processor"
+wasm_target = "wasm32-wasip1"
+
+[component.build]
+command = "cargo"
+args = ["build", "--release", "--target", "wasm32-wasip1"]
+
+[component.claims]
+name = "Ethereum Transfers Processor Actor"
+description = "Processes ETH transfer transactions with balance tracking and alert routing"
+version = "0.1.0"
+revision = 0
+tags = ["ethereum", "transfers", "balance-tracking", "alerts"]
+
+[component.capabilities]
+# Messaging capabilities for pub/sub
+messaging = ["wasmcloud:messaging"]
+
+# Key-value store for balance tracking
+keyvalue = ["wasmcloud:keyvalue"]
+
+# Logging capability
+logging = ["wasmcloud:logging"]
+
+[component.config]
+# Default configuration values
+default_network = "ethereum"
+default_subnet = "mainnet"
+default_vm_type = "evm"
+
+# Processing settings
+enable_balance_tracking = true
+enable_token_transfers = true
+batch_size = 1000
+max_processing_time_ms = 10
+
+# Transfer categorization thresholds (in ETH)
+micro_threshold = "0.01"
+small_threshold = "1.0"
+medium_threshold = "10.0"
+large_threshold = "100.0"
+
+# Routing configuration
+subscribe_pattern = "transfer-transactions.*.*.evm.raw"
+processed_subject = "transfers.processed.evm"
+alert_subject_pattern = "alerts.evaluate.{chain}"
+balance_subject_pattern = "balances.updated.{chain}"
+ducklake_subject = "ducklake.transactions"

@@ -1,0 +1,23 @@
+name = "websocket-notification-provider"
+language = "rust"
+type = "provider"
+
+[provider]
+vendor = "Ekko"
+version = "0.1.0"
+description = "WebSocket notification provider for real-time alerts"
+protocol = "websocket"
+
+[[provider.claims]]
+name = "wasmcloud:messaging"
+[[provider.claims]]
+name = "wasmcloud:keyvalue"
+
+[provider.config]
+websocket_port = 8080
+max_connections = 10000
+max_connections_per_user = 10
+redis_url = "redis://:redis123@redis-master.ekko.svc.cluster.local:6379"
+nats_url = "nats://127.0.0.1:4222"
+heartbeat_interval_secs = 30
+connection_timeout_secs = 300

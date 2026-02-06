@@ -1,0 +1,51 @@
+{
+  "mappings": [
+    {
+      "request": {
+        "method": "POST",
+        "urlPath": "/v3/mail/send",
+        "headers": {
+          "Authorization": {
+            "contains": "Bearer"
+          }
+        }
+      },
+      "response": {
+        "status": 202,
+        "headers": {
+          "Content-Type": "application/json",
+          "X-Message-Id": "{{randomValue type='UUID'}}"
+        },
+        "jsonBody": {
+          "message": "success",
+          "message_id": "{{randomValue type='UUID'}}"
+        }
+      },
+      "priority": 1
+    },
+    {
+      "request": {
+        "method": "POST",
+        "urlPath": "/v3/mail/send",
+        "headers": {
+          "Authorization": {
+            "absent": true
+          }
+        }
+      },
+      "response": {
+        "status": 401,
+        "jsonBody": {
+          "errors": [
+            {
+              "message": "Authorization required",
+              "field": "Authorization",
+              "help": "https://sendgrid.com/docs/API_Reference/Web_API_v3/Mail/errors.html"
+            }
+          ]
+        }
+      },
+      "priority": 2
+    }
+  ]
+}

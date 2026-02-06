@@ -1,0 +1,35 @@
+# Node / build output
+node_modules/
+dist/
+build/
+.cache/
+.nyc_output/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# Env
+.env
+.env.*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Tests / coverage
+coverage/
+playwright-report/
+test-results/
+
+# VCS / editor / OS
+.git
+.gitignore
+.idea
+.vscode
+.DS_Store
+
+# Large sibling app (not used by main dashboard build)
+ekko-ce-dashboard/

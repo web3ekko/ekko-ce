@@ -1,0 +1,27 @@
+[package]
+name = "transaction-ducklake-writer"
+version = "0.1.0"
+edition = "2021"
+authors = ["abrahamalaka <abraham@ekko.zone>"]
+description = "wasmCloud actor for persisting processed transactions to DuckLake via NATS subjects"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# WasmCloud 1.0 Component dependencies
+wit-bindgen = { workspace = true }
+wasmcloud-component = { workspace = true }
+
+# Use workspace dependencies
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Shared libraries (only if still needed)
+wasmcloud-common = { workspace = true }
+types = { workspace = true }
+subject-registry = { workspace = true }
+
+[dev-dependencies]
+testcontainers = { workspace = true }

@@ -1,0 +1,16 @@
+// World definition for alerts-processor actor
+package ekko:actors@0.1.0;
+
+/// Alerts-Processor Actor
+/// Processes blockchain alert jobs from NATS queues using standard wasmCloud capability providers
+world alerts-processor {
+    /// Import standard wasmCloud and WASI capabilities
+    import wasmcloud:messaging/consumer@0.2.0;  // For publishing messages to NATS (also used for DuckLake queries via request-reply)
+    import wasi:keyvalue/store@0.2.0-draft;     // For Redis state management
+    // NOTE: HTTP removed for compatibility - use NATS for all external communication
+    // import wasi:http/outgoing-handler@0.2.0;    // For HTTP requests (RPC, Polars, external APIs)
+
+    /// Export the message handler interface
+    /// The actor will handle incoming alert job messages from NATS
+    export wasmcloud:messaging/handler@0.2.0;
+}

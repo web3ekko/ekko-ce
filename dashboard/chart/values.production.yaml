@@ -1,0 +1,107 @@
+# Production values for ekko-dashboard
+replicaCount: 3
+
+image:
+  repository: ${DASHBOARD_IMAGE_REPOSITORY}
+  tag: ${DASHBOARD_IMAGE_TAG:-latest}
+  pullPolicy: ${DASHBOARD_PULL_POLICY:-Always}
+
+imagePullSecrets:
+  - name: ${DOCKER_REGISTRY_SECRET:-gitlab-registry}
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 80
+
+ingress:
+  enabled: true
+  className: ${DASHBOARD_INGRESS_CLASS:-nginx}
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+  hosts:
+    - host: ${DASHBOARD_HOST}
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - hosts:
+        - ${DASHBOARD_HOST}
+      secretName: ekko-dashboard-tls-prod
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 200m
+    memory: 256Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Nginx Configuration
+nginx:
+  workerProcesses: auto
+  workerConnections: 1024
+  keepaliveTimeout: 65
+  clientMaxBodySize: 10m
+
+# Frontend Configuration
+config:
+  apiUrl: ${VITE_API_URL}
+  wsUrl: ${VITE_WS_URL}
+  environment: ${VITE_ENVIRONMENT}
+  debug: false
+
+# CDN Configuration
+cdn:
+  enabled: true
+  url: https://cdn.ekko.zone
+
+# Pod Security Context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 101
+  fsGroup: 101
+
+# Container Security Context
+securityContext:
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 101
+  allowPrivilegeEscalation: false
+
+# Node Selector for production nodes
+nodeSelector:
+  node-role.kubernetes.io/production: "true"
+
+# Pod Anti-Affinity for high availability
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 100
+      podAffinityTerm:
+        labelSelector:
+          matchExpressions:
+          - key: app.kubernetes.io/name
+            operator: In
+            values:
+            - ekko-dashboard
+        topologyKey: kubernetes.io/hostname
+
+# Pod Disruption Budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1

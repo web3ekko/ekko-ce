@@ -1,0 +1,88 @@
+# Transaction Processor Actor Component Manifest
+# This file defines the transaction-processor actor component and its configuration
+
+component:
+  name: eth-raw-processor
+  type: actor
+  properties:
+    image: file://./actors/eth-raw-processor.wasm
+    description: "Processes raw blockchain transaction data and stores to databases"
+    version: "0.1.0"
+  traits:
+    - type: spreadscaler
+      properties:
+        replicas: 2
+        spread:
+          - name: "zone"
+            requirements:
+              zone: ["us-west-1a", "us-west-1b"]
+    - type: linkdef
+      properties:
+        target: messaging
+        values:
+          subscriptions: eth_raw_transactions
+          max_in_flight: 5
+          ack_wait: "60s"
+    - type: linkdef
+      properties:
+        target: sqldb-timescale
+        values:
+          connection_pool_size: 10
+          query_timeout: "30s"
+    - type: linkdef
+      properties:
+        target: sqldb-main
+        values:
+          connection_pool_size: 5
+          query_timeout: "15s"
+    - type: linkdef
+      properties:
+        target: keyvalue
+        values:
+          connection_pool_size: 10
+          key_prefix: "eth_processor:"
+
+# Actor-specific configuration
+config:
+  batch_size: 50
+  processing_timeout: "45s"
+  cache_ttl: "3600s"
+  retry_attempts: 3
+  dead_letter_queue: "eth_raw_transactions_dlq"
+  
+# Dependencies this actor requires
+dependencies:
+  providers:
+    - messaging
+    - sqldb-timescale
+    - sqldb-main
+    - keyvalue
+  interfaces:
+    - wasmcloud:messaging/consumer
+    - wasmcloud:postgres/query
+    - wasmcloud:keyvalue/store
+
+# Message routing configuration
+messaging:
+  subscriptions:
+    - subject: "eth_raw_transactions"
+      queue_group: "transaction-processors"
+      max_in_flight: 5
+  publications:
+    - subject: "push_notify"
+    - subject: "transaction_processed"
+      
+# Database configuration
+database:
+  timescale:
+    table: "timeseries_rawethtransaction"
+    batch_insert_size: 100
+  main:
+    tables: ["wallet", "walletSubscription"]
+    
+# Monitoring and observability
+monitoring:
+  metrics_enabled: true
+  log_level: "info"
+  trace_database_queries: true
+  performance_tracking: true

@@ -1,0 +1,54 @@
+[package]
+name = "provider-status-common"
+version = "1.0.0"
+edition = "2021"
+authors = ["Ekko Team"]
+description = "Shared provider status tracking with Redis persistence and OpenTelemetry integration"
+
+[dependencies]
+# Async runtime
+tokio = { workspace = true }
+async-trait = { workspace = true }
+futures = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Utilities
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uuid = { workspace = true }
+chrono = { workspace = true }
+
+# Concurrent data structures
+dashmap = { workspace = true }
+parking_lot = { workspace = true }
+
+# Redis (batched writes) - use bb8-redis's internal redis via re-export
+bb8 = { workspace = true }
+bb8-redis = "0.15"
+
+# OpenTelemetry (wasmCloud native integration)
+opentelemetry = { version = "0.21", optional = true }
+opentelemetry-otlp = { version = "0.14", features = ["http-proto", "reqwest-client"], optional = true }
+opentelemetry_sdk = { version = "0.21", features = ["rt-tokio", "metrics"], optional = true }
+tracing-opentelemetry = { version = "0.22", optional = true }
+opentelemetry-semantic-conventions = { version = "0.13", optional = true }
+
+[features]
+default = ["otel"]
+otel = [
+    "opentelemetry",
+    "opentelemetry-otlp",
+    "opentelemetry_sdk",
+    "tracing-opentelemetry",
+    "opentelemetry-semantic-conventions",
+]
+
+[dev-dependencies]
+tokio-test = "0.4"
+testcontainers = { workspace = true }
+testcontainers-modules = { workspace = true }

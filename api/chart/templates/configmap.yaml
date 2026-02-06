@@ -1,0 +1,119 @@
+{{- $global := default dict .Values.global -}}
+{{- $api := default dict .Values.api -}}
+{{- $apiEmail := default dict $api.email -}}
+{{- $apiJwt := default dict $api.jwt -}}
+{{- $django := default dict .Values.django -}}
+{{- $database := default dict .Values.database -}}
+{{- $postgres := default dict .Values.postgresql -}}
+{{- $globalPostgres := default dict $global.postgresql -}}
+{{- $redis := default dict .Values.redis -}}
+{{- $globalRedis := default dict $global.redis -}}
+{{- $nats := default dict .Values.nats -}}
+{{- $globalNats := default dict $global.nats -}}
+{{- $email := default dict .Values.email -}}
+{{- $webauthn := default dict $api.webauthn -}}
+{{- $webauthnRoot := default dict .Values.webauthn -}}
+{{- $jwt := default dict .Values.jwt -}}
+{{- $features := default dict .Values.features -}}
+{{- $blockchain := default dict .Values.blockchain -}}
+{{- $development := default dict .Values.development -}}
+{{- $monitoring := default dict .Values.monitoring -}}
+{{- $sentry := default dict $monitoring.sentry -}}
+{{- $firebase := default dict .Values.firebase -}}
+{{- $nlp := default dict .Values.nlp -}}
+{{- $apiDomain := $api.domain | default $global.domain | default "api.ekko.local" -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ekko-api.fullname" . }}
+  labels:
+    {{- include "ekko-api.labels" . | nindent 4 }}
+data:
+  # Environment
+  ENVIRONMENT: {{ $global.environment | default "local" | quote }}
+
+  # Django Configuration
+  DJANGO_DEBUG: {{ $api.debug | default $django.debug | default "false" | quote }}
+  DJANGO_ALLOWED_HOSTS: {{ $api.allowedHosts | default $django.allowedHosts | default "*" | quote }}
+  ALLOWED_HOSTS: {{ $api.allowedHosts | default $django.allowedHosts | default "*" | quote }}
+  DJANGO_SETTINGS_MODULE: {{ $django.settingsModule | default "ekko_api.settings.production" | quote }}
+
+  # WebAuthn Configuration
+  WEBAUTHN_RP_ID: {{ $webauthn.rpId | default $webauthnRoot.rpId | default $apiDomain | quote }}
+  WEBAUTHN_RP_NAME: {{ $webauthn.rpName | default $webauthnRoot.rpName | default "Ekko Platform" | quote }}
+  WEBAUTHN_ORIGIN: {{ $webauthn.origin | default $webauthnRoot.origin | default (printf "https://%s" $apiDomain) | quote }}
+
+  # Database Configuration
+  POSTGRES_HOST: {{ $globalPostgres.host | default $postgres.host | default "postgres" | quote }}
+  POSTGRES_PORT: {{ $globalPostgres.port | default $postgres.port | default "5432" | quote }}
+  POSTGRES_DB: {{ $globalPostgres.database | default $postgres.database | default "ekko" | quote }}
+  POSTGRES_USER: {{ $globalPostgres.username | default $postgres.username | default "ekko" | quote }}
+  DATABASE_MAX_CONNECTIONS: {{ $database.maxConnections | default "20" | quote }}
+
+  # Redis Configuration
+  REDIS_HOST: {{ $globalRedis.host | default $redis.host | default "redis" | quote }}
+  REDIS_PORT: {{ $globalRedis.port | default $redis.port | default "6379" | quote }}
+  REDIS_DB: "0"
+  REDIS_MAX_CONNECTIONS: {{ $redis.maxConnections | default "50" | quote }}
+
+  # NATS Configuration
+  NATS_URL: {{ $globalNats.url | default $nats.url | default "nats://nats:4222" | quote }}
+  NATS_CLUSTER_ID: {{ $globalNats.clusterId | default $nats.clusterId | default "ekko-cluster" | quote }}
+  NATS_CLIENT_ID: {{ $globalNats.clientId | default $nats.clientId | default "ekko-api" | quote }}
+
+  # Email Configuration
+  EMAIL_HOST: {{ $apiEmail.host | default $email.host | default "smtp.gmail.com" | quote }}
+  EMAIL_PORT: {{ $apiEmail.port | default $email.port | default "587" | quote }}
+  EMAIL_USE_TLS: {{ $apiEmail.useTls | default $email.useTls | default "true" | quote }}
+  EMAIL_HOST_USER: {{ $apiEmail.user | default $email.user | default "" | quote }}
+  DEFAULT_FROM_EMAIL: {{ $apiEmail.fromEmail | default $email.fromEmail | default "noreply@ekko.zone" | quote }}
+  EMAIL_PROVIDER: {{ $apiEmail.provider | default $email.provider | default "console" | quote }}
+
+  # JWT Configuration
+  JWT_ACCESS_TOKEN_LIFETIME_MINUTES: {{ $apiJwt.accessTokenLifetimeMinutes | default $jwt.accessTokenLifetimeMinutes | default "30" | quote }}
+  JWT_REFRESH_TOKEN_LIFETIME_DAYS: {{ $apiJwt.refreshTokenLifetimeDays | default $jwt.refreshTokenLifetimeDays | default $jwt.refreshTokenLifetimeMinutes | default "7" | quote }}
+
+  # API Configuration
+  API_PORT: {{ $api.port | default .Values.service.targetPort | default "8000" | quote }}
+  API_WORKERS: {{ $api.workers | default "4" | quote }}
+  API_LOG_LEVEL: {{ $api.logLevel | default "INFO" | quote }}
+
+  # Feature Flags
+  FEATURE_PASSKEY_AUTH: {{ $features.passkeyAuth | default "true" | quote }}
+  FEATURE_SOCIAL_LOGIN: {{ $features.socialLogin | default "false" | quote }}
+  FEATURE_EMAIL_VERIFICATION: {{ $features.emailVerification | default "true" | quote }}
+  FEATURE_TWO_FACTOR_AUTH: {{ $features.twoFactorAuth | default "false" | quote }}
+  FEATURE_RATE_LIMITING: {{ $features.rateLimiting | default "true" | quote }}
+  FEATURE_WEBHOOK_NOTIFICATIONS: {{ $features.webhookNotifications | default "true" | quote }}
+
+  # Blockchain Configuration
+  BLOCKCHAIN_NETWORK: {{ $blockchain.network | default "ethereum" | quote }}
+  BLOCKCHAIN_CHAIN_ID: {{ $blockchain.chainId | default "1" | quote }}
+
+  # CORS Configuration
+  CORS_ALLOW_ALL_ORIGINS: {{ $development.corsAllowAll | default "false" | quote }}
+  CORS_ALLOWED_ORIGINS: {{ $development.corsAllowedOrigins | default "" | quote }}
+  CSRF_TRUSTED_ORIGINS: {{ $development.csrfTrustedOrigins | default "" | quote }}
+
+  # Monitoring
+  SENTRY_ENVIRONMENT: {{ $sentry.environment | default $global.environment | default "local" | quote }}
+
+  # NLP / DSPy Configuration
+  NLP_ENABLED: {{ $nlp.enabled | default "true" | quote }}
+  NLP_REQUIRE_DSPY: {{ $nlp.requireDspy | default "true" | quote }}
+  NLP_FALLBACK_ON_DSPY_FAILURE: {{ $nlp.fallbackOnDspyFailure | default "false" | quote }}
+  NLP_TIMEOUT: {{ $nlp.timeoutSeconds | default "30" | quote }}
+  NLP_TEMPERATURE: {{ $nlp.temperature | default "0.1" | quote }}
+  NLP_MAX_TOKENS: {{ $nlp.maxTokens | default "4096" | quote }}
+  LLM_MAX_RETRIES: {{ $nlp.maxRetries | default "3" | quote }}
+  NLP_SUPPORTED_NETWORKS: {{ $nlp.supportedNetworks | default "ETH:mainnet,AVAX:mainnet" | quote }}
+
+  # Firebase Configuration
+  # Always set FIREBASE_PROJECT_ID to prevent Django defaults from taking over
+  {{- if $firebase.enabled }}
+  FIREBASE_PROJECT_ID: {{ $firebase.projectId | quote }}
+  FIREBASE_AUTH_DOMAIN: {{ $firebase.authDomain | quote }}
+  FIREBASE_WEB_API_KEY: {{ $firebase.webApiKey | quote }}
+  {{- else }}
+  FIREBASE_PROJECT_ID: ""
+  {{- end }}

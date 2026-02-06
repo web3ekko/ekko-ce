@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "yarn": "^1.22.22"
+  },
+  "_npx": {
+    "packages": [
+      "yarn"
+    ]
+  }
+}

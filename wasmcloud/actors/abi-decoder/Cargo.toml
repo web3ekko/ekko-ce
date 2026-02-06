@@ -1,0 +1,54 @@
+[package]
+name = "abi-decoder"
+version = "0.1.0"
+edition = "2021"
+authors = ["Ekko Team"]
+description = "wasmCloud actor for decoding EVM transaction ABIs using Alloy"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# WasmCloud 1.0 actor (uses capability interfaces)
+wit-bindgen = { workspace = true }
+wasmcloud-component = { workspace = true }
+
+# Serialization
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+
+# NATS subject registry (shared canonical subject strings)
+subject-registry = { workspace = true }
+
+# Minimal ABI decoding (WASM-compatible, no getrandom dependency)
+# Note: Using custom implementation because all ethabi/alloy crates have
+# dependencies that don't work on wasm32-wasip1 (getrandom, WASI 0.2.3, etc.)
+tiny-keccak = { version = "2.0", features = ["keccak"] }
+
+# Standard Rust dependencies (WASM-compatible)
+# Note: uuid and chrono removed - not needed for this actor
+tracing = { workspace = true }
+anyhow = { workspace = true }
+thiserror = "1.0"
+hex = "0.4"
+
+# REMOVED: tokio and async-trait - not needed for WasmCloud 1.0 sync patterns
+# REMOVED: async-trait = { workspace = true }
+# REMOVED: tokio = { workspace = true, features = ["sync"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full", "test-util"] }
+testcontainers = { workspace = true }
+testcontainers-modules = { workspace = true, features = ["redis", "minio"] }
+async-nats = { workspace = true }
+futures = "0.3"
+criterion = { version = "0.5", features = ["async_tokio"] }
+rand = "0.8"
+
+[[bench]]
+name = "abi_decoder_bench"
+harness = false
+
+[[bench]]
+name = "abi_decoder_bench_simple"
+harness = false

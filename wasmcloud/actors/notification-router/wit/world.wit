@@ -1,0 +1,16 @@
+// World definition for notification-router actor
+package ekko:actors@0.1.0;
+
+/// World for the notification router actor
+world notification-router {
+    /// Import standard wasmCloud messaging for NATS
+    import wasmcloud:messaging/consumer@0.2.0;  // For publishing messages
+
+    /// Import standard WASI keyvalue interface (JSON-based storage)
+    import wasi:keyvalue/store@0.2.0-draft;
+    import wasi:keyvalue/atomics@0.2.0-draft;
+
+    /// Export the message handler interface
+    /// The actor will handle incoming notification routing requests
+    export wasmcloud:messaging/handler@0.2.0;  // For receiving messages
+}

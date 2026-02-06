@@ -1,0 +1,130 @@
+# wasmCloud Application Manifest for Newheads Provider with Redis
+# This manifest deploys the newheads provider with Redis capabilities
+
+apiVersion: core.oam.dev/v1beta1
+kind: Application
+metadata:
+  name: newheads-provider-app
+  annotations:
+    version: v0.1.0
+    description: "Blockchain newheads streaming provider with Redis configuration management"
+    author: "abraham@ekko.zone"
+    repository: "https://gitlab.core.ekko.zone/ekko/ekko-cluster"
+    documentation: "https://docs.ekko.zone/providers/newheads"
+spec:
+  components:
+    # Redis KeyValue Provider for configuration storage
+    - name: redis-keyvalue
+      type: capability
+      properties:
+        image: wasmcloud.azurecr.io/keyvalue-redis:0.25.0
+        description: "Redis key-value store for blockchain node configurations"
+        config:
+          - name: redis-kv-config
+            properties:
+              url: ${REDIS_URL:-redis://localhost:6379}
+              connection_pool_size: 10
+              connection_timeout: "5s"
+              command_timeout: "30s"
+      traits:
+        - type: link
+          properties:
+            target: newheads-provider
+            namespace: wasmcloud
+            package: keyvalue
+            interfaces: [store]
+
+    # Redis Messaging Provider for pub/sub notifications
+    - name: redis-messaging
+      type: capability
+      properties:
+        image: wasmcloud.azurecr.io/messaging-redis:0.22.0
+        description: "Redis messaging for configuration change notifications"
+        config:
+          - name: redis-msg-config
+            properties:
+              url: ${REDIS_URL:-redis://localhost:6379}
+              connection_pool_size: 5
+              connection_timeout: "5s"
+      traits:
+        - type: link
+          properties:
+            target: newheads-provider
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer, publisher]
+
+    # NATS Messaging Provider for publishing newheads
+    - name: nats-messaging
+      type: capability
+      properties:
+        image: wasmcloud.azurecr.io/messaging-nats:0.22.0
+        description: "NATS messaging for publishing blockchain newheads"
+        config:
+          - name: nats-config
+            properties:
+              url: ${NATS_URL:-nats://localhost:4222}
+              connection_name: "newheads-provider"
+              max_reconnects: -1
+              reconnect_delay: "2s"
+      traits:
+        - type: link
+          properties:
+            target: newheads-provider
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [publisher]
+
+    # Newheads Provider
+    - name: newheads-provider
+      type: capability-provider
+      properties:
+        image: file://./target/release/newheads-provider
+        description: "Blockchain newheads streaming provider"
+        version: "0.1.0"
+        config:
+          - name: newheads-config
+            properties:
+              redis_url: ${REDIS_URL:-redis://localhost:6379}
+              nats_url: ${NATS_URL:-nats://localhost:4222}
+              log_level: ${LOG_LEVEL:-info}
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+            spread:
+              - name: "zone"
+                requirements:
+                  zone: ["us-west-1a", "us-west-1b"]
+
+# Environment-specific configuration
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: newheads-config
+data:
+  # Redis configuration
+  REDIS_URL: "redis://redis:6379"
+  
+  # NATS configuration  
+  NATS_URL: "nats://nats:4222"
+  
+  # Logging configuration
+  LOG_LEVEL: "info"
+  
+  # Provider configuration
+  PROVIDER_LOG_LEVEL: "info"
+  RUST_LOG: "newheads_provider=info,wasmcloud_provider_sdk=info"
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: newheads-secrets
+type: Opaque
+data:
+  # Add any sensitive configuration here
+  # For example, API keys for blockchain providers
+  # INFURA_API_KEY: <base64-encoded-key>
+  # ALCHEMY_API_KEY: <base64-encoded-key>

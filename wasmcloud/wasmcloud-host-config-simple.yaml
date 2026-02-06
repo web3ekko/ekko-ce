@@ -1,0 +1,29 @@
+apiVersion: k8s.wasmcloud.dev/v1alpha1
+kind: WasmCloudHostConfig
+metadata:
+  name: ekko-wasmcloud-host
+  namespace: ekko
+spec:
+  # Core WasmCloud configuration
+  lattice: default
+  version: "1.0.4"
+
+  # NATS connection configuration - this is the key fix!
+  natsAddress: nats://nats.ekko.svc.cluster.local
+  natsClientPort: 4222
+
+  # Host configuration
+  hostReplicas: 2
+
+  # Host labels for actor placement
+  hostLabels:
+    app: ekko
+    environment: production
+    component: wasmcloud-host
+
+  # Enable debugging and logging
+  logLevel: info
+  enableStructuredLogging: true
+
+  # Allow latest tags for development
+  allowLatest: true

@@ -1,0 +1,42 @@
+[package]
+name = "eth_process_transactions"
+version = "0.1.0"
+edition = "2021"
+authors = ["abrahamalaka <abraham@ekko.zone>"]
+description = "wasmCloud actor for processing Ethereum-specific transaction logic"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# wasmCloud 1.0 actor with WIT interfaces
+wit-bindgen = { workspace = true }
+
+# Async runtime (WASM-compatible)
+async-trait = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Error handling
+anyhow = { workspace = true }
+
+# Logging (only tracing is available in workspace)
+# tracing = { workspace = true }
+
+# Time handling
+chrono = { workspace = true }
+
+# Blockchain specific (removed ethers due to WASM compatibility issues)
+# ethers = { workspace = true }
+
+[dev-dependencies]
+# Test coverage and utilities
+criterion = "0.5"
+proptest = "1.0"
+testcontainers = { workspace = true }
+
+[[bench]]
+name = "processing_benchmark"
+harness = false

@@ -1,0 +1,16 @@
+name = "eth-raw-transactions"
+language = "rust"
+type = "component"
+version = "0.1.0"
+
+[component]
+claims = ["wasmcloud:messaging", "wasmcloud:keyvalue", "wasmcloud:httpclient"]
+wit_world = "processor"
+wit_path = "./wit"
+keyvalue.store = "redis"
+messaging = "nats"
+http = "http-client"
+
+[component.build]
+command = "cargo build --target wasm32-wasip1 --release"
+path = "target/wasm32-wasip1/release/eth_raw_transactions.wasm"

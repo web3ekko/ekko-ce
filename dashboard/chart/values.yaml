@@ -1,0 +1,90 @@
+# Default values for ekko-dashboard
+replicaCount: ${DASHBOARD_REPLICA_COUNT:-1}
+
+image:
+  repository: ${DASHBOARD_IMAGE_REPOSITORY:-ekko-dashboard}
+  tag: ${DASHBOARD_IMAGE_TAG:-latest}
+  pullPolicy: ${DASHBOARD_PULL_POLICY:-IfNotPresent}
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+service:
+  type: ClusterIP
+  port: ${DASHBOARD_SERVICE_PORT:-80}
+  targetPort: 80
+
+ingress:
+  enabled: ${DASHBOARD_INGRESS_ENABLED:-false}
+  className: ${DASHBOARD_INGRESS_CLASS:-nginx}
+  annotations: {}
+  hosts:
+    - host: ${DASHBOARD_HOST:-dashboard.ekko.local}
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources:
+  limits:
+    cpu: ${DASHBOARD_CPU_LIMIT:-200m}
+    memory: ${DASHBOARD_MEMORY_LIMIT:-256Mi}
+  requests:
+    cpu: ${DASHBOARD_CPU_REQUEST:-100m}
+    memory: ${DASHBOARD_MEMORY_REQUEST:-128Mi}
+
+autoscaling:
+  enabled: ${DASHBOARD_AUTOSCALING_ENABLED:-false}
+  minReplicas: ${DASHBOARD_MIN_REPLICAS:-2}
+  maxReplicas: ${DASHBOARD_MAX_REPLICAS:-20}
+  targetCPUUtilizationPercentage: ${DASHBOARD_CPU_TARGET:-80}
+
+# React App Configuration
+reactApp:
+  apiUrl: ${VITE_API_URL:-https://api.ekko.local}
+  wsUrl: ${VITE_WS_URL:-wss://api.ekko.local}
+  environment: ${VITE_ENVIRONMENT:-production}
+  sentryDsn: ${VITE_SENTRY_DSN}
+  googleAnalyticsId: ${VITE_GA_ID}
+
+# Nginx Configuration
+nginx:
+  workerProcesses: ${NGINX_WORKER_PROCESSES:-auto}
+  workerConnections: ${NGINX_WORKER_CONNECTIONS:-1024}
+  keepaliveTimeout: ${NGINX_KEEPALIVE_TIMEOUT:-65}
+  clientMaxBodySize: ${NGINX_CLIENT_MAX_BODY_SIZE:-10m}
+
+# Health Checks
+healthcheck:
+  enabled: true
+  path: /
+  livenessProbe:
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readinessProbe:
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    successThreshold: 1
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# Pod Security Context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 101  # nginx user
+  fsGroup: 101
+
+# Container Security Context
+securityContext:
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 101

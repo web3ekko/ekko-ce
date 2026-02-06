@@ -1,0 +1,1 @@
+{"name":"host_config","cluster_seed":"","ctl_host":"127.0.0.1","ctl_port":4222,"ctl_jwt":"","ctl_seed":"","ctl_credsfile":null,"ctl_timeout":2000,"ctl_tls_ca_file":null,"ctl_tls_first":null,"lattice":"default","js_domain":null,"rpc_host":"127.0.0.1","rpc_port":4222,"rpc_jwt":"","rpc_seed":"","rpc_credsfile":null,"rpc_timeout":2000,"rpc_tls_ca_file":null,"rpc_tls_first":null}

@@ -1,0 +1,115 @@
+# NATS Configuration for Ekko Notification System
+# This configuration is used by notification providers to connect to NATS
+
+[connection]
+# NATS server connection details
+url = "nats://localhost:4222"
+# Alternative URLs for cluster setup
+# urls = ["nats://localhost:4222", "nats://localhost:4223", "nats://localhost:4224"]
+
+# Connection settings
+max_reconnects = 10
+reconnect_wait_ms = 1000
+ping_interval_ms = 60000
+max_ping_out = 2
+
+# TLS settings (optional)
+# tls_required = false
+# tls_cert_file = "/path/to/cert.pem"
+# tls_key_file = "/path/to/key.pem"
+# tls_ca_file = "/path/to/ca.pem"
+
+[jetstream]
+# JetStream client configuration
+api_timeout_ms = 5000
+publish_timeout_ms = 30000
+
+# Stream configuration defaults
+default_stream_replicas = 1
+default_max_age_hours = 24
+default_max_msgs = 100000
+default_max_bytes_gb = 10
+
+[subjects]
+# Base patterns for notification subjects
+notification_base = "notifications"
+
+[subjects.channels]
+email = "notifications.email"
+slack = "notifications.slack"
+sms = "notifications.sms"
+telegram = "notifications.send.immediate.telegram"
+
+discord = "notifications.discord"
+webhook = "notifications.send.immediate.webhook"
+websocket = "notifications.websocket"
+
+[subjects.control]
+status = "notifications.status"
+metrics = "notifications.metrics"
+dlq = "notifications.dlq"
+cache = "notifications.cache"
+
+[retry]
+# Default retry configuration
+max_retries = 3
+initial_delay_ms = 1000
+max_delay_ms = 30000
+backoff_multiplier = 2.0
+
+# Retry policies by priority
+[retry.critical]
+max_retries = 5
+initial_delay_ms = 500
+max_delay_ms = 60000
+
+[retry.high]
+max_retries = 4
+initial_delay_ms = 750
+max_delay_ms = 45000
+
+[retry.normal]
+max_retries = 3
+initial_delay_ms = 1000
+max_delay_ms = 30000
+
+[retry.low]
+max_retries = 2
+initial_delay_ms = 2000
+max_delay_ms = 20000
+
+[metrics]
+# Metrics collection configuration
+enable_metrics = true
+metrics_interval_ms = 60000
+
+# Metrics subjects
+delivery_metrics = "notifications.metrics.delivery"
+performance_metrics = "notifications.metrics.performance"
+error_metrics = "notifications.metrics.errors"
+
+[monitoring]
+# Health check configuration
+health_check_interval_ms = 30000
+health_check_timeout_ms = 5000
+
+# Circuit breaker settings
+failure_threshold = 5
+success_threshold = 3
+timeout_ms = 60000
+
+[environment]
+# Environment-specific overrides
+[environment.development]
+url = "nats://localhost:4222"
+log_level = "debug"
+
+[environment.production]
+url = "nats://nats-cluster:4222"
+log_level = "info"
+tls_required = true
+max_reconnects = 20
+
+[environment.docker]
+url = "nats://nats:4222"
+log_level = "info"

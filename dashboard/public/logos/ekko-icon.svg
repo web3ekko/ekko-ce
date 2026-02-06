@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="ekkoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2563EB" /> <!-- Blue-600 -->
+      <stop offset="100%" stop-color="#7C3AED" /> <!-- Violet-600 -->
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="10" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+  
+  <g transform="translate(256, 256)">
+    <!-- Central Core -->
+    <circle r="48" fill="url(#ekkoGradient)" />
+    
+    <!-- Inner Ripple -->
+    <circle r="96" fill="none" stroke="url(#ekkoGradient)" stroke-width="24" stroke-opacity="0.8" />
+    
+    <!-- Middle Ripple -->
+    <circle r="152" fill="none" stroke="url(#ekkoGradient)" stroke-width="20" stroke-opacity="0.6" stroke-dasharray="200 100" transform="rotate(-45)" />
+    
+    <!-- Outer Ripple -->
+    <circle r="208" fill="none" stroke="url(#ekkoGradient)" stroke-width="16" stroke-opacity="0.4" stroke-dasharray="300 150" transform="rotate(45)" />
+  </g>
+</svg>

@@ -1,0 +1,127 @@
+// DuckLake Read Capability Interface
+// Provides SQL query execution against DuckLake blockchain data storage
+
+package ekko:ducklake@0.1.0;
+
+/// Query execution interface for reading blockchain data from DuckLake
+interface query {
+    /// JSON-encoded record
+    type json-record = string;
+
+    /// SQL query string
+    type sql-query = string;
+
+    /// SQL parameter for parameterized queries
+    variant sql-param {
+        null-value,
+        bool-value(bool),
+        int32-value(s32),
+        int64-value(s64),
+        float64-value(f64),
+        string-value(string),
+        timestamp-value(u64),
+        decimal-value(string),
+    }
+
+    /// Column metadata in query results
+    record column-info {
+        /// Column name
+        name: string,
+        /// Column data type (e.g., "VARCHAR", "BIGINT", "TIMESTAMP")
+        data-type: string,
+    }
+
+    /// Query request
+    record query-request {
+        /// SQL query to execute
+        query: sql-query,
+        /// Maximum rows to return (default: 10000)
+        limit: option<u64>,
+        /// Query timeout in seconds (default: 300)
+        timeout-seconds: option<u32>,
+        /// Optional parameters for parameterized queries
+        parameters: option<list<sql-param>>,
+    }
+
+    /// Query result
+    record query-result {
+        /// Result rows as JSON strings
+        rows: list<json-record>,
+        /// Column metadata
+        columns: list<column-info>,
+        /// Number of rows returned
+        row-count: u64,
+        /// Query execution time in milliseconds
+        execution-time-ms: u64,
+    }
+
+    /// Time travel options for querying historical data
+    record time-travel-options {
+        /// Query at specific snapshot version
+        version: option<s64>,
+        /// Query at specific timestamp (Unix epoch)
+        timestamp: option<u64>,
+    }
+
+    /// Table statistics
+    record table-stats {
+        /// Total number of files
+        file-count: u64,
+        /// Total size in bytes
+        size-bytes: u64,
+        /// Number of records
+        record-count: u64,
+        /// Last modified timestamp
+        last-modified: u64,
+        /// Number of partitions
+        partition-count: u64,
+        /// Current snapshot version
+        snapshot-version: s64,
+    }
+
+    /// Query error types
+    variant query-error {
+        /// SQL syntax error
+        syntax-error(string),
+        /// Table not found
+        table-not-found(string),
+        /// Query timeout exceeded
+        timeout(string),
+        /// Connection error
+        connection-error(string),
+        /// Permission denied
+        permission-denied(string),
+        /// Invalid parameters
+        invalid-parameters(string),
+        /// Internal error
+        internal-error(string),
+    }
+
+    /// Execute a SQL query
+    execute-query: func(request: query-request) -> result<query-result, query-error>;
+
+    /// Execute a SQL query with time travel (query historical data)
+    execute-query-at: func(request: query-request, time-travel: time-travel-options) -> result<query-result, query-error>;
+
+    /// Get table statistics
+    get-table-stats: func(table-name: string) -> result<table-stats, query-error>;
+
+    /// List available tables
+    list-tables: func() -> result<list<string>, query-error>;
+
+    /// Check if a table exists
+    table-exists: func(table-name: string) -> result<bool, query-error>;
+
+    /// Get table schema (columns and types)
+    get-table-schema: func(table-name: string) -> result<list<column-info>, query-error>;
+}
+
+/// Provider world - exports the query interface
+world ducklake-read-provider {
+    export query;
+}
+
+/// Consumer world - imports the query interface (for actors like alerts-processor)
+world ducklake-read-consumer {
+    import query;
+}

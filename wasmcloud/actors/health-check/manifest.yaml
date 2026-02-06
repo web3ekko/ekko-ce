@@ -1,0 +1,44 @@
+# Health Check Actor Component Manifest
+# This file defines the health-check actor component and its configuration
+
+component:
+  name: health-check
+  type: actor
+  properties:
+    image: file://./actors/health-check.wasm
+    description: "HTTP health monitoring and system status endpoints"
+    version: "0.1.0"
+  traits:
+    - type: spreadscaler
+      properties:
+        replicas: 1
+        spread:
+          - name: "zone"
+            requirements:
+              zone: ["us-west-1a", "us-west-1b"]
+    - type: linkdef
+      properties:
+        target: httpserver
+        values:
+          address: 0.0.0.0:8080
+          cors_allowed_origins: ["*"]
+          cors_allowed_headers: ["content-type", "authorization"]
+          cors_allowed_methods: ["GET", "POST", "OPTIONS"]
+
+# Actor-specific configuration
+config:
+  health_check_interval: "30s"
+  timeout: "5s"
+  
+# Dependencies this actor requires
+dependencies:
+  providers:
+    - httpserver
+  interfaces:
+    - wasi:http/incoming-handler
+
+# Monitoring and observability
+monitoring:
+  health_endpoint: "/health"
+  metrics_enabled: true
+  log_level: "info"

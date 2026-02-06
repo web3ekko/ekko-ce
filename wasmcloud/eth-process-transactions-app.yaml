@@ -1,0 +1,14 @@
+apiVersion: core.oam.dev/v1beta1
+kind: Application
+metadata:
+  name: eth-process-transactions
+  annotations:
+    version: v0.1.0
+    description: 'Ethereum transaction processing actor'
+spec:
+  components:
+    - name: eth-process-transactions
+      type: component
+      properties:
+        image: file:///actors/eth_process_transactions.wasm
+        id: eth-process-transactions

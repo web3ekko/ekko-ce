@@ -1,0 +1,24 @@
+[package]
+name = "transaction-processor"
+authors = ["abrahamalaka <abraham@ekko.zone>"]
+description = "wasmCloud Transaction Processor Actor - processes raw blockchain transactions"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# WasmCloud 1.0 Component dependencies
+wit-bindgen = { workspace = true }
+wasmcloud-component = { workspace = true }
+
+# Use workspace dependencies
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+
+# Shared libraries (only if still needed)
+# wasmcloud-common = { workspace = true }
+# types = { workspace = true }

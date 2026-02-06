@@ -1,0 +1,9 @@
+[package]
+name = "subject-registry"
+version = "1.0.0"
+edition = "2021"
+authors = ["Ekko Team"]
+description = "Centralized NATS subject registry for Ekko platform - standardized subject patterns per PRD"
+
+[dependencies]
+# No dependencies needed - pure Rust string formatting

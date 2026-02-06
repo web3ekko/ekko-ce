@@ -1,0 +1,61 @@
+[package]
+name = "polars-eval-provider"
+version = "0.1.0"
+edition = "2021"
+authors = ["Ekko Team"]
+description = "wasmCloud capability provider for Polars DataFrame expression evaluation"
+
+[lib]
+name = "polars_eval_provider"
+path = "src/lib.rs"
+
+# wasmCloud provider binary for WADM deployment
+[[bin]]
+name = "polars-eval-provider"
+path = "src/bin/polars-eval-provider.rs"
+
+[dependencies]
+# Runtime message contracts
+alert-runtime-common = { workspace = true }
+
+# Polars for high-performance evaluation
+polars = { version = "0.39.2", features = [
+    "lazy",
+    "ipc",
+    "ipc_streaming",
+    "parquet",
+    "dtype-full",
+] }
+polars-io = { version = "0.39.2", features = ["ipc", "ipc_streaming"] }
+hashbrown = { version = "0.14", features = ["raw"] }
+
+# Async runtime
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "signal"] }
+
+# NATS messaging
+async-nats = { workspace = true }
+futures = { workspace = true }
+
+# wasmCloud provider SDK
+wasmcloud-provider-sdk = "0.16"
+
+# Base64 for Arrow IPC stream payloads
+base64 = "0.22"
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Error handling
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+chrono = { workspace = true }
+
+[dev-dependencies]
+# Testing
+tokio-test = "0.4"
+pretty_assertions = "1"

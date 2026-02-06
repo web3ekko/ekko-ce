@@ -1,0 +1,111 @@
+apiVersion: k8s.wasmcloud.dev/v1alpha1
+kind: WasmCloudHostConfig
+metadata:
+  name: ekko-wasmcloud-host
+  namespace: ekko
+spec:
+  # Core WasmCloud configuration
+  lattice: default
+  version: "1.0.4"
+
+  # NATS connection configuration
+  natsServer: nats.ekko.svc.cluster.local
+  natsPort: 4222
+
+  # Host configuration
+  hostReplicas: 2
+
+  # Host labels for actor placement
+  hostLabels:
+    app: ekko
+    environment: production
+    component: wasmcloud-host
+
+  # Resource limits and requests
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "2Gi"
+      cpu: "2"
+
+  # Enable debugging and logging
+  logLevel: info
+  enableStructuredLogging: true
+
+  # Allow file loading for actors
+  allowFileLoad: true
+
+  # Registry configuration (optional, for private registries)
+  # registryCredentialsSecret: wasmcloud-registry-creds
+
+  # Additional environment variables
+  envVars:
+    - name: WASMCLOUD_ALLOW_FILE_LOAD
+      value: "true"
+    - name: WASMCLOUD_OCI_ALLOW_LATEST
+      value: "true"
+    - name: RUST_LOG
+      value: "info,wasmcloud=debug"
+
+  # Volume mounts for actor files
+  volumeMounts:
+    - name: actors
+      mountPath: /actors
+      readOnly: true
+
+  volumes:
+    - name: actors
+      emptyDir: {}
+
+  # Service configuration
+  service:
+    type: ClusterIP
+    ports:
+      - name: lattice
+        port: 4222
+        targetPort: 4222
+      - name: metrics
+        port: 9090
+        targetPort: 9090
+      - name: control
+        port: 4223
+        targetPort: 4223
+
+  # Pod security context
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    fsGroup: 1000
+
+  # Liveness and readiness probes
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 9090
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+  readinessProbe:
+    httpGet:
+      path: /ready
+      port: 9090
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+  # Anti-affinity rules for better distribution
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                app: ekko
+                component: wasmcloud-host
+            topologyKey: kubernetes.io/hostname

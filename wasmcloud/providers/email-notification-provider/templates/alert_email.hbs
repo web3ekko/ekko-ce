@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px 10px 0 0;
+            margin: -20px -20px 20px -20px;
+        }
+        .priority-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .priority-critical { background-color: #dc3545; }
+        .priority-high { background-color: #fd7e14; }
+        .priority-medium { background-color: #ffc107; color: #333; }
+        .priority-low { background-color: #28a745; }
+        .content {
+            padding: 20px 0;
+        }
+        .details {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .details-list {
+            list-style: none;
+            padding: 0;
+        }
+        .details-list li {
+            padding: 5px 0;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .details-list li:last-child {
+            border-bottom: none;
+        }
+        .actions {
+            margin: 30px 0;
+            text-align: center;
+        }
+        .action-button {
+            display: inline-block;
+            padding: 12px 24px;
+            margin: 0 5px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: 500;
+        }
+        .action-button:hover {
+            background-color: #0056b3;
+        }
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #dee2e6;
+            text-align: center;
+            color: #6c757d;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>{{title}}
+            <span class="priority-badge priority-{{priority}}">{{priority}}</span>
+        </h1>
+        <p style="margin: 0; opacity: 0.9;">Alert: {{alert_name}}</p>
+    </div>
+    
+    <div class="content">
+        <p>{{{message}}}</p>
+        
+        {{#if details}}
+        <div class="details">
+            <h3>Details</h3>
+            <ul class="details-list">
+                {{#each details}}
+                <li><strong>{{@key}}:</strong> {{this}}</li>
+                {{/each}}
+            </ul>
+        </div>
+        {{/if}}
+        
+        {{#if actions}}
+        <div class="actions">
+            {{{actions}}}
+        </div>
+        {{/if}}
+        
+        {{#if alert_url}}
+        <div class="actions">
+            <a href="{{alert_url}}" class="action-button">View Alert Details</a>
+        </div>
+        {{/if}}
+    </div>
+    
+    <div class="footer">
+        <p>This is an automated notification from Ekko Zone</p>
+        <p>© 2024 Ekko Zone. All rights reserved.</p>
+    </div>
+</body>
+</html>

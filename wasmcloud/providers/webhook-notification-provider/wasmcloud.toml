@@ -1,0 +1,18 @@
+name = "webhook-notification-provider"
+language = "rust"
+type = "provider"
+
+[provider]
+vendor = "Ekko"
+version = "1.0.0"
+description = "Webhook notification provider for blockchain alerts"
+protocol = "webhook"
+
+[[provider.claims]]
+name = "wasmcloud:messaging"
+[[provider.claims]]
+name = "wasmcloud:keyvalue"
+
+[provider.config]
+redis_url = "redis://:redis123@redis-master.ekko.svc.cluster.local:6379"
+nats_url = "nats://nats-headless.ekko.svc.cluster.local:4222"

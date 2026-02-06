@@ -1,0 +1,121 @@
+package ekko:polars-eval@0.1.0;
+
+/// Polars expression evaluation capability provider
+interface evaluator {
+    /// Transaction data for evaluation
+    record transaction-data {
+        // Core transaction fields
+        tx-hash: string,
+        chain: string,
+        block-number: u64,
+        timestamp: u64,
+
+        // Address fields
+        from-address: string,
+        to-address: option<string>,
+
+        // Value fields
+        value: string,  // Wei/Satoshi as string to avoid precision loss
+        value-usd: option<f64>,
+
+        // Gas fields
+        gas-used: option<u64>,
+        gas-price: option<string>,
+
+        // Transaction type
+        tx-type: string,  // "transfer", "contract_call", "contract_creation"
+
+        // Contract interaction
+        contract-address: option<string>,
+        method-signature: option<string>,
+
+        // Token transfer
+        token-address: option<string>,
+        token-symbol: option<string>,
+        token-amount: option<string>,
+
+        // Status
+        status: string,  // "success", "failed", "pending"
+
+        // Additional data
+        input-data: option<string>,
+        logs-bloom: option<string>,
+    }
+
+    /// Schema definition for validation
+    record data-schema {
+        fields: list<schema-field>,
+    }
+
+    record schema-field {
+        name: string,
+        field-type: string,  // "string", "u64", "f64", "bool", "option<T>"
+    }
+
+    /// Validation result
+    record validation-result {
+        valid: bool,
+        errors: list<string>,
+        warnings: list<string>,
+    }
+
+    /// Compiled expression ID for caching
+    record compiled-expr-id {
+        id: string,
+        cache-key: string,
+    }
+
+    /// Evaluation error
+    variant eval-error {
+        parse-error(string),
+        execution-error(string),
+        invalid-data(string),
+        cache-error(string),
+        timeout-error(string),
+    }
+
+    /// Evaluate a Polars expression against transaction data
+    /// Returns true if the expression matches, false otherwise
+    evaluate: func(
+        expression: string,
+        data: transaction-data,
+    ) -> result<bool, eval-error>;
+
+    /// Validate a Polars expression against a schema
+    /// Checks syntax and type compatibility
+    validate: func(
+        expression: string,
+        schema: data-schema,
+    ) -> result<validation-result, string>;
+
+    /// Compile and cache a Polars expression
+    /// Returns a compiled expression ID for future use
+    compile: func(
+        expression: string,
+        schema: data-schema,
+    ) -> result<compiled-expr-id, string>;
+
+    /// Evaluate using a pre-compiled expression
+    evaluate-compiled: func(
+        expr-id: compiled-expr-id,
+        data: transaction-data,
+    ) -> result<bool, eval-error>;
+
+    /// Clear expression cache
+    clear-cache: func() -> result<_, string>;
+
+    /// Get cache statistics
+    get-cache-stats: func() -> cache-stats;
+
+    record cache-stats {
+        total-entries: u64,
+        hit-count: u64,
+        miss-count: u64,
+        eviction-count: u64,
+        hit-rate: f64,
+    }
+}
+
+world polars-eval-provider {
+    export evaluator;
+}

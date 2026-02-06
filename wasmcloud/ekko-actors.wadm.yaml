@@ -1,0 +1,404 @@
+apiVersion: core.oam.dev/v1beta1
+kind: Application
+metadata:
+  name: ekko-actors
+  annotations:
+    version: v1.0.0
+    description: "Ekko blockchain monitoring and alert processing actors"
+spec:
+  components:
+    # =========================================================================
+    # ACTORS - Blockchain Transaction Processing
+    # =========================================================================
+
+    # Ethereum Raw Transactions Actor
+    - name: eth-raw-transactions
+      type: component
+      properties:
+        image: registry.kube-system.svc.cluster.local:80/eth-raw-transactions:v1.0.0
+      traits:
+        - type: spreadscaler
+          properties:
+            instances: 2
+            spread:
+              - name: hostcore.os
+                requirements:
+                  kubernetes: "true"
+        - type: link
+          properties:
+            target: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer]
+            target_config:
+              - name: eth-subscription
+                properties:
+                  subscriptions: blockchain.ethereum.>.transactions.raw
+
+    # Ethereum Process Transactions Actor
+    - name: eth-process-transactions
+      type: component
+      properties:
+        image: registry.kube-system.svc.cluster.local:80/eth-process-transactions:v1.0.0
+      traits:
+        - type: spreadscaler
+          properties:
+            instances: 2
+        - type: link
+          properties:
+            target: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer, publisher]
+            target_config:
+              - name: eth-process-subscription
+                properties:
+                  subscriptions: blockchain.eth.transactions.process
+        - type: link
+          properties:
+            target: redis-kv
+            namespace: wasmcloud
+            package: keyvalue
+            interfaces: [keyvalue]
+
+    # Ethereum Transfers Processor Actor
+    - name: eth-transfers-processor
+      type: component
+      properties:
+        image: registry.kube-system.svc.cluster.local:80/eth-transfers-processor:v1.0.0
+      traits:
+        - type: spreadscaler
+          properties:
+            instances: 2
+        - type: link
+          properties:
+            target: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer, publisher]
+            target_config:
+              - name: eth-transfers-subscription
+                properties:
+                  subscriptions: transfer-transactions.*.*.evm.raw
+        - type: link
+          properties:
+            target: redis-kv
+            namespace: wasmcloud
+            package: keyvalue
+            interfaces: [keyvalue]
+
+    # Ethereum Contract Creation Processor Actor
+    - name: eth-contract-creation-processor
+      type: component
+      properties:
+        image: registry.kube-system.svc.cluster.local:80/eth-contract-creation-processor:v1.0.0
+      traits:
+        - type: spreadscaler
+          properties:
+            instances: 1
+        - type: link
+          properties:
+            target: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer, publisher]
+            target_config:
+              - name: eth-contract-creation-subscription
+                properties:
+                  subscriptions: contract-creations.*.*.evm.raw
+        - type: link
+          properties:
+            target: redis-kv
+            namespace: wasmcloud
+            package: keyvalue
+            interfaces: [keyvalue]
+
+    # Ethereum Contract Transaction Processor Actor
+    - name: eth-contract-transaction-processor
+      type: component
+      properties:
+        image: registry.kube-system.svc.cluster.local:80/eth-contract-transaction-processor:v1.0.0
+      traits:
+        - type: spreadscaler
+          properties:
+            instances: 2
+        - type: link
+          properties:
+            target: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer, publisher]
+            target_config:
+              - name: eth-contract-transaction-subscription
+                properties:
+                  subscriptions: contract-transactions.*.*.evm.raw,transactions.decoded.evm
+        - type: link
+          properties:
+            target: redis-kv
+            namespace: wasmcloud
+            package: keyvalue
+            interfaces: [keyvalue]
+
+    # Bitcoin Raw Transactions Actor
+    - name: btc-raw-transactions
+      type: component
+      properties:
+        image: registry.kube-system.svc.cluster.local:80/btc-raw-transactions:v1.0.0
+      traits:
+        - type: spreadscaler
+          properties:
+            instances: 1
+        - type: link
+          properties:
+            target: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer]
+            target_config:
+              - name: btc-subscription
+                properties:
+                  subscriptions: blockchain.bitcoin.>.transactions.raw
+
+    # Solana Raw Transactions Actor
+    - name: sol-raw-transactions
+      type: component
+      properties:
+        image: registry.kube-system.svc.cluster.local:80/sol-raw-transactions:v1.0.0
+      traits:
+        - type: spreadscaler
+          properties:
+            instances: 1
+        - type: link
+          properties:
+            target: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer]
+            target_config:
+              - name: sol-subscription
+                properties:
+                  subscriptions: blockchain.solana.>.transactions.raw
+
+    # Alerts-Processor Actor
+    # Subscription subjects: alerts.jobs.create.> (defined in setup-configs.sh)
+    - name: alerts-processor
+      type: component
+      properties:
+        image: registry.kube-system.svc.cluster.local:80/alerts-processor:v1.0.0
+      traits:
+        - type: spreadscaler
+          properties:
+            instances: 2
+        - type: link
+          properties:
+            target: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer, publisher]
+            target_config:
+              - name: alerts-processor-handler
+        - type: link
+          properties:
+            target: redis-kv
+            namespace: wasmcloud
+            package: keyvalue
+            interfaces: [keyvalue]
+            target_config:
+              - name: alerts-processor-redis
+
+    # Health Check Actor
+    - name: health-check
+      type: component
+      properties:
+        image: registry.kube-system.svc.cluster.local:80/health-check:v1.0.0
+      traits:
+        - type: spreadscaler
+          properties:
+            instances: 1
+        - type: link
+          properties:
+            target: http-server
+            namespace: wasmcloud
+            package: http
+            interfaces: [incoming-handler]
+            source_config:
+              - name: health-route
+                properties:
+                  address: 0.0.0.0:8080
+
+    # Transaction Delta Writer Actor
+    - name: transaction-delta-writer
+      type: component
+      properties:
+        image: registry.kube-system.svc.cluster.local:80/transaction-delta-writer:v1.0.0
+      traits:
+        - type: spreadscaler
+          properties:
+            instances: 1
+        - type: link
+          properties:
+            target: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer]
+            target_config:
+              - name: delta-subscription
+                properties:
+                  subscriptions: blockchain.transactions.deltas
+        - type: link
+          properties:
+            target: redis-kv
+            namespace: wasmcloud
+            package: keyvalue
+            interfaces: [keyvalue]
+
+    # Transaction Processor Actor
+    - name: transaction-processor
+      type: component
+      properties:
+        image: registry.kube-system.svc.cluster.local:80/transaction-processor:v1.0.0
+      traits:
+        - type: spreadscaler
+          properties:
+            instances: 2
+        - type: link
+          properties:
+            target: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer, publisher]
+            target_config:
+              - name: processor-subscription
+                properties:
+                  subscriptions: blockchain.transactions.process
+        - type: link
+          properties:
+            target: redis-kv
+            namespace: wasmcloud
+            package: keyvalue
+            interfaces: [keyvalue]
+
+    # Notification Router Actor
+    # Subscription subjects: alerts.triggered.>, notifications.send.immediate.> (defined in setup-configs.sh)
+    - name: notification-router
+      type: component
+      properties:
+        image: registry.kube-system.svc.cluster.local:80/notification-router:v1.0.0
+      traits:
+        - type: spreadscaler
+          properties:
+            instances: 1
+        - type: link
+          properties:
+            target: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer, publisher]
+            target_config:
+              - name: notification-router-handler
+        - type: link
+          properties:
+            target: redis-kv
+            namespace: wasmcloud
+            package: keyvalue
+            interfaces: [keyvalue]
+            target_config:
+              - name: notification-router-redis
+        - type: link
+          properties:
+            target: http-client
+            namespace: wasmcloud
+            package: http
+            interfaces: [outgoing-handler]
+
+    # ABI Decoder Actor
+    - name: abi-decoder
+      type: component
+      properties:
+        image: registry.kube-system.svc.cluster.local:80/abi-decoder:v1.0.0
+      traits:
+        - type: spreadscaler
+          properties:
+            instances: 1
+        - type: link
+          properties:
+            target: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer, publisher]
+            target_config:
+              - name: abi-subscription
+                properties:
+                  subscriptions: blockchain.abi.decode
+
+    # =========================================================================
+    # CAPABILITY PROVIDERS
+    # =========================================================================
+
+    # NATS Messaging Provider
+    - name: nats-messaging
+      type: capability
+      properties:
+        image: ghcr.io/wasmcloud/messaging-nats:0.27.0
+        config:
+          - name: nats-config
+            properties:
+              nats_url: nats://nats.ekko.svc.cluster.local:4222
+              jetstream:
+                enabled: true
+                domain: ekko
+
+    # Redis Key-Value Provider
+    - name: redis-kv
+      type: capability
+      properties:
+        image: ghcr.io/wasmcloud/keyvalue-redis:0.25.0
+        config:
+          - name: redis-config
+            properties:
+              url: redis://redis-master.ekko.svc.cluster.local:6379
+              password: redis123
+              database: 0
+
+    # HTTP Server Provider
+    - name: http-server
+      type: capability
+      properties:
+        image: ghcr.io/wasmcloud/http-server:0.22.0
+        config:
+          - name: http-config
+            properties:
+              address: 0.0.0.0:8080
+
+    # HTTP Client Provider
+    - name: http-client
+      type: capability
+      properties:
+        image: ghcr.io/wasmcloud/http-client:0.13.1
+        config:
+          - name: client-config
+            properties:
+              max_redirects: 3
+              timeout_ms: 30000
+
+  # =========================================================================
+  # POLICIES (Optional - for advanced deployments)
+  # =========================================================================
+  policies:
+    - name: actor-health
+      type: health
+      properties:
+        frequency: 30s
+        consecutive_failures: 3
+        restart_delay: 10s
+
+    - name: scaling-policy
+      type: autoscale
+      properties:
+        min_instances: 1
+        max_instances: 5
+        metrics:
+          - type: cpu
+            target: 70
+          - type: message_queue_depth
+            target: 100

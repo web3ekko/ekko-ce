@@ -1,200 +1,187 @@
-import { createTheme, rem } from '@mantine/core';
+import { createTheme } from '@mantine/core'
 
 export const theme = createTheme({
-  /** iOS-inspired theme with clean, modern design */
-
-  // Color palette inspired by iOS design system
-  colors: {
-    // Primary blue (iOS system blue)
-    blue: [
-      '#f0f8ff',
-      '#e6f3ff',
-      '#cce7ff',
-      '#99d6ff',
-      '#66c2ff',
-      '#007AFF', // iOS system blue
-      '#0056cc',
-      '#004499',
-      '#003366',
-      '#002244'
-    ],
-
-    // Neutral grays (iOS system grays)
-    gray: [
-      '#ffffff',
-      '#f9f9f9',
-      '#f2f2f7', // iOS system background
-      '#e5e5ea', // iOS separator
-      '#d1d1d6',
-      '#8e8e93', // iOS secondary label
-      '#6d6d70',
-      '#48484a',
-      '#3a3a3c',
-      '#1c1c1e'  // iOS label
-    ],
-
-    // Success green (iOS system green)
-    green: [
-      '#f0fff4',
-      '#e6ffed',
-      '#ccf7d6',
-      '#99f0b8',
-      '#66e899',
-      '#34C759', // iOS system green
-      '#28a745',
-      '#1e7e34',
-      '#155724',
-      '#0d3d1a'
-    ],
-
-    // Warning orange (iOS system orange)
-    orange: [
-      '#fff8f0',
-      '#fff0e6',
-      '#ffe0cc',
-      '#ffcc99',
-      '#ffb366',
-      '#FF9500', // iOS system orange
-      '#cc7700',
-      '#995500',
-      '#663300',
-      '#441100'
-    ],
-
-    // Error red (iOS system red)
-    red: [
-      '#fff5f5',
-      '#ffe6e6',
-      '#ffcccc',
-      '#ff9999',
-      '#ff6666',
-      '#FF3B30', // iOS system red
-      '#cc2e24',
-      '#992218',
-      '#66170c',
-      '#440b06'
-    ]
-  },
-
-  // Typography with system fonts
-  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-  fontFamilyMonospace: 'SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace',
-
+  /** Primary color scheme */
+  primaryColor: 'blue',
+  
+  /** Default color scheme */
+  defaultColorScheme: 'light',
+  
+  /** Font family */
+  fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif',
+  fontFamilyMonospace: 'Monaco, Courier, monospace',
+  
+  /** Headings configuration */
   headings: {
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-    fontWeight: '600',
+    fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif',
     sizes: {
-      h1: { fontSize: rem(34), lineHeight: '1.2' },
-      h2: { fontSize: rem(28), lineHeight: '1.25' },
-      h3: { fontSize: rem(22), lineHeight: '1.3' },
-      h4: { fontSize: rem(20), lineHeight: '1.35' },
-      h5: { fontSize: rem(18), lineHeight: '1.4' },
-      h6: { fontSize: rem(16), lineHeight: '1.45' }
-    }
-  },
-
-  // Spacing system (iOS uses 8pt grid)
-  spacing: {
-    xs: rem(4),
-    sm: rem(8),
-    md: rem(16),
-    lg: rem(24),
-    xl: rem(32)
-  },
-
-  // Border radius (iOS style)
-  radius: {
-    xs: rem(4),
-    sm: rem(8),
-    md: rem(12),
-    lg: rem(16),
-    xl: rem(20)
-  },
-
-  // Shadows (iOS style - subtle and layered)
-  shadows: {
-    xs: '0 1px 3px rgba(0, 0, 0, 0.05)',
-    sm: '0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)',
-    md: '0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06)',
-    lg: '0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05)',
-    xl: '0 20px 25px rgba(0, 0, 0, 0.1), 0 10px 10px rgba(0, 0, 0, 0.04)'
-  },
-
-  // Component overrides for iOS feel
-  components: {
-    Card: {
-      defaultProps: {
-        radius: 'md',
-        shadow: 'sm',
-        withBorder: true
-      },
-      styles: {
-        root: {
-          borderColor: '#e5e5ea',
-          backgroundColor: '#ffffff',
-          transition: 'all 0.2s ease'
-        }
-      }
+      h1: { fontSize: '2rem', lineHeight: '1.4' },
+      h2: { fontSize: '1.75rem', lineHeight: '1.4' },
+      h3: { fontSize: '1.5rem', lineHeight: '1.4' },
+      h4: { fontSize: '1.25rem', lineHeight: '1.4' },
+      h5: { fontSize: '1.125rem', lineHeight: '1.4' },
+      h6: { fontSize: '1rem', lineHeight: '1.4' },
     },
-
+  },
+  
+  /** Component default props and styles */
+  components: {
     Button: {
       defaultProps: {
-        radius: 'md'
+        size: 'md',
       },
-      styles: {
-        root: {
-          fontWeight: 600,
-          transition: 'all 0.2s ease',
-          border: 'none'
-        }
-      }
     },
-
+    
     TextInput: {
       defaultProps: {
-        radius: 'md'
+        size: 'md',
       },
-      styles: {
-        input: {
-          borderColor: '#e5e5ea',
-          backgroundColor: '#f2f2f7',
-          transition: 'all 0.2s ease',
-          '&:focus': {
-            borderColor: '#007AFF',
-            backgroundColor: '#ffffff'
-          }
-        }
-      }
     },
-
+    
+    PasswordInput: {
+      defaultProps: {
+        size: 'md',
+      },
+    },
+    
+    Card: {
+      defaultProps: {
+        shadow: 'sm',
+        radius: 'md',
+        withBorder: true,
+      },
+    },
+    
+    Paper: {
+      defaultProps: {
+        shadow: 'xs',
+        radius: 'md',
+      },
+    },
+    
     Modal: {
       defaultProps: {
-        radius: 'lg',
-        shadow: 'xl'
+        centered: true,
+        overlayProps: { backgroundOpacity: 0.55, blur: 3 },
       },
-      styles: {
-        content: {
-          backgroundColor: '#ffffff'
-        },
-        header: {
-          backgroundColor: '#ffffff',
-          borderBottom: '1px solid #e5e5ea'
-        }
-      }
     },
-
-    Badge: {
+    
+    Notification: {
       defaultProps: {
-        radius: 'xl'
+        radius: 'md',
       },
-      styles: {
-        root: {
-          fontWeight: 600,
-          textTransform: 'none'
-        }
-      }
-    }
+    },
   },
+  
+  /** Spacing scale */
+  spacing: {
+    xs: '0.5rem',
+    sm: '0.75rem',
+    md: '1rem',
+    lg: '1.5rem',
+    xl: '2rem',
+  },
+  
+  /** Border radius scale */
+  radius: {
+    xs: '0.25rem',
+    sm: '0.375rem',
+    md: '0.5rem',
+    lg: '0.75rem',
+    xl: '1rem',
+  },
+  
+  /** Shadow scale */
+  shadows: {
+    xs: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+    sm: '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)',
+    md: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+    lg: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
+    xl: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
+  },
+  
+  /** Breakpoints for responsive design */
+  breakpoints: {
+    xs: '30em',  // 480px
+    sm: '48em',  // 768px
+    md: '64em',  // 1024px
+    lg: '74em',  // 1184px
+    xl: '90em',  // 1440px
+  },
+})
 
-  // Other theme properties can be added here
-});
+/** Color palette for custom usage */
+export const colors = {
+  // Brand colors
+  primary: '#1c7ed6',
+  secondary: '#495057',
+  
+  // Status colors
+  success: '#51cf66',
+  warning: '#ffd43b',
+  error: '#ff6b6b',
+  info: '#74c0fc',
+  
+  // Neutral colors
+  gray: {
+    50: '#f8f9fa',
+    100: '#f1f3f4',
+    200: '#e9ecef',
+    300: '#dee2e6',
+    400: '#ced4da',
+    500: '#adb5bd',
+    600: '#868e96',
+    700: '#495057',
+    800: '#343a40',
+    900: '#212529',
+  },
+  
+  // Background colors
+  background: {
+    light: '#ffffff',
+    dark: '#1a1b1e',
+    paper: '#f8f9fa',
+  },
+}
+
+/** Common styles for reuse */
+export const commonStyles = {
+  // Layout
+  container: {
+    maxWidth: '1200px',
+    margin: '0 auto',
+    padding: '0 1rem',
+  },
+  
+  // Cards
+  card: {
+    backgroundColor: 'white',
+    borderRadius: '0.5rem',
+    boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.1)',
+    border: '1px solid #e9ecef',
+  },
+  
+  // Forms
+  formSection: {
+    marginBottom: '1.5rem',
+  },
+  
+  // Buttons
+  primaryButton: {
+    backgroundColor: colors.primary,
+    '&:hover': {
+      backgroundColor: '#1864ab',
+    },
+  },
+  
+  // Text
+  mutedText: {
+    color: colors.gray[600],
+    fontSize: '0.875rem',
+  },
+  
+  // Loading states
+  skeleton: {
+    borderRadius: '0.25rem',
+  },
+}

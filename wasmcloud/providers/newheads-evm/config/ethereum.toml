@@ -1,0 +1,49 @@
+# Ethereum Chain Configurations
+# Configure your RPC endpoints and API keys here
+
+[ethereum-mainnet]
+chain_id = "ethereum-mainnet"
+chain_name = "Ethereum Mainnet"
+rpc_url = "https://mainnet.infura.io/v3/YOUR_PROJECT_ID"
+ws_url = "wss://mainnet.infura.io/ws/v3/YOUR_PROJECT_ID"
+chain_type = "ethereum"
+network_id = 1
+enabled = false  # Set to true when configured
+
+[ethereum-goerli]
+chain_id = "ethereum-goerli"
+chain_name = "Ethereum Goerli Testnet"
+rpc_url = "https://goerli.infura.io/v3/YOUR_PROJECT_ID"
+ws_url = "wss://goerli.infura.io/ws/v3/YOUR_PROJECT_ID"
+chain_type = "ethereum-goerli"
+network_id = 5
+enabled = false
+
+[ethereum-sepolia]
+chain_id = "ethereum-sepolia"
+chain_name = "Ethereum Sepolia Testnet"
+rpc_url = "https://sepolia.infura.io/v3/YOUR_PROJECT_ID"
+ws_url = "wss://sepolia.infura.io/ws/v3/YOUR_PROJECT_ID"
+chain_type = "ethereum-sepolia"
+network_id = 11155111
+enabled = false
+
+# Alternative providers (uncomment and configure as needed)
+
+# [ethereum-mainnet-alchemy]
+# chain_id = "ethereum-mainnet-alchemy"
+# chain_name = "Ethereum Mainnet (Alchemy)"
+# rpc_url = "https://eth-mainnet.g.alchemy.com/v2/YOUR_API_KEY"
+# ws_url = "wss://eth-mainnet.g.alchemy.com/v2/YOUR_API_KEY"
+# chain_type = "ethereum"
+# network_id = 1
+# enabled = false
+
+# [ethereum-mainnet-quicknode]
+# chain_id = "ethereum-mainnet-quicknode"
+# chain_name = "Ethereum Mainnet (QuickNode)"
+# rpc_url = "https://YOUR_ENDPOINT.quiknode.pro/YOUR_API_KEY/"
+# ws_url = "wss://YOUR_ENDPOINT.quiknode.pro/YOUR_API_KEY/"
+# chain_type = "ethereum"
+# network_id = 1
+# enabled = false

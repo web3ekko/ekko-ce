@@ -1,0 +1,11 @@
+Fix Rust compilation errors from AlertInstance refactoring:
+
+1. [ ] Fix event_processor.rs line 331: Parse event_types from spec.filters
+2. [ ] Fix schedule_processor.rs line 167: Parse cron_expression from trigger_config
+3. [ ] Fix schedule_processor.rs line 182: Parse timezone from trigger_config
+4. [ ] Fix schedule_processor.rs line 206: Parse dedup_window from trigger_config
+5. [ ] Fix schedule_processor.rs line 227-228: Parse cron/timezone from trigger_config
+6. [ ] Fix schedule_processor.rs line 268: Remove redis_manager reference (doesn't exist)
+7. [ ] Fix schedule_processor.rs line 271: Parse cron_expression from trigger_config
+8. [ ] Remove unused HashMap import from types.rs
+9. [ ] Run cargo check to verify all fixes

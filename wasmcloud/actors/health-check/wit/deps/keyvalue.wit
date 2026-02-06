@@ -1,0 +1,23 @@
+// Key-value store capability interface for Redis
+package ekko:keyvalue@0.1.0;
+
+/// Key-value store operations
+interface store {
+    /// Get a value by key
+    get: func(key: string) -> result<option<string>, string>;
+
+    /// Set a key-value pair
+    set: func(key: string, value: string) -> result<_, string>;
+
+    /// Set a key-value pair with expiration (in seconds)
+    set-with-expiry: func(key: string, value: string, expiry-seconds: u32) -> result<_, string>;
+
+    /// Delete a key
+    delete: func(key: string) -> result<bool, string>;
+
+    /// Check if a key exists
+    exists: func(key: string) -> result<bool, string>;
+
+    /// List keys matching a pattern
+    list-keys: func(pattern: string) -> result<list<string>, string>;
+}

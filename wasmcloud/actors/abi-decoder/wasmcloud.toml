@@ -1,0 +1,16 @@
+name = "abi-decoder"
+language = "rust"
+type = "component"
+version = "0.1.0"
+
+[component]
+# NOTE: httpclient removed due to WASI 0.2.3 incompatibility
+claims = ["wasmcloud:messaging", "wasmcloud:keyvalue"]
+wit_world = "abi-decoder"
+wit_path = "./wit"
+keyvalue.store = "redis"
+messaging = "nats"
+
+[component.build]
+command = "cargo build --target wasm32-wasip1 --release"
+path = "../../target/wasm32-wasip1/release/abi_decoder.wasm"

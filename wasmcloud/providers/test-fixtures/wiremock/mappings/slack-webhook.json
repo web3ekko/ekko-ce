@@ -1,0 +1,42 @@
+{
+  "mappings": [
+    {
+      "request": {
+        "method": "POST",
+        "urlPathPattern": "/services/T.*/B.*/.*",
+        "bodyPatterns": [
+          {
+            "matchesJsonPath": "$.text"
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "body": "ok",
+        "headers": {
+          "Content-Type": "text/plain"
+        }
+      },
+      "priority": 1
+    },
+    {
+      "request": {
+        "method": "POST",
+        "urlPathPattern": "/services/T.*/B.*/invalid",
+        "bodyPatterns": [
+          {
+            "matchesJsonPath": "$.text"
+          }
+        ]
+      },
+      "response": {
+        "status": 404,
+        "body": "no_team",
+        "headers": {
+          "Content-Type": "text/plain"
+        }
+      },
+      "priority": 2
+    }
+  ]
+}

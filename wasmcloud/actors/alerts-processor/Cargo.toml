@@ -1,0 +1,45 @@
+[package]
+name = "alerts-processor"
+version = "1.0.0"
+edition = "2021"
+authors = ["Ekko Team"]
+description = "wasmCloud actor for processing blockchain alert jobs with capability providers"
+
+[dependencies]
+# wasmCloud 1.0 actor (uses capability interfaces)
+wit-bindgen = { workspace = true }
+wasmcloud-component = { workspace = true }
+
+# Runtime message contracts
+alert-runtime-common = { workspace = true }
+ducklake-common = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+
+# Time handling
+chrono = { workspace = true }
+
+# Expression parsing
+regex = { workspace = true }
+
+# Arrow (pre-joined frame) + base64 encoding
+arrow = { workspace = true, features = ["ipc"] }
+base64 = "0.22"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true
+
+[package.metadata.component]
+package = "ekko:alerts-processor"
+
+[package.metadata.component.dependencies]

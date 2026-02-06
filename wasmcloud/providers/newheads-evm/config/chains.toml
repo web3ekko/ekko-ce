@@ -1,0 +1,152 @@
+# EVM Chain Configuration for Newheads EVM Provider
+# Format: newheads.{network}.{subnet}.evm
+# Note: This provider only supports EVM-compatible blockchains
+
+# ===== ETHEREUM VIRTUAL MACHINE (EVM) CHAINS =====
+
+[ethereum-mainnet]
+chain_id = "ethereum-mainnet"
+chain_name = "Ethereum Mainnet"
+network = "ethereum"
+subnet = "mainnet"
+vm_type = "evm"
+rpc_url = "${ETHEREUM_RPC_URL:-https://mainnet.infura.io/v3/YOUR_PROJECT_ID}"
+ws_url = "${ETHEREUM_WS_URL:-wss://mainnet.infura.io/ws/v3/YOUR_PROJECT_ID}"
+chain_type = "ethereum"
+network_id = 1
+enabled = false
+# NATS subject: newheads.ethereum.mainnet.evm
+
+[ethereum-goerli]
+chain_id = "ethereum-goerli"
+chain_name = "Ethereum Goerli Testnet"
+network = "ethereum"
+subnet = "goerli"
+vm_type = "evm"
+rpc_url = "${ETHEREUM_GOERLI_RPC_URL:-https://goerli.infura.io/v3/YOUR_PROJECT_ID}"
+ws_url = "${ETHEREUM_GOERLI_WS_URL:-wss://goerli.infura.io/ws/v3/YOUR_PROJECT_ID}"
+chain_type = "ethereum-goerli"
+network_id = 5
+enabled = false
+# NATS subject: newheads.ethereum.goerli.evm
+
+[ethereum-sepolia]
+chain_id = "ethereum-sepolia"
+chain_name = "Ethereum Sepolia Testnet"
+network = "ethereum"
+subnet = "sepolia"
+vm_type = "evm"
+rpc_url = "${ETHEREUM_SEPOLIA_RPC_URL:-https://sepolia.infura.io/v3/YOUR_PROJECT_ID}"
+ws_url = "${ETHEREUM_SEPOLIA_WS_URL:-wss://sepolia.infura.io/ws/v3/YOUR_PROJECT_ID}"
+chain_type = "ethereum-sepolia"
+network_id = 11155111
+enabled = false
+# NATS subject: newheads.ethereum.sepolia.evm
+
+[polygon-mainnet]
+chain_id = "polygon-mainnet"
+chain_name = "Polygon Mainnet"
+network = "polygon"
+subnet = "mainnet"
+vm_type = "evm"
+rpc_url = "${POLYGON_RPC_URL:-https://polygon-mainnet.infura.io/v3/YOUR_PROJECT_ID}"
+ws_url = "${POLYGON_WS_URL:-wss://polygon-mainnet.infura.io/ws/v3/YOUR_PROJECT_ID}"
+chain_type = "polygon"
+network_id = 137
+enabled = false
+# NATS subject: newheads.polygon.mainnet.evm
+
+[polygon-mumbai]
+chain_id = "polygon-mumbai"
+chain_name = "Polygon Mumbai Testnet"
+network = "polygon"
+subnet = "mumbai"
+vm_type = "evm"
+rpc_url = "${POLYGON_MUMBAI_RPC_URL:-https://polygon-mumbai.infura.io/v3/YOUR_PROJECT_ID}"
+ws_url = "${POLYGON_MUMBAI_WS_URL:-wss://polygon-mumbai.infura.io/ws/v3/YOUR_PROJECT_ID}"
+chain_type = "polygon-mumbai"
+network_id = 80001
+enabled = false
+# NATS subject: newheads.polygon.mumbai.evm
+
+[arbitrum-mainnet]
+chain_id = "arbitrum-mainnet"
+chain_name = "Arbitrum One"
+network = "arbitrum"
+subnet = "mainnet"
+vm_type = "evm"
+rpc_url = "${ARBITRUM_RPC_URL:-https://arbitrum-mainnet.infura.io/v3/YOUR_PROJECT_ID}"
+ws_url = "${ARBITRUM_WS_URL:-wss://arbitrum-mainnet.infura.io/ws/v3/YOUR_PROJECT_ID}"
+chain_type = "arbitrum"
+network_id = 42161
+enabled = false
+# NATS subject: newheads.arbitrum.mainnet.evm
+
+[optimism-mainnet]
+chain_id = "optimism-mainnet"
+chain_name = "Optimism Mainnet"
+network = "optimism"
+subnet = "mainnet"
+vm_type = "evm"
+rpc_url = "${OPTIMISM_RPC_URL:-https://optimism-mainnet.infura.io/v3/YOUR_PROJECT_ID}"
+ws_url = "${OPTIMISM_WS_URL:-wss://optimism-mainnet.infura.io/ws/v3/YOUR_PROJECT_ID}"
+chain_type = "optimism"
+network_id = 10
+enabled = false
+# NATS subject: newheads.optimism.mainnet.evm
+
+
+# ===== ADDITIONAL EVM CHAINS =====
+
+[bsc-mainnet]
+chain_id = "bsc-mainnet"
+chain_name = "Binance Smart Chain"
+network = "bsc"
+subnet = "mainnet"
+vm_type = "evm"
+rpc_url = "${BSC_RPC_URL:-https://bsc-dataseed.binance.org}"
+ws_url = "${BSC_WS_URL:-wss://bsc-ws-node.nariox.org:443/ws}"
+chain_type = "bsc"
+network_id = 56
+enabled = false
+# NATS subject: newheads.bsc.mainnet.evm
+
+[avalanche-mainnet]
+chain_id = "avalanche-mainnet"
+chain_name = "Avalanche C-Chain"
+network = "avalanche"
+subnet = "mainnet"
+vm_type = "evm"
+rpc_url = "${AVALANCHE_RPC_URL:-https://api.avax.network/ext/bc/C/rpc}"
+ws_url = "${AVALANCHE_WS_URL:-wss://api.avax.network/ext/bc/C/ws}"
+chain_type = "avalanche"
+network_id = 43114
+enabled = false
+# NATS subject: newheads.avalanche.mainnet.evm
+
+# ===== CONFIGURATION NOTES =====
+#
+# Environment Variables:
+# - Set RPC and WebSocket URLs via environment variables
+# - Enable chains by setting enabled = true
+# - Configure API keys in the URLs
+#
+# NATS Subject Pattern:
+# - newheads.{network}.{subnet}.evm
+# - Examples:
+#   * newheads.ethereum.mainnet.evm
+#   * newheads.polygon.mainnet.evm
+#   * newheads.arbitrum.mainnet.evm
+#
+# Wildcard Subscriptions:
+# - newheads.> (all chains)
+# - newheads.ethereum.> (all Ethereum chains)
+# - newheads.*.mainnet.> (all mainnets)
+# - newheads.*.*.evm (all EVM chains)
+#
+# Adding New Chains:
+# 1. Add configuration section above
+# 2. Set appropriate network, subnet, evm_type
+# 3. Configure RPC/WS endpoints
+# 4. Enable the chain
+# 5. Restart the provider or use config API

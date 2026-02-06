@@ -1,0 +1,16 @@
+// World definition for eth_raw_transactions actor
+package ekko:actors@0.1.0;
+
+/// World for the EVM raw transactions processor actor
+world eth-raw-transactions {
+    /// Import standard wasmCloud and WASI capabilities
+    import wasmcloud:messaging/consumer@0.2.0;  // For publishing messages
+    import wasi:keyvalue/store@0.2.0-draft;
+    import wasi:http/outgoing-handler@0.2.0;  // Native wasmCloud support
+    import wasi:io/poll@0.2.0;  // For polling HTTP response futures
+    import wasi:clocks/wall-clock@0.2.0;      // For timestamp generation
+
+    /// Export the message handler interface
+    /// The actor will handle incoming newheads messages
+    export wasmcloud:messaging/handler@0.2.0;  // For receiving messages
+}

@@ -1,0 +1,23 @@
+apiVersion: v2
+name: ekko-dashboard
+description: Ekko Platform Dashboard - React Frontend Application
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+
+keywords:
+  - react
+  - dashboard
+  - frontend
+  - ui
+  - monitoring
+
+maintainers:
+  - name: Ekko Platform Team
+    email: team@ekko.zone
+
+home: https://ekko.zone
+sources:
+  - https://github.com/ekko-platform/ekko-cluster
+
+dependencies: []

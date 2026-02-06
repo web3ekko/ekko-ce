@@ -1,0 +1,18 @@
+# Newheads provider specific
+newheads.log
+blockchain-data/
+*.blockchain.cache
+
+# Provider runtime
+provider-state.json
+active-configs.json
+
+# Test blockchain data
+test-blocks/
+test-transactions/
+mock-blockchain-data/
+
+# Local configuration overrides
+newheads.config.local
+ethereum.config.local
+*.network.config

@@ -1,0 +1,204 @@
+# Production values for ekko-wasmcloud
+
+wasmcloud-platform:
+  hostConfig:
+    hostReplicas: 3  # Multiple hosts for production
+    hostLabels:
+      environment: production
+      region: ${REGION}
+      capabilities: "blockchain,websocket,ducklake"
+
+  wadm:
+    config:
+      nats:
+        url: ${NATS_URL}
+
+# Providers - production replicas
+providers:
+  newheads:
+    replicas: 3
+    config:
+      networks:
+        - name: ethereum-mainnet
+          chain: ethereum
+          network: mainnet
+          vm_type: evm
+        - name: polygon-mainnet
+          chain: polygon
+          network: mainnet
+          vm_type: evm
+        - name: bsc-mainnet
+          chain: bsc
+          network: mainnet
+          vm_type: evm
+        - name: avalanche-mainnet
+          chain: avalanche
+          network: mainnet
+          vm_type: evm
+        - name: arbitrum-mainnet
+          chain: arbitrum
+          network: mainnet
+          vm_type: evm
+
+  websocket:
+    replicas: 3
+    config:
+      port: 8080
+      path: /ws
+
+  alertScheduler:
+    replicas: 2
+    config:
+      redis_url: ${REDIS_URL}
+      redis_password: "${REDIS_PASSWORD}"
+      check_interval: 10  # More frequent checks in production
+
+  ducklake:
+    enabled: true
+    replicas: 2
+    config:
+      s3_endpoint: "${S3_ENDPOINT}"
+      s3_bucket: "${S3_BUCKET}"
+      s3_access_key_id: "${S3_ACCESS_KEY_ID}"
+      s3_secret_access_key: "${S3_SECRET_ACCESS_KEY}"
+      base_path: /production/data
+
+# Actors - production replicas
+actors:
+  alertProcessor:
+    replicas: 3
+    capabilities:
+      - messaging
+      - keyvalue
+
+  ethProcessor:
+    replicas: 3
+    capabilities:
+      - messaging
+      - ducklake
+
+  notificationRouter:
+    replicas: 2
+    capabilities:
+      - messaging
+      - websocket
+
+# Resource limits - production sizing
+resources:
+  host:
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+    requests:
+      cpu: 1000m
+      memory: 1Gi
+  providers:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+  actors:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+# Service configuration
+service:
+  type: ClusterIP
+  ports:
+    wash: 4223
+    websocket: 8080
+    metrics: 9090
+
+# Ingress for production
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/websocket-services: "ekko-wasmcloud-websocket"
+  hosts:
+    - host: ${WASMCLOUD_HOST}
+      paths:
+        - path: /
+          pathType: Prefix
+    - host: ${WASMCLOUD_WS_HOST}
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: wasmcloud-tls
+      hosts:
+        - ${WASMCLOUD_HOST}
+        - ${WASMCLOUD_WS_HOST}
+
+# Production logging
+logging:
+  level: info
+  format: json
+
+# NATS connection
+nats:
+  url: ${NATS_URL}
+
+# Redis connection
+redis:
+  url: ${REDIS_URL}
+  password: "${REDIS_PASSWORD}"
+
+# Monitoring enabled for production
+monitoring:
+  enabled: true
+  prometheus:
+    enabled: true
+    port: 9090
+    serviceMonitor:
+      enabled: true
+      interval: 30s
+  grafana:
+    enabled: false  # Use external Grafana
+
+# Pod disruption budgets
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+  maxUnavailable: 1
+
+# Autoscaling
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Security context
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+  capabilities:
+    drop:
+      - ALL
+    add:
+      - NET_BIND_SERVICE
+
+# Node affinity for production
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - wasmcloud-host
+          topologyKey: kubernetes.io/hostname

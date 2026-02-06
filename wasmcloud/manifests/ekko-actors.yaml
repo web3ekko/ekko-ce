@@ -1,0 +1,939 @@
+apiVersion: core.oam.dev/v1beta1
+kind: Application
+metadata:
+  name: ekko-platform
+  annotations:
+    version: v1.0.0
+    description: "Ekko blockchain monitoring platform - development environment"
+spec:
+  components:
+    # NATS Messaging Provider
+    # Handler links are defined on the provider, targeting actors (provider → actor)
+    # Consumer links are defined on actors, targeting the provider (actor → provider)
+    # IMPORTANT: CLUSTER_URIS must be set to connect to the correct NATS server
+    - name: nats-messaging
+      type: capability
+      properties:
+        image: ghcr.io/wasmcloud/messaging-nats:0.27.0
+        config:
+          - name: nats-messaging-config
+            properties:
+              CLUSTER_URIS: "nats://nats-headless.ekko-dev.svc.cluster.local:4222"
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+        # Handler link to health-check actor
+        - type: link
+          properties:
+            name: health-check-handler
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [handler]
+            target:
+              name: health-check
+            source:
+              config:
+                - name: health-check-handler
+                  properties:
+                    subscriptions: "system.health"
+        # Handler link to eth-raw-transactions actor
+        - type: link
+          properties:
+            name: eth-raw-handler
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [handler]
+            target:
+              name: eth-raw-transactions
+            source:
+              config:
+                - name: eth-raw-handler
+                  properties:
+                    # blockchain.ethereum.>.transactions.raw catches all subnets (mainnet, sepolia, etc.)
+                    subscriptions: "newheads.ethereum.mainnet.evm,blockchain.ethereum.*.transactions.raw"
+        # Handler link to evm-logs-ingestion actor
+        - type: link
+          properties:
+            name: evm-logs-ingestion-handler
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [handler]
+            target:
+              name: evm-logs-ingestion
+            source:
+              config:
+                - name: evm-logs-ingestion-handler
+                  properties:
+                    subscriptions: "newheads.*.*.evm"
+        # Handler link to alerts-processor actor
+        - type: link
+          properties:
+            name: alerts-processor-handler
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [handler]
+            target:
+              name: alerts-processor
+            source:
+              config:
+                - name: alerts-processor-handler
+                  properties:
+                    subscriptions: "alerts.jobs.create.>"
+        # Handler link to btc-raw-transactions actor
+        - type: link
+          properties:
+            name: btc-raw-handler
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [handler]
+            target:
+              name: btc-raw-transactions
+            source:
+              config:
+                - name: btc-raw-handler
+                  properties:
+                    # blockchain.bitcoin.>.transactions.raw catches all subnets (mainnet, testnet)
+                    subscriptions: "newheads.*.*.btc,blockchain.bitcoin.*.transactions.raw"
+        # Handler link to sol-raw-transactions actor
+        - type: link
+          properties:
+            name: sol-raw-handler
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [handler]
+            target:
+              name: sol-raw-transactions
+            source:
+              config:
+                - name: sol-raw-handler
+                  properties:
+                    # blockchain.solana.>.transactions.raw catches all subnets (mainnet, devnet, testnet)
+                    subscriptions: "newheads.*.*.svm,blockchain.solana.*.transactions.raw"
+        # Handler link to eth-process-transactions actor
+        - type: link
+          properties:
+            name: eth-process-handler
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [handler]
+            target:
+              name: eth-process-transactions
+            source:
+              config:
+                - name: eth-process-handler
+                  properties:
+                    # transactions.raw.evm carries processed raw EVM transactions
+                    subscriptions: "transactions.raw.evm"
+        # Handler link to eth-transfers-processor actor
+        - type: link
+          properties:
+            name: eth-transfers-handler
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [handler]
+            target:
+              name: eth-transfers-processor
+            source:
+              config:
+                - name: eth-transfers-handler
+                  properties:
+                    # transfer-transactions.*.*.evm.raw carries transfer-only raw transactions
+                    subscriptions: "transfer-transactions.*.*.evm.raw"
+        # Handler link to eth-contract-creation-processor actor
+        - type: link
+          properties:
+            name: eth-contract-creation-handler
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [handler]
+            target:
+              name: eth-contract-creation-processor
+            source:
+              config:
+                - name: eth-contract-creation-handler
+                  properties:
+                    # contract-creations.ethereum.*.evm.raw catches all subnets (raw pipeline)
+                    # blockchain.ethereum.*.contracts.creation for legacy pipeline
+                    subscriptions: "contract-creations.ethereum.*.evm.raw,blockchain.ethereum.*.contracts.creation"
+        # Handler link to eth-contract-transaction-processor actor
+        - type: link
+          properties:
+            name: eth-contract-transaction-handler
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [handler]
+            target:
+              name: eth-contract-transaction-processor
+            source:
+              config:
+                - name: eth-contract-transaction-handler
+                  properties:
+                    # contract-transactions.ethereum.*.evm.raw catches all subnets (raw pipeline)
+                    # blockchain.ethereum.*.contracts.transactions for legacy pipeline
+                    # blockchain.ethereum.*.contracts.decoded for decoded contract txns
+                    subscriptions: "contract-transactions.ethereum.*.evm.raw,blockchain.ethereum.*.contracts.transactions,blockchain.ethereum.*.contracts.decoded"
+        # Handler link to transaction-processor actor
+        - type: link
+          properties:
+            name: transaction-processor-handler
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [handler]
+            target:
+              name: transaction-processor
+            source:
+              config:
+                - name: transaction-processor-handler
+                  properties:
+                    # blockchain.*.*.transactions.> catches all networks and all subnets
+                    subscriptions: "blockchain.*.*.transactions.>"
+        # Handler link to transaction-ducklake-writer actor
+        - type: link
+          properties:
+            name: transaction-ducklake-writer-handler
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [handler]
+            target:
+              name: transaction-ducklake-writer
+            source:
+              config:
+                - name: transaction-ducklake-writer-handler
+                  properties:
+                    subscriptions: "blockchain.*.*.transactions.processed,blockchain.*.*.contracts.decoded"
+        # Handler link to notification-router actor
+        - type: link
+          properties:
+            name: notification-router-handler
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [handler]
+            target:
+              name: notification-router
+            source:
+              config:
+                - name: notification-router-handler
+                  properties:
+                    subscriptions: "alerts.triggered.>,notifications.send.immediate.>"
+        # Handler link to abi-decoder actor
+        # Subscribes to: contract-transactions for pipeline integration, abi.decode.* for direct requests
+        - type: link
+          properties:
+            name: abi-decoder-handler
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [handler]
+            target:
+              name: abi-decoder
+            source:
+              config:
+                - name: abi-decoder-handler
+                  properties:
+                    # contract-transactions.*.*.*.raw catches all networks/subnets/vm types
+                    # abi.decode.* catches decode requests for all networks/subnets
+                    subscriptions: "contract-transactions.*.*.*.raw,abi.decode.*"
+
+    # Redis KeyValue Provider
+    - name: redis-keyvalue
+      type: capability
+      properties:
+        image: ghcr.io/wasmcloud/keyvalue-redis:0.25.0
+        config:
+          - name: redis-keyvalue-config
+            properties:
+              url: "redis://:redis123@redis-master.ekko-dev.svc.cluster.local:6379"
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+
+    # HTTP Client Provider
+    - name: http-client
+      type: capability
+      properties:
+        image: ghcr.io/wasmcloud/http-client:0.13.1
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+
+    # Custom Ekko Providers
+    # Note: Custom providers use PROVIDER_REGISTRY/PROVIDER_TAG for independent versioning
+    # IMPORTANT: newheads-evm provider v1.0.3+ is required (uses Unix signals instead of stdin)
+
+    # Newheads EVM Provider - Blockchain event streaming
+    - name: newheads-evm
+      type: capability
+      properties:
+        image: host.docker.internal:5001/newheads-evm:v1.0.0
+        config:
+          - name: newheads-evm-config
+            properties:
+              redis_url: "redis://:redis123@redis-master.ekko-dev.svc.cluster.local:6379"
+              nats_url: "nats://nats-headless.ekko-dev.svc.cluster.local:4222"
+              enabled: "false"
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+
+    # Alert Scheduler Provider - Alert job scheduling
+    - name: alert-scheduler
+      type: capability
+      properties:
+        image: host.docker.internal:5001/alert-scheduler:v1.0.0
+        config:
+          - name: alert-scheduler-config
+            properties:
+              redis_url: "redis://:redis123@redis-master.ekko-dev.svc.cluster.local:6379"
+              nats_url: "nats://nats-headless.ekko-dev.svc.cluster.local:4222"
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+
+    # HTTP RPC Provider - HTTP/RPC communication
+    - name: http-rpc
+      type: capability
+      properties:
+        image: host.docker.internal:5001/http-rpc:v1.0.0
+        config:
+          - name: http-rpc-config
+            properties:
+              redis_url: "redis://:redis123@redis-master.ekko-dev.svc.cluster.local:6379"
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+
+    # Email Notification Provider - Email alerts
+    - name: email-notification
+      type: capability
+      properties:
+        image: host.docker.internal:5001/email-notification:v1.0.0
+        config:
+          - name: email-notification-config
+            properties:
+              redis_url: "redis://:redis123@redis-master.ekko-dev.svc.cluster.local:6379"
+              nats_url: "nats://nats-headless.ekko-dev.svc.cluster.local:4222"
+              resend_api_key: ""
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+
+    # WebSocket Notification Provider - Real-time notifications
+    - name: websocket-notification
+      type: capability
+      properties:
+        image: host.docker.internal:5001/websocket-notification:v1.0.0
+        config:
+          - name: websocket-notification-config
+            properties:
+              redis_url: "redis://:redis123@redis-master.ekko-dev.svc.cluster.local:6379"
+              nats_url: "nats://nats-headless.ekko-dev.svc.cluster.local:4222"
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+
+    # Slack Notification Provider - Slack channel notifications
+    - name: slack-notification
+      type: capability
+      properties:
+        image: host.docker.internal:5001/slack-notification:v1.0.0
+        config:
+          - name: slack-notification-config
+            properties:
+              redis_url: "redis://:redis123@redis-master.ekko-dev.svc.cluster.local:6379"
+              nats_url: "nats://nats-headless.ekko-dev.svc.cluster.local:4222"
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+
+    # Telegram Notification Provider - Telegram chat notifications
+    - name: telegram-notification
+      type: capability
+      properties:
+        image: host.docker.internal:5001/telegram-notification:v1.0.0
+        config:
+          - name: telegram-notification-config
+            properties:
+              redis_url: "redis://:redis123@redis-master.ekko-dev.svc.cluster.local:6379"
+              nats_url: "nats://nats-headless.ekko-dev.svc.cluster.local:4222"
+              webhook_port: "8081"
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+
+    # Webhook Notification Provider - HTTP webhook notifications
+    - name: webhook-notification
+      type: capability
+      properties:
+        image: host.docker.internal:5001/webhook-notification:v1.0.0
+        config:
+          - name: webhook-notification-config
+            properties:
+              redis_url: "redis://:redis123@redis-master.ekko-dev.svc.cluster.local:6379"
+              nats_url: "nats://nats-headless.ekko-dev.svc.cluster.local:4222"
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+
+    # Polars Eval Provider - Data analytics
+    - name: polars-eval
+      type: capability
+      properties:
+        image: host.docker.internal:5001/polars-eval:v1.0.0
+        config:
+          - name: polars-eval-config
+            properties:
+              redis_url: "redis://:redis123@redis-master.ekko-dev.svc.cluster.local:6379"
+              nats_url: "nats://nats-headless.ekko-dev.svc.cluster.local:4222"
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+
+    # DuckLake Write Provider - Subscribes to ducklake.*.*.*.write and persists to storage
+    - name: ducklake-write
+      type: capability
+      properties:
+        image: host.docker.internal:5001/ducklake-write:v1.0.0
+        config:
+          - name: ducklake-write-config
+            properties:
+              nats_url: "nats://nats-headless.ekko-dev.svc.cluster.local:4222"
+              redis_url: "redis://:redis123@redis-master.ekko-dev.svc.cluster.local:6379"
+              # S3/MinIO configuration
+              ducklake_s3_endpoint: "http://host.docker.internal:9000"
+              ducklake_s3_bucket: "ekko-ducklake"
+              ducklake_s3_access_key_id: "minioadmin"
+              ducklake_s3_secret_access_key: "minioadmin123"
+              ducklake_s3_region: "us-east-1"
+              # PostgreSQL metadata catalog configuration
+              ducklake_postgres_host: "postgresql.ekko-dev.svc.cluster.local"
+              ducklake_postgres_port: "5432"
+              ducklake_postgres_user: "ekko"
+              ducklake_postgres_password: "ekko123"
+              ducklake_postgres_database: "ducklake_catalog"
+              # DuckLake subscription subject
+              ducklake_write_subject: "ducklake.>"
+              # Warehouse path within the S3 bucket
+              ducklake_warehouse_path: "ekko/ducklake"
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+
+    # DuckLake Read Provider - Executes SQL queries against DuckLake via NATS request/reply
+    # Subscribes: ducklake.*.*.*.query (and ducklake.schema.*)
+    - name: ducklake-read
+      type: capability
+      properties:
+        image: host.docker.internal:5001/ducklake-read:v1.0.0
+        config:
+          - name: ducklake-read-config
+            properties:
+              nats_url: "nats://nats-headless.ekko-dev.svc.cluster.local:4222"
+              redis_url: "redis://:redis123@redis-master.ekko-dev.svc.cluster.local:6379"
+              # S3/MinIO configuration
+              ducklake_s3_endpoint: "http://host.docker.internal:9000"
+              ducklake_s3_bucket: "ekko-ducklake"
+              ducklake_s3_access_key_id: "minioadmin"
+              ducklake_s3_secret_access_key: "minioadmin123"
+              ducklake_s3_region: "us-east-1"
+              # PostgreSQL metadata catalog configuration
+              ducklake_postgres_host: "postgresql.ekko-dev.svc.cluster.local"
+              ducklake_postgres_port: "5432"
+              ducklake_postgres_user: "ekko"
+              ducklake_postgres_password: "ekko123"
+              ducklake_postgres_database: "ducklake_catalog"
+              # DuckLake query subscription subject
+              ducklake_query_subject: "ducklake.*.*.*.query"
+              ducklake_schema_list_subject: "ducklake.schema.list"
+              ducklake_schema_get_subject: "ducklake.schema.get"
+              # Warehouse path within the S3 bucket
+              ducklake_warehouse_path: "ekko/ducklake"
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+
+    # Health Check Actor
+    - name: health-check
+      type: actor
+      properties:
+        image: host.docker.internal:5001/health-check:v1.0.0
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+        - type: link
+          properties:
+            target:
+              name: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer]
+
+    # ETH Raw Transactions Actor
+    - name: eth-raw-transactions
+      type: actor
+      properties:
+        image: host.docker.internal:5001/eth-raw-transactions:v1.0.0
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+        # Link: Send messages (consumer) - handler links are on the nats-messaging provider
+        - type: link
+          properties:
+            target:
+              name: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer]
+        # Link for Redis keyvalue store
+        - type: link
+          properties:
+            namespace: wasi
+            package: keyvalue
+            interfaces: [store]
+            source:
+              name: eth-raw-transactions
+            target:
+              name: redis-keyvalue
+              config:
+                - name: eth-raw-transactions-redis
+                  properties:
+                    url: "redis://:redis123@redis-master.ekko-dev.svc.cluster.local:6379"
+        # Link for HTTP client
+        - type: link
+          properties:
+            namespace: wasi
+            package: http
+            interfaces: [outgoing-handler]
+            source:
+              name: eth-raw-transactions
+            target:
+              name: http-client
+
+    # EVM Logs Ingestion Actor
+    - name: evm-logs-ingestion
+      type: actor
+      properties:
+        image: host.docker.internal:5001/evm-logs-ingestion:v1.0.0
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+        # Link: Send messages (consumer) - handler links are on the nats-messaging provider
+        - type: link
+          properties:
+            target:
+              name: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer]
+        # Link for Redis keyvalue store
+        - type: link
+          properties:
+            namespace: wasi
+            package: keyvalue
+            interfaces: [store]
+            source:
+              name: evm-logs-ingestion
+            target:
+              name: redis-keyvalue
+              config:
+                - name: evm-logs-ingestion-redis
+                  properties:
+                    url: "redis://:redis123@redis-master.ekko-dev.svc.cluster.local:6379"
+        # Link for HTTP client
+        - type: link
+          properties:
+            namespace: wasi
+            package: http
+            interfaces: [outgoing-handler]
+            source:
+              name: evm-logs-ingestion
+            target:
+              name: http-client
+
+    # Alert Processor Actor
+    # Processes alert jobs via NATS, queries DuckLake via NATS, evaluates with Polars via NATS
+    # NOTE: HTTP removed for wasmCloud 1.0 compatibility - all external calls use NATS providers
+    - name: alerts-processor
+      type: actor
+      properties:
+        image: host.docker.internal:5001/alerts-processor:v1.0.0
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+        # Link for sending messages (consumer) - handler links are on the nats-messaging provider
+        # Also used for request-reply to DuckLake (ducklake.*.query) and Polars (alerts.eval.request.*)
+        - type: link
+          properties:
+            target:
+              name: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer]
+        # Link for Redis keyvalue store
+        - type: link
+          properties:
+            namespace: wasi
+            package: keyvalue
+            interfaces: [store]
+            source:
+              name: alerts-processor
+            target:
+              name: redis-keyvalue
+              config:
+                - name: alerts-processor-redis
+                  properties:
+                    url: "redis://:redis123@redis-master.ekko-dev.svc.cluster.local:6379"
+
+    # BTC Raw Transactions Actor
+    - name: btc-raw-transactions
+      type: actor
+      properties:
+        image: host.docker.internal:5001/btc-raw-transactions:v1.0.0
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+        # Link: Send messages (consumer) - handler links are on the nats-messaging provider
+        - type: link
+          properties:
+            target:
+              name: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer]
+        # Link for Redis keyvalue store
+        - type: link
+          properties:
+            namespace: wasi
+            package: keyvalue
+            interfaces: [store]
+            source:
+              name: btc-raw-transactions
+            target:
+              name: redis-keyvalue
+              config:
+                - name: btc-raw-transactions-redis
+                  properties:
+                    url: "redis://:redis123@redis-master.ekko-dev.svc.cluster.local:6379"
+        # Link for HTTP client
+        - type: link
+          properties:
+            namespace: wasi
+            package: http
+            interfaces: [outgoing-handler]
+            source:
+              name: btc-raw-transactions
+            target:
+              name: http-client
+
+    # SOL Raw Transactions Actor
+    - name: sol-raw-transactions
+      type: actor
+      properties:
+        image: host.docker.internal:5001/sol-raw-transactions:v1.0.0
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+        # Link: Send messages (consumer) - handler links are on the nats-messaging provider
+        - type: link
+          properties:
+            target:
+              name: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer]
+        # Link for Redis keyvalue store
+        - type: link
+          properties:
+            namespace: wasi
+            package: keyvalue
+            interfaces: [store]
+            source:
+              name: sol-raw-transactions
+            target:
+              name: redis-keyvalue
+              config:
+                - name: sol-raw-transactions-redis
+                  properties:
+                    url: "redis://:redis123@redis-master.ekko-dev.svc.cluster.local:6379"
+        # Link for HTTP client
+        - type: link
+          properties:
+            namespace: wasi
+            package: http
+            interfaces: [outgoing-handler]
+            source:
+              name: sol-raw-transactions
+            target:
+              name: http-client
+
+    # ETH Process Transactions Actor
+    - name: eth-process-transactions
+      type: actor
+      properties:
+        image: host.docker.internal:5001/eth-process-transactions:v1.0.0
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+        # Link: Send messages (consumer) - handler links are on the nats-messaging provider
+        - type: link
+          properties:
+            target:
+              name: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer]
+        - type: link
+          properties:
+            namespace: wasi
+            package: keyvalue
+            interfaces: [store]
+            source:
+              name: eth-process-transactions
+            target:
+              name: redis-keyvalue
+              config:
+                - name: eth-process-transactions-redis
+                  properties:
+                    url: "redis://:redis123@redis-master.ekko-dev.svc.cluster.local:6379"
+
+    # ETH Transfers Processor Actor
+    - name: eth-transfers-processor
+      type: actor
+      properties:
+        image: host.docker.internal:5001/eth-transfers-processor:v1.0.0
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 2
+        # Link: Send messages (consumer) - handler links are on the nats-messaging provider
+        - type: link
+          properties:
+            target:
+              name: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer]
+        # Link for Redis keyvalue store
+        - type: link
+          properties:
+            namespace: wasi
+            package: keyvalue
+            interfaces: [store]
+            source:
+              name: eth-transfers-processor
+            target:
+              name: redis-keyvalue
+              config:
+                - name: eth-transfers-processor-redis
+                  properties:
+                    url: "redis://:redis123@redis-master.ekko-dev.svc.cluster.local:6379"
+
+    # ETH Contract Creation Processor Actor
+    - name: eth-contract-creation-processor
+      type: actor
+      properties:
+        image: host.docker.internal:5001/eth-contract-creation-processor:v1.0.0
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+        # Link: Send messages (consumer) - handler links are on the nats-messaging provider
+        - type: link
+          properties:
+            target:
+              name: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer]
+        # Link for Redis keyvalue store
+        - type: link
+          properties:
+            namespace: wasi
+            package: keyvalue
+            interfaces: [store]
+            source:
+              name: eth-contract-creation-processor
+            target:
+              name: redis-keyvalue
+              config:
+                - name: eth-contract-creation-processor-redis
+                  properties:
+                    url: "redis://:redis123@redis-master.ekko-dev.svc.cluster.local:6379"
+
+    # ETH Contract Transaction Processor Actor
+    - name: eth-contract-transaction-processor
+      type: actor
+      properties:
+        image: host.docker.internal:5001/eth-contract-transaction-processor:v1.0.0
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 2
+        # Link: Send messages (consumer) - handler links are on the nats-messaging provider
+        - type: link
+          properties:
+            target:
+              name: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer]
+        # Link for Redis keyvalue store
+        - type: link
+          properties:
+            namespace: wasi
+            package: keyvalue
+            interfaces: [store]
+            source:
+              name: eth-contract-transaction-processor
+            target:
+              name: redis-keyvalue
+              config:
+                - name: eth-contract-transaction-processor-redis
+                  properties:
+                    url: "redis://:redis123@redis-master.ekko-dev.svc.cluster.local:6379"
+
+    # Transaction Processor Actor
+    - name: transaction-processor
+      type: actor
+      properties:
+        image: host.docker.internal:5001/transaction-processor:v1.0.0
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+        # Link: Send messages (consumer) - handler links are on the nats-messaging provider
+        - type: link
+          properties:
+            target:
+              name: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer]
+        - type: link
+          properties:
+            namespace: wasi
+            package: keyvalue
+            interfaces: [store]
+            source:
+              name: transaction-processor
+            target:
+              name: redis-keyvalue
+              config:
+                - name: transaction-processor-redis
+                  properties:
+                    url: "redis://:redis123@redis-master.ekko-dev.svc.cluster.local:6379"
+
+    # Notification Router Actor
+    - name: notification-router
+      type: actor
+      properties:
+        image: host.docker.internal:5001/notification-router:v1.0.0
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1
+        # Link: Send messages (consumer) - handler links are on the nats-messaging provider
+        - type: link
+          properties:
+            target:
+              name: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer]
+        # Link for Redis keyvalue store
+        - type: link
+          properties:
+            namespace: wasi
+            package: keyvalue
+            interfaces: [atomics, store]
+            source:
+              name: notification-router
+            target:
+              name: redis-keyvalue
+              config:
+                - name: notification-router-redis
+                  properties:
+                    url: "redis://:redis123@redis-master.ekko-dev.svc.cluster.local:6379"
+
+    # ABI Decoder Actor
+    # Decodes EVM transaction input data using Alloy library
+    # Receives contract-transactions from pipeline, fetches ABIs from Etherscan/Sourcify
+    - name: abi-decoder
+      type: actor
+      properties:
+        image: host.docker.internal:5001/abi-decoder:v1.0.0
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 2
+        # Link: Send messages (consumer) - handler links are on the nats-messaging provider
+        - type: link
+          properties:
+            target:
+              name: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer]
+        # Link for Redis keyvalue store (ABI cache)
+        - type: link
+          properties:
+            namespace: wasi
+            package: keyvalue
+            interfaces: [store]
+            source:
+              name: abi-decoder
+            target:
+              name: redis-keyvalue
+              config:
+                - name: abi-decoder-redis
+                  properties:
+                    url: "redis://:redis123@redis-master.ekko-dev.svc.cluster.local:6379"
+        # Link for HTTP client (Etherscan/Sourcify API calls)
+        - type: link
+          properties:
+            namespace: wasi
+            package: http
+            interfaces: [outgoing-handler]
+            source:
+              name: abi-decoder
+            target:
+              name: http-client
+
+    # Transaction DuckLake Writer Actor
+    # Persists decoded and processed transactions to DuckLake data lake
+    # Receives blockchain.*.*.contracts.decoded from abi-decoder, blockchain.*.*.transactions.processed from processing actors
+    - name: transaction-ducklake-writer
+      type: actor
+      properties:
+        image: host.docker.internal:5001/transaction-ducklake-writer:v1.0.0
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 2
+        # Link: Send messages (consumer) - handler links are on the nats-messaging provider
+        - type: link
+          properties:
+            target:
+              name: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [consumer]

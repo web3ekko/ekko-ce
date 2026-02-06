@@ -1,0 +1,39 @@
+# Build outputs
+target/
+target-k8s/
+**/target/
+**/target-k8s/
+actors/**/build/
+providers/**/build/
+**/*.par.gz
+
+# Local state / caches
+.wash-home/
+.wasmcloud/
+.spin/
+.cargo-home/
+.rustup-home/
+.fingerprint
+
+# Env / logs
+.env
+.env.*
+*.log
+
+# Temp
+tmp/
+temp/
+**/*.tmp
+**/*.temp
+
+# VCS / editor / OS
+.git
+.gitignore
+.idea
+.vscode
+.DS_Store
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore

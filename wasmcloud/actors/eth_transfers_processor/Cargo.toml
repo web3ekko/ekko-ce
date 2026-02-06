@@ -1,0 +1,36 @@
+[package]
+name = "eth_transfers_processor"
+version = "0.1.0"
+edition = "2021"
+authors = ["abrahamalaka <abraham@ekko.zone>"]
+description = "wasmCloud actor for processing Ethereum transfer transactions with balance tracking"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# wasmCloud 1.0 actor with WIT interfaces
+wit-bindgen = { workspace = true }
+
+# Async runtime (WASM-compatible)
+async-trait = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Runtime message contracts
+alert-runtime-common = { workspace = true }
+
+# Error handling
+anyhow = { workspace = true }
+
+# Time handling
+chrono = { workspace = true }
+time = { workspace = true }
+
+[dev-dependencies]
+# Test coverage and utilities
+criterion = "0.5"
+proptest = "1.0"
+testcontainers = { workspace = true }

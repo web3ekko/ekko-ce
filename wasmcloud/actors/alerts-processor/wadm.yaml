@@ -1,0 +1,171 @@
+---
+apiVersion: core.oam.dev/v1beta1
+kind: Application
+metadata:
+  name: alerts-processor
+  annotations:
+    description: 'Blockchain alert processing actor with capability providers'
+    version: v1.0.0
+spec:
+  components:
+    # Alerts-Processor Actor
+    - name: alerts-processor
+      type: actor
+      properties:
+        image: host.docker.internal:5001/alerts-processor:v1.0.0
+      traits:
+        # NATS messaging for job consumption and result publishing
+        - type: spreadscaler
+          properties:
+            instances: 3
+            spread:
+              - name: ha-spread
+                requirements:
+                  zone: ekko-cluster
+
+        # Link to NATS messaging provider
+        - type: link
+          properties:
+            target: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [handler]
+            source_config:
+              - name: alert-jobs-subscription
+                properties:
+                  subscriptions: alerts.jobs.create.>
+
+        # Link to Redis KV provider for state management
+        - type: link
+          properties:
+            target: redis-kv
+            namespace: wasmcloud
+            package: keyvalue
+            interfaces: [store]
+            target_config:
+              - name: redis-config
+                properties:
+                  url: redis://redis.ekko.svc.cluster.local:6379
+
+        # Link to DuckLake Read provider for SQL queries
+        - type: link
+          properties:
+            target: ducklake-read-provider
+            namespace: ekko
+            package: ducklake
+            interfaces: [query]
+            target_config:
+              - name: ducklake-read-config
+                properties:
+                  # DuckLake configuration is provided via environment variables
+                  # DUCKLAKE_POSTGRES_* for metadata catalog
+                  # DUCKLAKE_S3_* for data storage
+
+        # Link to Ethereum RPC provider
+        - type: link
+          properties:
+            target: ethereum-rpc-provider
+            namespace: ekko
+            package: rpc
+            interfaces: [ethereum]
+            target_config:
+              - name: eth-rpc-config
+                properties:
+                  rpc_urls: "https://eth-mainnet.g.alchemy.com/v2/demo"
+
+        # Link to Bitcoin RPC provider
+        - type: link
+          properties:
+            target: bitcoin-rpc-provider
+            namespace: ekko
+            package: rpc
+            interfaces: [bitcoin]
+            target_config:
+              - name: btc-rpc-config
+                properties:
+                  rpc_urls: "https://btc.getblock.io/mainnet"
+
+        # Link to Solana RPC provider
+        - type: link
+          properties:
+            target: solana-rpc-provider
+            namespace: ekko
+            package: rpc
+            interfaces: [solana]
+            target_config:
+              - name: sol-rpc-config
+                properties:
+                  rpc_urls: "https://api.mainnet-beta.solana.com"
+
+        # Link to Polars evaluator provider
+        - type: link
+          properties:
+            target: polars-evaluator-provider
+            namespace: ekko
+            package: polars
+            interfaces: [evaluator]
+            target_config:
+              - name: polars-config
+                properties:
+                  max_execution_time_seconds: 30
+                  memory_limit_mb: 512
+
+        # Link to HTTP client provider
+        - type: link
+          properties:
+            target: http-client
+            namespace: wasmcloud
+            package: http
+            interfaces: [client]
+
+    # NATS Messaging Provider
+    - name: nats-messaging
+      type: capability
+      properties:
+        image: ghcr.io/wasmcloud/messaging-nats:0.21.0
+        config:
+          - name: nats-connection
+            properties:
+              cluster_uris: nats://nats.ekko.svc.cluster.local:4222
+
+    # Redis KV Provider
+    - name: redis-kv
+      type: capability
+      properties:
+        image: ghcr.io/wasmcloud/keyvalue-redis:0.25.0
+
+    # HTTP Client Provider
+    - name: http-client
+      type: capability
+      properties:
+        image: ghcr.io/wasmcloud/http-client:0.11.0
+
+    # DuckLake Read Provider - SQL query execution against DuckLake
+    - name: ducklake-read-provider
+      type: capability
+      properties:
+        image: host.docker.internal:5001/ducklake-read-provider:v1.0.0
+
+    # Custom Polars Evaluator Provider
+    - name: polars-evaluator-provider
+      type: capability
+      properties:
+        image: host.docker.internal:5001/polars-provider:v1.0.0
+
+    # Custom Ethereum RPC Provider
+    - name: ethereum-rpc-provider
+      type: capability
+      properties:
+        image: host.docker.internal:5001/ethereum-rpc-provider:v1.0.0
+
+    # Custom Bitcoin RPC Provider
+    - name: bitcoin-rpc-provider
+      type: capability
+      properties:
+        image: host.docker.internal:5001/bitcoin-rpc-provider:v1.0.0
+
+    # Custom Solana RPC Provider
+    - name: solana-rpc-provider
+      type: capability
+      properties:
+        image: host.docker.internal:5001/solana-rpc-provider:v1.0.0

@@ -1,0 +1,99 @@
+[package]
+name = "alert-scheduler-provider"
+version = "2.0.0"
+edition = "2021"
+authors = ["Ekko Platform Team"]
+description = "High-performance Alert Scheduler Provider for wasmCloud with Redis-based state management"
+license = "MIT"
+
+[lib]
+name = "alert_scheduler_provider"
+path = "src/lib.rs"
+
+# wasmCloud provider binary for WADM deployment
+[[bin]]
+name = "alert-scheduler-provider"
+path = "src/bin/alert-scheduler-provider.rs"
+
+[dependencies]
+# Core dependencies
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+tokio = { version = "1.0", features = ["full"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+bytes = { workspace = true }
+futures = { workspace = true }
+
+# Redis dependencies
+redis = { version = "0.24", features = ["tokio-comp", "connection-manager", "cluster", "script"] }
+deadpool-redis = "0.14"  # Connection pooling
+
+# NATS dependencies  
+async-nats = { version = "0.33", features = ["service"] }
+
+# wasmCloud dependencies (commented out for now due to conflicts)
+wasmcloud-provider-sdk = "0.16"
+# wasmbus-rpc = "0.14"
+
+# Logging and observability
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+opentelemetry = "0.21"
+opentelemetry-otlp = "0.14"
+
+# Time handling
+chrono = { workspace = true }
+cron = "0.12"
+
+# Hashing
+sha2 = "0.10"
+
+# Unique IDs
+uuid = { version = "1.0", features = ["v4", "v5", "serde"] }
+
+# Error handling
+thiserror = "1.0"
+
+# Configuration
+config = "0.13"
+envy = "0.4"
+
+# Metrics
+prometheus = "0.13"
+
+# HTTP client for Django API
+reqwest = { version = "0.11", features = ["json"] }
+
+# Local workspace dependencies
+wasmcloud-common = { path = "../../../libs/wasmcloud-common" }
+blockchain-common = { path = "../../../libs/blockchain-common" }
+types = { path = "../../../libs/types" }
+alert-runtime-common = { path = "../../shared/alert-runtime-common" }
+
+[dev-dependencies]
+# Testing
+testcontainers = { workspace = true }
+testcontainers-modules = { workspace = true }
+criterion = { version = "0.5", features = ["async_tokio", "html_reports"] }
+proptest = "1.4"
+fake = "2.9"
+sha1 = "0.10"
+futures = "0.3"
+
+# Integration test helpers
+reqwest = { version = "0.11", features = ["json"] }
+wiremock = "0.5"
+
+# [[bench]]
+# name = "lua_operations"
+# harness = false
+
+[features]
+default = ["redis-cluster"]
+redis-cluster = []
+chaos-testing = []
+# performance-profiling = []  # Enable when pprof-rs is added
+
+# Performance profiling dependencies
+# pprof-rs = { version = "0.13" }  # Enable when needed for profiling

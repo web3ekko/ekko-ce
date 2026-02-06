@@ -1,0 +1,88 @@
+{{- $namespace := .Release.Namespace -}}
+============================================
+🚀 WasmCloud Platform Deployed Successfully!
+============================================
+
+Release Name: {{ .Release.Name }}
+Namespace: {{ $namespace }}
+Chart Version: {{ .Chart.Version }}
+
+📋 Components Deployed:
+------------------------
+{{- if index .Values "wasmcloud-platform" "operator" "enabled" }}
+✅ WasmCloud Operator
+{{- end }}
+{{- if index .Values "wasmcloud-platform" "wadm" "enabled" }}
+✅ WADM (Application Deployment Manager)
+{{- end }}
+{{- if index .Values "wasmcloud-platform" "hostConfig" "enabled" }}
+✅ WasmCloud Host ({{ index .Values "wasmcloud-platform" "hostConfig" "hostReplicas" }} replicas)
+{{- end }}
+{{- if .Values.providers.newheads.enabled }}
+✅ Newheads Blockchain Provider
+{{- end }}
+{{- if .Values.providers.websocket.enabled }}
+✅ WebSocket Notification Provider
+{{- end }}
+{{- if .Values.providers.alertScheduler.enabled }}
+✅ Alert Scheduler Provider
+{{- end }}
+{{- if .Values.providers.ducklake.enabled }}
+✅ DuckLake Storage Provider
+{{- end }}
+
+🔌 Connections:
+---------------
+NATS: {{ .Values.nats.url }}
+Redis: {{ .Values.redis.url }}
+
+📡 To connect wash CLI to the WasmCloud platform:
+--------------------------------------------------
+{{- if ne $namespace "default" }}
+kubectl --namespace {{ $namespace }} port-forward service/nats 4222:4222 4223:4223
+{{- else }}
+kubectl port-forward service/nats 4222:4222 4223:4223
+{{- end }}
+
+Then in another terminal:
+wash ctx new ekko --lattice default
+
+🔍 To check WasmCloud host status:
+-----------------------------------
+wash get hosts
+
+📦 To deploy WADM applications:
+--------------------------------
+wash app list
+wash app deploy /path/to/wadm.yaml
+
+{{- if .Values.ingress.enabled }}
+
+🌐 Ingress URLs:
+----------------
+{{- range .Values.ingress.hosts }}
+- http{{ if $.Values.ingress.tls }}s{{ end }}://{{ .host }}
+{{- end }}
+{{- end }}
+
+{{- if .Values.service.type | eq "NodePort" }}
+
+🔗 NodePort Services:
+---------------------
+To access WebSocket service:
+kubectl get svc {{ include "wasmcloud.fullname" . }}-websocket -n {{ $namespace }}
+Then access the NodePort via your cluster IP (OrbStack: `orbstack ip`)
+{{- end }}
+
+📊 To check provider and actor health:
+---------------------------------------
+kubectl get pods -n {{ $namespace }} -l app.kubernetes.io/name={{ include "wasmcloud.name" . }}
+kubectl logs -n {{ $namespace }} -l app.kubernetes.io/name={{ include "wasmcloud.name" . }}
+
+⚠️  Important Notes:
+--------------------
+- WasmCloud is configured to use existing NATS and Redis instances
+- Providers and actors will be deployed via WADM after host is ready
+- Check logs if providers fail to connect to blockchain nodes
+
+For more information, visit: https://wasmcloud.com/docs

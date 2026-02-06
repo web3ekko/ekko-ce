@@ -1,0 +1,80 @@
+[package]
+name = "email-notification-provider"
+version = "1.0.0"
+edition = "2021"
+authors = ["Ekko Team"]
+description = "Email notification provider for wasmCloud using Resend"
+
+[lib]
+name = "email_notification_provider"
+path = "src/lib.rs"
+
+# wasmCloud provider binary for WADM deployment
+[[bin]]
+name = "email-notification-provider"
+path = "src/bin/email-notification-provider.rs"
+
+[dependencies]
+# Core dependencies
+notification-common = { path = "../../shared/notification-common" }
+
+# wasmCloud provider SDK (for WADM deployment)
+wasmcloud-provider-sdk = "0.16"
+
+# Async runtime
+tokio = { workspace = true, features = ["full"] }
+async-trait = { workspace = true }
+futures = { workspace = true }
+
+# NATS messaging
+async-nats = { workspace = true }
+
+# Redis
+redis = { workspace = true, features = ["tokio-comp"] }
+
+# HTTP client for Resend API
+reqwest = { workspace = true, default-features = false, features = ["json", "rustls-tls-native-roots"] }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Utilities
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+
+# Configuration
+config = "0.14"
+
+# Template engine for HTML/text emails
+handlebars = "5.0"
+tera = "1.19"
+
+# HTML/text utilities
+html2text = "0.12"
+ammonia = "3.3"  # HTML sanitization
+
+# Email validation
+email_address = "0.2"
+
+# Base64 for attachments
+base64 = "0.21"
+
+[dev-dependencies]
+# Testing
+mockall = "0.12"
+wiremock = "0.6"
+tokio-test = "0.4"
+testcontainers = { workspace = true }
+testcontainers-modules = { workspace = true }
+pretty_assertions = "1.4"
+rstest = "0.18"
+serial_test = "3.0"
+
+# Test utilities
+fake = { version = "2.9", features = ["derive"] }
+rand = "0.8"

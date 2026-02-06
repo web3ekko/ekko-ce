@@ -1,0 +1,20 @@
+// Messaging capability interface for NATS
+package ekko:messaging@0.1.0;
+
+/// Messaging capability for publishing and subscribing to NATS subjects
+interface handler {
+    /// Publish a message to a subject
+    publish: func(subject: string, payload: list<u8>) -> result<_, string>;
+
+    /// Subscribe to a subject (returns subscription ID)
+    subscribe: func(subject: string) -> result<string, string>;
+
+    /// Unsubscribe from a subscription
+    unsubscribe: func(subscription-id: string) -> result<_, string>;
+}
+
+/// Message received from a subscription
+interface consumer {
+    /// Handle an incoming message
+    handle-message: func(subject: string, payload: list<u8>) -> result<_, string>;
+}

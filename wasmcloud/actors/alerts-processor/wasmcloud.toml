@@ -1,0 +1,15 @@
+name = "alerts-processor"
+language = "rust"
+type = "component"
+version = "1.0.0"
+
+[component]
+claims = ["wasmcloud:messaging", "wasmcloud:keyvalue"]
+wit_world = "alerts-processor"
+wit_path = "./wit"
+keyvalue.store = "redis"
+messaging = "nats"
+
+[component.build]
+command = "cargo build --target wasm32-wasip1 --release"
+path = "target/wasm32-wasip1/release/alerts_processor.wasm"

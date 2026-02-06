@@ -1,0 +1,41 @@
+name = "eth_process_transactions"
+language = "rust"
+type = "component"
+
+[component]
+wit_world = "eth-process-transactions"
+wasm_target = "wasm32-wasip1"
+
+[component.build]
+command = "cargo"
+args = ["build", "--release", "--target", "wasm32-wasip1"]
+
+[component.claims]
+name = "Ethereum Process Transactions Actor"
+description = "Processes raw EVM transactions and routes them based on transaction type"
+version = "0.1.0"
+revision = 0
+tags = ["ethereum", "blockchain", "transaction-processing", "evm"]
+
+[component.capabilities]
+# Messaging capabilities for pub/sub
+messaging = ["wasmcloud:messaging"]
+
+# Logging capability
+logging = ["wasmcloud:logging"]
+
+[component.config]
+# Default configuration values
+default_network = "ethereum"
+default_subnet = "mainnet"
+default_vm_type = "evm"
+
+# Processing settings
+enable_internal_transaction_processing = true
+batch_size = 100
+max_processing_time_ms = 5000
+
+# Routing configuration
+transfer_subject_pattern = "transfer-transactions.{network}.{subnet}.{vm_type}.raw"
+contract_creation_subject_pattern = "contract-creations.{network}.{subnet}.{vm_type}.raw"
+contract_transaction_subject_pattern = "contract-transactions.{network}.{subnet}.{vm_type}.raw"

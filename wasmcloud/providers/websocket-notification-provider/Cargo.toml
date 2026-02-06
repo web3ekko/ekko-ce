@@ -1,0 +1,57 @@
+[package]
+name = "websocket-notification-provider"
+version = "1.0.0"
+edition = "2021"
+authors = ["Ekko Team"]
+description = "WebSocket provider for real-time blockchain alert notifications"
+
+[[bin]]
+name = "websocket-notification-provider"
+path = "src/bin/websocket-notification-provider.rs"
+
+# wasmCloud provider binary
+[[bin]]
+name = "websocket-provider-wasmcloud"
+path = "src/wasmcloud_provider.rs"
+
+[dependencies]
+# wasmCloud SDK
+wasmcloud-provider-sdk = "0.16"
+
+# Async runtime
+tokio = { workspace = true, features = ["full"] }
+tokio-tungstenite = "0.21"
+
+# NATS messaging
+async-nats = { workspace = true }
+
+# Redis
+redis = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Utilities
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+uuid = { workspace = true }
+chrono = { workspace = true }
+futures = { workspace = true }
+futures-util = "0.3"
+async-trait = "0.1"
+
+# WebSocket
+tungstenite = "0.21"
+
+[dev-dependencies]
+# Testing
+mockall = "0.12"
+tokio-test = "0.4"
+wiremock = "0.6"
+once_cell = "1.19"
+tempfile = "3.8"
+fake = "2.9"
+rand = "0.8"

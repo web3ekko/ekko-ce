@@ -1,0 +1,353 @@
+# Ekko WasmCloud Platform Configuration
+# Official wasmCloud chart integration with Ekko-specific actors
+
+# Global Configuration
+global:
+  environment: production
+  namespace: ekko
+
+# Official WasmCloud Platform Chart Configuration
+# This section configures the wasmcloud-platform dependency
+wasmcloud-platform:
+  # Host Configuration
+  hostConfig:
+    enabled: true
+    hostReplicas: 2
+    lattice: "ekko"
+    controlTopicPrefix: "wasmcloud.ctl"
+    logLevel: "info"
+
+    # NATS Configuration - use existing NATS instance
+    natsAddress: "nats://nats.ekko.svc.cluster.local:4222"
+    enableJetstream: true
+    jetstreamDomain: "default"
+
+    # Resource Limits for wasmCloud hosts
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 200m
+        memory: 256Mi
+
+    # Host Labels for capability-based scheduling
+    hostLabels:
+      environment: "production"
+      region: "default"
+      capabilities: "blockchain,websocket,storage"
+
+  # Disable bundled NATS (we have our own)
+  nats:
+    enabled: false
+
+  # WasmCloud Operator Configuration
+  operator:
+    enabled: true
+    replicas: 1
+    resources:
+      limits:
+        cpu: 200m
+        memory: 256Mi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+
+  # WADM (WasmCloud Application Deployment Manager)
+  wadm:
+    enabled: true
+    replicas: 1
+    resources:
+      limits:
+        cpu: 200m
+        memory: 256Mi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+    config:
+      nats:
+        url: "nats://nats.ekko.svc.cluster.local:4222"
+
+# Ekko Actor Definitions
+# These are deployed as WADM application manifests
+actors:
+  - name: eth-raw-transactions
+    enabled: true
+    replicas: 1
+    wasmPath: actors/eth_raw_transactions
+    wasmFile: eth_raw_transactions_s.wasm
+    description: "Processes raw Ethereum transaction data"
+    capabilities:
+      - messaging
+      - keyvalue
+    config:
+      # Wildcard > catches all subnets (mainnet, sepolia, etc.)
+      natsSubject: blockchain.ethereum.>.transactions.raw
+      redisKeyPrefix: eth:raw
+      batchSize: 100
+      processingTimeout: 30s
+
+  - name: btc-raw-transactions
+    enabled: true
+    replicas: 1
+    wasmPath: actors/btc_raw_transactions
+    wasmFile: btc_raw_transactions_s.wasm
+    description: "Processes raw Bitcoin transaction data"
+    capabilities:
+      - messaging
+      - keyvalue
+    config:
+      # Wildcard > catches all subnets (mainnet, testnet)
+      natsSubject: blockchain.bitcoin.>.transactions.raw
+      redisKeyPrefix: btc:raw
+
+  - name: sol-raw-transactions
+    enabled: true
+    replicas: 1
+    wasmPath: actors/sol_raw_transactions
+    wasmFile: sol_raw_transactions_s.wasm
+    description: "Processes raw Solana transaction data"
+    capabilities:
+      - messaging
+      - keyvalue
+    config:
+      # Wildcard > catches all subnets (mainnet, devnet, testnet)
+      natsSubject: blockchain.solana.>.transactions.raw
+      redisKeyPrefix: sol:raw
+
+  - name: eth-process-transactions
+    enabled: true
+    replicas: 2
+    wasmPath: actors/eth_process_transactions
+    wasmFile: eth_process_transactions_s.wasm
+    description: "Processes and enriches Ethereum transactions"
+    capabilities:
+      - messaging
+      - keyvalue
+    config:
+      # Wildcard > catches all subnets (mainnet, sepolia, etc.)
+      natsSubject: blockchain.ethereum.>.transactions.raw
+      redisKeyPrefix: eth:processed
+
+  - name: evm-logs-ingestion
+    enabled: true
+    replicas: 1
+    wasmPath: actors/evm_logs_ingestion
+    wasmFile: evm_logs_ingestion_s.wasm
+    description: "Ingests EVM logs and schedules alert evaluations"
+    capabilities:
+      - messaging
+      - keyvalue
+      - httpclient
+    config:
+      natsSubject: newheads.*.*.evm
+      redisKeyPrefix: evm:logs
+
+  - name: alerts-processor
+    enabled: true
+    replicas: 2
+    wasmPath: actors/alerts-processor
+    wasmFile: alerts-processor_s.wasm
+    description: "Processes alert jobs"
+    capabilities:
+      - messaging
+      - keyvalue
+    config:
+      natsSubject: alerts.jobs.create.>
+      redisKeyPrefix: alerts:active
+
+  - name: health-check
+    enabled: true
+    replicas: 1
+    wasmPath: actors/health-check
+    wasmFile: health_check_s.wasm
+    description: "System health monitoring and reporting"
+    capabilities:
+      - messaging
+    config:
+      natsSubject: system.health
+      checkInterval: 30s
+
+  - name: notification-router
+    enabled: true
+    replicas: 1
+    wasmPath: actors/notification-router
+    wasmFile: notification_router_s.wasm
+    description: "Routes notifications to appropriate channels"
+    capabilities:
+      - messaging
+    config:
+      natsSubject: alerts.triggered.>, notifications.send.immediate.>
+
+  - name: transaction-ducklake-writer
+    enabled: true
+    replicas: 1
+    wasmPath: actors/transaction-ducklake-writer
+    wasmFile: transaction_ducklake_writer_s.wasm
+    description: "Writes transaction data to DuckLake"
+    capabilities:
+      - messaging
+      - storage
+    config:
+      natsSubject: transactions.processed.>
+      batchSize: 1000
+
+  - name: transaction-processor
+    enabled: true
+    replicas: 2
+    wasmPath: actors/transaction-processor
+    wasmFile: transaction_processor_s.wasm
+    description: "Generic transaction processing engine"
+    capabilities:
+      - messaging
+      - keyvalue
+    config:
+      # Wildcard pattern catches all networks and subnets
+      natsSubject: blockchain.>.>.transactions.>
+
+  - name: abi-decoder
+    enabled: true
+    replicas: 1
+    wasmPath: actors/abi-decoder
+    wasmFile: abi_decoder_s.wasm
+    description: "Decodes smart contract ABI data"
+    capabilities:
+      - messaging
+      - keyvalue
+    config:
+      natsSubject: blockchain.abi.decode.>
+      redisKeyPrefix: abi:cache
+
+# Ekko Provider Definitions
+providers:
+  standard:
+    nats:
+      enabled: true
+      replicas: 1
+      image: ghcr.io/wasmcloud/messaging-nats:0.23.0
+      config:
+        clusterUris:
+          - nats://nats.ekko.svc.cluster.local:4222
+
+    redis:
+      enabled: true
+      replicas: 1
+      image: ghcr.io/wasmcloud/keyvalue-redis:0.25.0
+      config:
+        url: redis://redis-master.ekko.svc.cluster.local:6379
+        password: redis123
+
+  custom:
+    newheads:
+      enabled: true
+      replicas: 1
+      imagePath: providers/newheads-evm
+      imageFile: newheads-provider
+      config:
+        networks:
+          - name: ethereum-mainnet
+            chain: ethereum
+            network: mainnet
+            vmType: evm
+          - name: polygon-mainnet
+            chain: polygon
+            network: mainnet
+            vmType: evm
+
+    ducklake:
+      enabled: true
+      replicas: 1
+      imagePath: providers/ducklake-write
+      imageFile: ducklake-write-provider
+      config:
+        s3_endpoint: http://minio.ekko.svc.cluster.local:9000
+        s3_bucket: ekko-ducklake
+
+    alertScheduler:
+      enabled: true
+      replicas: 1
+      imagePath: providers/alert-scheduler
+      imageFile: alert-scheduler-provider
+      config:
+        redis_url: redis://redis-master.ekko.svc.cluster.local:6379
+        check_interval: 30
+
+    websocketNotification:
+      enabled: true
+      replicas: 1
+      imagePath: providers/websocket-notification-provider
+      imageFile: websocket-notification-provider
+      config:
+        port: 8080
+        path: /ws
+
+# NATS Configuration (existing instance)
+nats:
+  url: nats://nats.ekko.svc.cluster.local:4222
+  subjects:
+    # PRD-aligned subject hierarchy
+    blockchain: "blockchain.>"
+    alerts: "alerts.>"
+    notifications: "notifications.>"
+    ducklake: "ducklake.>"
+    system: "system.>"
+
+# Redis Configuration (existing instance)
+redis:
+  url: redis://redis-master.ekko.svc.cluster.local:6379
+  password: redis123
+
+# Resource Defaults
+resources:
+  host:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 200m
+      memory: 256Mi
+
+  actors:
+    limits:
+      cpu: 250m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+  providers:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+# Service Configuration
+service:
+  type: ClusterIP
+  ports:
+    wash: 4223
+    websocket: 8080
+    metrics: 9090
+
+# Monitoring Configuration
+monitoring:
+  enabled: true
+  prometheus:
+    enabled: true
+    port: 9090
+    scrapeInterval: 30s
+
+# Autoscaling Configuration
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Logging Configuration
+logging:
+  level: info
+  format: json

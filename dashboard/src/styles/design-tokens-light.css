@@ -1,0 +1,368 @@
+/**
+ * Ekko Light Mode Design Tokens
+ * Airy, light-first system with blue primary, green/orange/red semantics, and soft neutrals
+ *
+ * Design Philosophy:
+ * - Light-mode-only: Optimized for daytime clarity and responsive mobile use
+ * - Clean surfaces: White + cool neutrals with subtle borders and gentle shadows
+ * - Purposeful color: Blue primary for actions, green/orange/red for states, teal for secondary accents
+ * - High contrast: Dark text on light backgrounds for readability
+ * - No glass morphism: Clean, solid surfaces with subtle depth
+ */
+
+:root {
+  /* ========================================
+     FOUNDATION COLORS
+     ======================================== */
+
+  /* Backgrounds - Bright white with cool neutrals */
+  --color-background: #FFFFFF;           /* Pure white base */
+  --color-surface: #F7F9FC;              /* Soft neutral surface */
+  --color-surface-hover: #F1F4F9;        /* Hover state */
+  --color-surface-active: #E6EAF2;       /* Active/pressed state */
+  --color-surface-elevated: #FFFFFF;     /* Elevated cards */
+
+  /* Surface variants for visual hierarchy */
+  --surface-subtle: #F8FAFD;             /* Very light wash */
+  --surface-interactive: #F3F6FB;        /* Interactive elements */
+  --surface-data: #FBFCFF;               /* Data displays */
+
+  /* Text - High contrast for readability */
+  --text-primary: #0F172A;               /* Navy black - primary text */
+  --text-secondary: #334155;             /* Slate - secondary text */
+  --text-tertiary: #475569;              /* Muted slate - tertiary text */
+  --text-disabled: #94A3B8;              /* Soft gray - disabled state */
+  --text-inverse: #FFFFFF;               /* White text on dark backgrounds */
+
+  /* ========================================
+     BRAND COLORS
+     ======================================== */
+
+  /* Primary Brand - Blue */
+  --ekko-primary: #2563EB;
+  --ekko-primary-light: #3B82F6;
+  --ekko-primary-dark: #1D4ED8;
+  --ekko-primary-subtle: #EFF6FF;        /* For backgrounds */
+  --ekko-primary-hover: #1D4ED8;
+
+  /* Secondary Accent - Teal */
+  --ekko-secondary: #14B8A6;
+  --ekko-secondary-light: #2DD4BF;
+  --ekko-secondary-dark: #0F766E;
+  --ekko-secondary-subtle: #E0F2F1;
+
+  /* Accent - Orange for highlights */
+  --ekko-accent: #FB923C;
+  --ekko-accent-light: #FBBF24;
+  --ekko-accent-dark: #F97316;
+  --ekko-accent-subtle: #FFF7ED;
+
+  /* ========================================
+     BLOCKCHAIN-SPECIFIC COLORS (VIBRANT)
+     ======================================== */
+
+  /* Ethereum - Bold blue */
+  --chain-ethereum: #627EEA;
+  --chain-ethereum-light: #7C94F5;
+  --chain-ethereum-subtle: #EEF2FF;
+  --chain-ethereum-shadow: rgba(98, 126, 234, 0.3);
+
+  /* Bitcoin - Vibrant orange */
+  --chain-bitcoin: #F7931A;
+  --chain-bitcoin-light: #FFAA4D;
+  --chain-bitcoin-subtle: #FFF7ED;
+  --chain-bitcoin-shadow: rgba(247, 147, 26, 0.3);
+
+  /* Solana - Bright green */
+  --chain-solana: #00FFA3;
+  --chain-solana-light: #4DFFB8;
+  --chain-solana-dark: #00C89A;
+  --chain-solana-subtle: #ECFDF5;
+  --chain-solana-shadow: rgba(0, 255, 163, 0.3);
+
+  /* Avalanche - Bold red */
+  --chain-avalanche: #E84142;
+  --chain-avalanche-light: #F87171;
+  --chain-avalanche-subtle: #FEF2F2;
+  --chain-avalanche-shadow: rgba(232, 65, 66, 0.3);
+
+  /* Polygon - Vivid purple */
+  --chain-polygon: #8247E5;
+  --chain-polygon-light: #A855F7;
+  --chain-polygon-subtle: #F5F3FF;
+  --chain-polygon-shadow: rgba(130, 71, 229, 0.3);
+
+  /* ========================================
+     STATUS COLORS (VIBRANT)
+     ======================================== */
+
+  /* Success - Bold green */
+  --status-success: #10B981;
+  --status-success-light: #34D399;
+  --status-success-bg: #ECFDF5;
+  --status-success-border: #6EE7B7;
+  --status-success-shadow: rgba(16, 185, 129, 0.24);
+
+  /* Warning - Bold orange */
+  --status-warning: #FB923C;
+  --status-warning-light: #FDBA74;
+  --status-warning-bg: #FFF7ED;
+  --status-warning-border: #FED7AA;
+  --status-warning-shadow: rgba(251, 146, 60, 0.24);
+
+  /* Error - Bold red */
+  --status-error: #EF4444;
+  --status-error-light: #F87171;
+  --status-error-bg: #FEF2F2;
+  --status-error-border: #FCA5A5;
+  --status-error-shadow: rgba(239, 68, 68, 0.24);
+
+  /* Info - Blue */
+  --status-info: #2563EB;
+  --status-info-light: #3B82F6;
+  --status-info-bg: #EFF6FF;
+  --status-info-border: #93C5FD;
+  --status-info-shadow: rgba(37, 99, 235, 0.24);
+
+  /* ========================================
+     BORDERS - Subtle to strong
+     ======================================== */
+
+  --border-subtle: #E6E9EE;              /* Very light borders */
+  --border-default: #D6DDE5;             /* Standard borders */
+  --border-strong: #B8C2D0;              /* Emphasized borders */
+  --border-accent: rgba(37, 99, 235, 0.28); /* Colored borders - primary blue */
+
+  /* Border widths */
+  --border-width-thin: 1px;
+  --border-width-default: 1px;
+  --border-width-thick: 2px;
+  --border-width-accent: 4px;            /* Left border accent */
+
+  /* ========================================
+     SHADOWS - Multi-layer Stripe-style
+     ======================================== */
+
+  /* Base shadows */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.02);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.04), 0 2px 4px rgba(0, 0, 0, 0.02);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.06), 0 4px 6px rgba(0, 0, 0, 0.03);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.08), 0 10px 10px rgba(0, 0, 0, 0.04);
+  --shadow-2xl: 0 25px 50px rgba(0, 0, 0, 0.12), 0 12px 24px rgba(0, 0, 0, 0.06);
+
+  /* Colored shadows for brand elements */
+  --shadow-primary: 0 4px 6px rgba(37, 99, 235, 0.24), 0 2px 4px rgba(37, 99, 235, 0.16);
+  --shadow-primary-hover: 0 10px 18px rgba(37, 99, 235, 0.24), 0 6px 10px rgba(37, 99, 235, 0.12);
+  --shadow-success: 0 4px 6px rgba(16, 185, 129, 0.2), 0 2px 4px rgba(16, 185, 129, 0.12);
+  --shadow-error: 0 4px 6px rgba(239, 68, 68, 0.22), 0 2px 4px rgba(239, 68, 68, 0.14);
+
+  /* ========================================
+     GRADIENTS - Subtle backgrounds
+     ======================================== */
+
+  /* Card gradients */
+  --gradient-card-default: linear-gradient(135deg, rgba(255, 255, 255, 0.97) 0%, rgba(247, 249, 252, 0.98) 100%);
+  --gradient-card-elevated: linear-gradient(135deg, rgba(255, 255, 255, 1) 0%, rgba(251, 252, 255, 1) 100%);
+  --gradient-card-interactive: linear-gradient(135deg, rgba(37, 99, 235, 0.03) 0%, rgba(59, 130, 246, 0.03) 100%);
+
+  /* Brand gradients */
+  --gradient-premium: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+  --gradient-success: linear-gradient(135deg, #0EA371 0%, #10B981 100%);
+  --gradient-warning: linear-gradient(135deg, #F97316 0%, #FB923C 100%);
+  --gradient-error: linear-gradient(135deg, #DC2626 0%, #EF4444 100%);
+
+  /* Subtle tinted backgrounds */
+  --gradient-ethereum: linear-gradient(135deg, rgba(98, 126, 234, 0.05) 0%, rgba(98, 126, 234, 0.02) 100%);
+  --gradient-bitcoin: linear-gradient(135deg, rgba(247, 147, 26, 0.05) 0%, rgba(247, 147, 26, 0.02) 100%);
+  --gradient-solana: linear-gradient(135deg, rgba(0, 255, 163, 0.05) 0%, rgba(0, 255, 163, 0.02) 100%);
+
+  /* ========================================
+     TYPOGRAPHY SYSTEM
+     ======================================== */
+
+  /* Font families */
+  --font-family-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  --font-family-mono: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', 'Roboto Mono', monospace;
+
+  /* Font sizes */
+  --text-xs: 0.75rem;      /* 12px - Captions, labels */
+  --text-sm: 0.875rem;     /* 14px - Small body text */
+  --text-base: 1rem;       /* 16px - Body text */
+  --text-lg: 1.125rem;     /* 18px - Large body */
+  --text-xl: 1.25rem;      /* 20px - Subtitle */
+  --text-2xl: 1.5rem;      /* 24px - Small heading */
+  --text-3xl: 1.875rem;    /* 30px - Medium heading */
+  --text-4xl: 2.25rem;     /* 36px - Large heading */
+  --text-5xl: 3rem;        /* 48px - Hero heading */
+
+  /* Font weights */
+  --font-light: 300;
+  --font-regular: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+
+  /* Line heights */
+  --leading-tight: 1.25;
+  --leading-snug: 1.375;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.6;      /* Increased for readability */
+  --leading-loose: 2;
+
+  /* Letter spacing */
+  --tracking-tighter: -0.05em;
+  --tracking-tight: -0.025em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.025em;
+  --tracking-wider: 0.05em;
+
+  /* ========================================
+     SPACING SYSTEM (4px grid)
+     ======================================== */
+
+  --space-0: 0;
+  --space-1: 0.25rem;    /* 4px */
+  --space-2: 0.5rem;     /* 8px */
+  --space-3: 0.75rem;    /* 12px */
+  --space-4: 1rem;       /* 16px */
+  --space-5: 1.25rem;    /* 20px */
+  --space-6: 1.5rem;     /* 24px */
+  --space-8: 2rem;       /* 32px */
+  --space-10: 2.5rem;    /* 40px */
+  --space-12: 3rem;      /* 48px */
+  --space-16: 4rem;      /* 64px */
+  --space-20: 5rem;      /* 80px */
+  --space-24: 6rem;      /* 96px */
+
+  /* Component spacing - DENSITY OPTIMIZED */
+  --card-padding-compact: var(--space-3);    /* 12px - for very dense displays */
+  --card-padding-default: var(--space-4);    /* 16px - standard (was 24px) */
+  --card-padding-spacious: var(--space-5);   /* 20px - comfortable (was 32px) */
+  --card-gap-default: var(--space-4);        /* 16px - between cards (was 24px) */
+  --section-gap-default: var(--space-5);     /* 20px - between sections */
+  --element-gap-default: var(--space-3);     /* 12px - within components */
+
+  /* ========================================
+     BORDER RADIUS (Professional, tighter)
+     ======================================== */
+
+  --radius-xs: 4px;
+  --radius-sm: 6px;       /* was 8px - tighter */
+  --radius-md: 8px;       /* was 12px - tighter for cards */
+  --radius-lg: 10px;      /* was 16px - tighter */
+  --radius-xl: 12px;      /* was 20px - tighter */
+  --radius-2xl: 16px;     /* was 24px - tighter */
+  --radius-full: 9999px;
+
+  /* ========================================
+     ANIMATION SYSTEM
+     ======================================== */
+
+  /* Durations */
+  --duration-instant: 0ms;
+  --duration-fast: 150ms;
+  --duration-normal: 250ms;
+  --duration-slow: 350ms;
+  --duration-slower: 500ms;
+
+  /* Easing functions */
+  --ease-linear: linear;
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ========================================
+     Z-INDEX SCALE
+     ======================================== */
+
+  --z-base: 1;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-fixed: 300;
+  --z-overlay: 400;
+  --z-modal: 500;
+  --z-popover: 600;
+  --z-tooltip: 700;
+  --z-notification: 800;
+  --z-max: 9999;
+
+  /* ========================================
+     BREAKPOINTS (Mobile-first)
+     ======================================== */
+
+  --breakpoint-xs: 480px;
+  --breakpoint-sm: 768px;
+  --breakpoint-md: 1024px;
+  --breakpoint-lg: 1280px;
+  --breakpoint-xl: 1536px;
+  --breakpoint-2xl: 1920px;
+
+  /* ========================================
+     COMPONENT-SPECIFIC TOKENS
+     ======================================== */
+
+  /* Button states */
+  --button-primary-bg: var(--ekko-primary);
+  --button-primary-hover: var(--ekko-primary-hover);
+  --button-primary-shadow: var(--shadow-primary);
+  --button-primary-shadow-hover: var(--shadow-primary-hover);
+
+  /* Card states */
+  --card-bg: var(--gradient-card-default);
+  --card-bg-elevated: var(--gradient-card-elevated);
+  --card-border: var(--border-default);
+  --card-border-hover: var(--border-strong);
+  --card-shadow: var(--shadow-sm);
+  --card-shadow-hover: var(--shadow-lg);
+
+  /* Input states */
+  --input-bg: #FFFFFF;
+  --input-border: var(--border-default);
+  --input-border-focus: var(--ekko-primary);
+  --input-shadow-focus: 0 0 0 3px var(--ekko-primary-subtle);
+
+  /* ========================================
+     ACCESSIBILITY
+     ======================================== */
+
+  /* Focus rings */
+  --focus-ring-width: 3px;
+  --focus-ring-color: var(--ekko-primary);
+  --focus-ring-offset: 2px;
+
+  /* Touch targets */
+  --touch-target-min: 44px;
+  --touch-target-comfortable: 48px;
+
+  /* Contrast ratios (for reference) */
+  /* Primary text on white: 19.77:1 (AAA) */
+  /* Primary brand on white: 7.52:1 (AA) */
+  /* Secondary text on white: 9.33:1 (AAA) */
+}
+
+/* ========================================
+   GLOBAL RESETS & DEFAULTS
+   ======================================== */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-family-sans);
+  font-size: var(--text-base);
+  line-height: var(--leading-relaxed);
+  color: var(--text-primary);
+  background-color: var(--color-background);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Code and monospace elements */
+code,
+pre,
+.monospace {
+  font-family: var(--font-family-mono);
+}

@@ -1,0 +1,6 @@
+dependencies:
+- name: wasmcloud-platform
+  repository: oci://ghcr.io/wasmcloud/charts
+  version: 0.1.2
+digest: sha256:e5841ec539c233d2904b41667558030f373bf048e9b87da7e0600835d054a051
+generated: "2025-10-14T13:58:59.257797+07:00"

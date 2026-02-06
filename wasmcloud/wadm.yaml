@@ -1,0 +1,149 @@
+apiVersion: core.oam.dev/v1beta1
+kind: Application
+metadata:
+  name: ekko-blockchain-pipeline
+  annotations:
+    description: "Ekko blockchain data processing pipeline with WasmCloud actors and providers"
+    version: v0.1.0
+spec:
+  components:
+    # Actors
+    - name: eth-raw-transactions
+      type: component
+      properties:
+        image: file://./actors/eth_raw_transactions/build/eth_raw_transactions_s.wasm
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 3
+
+    - name: btc-raw-transactions
+      type: component
+      properties:
+        image: file://./actors/btc_raw_transactions/build/btc_raw_transactions_s.wasm
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 2
+
+    - name: sol-raw-transactions
+      type: component
+      properties:
+        image: file://./actors/sol_raw_transactions/build/sol_raw_transactions_s.wasm
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 2
+
+    - name: alerts-processor
+      type: component
+      properties:
+        image: file://./actors/alerts-processor/build/alerts-processor_s.wasm
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 2
+
+    # Standard wasmCloud Providers
+    - name: nats-messaging
+      type: capability
+      properties:
+        image: ghcr.io/wasmcloud/messaging-nats:0.21.0
+
+    - name: redis-keyvalue
+      type: capability
+      properties:
+        image: ghcr.io/wasmcloud/keyvalue-redis:0.30.0
+
+    - name: http-client
+      type: capability
+      properties:
+        image: ghcr.io/wasmcloud/http-client:0.13.1
+
+    # Custom Ekko Providers
+    - name: ducklake-provider
+      type: capability
+      properties:
+        image: file://./target/release/ducklake-provider
+
+  policies:
+    # Link actors to providers
+    - type: linkdefs
+      properties:
+        target: eth-raw-transactions
+        links:
+          - target: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [handler]
+            source_config:
+              - name: default-messaging
+                properties:
+                  subscriptions: "newheads.*.*.evm"
+          - target: redis-keyvalue
+            namespace: wasi
+            package: keyvalue
+            interfaces: [store]
+          - target: http-client
+            namespace: wasi
+            package: http
+            interfaces: [outgoing-handler]
+
+    - type: linkdefs
+      properties:
+        target: btc-raw-transactions
+        links:
+          - target: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [handler]
+            source_config:
+              - name: default-messaging
+                properties:
+                  subscriptions: "newheads.*.*.btc"
+          - target: redis-keyvalue
+            namespace: wasi
+            package: keyvalue
+            interfaces: [store]
+          - target: http-client
+            namespace: wasi
+            package: http
+            interfaces: [outgoing-handler]
+
+    - type: linkdefs
+      properties:
+        target: sol-raw-transactions
+        links:
+          - target: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [handler]
+            source_config:
+              - name: default-messaging
+                properties:
+                  subscriptions: "newheads.*.*.svm"
+          - target: redis-keyvalue
+            namespace: wasi
+            package: keyvalue
+            interfaces: [store]
+          - target: http-client
+            namespace: wasi
+            package: http
+            interfaces: [outgoing-handler]
+
+    - type: linkdefs
+      properties:
+        target: alerts-processor
+        links:
+          - target: nats-messaging
+            namespace: wasmcloud
+            package: messaging
+            interfaces: [handler]
+            source_config:
+              - name: default-messaging
+                properties:
+                  subscriptions: "alerts.jobs.create.>"
+          - target: redis-keyvalue
+            namespace: wasi
+            package: keyvalue
+            interfaces: [store]

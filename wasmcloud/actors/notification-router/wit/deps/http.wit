@@ -1,0 +1,27 @@
+// HTTP client capability interface for blockchain RPC calls
+package ekko:http@0.1.0;
+
+/// HTTP client for making RPC calls
+interface client {
+    /// HTTP header
+    record header {
+        name: string,
+        value: string,
+    }
+
+    /// HTTP response
+    record response {
+        status: u16,
+        headers: list<header>,
+        body: string,
+    }
+
+    /// Make an HTTP POST request
+    post: func(url: string, body: string, headers: list<header>) -> result<response, string>;
+
+    /// Make an HTTP GET request
+    get: func(url: string, headers: list<header>) -> result<response, string>;
+
+    /// Make a JSON-RPC request (specialized for blockchain)
+    json-rpc: func(url: string, method: string, params: string) -> result<string, string>;
+}

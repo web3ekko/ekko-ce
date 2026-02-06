@@ -1,0 +1,129 @@
+// Newheads interface for blockchain providers
+// Provides real-time streaming of new block headers from various blockchains
+
+interface newheads {
+    // Block header data structure - common across all blockchain types
+    record block-header {
+        chain-id: string,           // Unique identifier for the blockchain
+        chain-name: string,         // Human-readable chain name (e.g., "ethereum", "bitcoin")
+        block-number: u64,          // Block height/number
+        block-hash: string,         // Block hash (hex string)
+        parent-hash: string,        // Previous block hash
+        timestamp: u64,             // Block timestamp (Unix timestamp)
+        
+        // Optional fields (not all chains have these)
+        difficulty: option<string>, // Mining difficulty (for PoW chains)
+        gas-limit: option<u64>,     // Gas limit (for EVM chains)
+        gas-used: option<u64>,      // Gas used (for EVM chains)
+        miner: option<string>,      // Miner/validator address
+        extra-data: option<string>, // Additional chain-specific data
+        
+        // Raw data for chain-specific processing
+        raw-data: option<string>,   // JSON string of original block header
+    }
+    
+    // Chain configuration for connecting to blockchain nodes
+    record chain-config {
+        chain-id: string,           // Unique identifier (e.g., "ethereum-mainnet")
+        chain-name: string,         // Display name (e.g., "Ethereum Mainnet")
+        rpc-url: string,           // HTTP RPC endpoint
+        ws-url: string,            // WebSocket endpoint for newheads
+        chain-type: chain-type,    // Blockchain type/family
+        network-id: option<u64>,   // Network ID (for EVM chains)
+        enabled: bool,             // Whether this chain is active
+    }
+    
+    // Supported blockchain types and VM families
+    enum chain-type {
+        // Ethereum Virtual Machine (EVM) based chains
+        ethereum,                  // Ethereum mainnet
+        polygon,                   // Polygon (Matic)
+        arbitrum,                  // Arbitrum L2
+        optimism,                  // Optimism L2
+        bsc,                       // Binance Smart Chain
+        avalanche,                 // Avalanche C-Chain
+        fantom,                    // Fantom Opera
+        
+        // Bitcoin and Bitcoin-like chains
+        bitcoin,                   // Bitcoin mainnet
+        bitcoin-testnet,           // Bitcoin testnet
+        litecoin,                  // Litecoin
+        dogecoin,                  // Dogecoin
+        
+        // Other blockchain types
+        solana,                    // Solana
+        cardano,                   // Cardano
+        polkadot,                  // Polkadot
+        cosmos,                    // Cosmos Hub
+        
+        // Testnets
+        ethereum-goerli,           // Ethereum Goerli testnet
+        ethereum-sepolia,          // Ethereum Sepolia testnet
+        polygon-mumbai,            // Polygon Mumbai testnet
+    }
+    
+    // Subscription status
+    enum subscription-status {
+        active,                    // Actively receiving newheads
+        connecting,                // Attempting to connect
+        disconnected,              // Not connected
+        error,                     // Connection error
+    }
+    
+    // Subscription information
+    record subscription-info {
+        chain-id: string,
+        status: subscription-status,
+        last-block: option<u64>,
+        connected-at: option<u64>,
+        error-message: option<string>,
+    }
+    
+    // === Core Functions ===
+    
+    // Subscribe to new block headers for a specific chain
+    // Returns success or error message
+    subscribe-newheads: func(chain-id: string) -> result<_, string>
+    
+    // Unsubscribe from newheads for a specific chain
+    unsubscribe-newheads: func(chain-id: string) -> result<_, string>
+    
+    // Get the latest block header for a chain (via RPC call)
+    get-latest-header: func(chain-id: string) -> result<block-header, string>
+    
+    // Get subscription status for a chain
+    get-subscription-status: func(chain-id: string) -> result<subscription-info, string>
+    
+    // === Configuration Management ===
+    
+    // Add a new blockchain configuration
+    add-chain: func(config: chain-config) -> result<_, string>
+    
+    // Update an existing blockchain configuration
+    update-chain: func(chain-id: string, config: chain-config) -> result<_, string>
+    
+    // Remove a blockchain configuration
+    remove-chain: func(chain-id: string) -> result<_, string>
+    
+    // List all configured chains
+    list-chains: func() -> list<chain-config>
+    
+    // Get configuration for a specific chain
+    get-chain-config: func(chain-id: string) -> result<chain-config, string>
+    
+    // === Health and Monitoring ===
+    
+    // Get provider health status
+    health-check: func() -> result<string, string>
+    
+    // Get statistics for all subscriptions
+    get-stats: func() -> list<subscription-info>
+    
+    // Test connection to a specific chain (without subscribing)
+    test-connection: func(chain-id: string) -> result<_, string>
+}
+
+// World definition for the newheads provider
+world newheads-provider {
+    export newheads
+}

@@ -1,274 +1,279 @@
-version: '3'
-
-networks:
-  pipeline-network:
-    driver: bridge
-
-volumes:
-  nats_data:
-  redis_data:
-  minio_data:
-  api_data:
-  ducklake_catalog:  # SQLite catalog database
-  ducklake_data:     # Local cache for DuckLake data
 
 services:
-  pipeline:
-    build:
-      context: ./pipeline
-      dockerfile: Dockerfile
-    ports:
-      - "4195:4195"  # HTTP API + Prometheus metrics
+  postgres:
+    image: postgres:15-alpine
+    container_name: ekko-ce-postgres
     environment:
-      - NATS_URL=nats://nats:4222
-      - NATS_STREAM=blockchain
-      - NATS_SUBJECT=transactions
-      # DuckLake Configuration
-      - DUCKLAKE_ENABLED=true
-      - DUCKLAKE_CATALOG_TYPE=sqlite
-      - DUCKLAKE_CATALOG_PATH=/data/ducklake/catalog.sqlite
-      - DUCKLAKE_DATA_PATH=s3://ducklake-data/data
-      - DUCKLAKE_BUCKET_NAME=ducklake-data
-      - DUCKLAKE_BATCH_SIZE=1000
-      - DUCKLAKE_FLUSH_INTERVAL=30s
-      # MinIO Configuration
-      - MINIO_ENDPOINT=minio:9000
-      - MINIO_ACCESS_KEY=minioadmin
-      - MINIO_SECRET_KEY=minioadmin
-      - MINIO_REGION=us-east-1
-      - MINIO_SECURE=false
-    env_file: ".env"
+      POSTGRES_DB: ${POSTGRES_DB:-ekko_dev}
+      POSTGRES_USER: ${POSTGRES_USER:-ekko}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ekko123}
     volumes:
-      - ./config.yaml:/app/config.yaml
-      - ducklake_catalog:/data/ducklake  # SQLite catalog storage
-    restart: unless-stopped
-    networks:
-      - pipeline-network
-    depends_on:
-      - nats
-      - redis
-      - minio
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    ports:
+      - "5432:5432"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4195/ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ekko}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ekko-ce-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: ekko-ce-redis
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis123}
+    command: redis-server --requirepass ${REDIS_PASSWORD:-redis123} --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD:-redis123}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ekko-ce-network
+    restart: unless-stopped
+
   nats:
     image: nats:2.10-alpine
-    container_name: nats
-    command: --config /etc/nats/nats-server.conf -js -m 8222
-    ports:
-      - "4222:4222"   # NATS client connections
-      - "8222:8222"   # HTTP monitoring
-      - "8080:8080"   # WebSocket connections
+    container_name: ekko-ce-nats
+    command: ["--jetstream", "--store_dir=/data", "--http_port=8222"]
     volumes:
       - nats_data:/data
-      - ./nats-config/nats-server.conf:/etc/nats/nats-server.conf
-    env_file: ".env"
-    networks:
-      - pipeline-network
-    restart: unless-stopped
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+      - "6222:6222"
     healthcheck:
-      # The healthcheck relies on the HTTP monitoring port (8222 by default).
-      # If nats-server.conf disables or changes http_port, this might need adjustment.
-      # Our current nats-server.conf doesn't explicitly change it, so 8222 should still work.
-      test: ["CMD", "curl", "-f", "http://localhost:8222/healthz"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8222/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ekko-ce-network
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    container_name: ekko-ce-minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - ekko-ce-network
+    restart: unless-stopped
+
+  registry:
+    image: registry:2
+    container_name: ekko-ce-registry
+    environment:
+      REGISTRY_STORAGE_DELETE_ENABLED: "true"
+    volumes:
+      - registry_data:/var/lib/registry
+    ports:
+      - "5001:5000"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:5000/v2/"]
       interval: 30s
       timeout: 10s
       retries: 3
-
-  dashboard:
-    build:
-      context: ./dashboard
-      dockerfile: Dockerfile
-    # For dev purposes
-    command: sh -c "yarn install && yarn dev --host 0.0.0.0 --port 5173"
-    ports:
-      - "3000:5173"
-    environment:
-      - NODE_ENV=production
-      - NATS_URL=nats://nats:4222
-      - API_URL=http://api:8000
-    env_file: ".env"
-    volumes:
-      - ./dashboard:/app
-      - /app/node_modules
-      - /app/.next
-    restart: unless-stopped
     networks:
-      - pipeline-network
+      - ekko-ce-network
+    restart: unless-stopped
+
+  minio-setup:
+    image: minio/mc:latest
+    container_name: ekko-ce-minio-setup
     depends_on:
-      - nats
-      - api
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+    volumes:
+      - ./scripts/setup-minio-buckets.sh:/setup/setup-minio-buckets.sh:ro
+    entrypoint: ["/bin/sh", "/setup/setup-minio-buckets.sh"]
+    networks:
+      - ekko-ce-network
+    restart: "no"
+
+  nats-setup:
+    image: natsio/nats-box:latest
+    container_name: ekko-ce-nats-setup
+    depends_on:
+      nats:
+        condition: service_healthy
+    environment:
+      NATS_HOST: nats
+      NATS_PORT: 4222
+    volumes:
+      - ./scripts/nats-setup.sh:/setup/nats-setup.sh:ro
+    command: /setup/nats-setup.sh
+    networks:
+      - ekko-ce-network
+    restart: "no"
 
   api:
     build:
       context: ./api
       dockerfile: Dockerfile
+      args:
+        SECRET_KEY: ${SECRET_KEY:-ekko-ce-dev-secret}
+        DJANGO_SETTINGS_MODULE: ${DJANGO_SETTINGS_MODULE:-ekko_api.settings.development}
+        DEBUG: ${DEBUG:-true}
+    container_name: ekko-ce-api
+    environment:
+      SECRET_KEY: ${SECRET_KEY:-ekko-ce-dev-secret}
+      DEBUG: ${DEBUG:-true}
+      DJANGO_SETTINGS_MODULE: ${DJANGO_SETTINGS_MODULE:-ekko_api.settings.development}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://ekko:ekko123@postgres:5432/ekko_dev}
+      REDIS_URL: ${REDIS_URL:-redis://:redis123@redis:6379/0}
+      NATS_URL: ${NATS_URL:-nats://nats:4222}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,api}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-}
+      FIREBASE_AUTH_DOMAIN: ${FIREBASE_AUTH_DOMAIN:-}
+      FIREBASE_WEB_API_KEY: ${FIREBASE_WEB_API_KEY:-}
+      FIREBASE_SERVICE_ACCOUNT_KEY: ${FIREBASE_SERVICE_ACCOUNT_KEY:-}
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-console}
+      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-noreply@ekko.dev}
+      GRPC_SERVER_PORT: ${GRPC_SERVER_PORT:-50051}
+    command:
+      - sh
+      - -c
+      - |
+        python manage.py migrate
+        python manage.py collectstatic --noinput
+        gunicorn ekko_api.wsgi:application --bind 0.0.0.0:8000 --workers 4 --timeout 120
+    volumes:
+      - api_static:/app/staticfiles
+      - api_media:/app/media
     ports:
       - "8000:8000"
-    environment:
-      - NATS_URL=nats://nats:4222
-      - TEST_MODE="true"
-      - DUCKDB_PATH=/app/data/ekko.db
-      - MIGRATION_MODE="false"
-      - ENABLE_JETSTREAM_SYNC="true"
-      # DuckLake Configuration
-      - DUCKLAKE_CATALOG_TYPE=sqlite
-      - DUCKLAKE_CATALOG_PATH=/data/ducklake/catalog.sqlite
-      - DUCKLAKE_DATA_PATH=s3://ducklake-data/data
-      - DUCKLAKE_BUCKET_NAME=ducklake-data
-      # MinIO Configuration
-      - MINIO_ENDPOINT=minio:9000
-      - MINIO_ACCESS_KEY=minioadmin
-      - MINIO_SECRET_KEY=minioadmin
-      - MINIO_REGION=us-east-1
-      - MINIO_SECURE=false
-      # Akash Configuration
-      - AKASH_API_KEY=sk-ofmj_-f2Hoj92GkRH39-lA
-      - AKASH_BASE_URL=https://chatapi.akash.network/api/v1
-      - DEFAULT_MODEL=Meta-Llama-3-1-8B-Instruct-FP8
-    env_file: ".env"
-    volumes:
-      - ./api:/app
-      - api_data:/app/data
-      - ducklake_catalog:/data/ducklake  # Shared SQLite catalog storage
-    restart: unless-stopped
-    networks:
-      - pipeline-network
+      - "50051:50051"
     depends_on:
-      - nats
-      - minio
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - ekko-ce-network
+    restart: unless-stopped
 
-  transactions-writer:
+  dashboard:
     build:
-      context: ./delta-writer
+      context: ./dashboard
       dockerfile: Dockerfile
-    environment:
-      - SERVICE_NAME=transactions-writer
-      - METRICS_PORT=9090
-      - NATS_URL=nats://nats:4222
-      - NATS_SUBJECT=transactions.>
-      - NATS_CONSUMER_NAME=transactions-writer
-      - NATS_STREAM_NAME=transactions
-      - S3_ENDPOINT=http://minio:9000
-      - S3_ACCESS_KEY=minioadmin
-      - S3_SECRET_KEY=minioadmin
-      - S3_REGION=us-east-1
-      - S3_BUCKET=blockchain-events
-      - S3_USE_SSL=false
-      - DELTA_TABLE_BASE_PATH=events
-      - BATCH_SIZE=1000
-      - FLUSH_INTERVAL_SECONDS=30
-      - MAX_CONCURRENT_WRITES=4
-      - WORKER_THREADS=4
-      - BUFFER_SIZE=10000
-      - RETRY_ATTEMPTS=3
-      - RETRY_DELAY_MS=1000
-      - RUST_LOG=info,ekko_delta_writer=debug
-    env_file: ".env"
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+        VITE_WS_URL: ${VITE_WS_URL:-ws://localhost:8000}
+        VITE_WEBAUTHN_RP_ID: ${VITE_WEBAUTHN_RP_ID:-localhost}
+        VITE_WEBAUTHN_RP_NAME: ${VITE_WEBAUTHN_RP_NAME:-Ekko Dashboard}
+        VITE_APP_NAME: ${VITE_APP_NAME:-Ekko CE Dashboard}
+        VITE_APP_VERSION: ${VITE_APP_VERSION:-0.1.0}
+    container_name: ekko-ce-dashboard
     ports:
-      - "9090:9090"  # Metrics port
-    restart: unless-stopped
-    networks:
-      - pipeline-network
+      - "3000:80"
     depends_on:
-      - nats
-      - minio
+      api:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9090/metrics"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-
-  redis:
-    image: redis:7
-    container_name: redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    env_file: ".env"
-    command: redis-server --appendonly yes
     networks:
-      - pipeline-network
-
-
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  minio:
-    image: minio/minio
-    container_name: minio
-    ports:
-      - "9000:9000"  # API
-      - "9001:9001"  # Console
-    volumes:
-      - minio_data:/data
-    environment:
-      - MINIO_ROOT_USER=minioadmin
-      - MINIO_ROOT_PASSWORD=minioadmin
-    env_file: ".env"
-    command: server /data --console-address ":9001"
-    networks:
-      - pipeline-network
+      - ekko-ce-network
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
-  minio-init:
-    image: minio/mc
-    container_name: minio-init
+  wasmcloud:
+    image: wasmcloud/wasmcloud:latest
+    container_name: ekko-ce-wasmcloud
+    command: ["wasmcloud", "--nats-host", "nats", "--nats-port", "4222"]
+    environment:
+      WASMCLOUD_LATTICE_PREFIX: ${WASMCLOUD_LATTICE:-ekko-ce}
+      WASMCLOUD_LOG_LEVEL: ${WASMCLOUD_LOG_LEVEL:-debug}
+      REDIS_URL: ${REDIS_URL:-redis://:redis123@redis:6379}
+      GRPC_DJANGO_ENDPOINT: api:${GRPC_SERVER_PORT:-50051}
+      DUCKLAKE_S3_ENDPOINT: ${DUCKLAKE_S3_ENDPOINT:-http://minio:9000}
+      DUCKLAKE_S3_REGION: ${DUCKLAKE_S3_REGION:-us-east-1}
+      DUCKLAKE_S3_BUCKET: ${DUCKLAKE_S3_BUCKET:-ekko-ducklake}
+      DUCKLAKE_S3_ACCESS_KEY_ID: ${DUCKLAKE_S3_ACCESS_KEY_ID:-${MINIO_ROOT_USER:-minioadmin}}
+      DUCKLAKE_S3_SECRET_ACCESS_KEY: ${DUCKLAKE_S3_SECRET_ACCESS_KEY:-${MINIO_ROOT_PASSWORD:-minioadmin123}}
+      DUCKLAKE_WAREHOUSE_PATH: ${DUCKLAKE_WAREHOUSE_PATH:-/ekko/ducklake}
+      DUCKLAKE_MAX_CONNECTIONS: ${DUCKLAKE_MAX_CONNECTIONS:-4}
+      DUCKLAKE_MEMORY_LIMIT_MB: ${DUCKLAKE_MEMORY_LIMIT_MB:-512}
+      DUCKLAKE_THREADS: ${DUCKLAKE_THREADS:-4}
+      DUCKLAKE_TEMP_DIR: ${DUCKLAKE_TEMP_DIR:-/tmp/ducklake}
+      DUCKLAKE_ENABLE_OPTIMIZATION: ${DUCKLAKE_ENABLE_OPTIMIZATION:-true}
+      DUCKLAKE_MAX_BATCH_SIZE: ${DUCKLAKE_MAX_BATCH_SIZE:-10000}
+      DUCKLAKE_ENABLE_METRICS: ${DUCKLAKE_ENABLE_METRICS:-false}
     volumes:
-      - ./scripts/init-minio.sh:/init-minio.sh
-    networks:
-      - pipeline-network
+      - ./wasmcloud/actors:/actors
+      - ./wasmcloud/providers:/providers
+      - ./wasmcloud/manifests:/manifests
+    ports:
+      - "4000:4000"
+      - "4001:4001"
+      - "8080:8080"
     depends_on:
+      nats:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
       minio:
         condition: service_healthy
-    entrypoint: ["/bin/sh", "/init-minio.sh"]
-    restart: "no"
-
-  ducklake-test:
-    image: ubuntu:22.04
-    container_name: ducklake-test
-    working_dir: /app
-    volumes:
-      - ./scripts/test-ducklake-in-container.sh:/app/test-ducklake.sh
-    environment:
-      - MINIO_ENDPOINT=minio:9000
-      - MINIO_ACCESS_KEY=minioadmin
-      - MINIO_SECRET_KEY=minioadmin
-      - MINIO_BUCKET=blockchain-data
-      - MINIO_USE_SSL=false
-      - DEBIAN_FRONTEND=noninteractive
+      minio-setup:
+        condition: service_completed_successfully
+      nats-setup:
+        condition: service_completed_successfully
+      api:
+        condition: service_healthy
     networks:
-      - pipeline-network
-    depends_on:
-      - minio
-    command: ["sleep", "infinity"]
-    restart: "no"
+      - ekko-ce-network
+    restart: unless-stopped
 
-  pipeline-duckdb-test:
-    build:
-      context: ./pipeline
-      dockerfile: Dockerfile.test
-    container_name: pipeline-duckdb-test
-    environment:
-      - MINIO_ENDPOINT=minio:9000
-      - MINIO_ACCESS_KEY=minioadmin
-      - MINIO_SECRET_KEY=minioadmin
-      - MINIO_BUCKET=blockchain-data
-      - MINIO_USE_SSL=false
-    networks:
-      - pipeline-network
-    depends_on:
-      - minio
-    restart: "no"
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  nats_data:
+    driver: local
+  minio_data:
+    driver: local
+  registry_data:
+    driver: local
+  api_static:
+    driver: local
+  api_media:
+    driver: local
+
+networks:
+  ekko-ce-network:
+    name: ekko-ce-network
+    driver: bridge

@@ -1,0 +1,23 @@
+apiVersion: v2
+name: ekko-api
+description: Ekko Platform API Service - Django REST API
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+
+keywords:
+  - django
+  - api
+  - rest
+  - blockchain
+  - monitoring
+
+maintainers:
+  - name: Ekko Platform Team
+    email: team@ekko.zone
+
+home: https://ekko.zone
+sources:
+  - https://github.com/ekko-platform/ekko-cluster
+
+dependencies: []

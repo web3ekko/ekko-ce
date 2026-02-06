@@ -1,0 +1,155 @@
+// Ekko DuckLake Capability Interface
+// Provides DuckLake operations for blockchain transaction storage
+
+package ekko:ducklake@0.1.0;
+
+/// DuckLake table management and data operations
+interface ducklake {
+    /// Table identifier
+    type table-name = string;
+    
+    /// S3/MinIO path for table location
+    type table-path = string;
+    
+    /// JSON-encoded transaction record
+    type json-record = string;
+    
+    /// SQL query string
+    type sql-query = string;
+    
+    /// Partition specification for efficient querying
+    record partition-spec {
+        /// Partition columns (e.g., ["network", "subnet", "year", "month", "day", "hour"])
+        columns: list<string>,
+        /// Z-order columns for optimization (e.g., ["block_number", "transaction_hash"])
+        z-order-columns: list<string>,
+    }
+    
+    /// Table schema definition
+    record table-schema {
+        /// Table name (e.g., "transactions_evm")
+        name: table-name,
+        /// S3 location (e.g., "s3://ekko-ducklake/transactions_evm")
+        location: table-path,
+        /// Partition specification
+        partitioning: partition-spec,
+        /// Schema version for evolution
+        version: string,
+    }
+    
+    /// Batch write request
+    record batch-write-request {
+        /// Target table name
+        table: table-name,
+        /// JSON records to append
+        records: list<json-record>,
+        /// Optional partition values for this batch
+        partition-values: option<list<tuple<string, string>>>,
+    }
+    
+    /// Query result
+    record query-result {
+        /// Result rows as JSON strings
+        rows: list<json-record>,
+        /// Number of rows returned
+        row-count: u64,
+        /// Query execution time in milliseconds
+        execution-time-ms: u64,
+    }
+    
+    /// Table statistics
+    record table-stats {
+        /// Total number of files
+        file-count: u64,
+        /// Total size in bytes
+        size-bytes: u64,
+        /// Number of records
+        record-count: u64,
+        /// Last modified timestamp
+        last-modified: u64,
+        /// Number of partitions
+        partition-count: u64,
+    }
+    
+    /// Optimization result
+    record optimization-result {
+        /// Files compacted
+        files-compacted: u64,
+        /// Files removed
+        files-removed: u64,
+        /// Size reduction in bytes
+        size-reduction-bytes: u64,
+        /// Optimization time in milliseconds
+        optimization-time-ms: u64,
+    }
+    
+    /// DuckLake operation errors
+    variant ducklake-error {
+        /// Table not found
+        table-not-found(string),
+        /// Schema mismatch
+        schema-mismatch(string),
+        /// Storage error (S3, filesystem)
+        storage-error(string),
+        /// Query parsing error
+        query-error(string),
+        /// Serialization error
+        serialization-error(string),
+        /// Configuration error
+        config-error(string),
+        /// Internal DuckLake error
+        internal-error(string),
+    }
+    
+    // === Table Management Operations ===
+    
+    /// Create a new DuckLake table with schema
+    create-table: func(schema: table-schema) -> result<_, ducklake-error>;
+    
+    /// Check if table exists
+    table-exists: func(table: table-name) -> result<bool, ducklake-error>;
+    
+    /// Get table statistics
+    get-table-stats: func(table: table-name) -> result<table-stats, ducklake-error>;
+    
+    /// List all tables
+    list-tables: func() -> result<list<table-name>, ducklake-error>;
+    
+    // === Data Operations ===
+    
+    /// Append records to table in batch
+    append-batch: func(request: batch-write-request) -> result<u64, ducklake-error>;
+    
+    /// Query table with SQL
+    query: func(sql: sql-query) -> result<query-result, ducklake-error>;
+    
+    /// Query table with time travel (version)
+    query-version: func(sql: sql-query, version: u64) -> result<query-result, ducklake-error>;
+    
+    /// Query table with time travel (timestamp)
+    query-timestamp: func(sql: sql-query, timestamp: u64) -> result<query-result, ducklake-error>;
+    
+    // === Optimization Operations ===
+    
+    /// Optimize table (compaction, Z-ordering)
+    optimize-table: func(table: table-name) -> result<optimization-result, ducklake-error>;
+    
+    /// Vacuum table (remove old files)
+    vacuum-table: func(table: table-name, retention-hours: u32) -> result<optimization-result, ducklake-error>;
+    
+    /// Get table history
+    get-table-history: func(table: table-name, limit: option<u32>) -> result<list<json-record>, ducklake-error>;
+    
+    // === Configuration Operations ===
+    
+    /// Update table properties
+    update-table-properties: func(table: table-name, properties: list<tuple<string, string>>) -> result<_, ducklake-error>;
+    
+    /// Get table properties
+    get-table-properties: func(table: table-name) -> result<list<tuple<string, string>>, ducklake-error>;
+}
+
+/// World definition for DuckLake capability
+world ducklake-world {
+    export ducklake;
+}

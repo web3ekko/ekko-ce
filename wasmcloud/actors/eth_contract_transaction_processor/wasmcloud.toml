@@ -1,0 +1,58 @@
+name = "eth_contract_transaction_processor"
+language = "rust"
+type = "component"
+
+[component]
+wit_world = "eth-contract-transaction-processor"
+wasm_target = "wasm32-wasip1"
+
+[component.build]
+command = "cargo"
+args = ["build", "--release", "--target", "wasm32-wasip1"]
+
+[component.claims]
+name = "Ethereum Contract Transaction Processor Actor"
+description = "Processes ETH contract function call transactions with decoder coordination and event analysis"
+version = "0.1.0"
+revision = 0
+tags = ["ethereum", "contracts", "transactions", "function-calls", "decoder", "events"]
+
+[component.capabilities]
+# Messaging capabilities for pub/sub
+messaging = ["wasmcloud:messaging"]
+
+# Key-value store for call tracking and pending decodes
+keyvalue = ["wasmcloud:keyvalue"]
+
+# Logging capability
+logging = ["wasmcloud:logging"]
+
+[component.config]
+# Default configuration values
+default_network = "ethereum"
+default_subnet = "mainnet"
+default_vm_type = "evm"
+
+# Processing settings
+enable_decoder_coordination = true
+enable_event_processing = true
+enable_pattern_detection = true
+batch_size = 500
+max_processing_time_ms = 20
+
+# Decoder coordination
+decoder_timeout_seconds = 30
+decoder_retry_attempts = 3
+pending_decode_ttl_seconds = 3600
+
+# Function analysis thresholds
+popular_function_threshold = 100
+interaction_frequency_window_seconds = 300
+
+# Routing configuration
+subscribe_patterns = ["contract-transactions.*.*.evm.raw", "transactions.decoded.evm"]
+processed_subject = "contract-calls.processed.evm"
+alert_subject_pattern = "alerts.evaluate.{chain}"
+decode_request_pattern = "abi.decode.request.{network}.{subnet}"
+ducklake_subject = "ducklake.contract-calls"
+interaction_pattern_subject = "interaction-patterns.{chain}"

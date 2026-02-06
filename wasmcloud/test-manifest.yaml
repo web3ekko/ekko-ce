@@ -1,0 +1,17 @@
+apiVersion: core.oam.dev/v1beta1
+kind: Application
+metadata:
+  name: ekko-test
+  annotations:
+    description: "Simple test deployment for Ekko blockchain actor"
+    version: v0.1.0
+spec:
+  components:
+    - name: eth-raw-transactions
+      type: component
+      properties:
+        image: file://./actors/eth_raw_transactions/build/eth_raw_transactions_s.wasm
+      traits:
+        - type: spreadscaler
+          properties:
+            replicas: 1

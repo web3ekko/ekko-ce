@@ -1,0 +1,17 @@
+// World definition for abi-decoder actor
+package ekko:actors@0.1.0;
+
+/// World for the ABI decoder actor
+/// Decodes EVM transaction input data using custom minimal decoder
+/// NOTE: HTTP capability temporarily removed due to WASI 0.2.3 incompatibility
+/// ABIs must be pre-populated in Redis cache
+world abi-decoder {
+    /// Import standard wasmCloud and WASI capabilities
+    import wasmcloud:messaging/consumer@0.2.0;  // For publishing messages
+    import wasi:keyvalue/store@0.2.0-draft;     // For ABI cache (Redis)
+    import wasi:clocks/wall-clock@0.2.0;       // For timestamp generation
+
+    /// Export the message handler interface
+    /// The actor will handle incoming decode requests and contract transactions
+    export wasmcloud:messaging/handler@0.2.0;  // For receiving messages
+}

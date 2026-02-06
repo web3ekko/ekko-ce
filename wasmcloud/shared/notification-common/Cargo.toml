@@ -1,0 +1,50 @@
+[package]
+name = "notification-common"
+version = "1.0.0"
+edition = "2021"
+authors = ["Ekko Team"]
+description = "Shared types and utilities for Ekko notification providers"
+
+[dependencies]
+# Async runtime
+tokio = { workspace = true }
+async-trait = { workspace = true }
+futures = { workspace = true }
+
+# NATS messaging
+async-nats = { workspace = true }
+
+# Redis
+redis = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Utilities
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+
+# Error handling and retries
+backoff = { workspace = true }
+
+# Concurrent data structures  
+dashmap = { workspace = true }
+
+# Additional dependencies
+regex = { workspace = true }
+parking_lot = { workspace = true }
+bb8 = { workspace = true }
+bb8-redis = { workspace = true }
+
+[dev-dependencies]
+# Testing
+tempfile = "3.8"
+mockall = "0.12"
+tokio-test = "0.4"
+wiremock = "0.6"
+testcontainers = { workspace = true }
+testcontainers-modules = { workspace = true, features = ["redis"] }

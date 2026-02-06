@@ -1,0 +1,46 @@
+[package]
+name = "ducklake-common"
+version = "1.0.0"
+edition = "2021"
+authors = ["Ekko Team"]
+description = "Shared types, schemas, and utilities for Ekko DuckLake providers"
+
+[dependencies]
+# Async runtime
+tokio = { workspace = true }
+async-trait = { workspace = true }
+futures = { workspace = true }
+
+# Arrow for data types (shared across providers/actors)
+arrow = { workspace = true, features = ["json"] }
+arrow-array = { workspace = true }
+arrow-schema = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Utilities
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+# chrono >= 0.4.40 required by arrow-arith 55
+chrono = { version = "0.4", features = ["serde", "clock"], default-features = false }
+
+# Hashing for sharding and checksums
+sha2 = "0.10"
+
+# URL parsing
+url = "2.5"
+
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+# DuckDB/DuckLake engine (native only)
+duckdb = { version = "1.0", features = ["bundled"] }
+
+# PostgreSQL for migration tracking (native only)
+tokio-postgres = { version = "0.7", features = ["with-chrono-0_4"] }
+
+[dev-dependencies]
+tokio-test = "0.4"
+tempfile = "3.8"

@@ -1,0 +1,13 @@
+// World definition for eth_contract_transaction_processor actor
+package ekko:actors@0.1.0;
+
+/// World for the ETH contract transaction processor actor
+world eth-contract-transaction-processor {
+    /// Import standard wasmCloud capabilities
+    import wasmcloud:messaging/consumer@0.2.0;  // For publishing messages
+    import wasi:keyvalue/store@0.2.0-draft;     // For call tracking and pending decodes in Redis
+
+    /// Export the message handler interface
+    /// The actor will handle incoming contract transaction messages from NATS
+    export wasmcloud:messaging/handler@0.2.0;   // For receiving messages
+}
