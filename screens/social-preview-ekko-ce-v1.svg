@@ -1,0 +1,147 @@
+<svg width="1280" height="640" viewBox="0 0 1280 640" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Ekko CE social preview">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1280" y2="640" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F7F9FC"/>
+      <stop offset="1" stop-color="#EAF1FF"/>
+    </linearGradient>
+    <linearGradient id="heroGlow" x1="700" y1="40" x2="1180" y2="520" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#DDE9FF"/>
+      <stop offset="1" stop-color="#EDF3FF" stop-opacity="0.2"/>
+    </linearGradient>
+    <filter id="shadowLg" x="0" y="0" width="200%" height="200%">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#0F172A" flood-opacity="0.12"/>
+    </filter>
+    <filter id="shadowMd" x="0" y="0" width="200%" height="200%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#0F172A" flood-opacity="0.1"/>
+    </filter>
+    <style>
+      .h1 {
+        font-family: Inter, "SF Pro Display", "Segoe UI", Arial, sans-serif;
+        font-size: 66px;
+        font-weight: 800;
+        fill: #0F172A;
+        letter-spacing: -1px;
+      }
+      .sub {
+        font-family: Inter, "SF Pro Display", "Segoe UI", Arial, sans-serif;
+        font-size: 31px;
+        font-weight: 600;
+        fill: #334155;
+      }
+      .eyebrow {
+        font-family: Inter, "SF Pro Display", "Segoe UI", Arial, sans-serif;
+        font-size: 22px;
+        font-weight: 700;
+        fill: #2563EB;
+        letter-spacing: 0.2px;
+      }
+      .chip {
+        font-family: Inter, "SF Pro Text", "Segoe UI", Arial, sans-serif;
+        font-size: 18px;
+        font-weight: 600;
+        fill: #1E293B;
+      }
+      .cta {
+        font-family: Inter, "SF Pro Text", "Segoe UI", Arial, sans-serif;
+        font-size: 20px;
+        font-weight: 600;
+        fill: #1E293B;
+      }
+      .miniTitle {
+        font-family: Inter, "SF Pro Text", "Segoe UI", Arial, sans-serif;
+        font-size: 16px;
+        font-weight: 700;
+        fill: #0F172A;
+      }
+      .miniText {
+        font-family: Inter, "SF Pro Text", "Segoe UI", Arial, sans-serif;
+        font-size: 13px;
+        font-weight: 500;
+        fill: #475569;
+      }
+      .badge {
+        font-family: Inter, "SF Pro Text", "Segoe UI", Arial, sans-serif;
+        font-size: 14px;
+        font-weight: 700;
+        fill: #FFFFFF;
+      }
+    </style>
+  </defs>
+
+  <rect width="1280" height="640" fill="url(#bg)"/>
+  <circle cx="1080" cy="120" r="260" fill="url(#heroGlow)"/>
+
+  <!-- Left column -->
+  <g transform="translate(84,78)">
+    <rect x="0" y="0" width="130" height="36" rx="18" fill="#EAF1FF"/>
+    <text x="16" y="24" class="eyebrow">Ekko CE</text>
+
+    <text x="0" y="122" class="h1">
+      <tspan x="0" dy="0">Natural-Language Alerts</tspan>
+      <tspan x="0" dy="68">for Avalanche Teams</tspan>
+    </text>
+
+    <text x="0" y="296" class="sub">
+      <tspan x="0" dy="0">Open-source monitoring with fast,</tspan>
+      <tspan x="0" dy="42">multi-channel notifications.</tspan>
+    </text>
+
+    <g transform="translate(0,400)">
+      <rect x="0" y="0" width="128" height="38" rx="19" fill="#FFFFFF" stroke="#E6E9EE"/>
+      <text x="20" y="24" class="chip">Open Source</text>
+
+      <rect x="140" y="0" width="194" height="38" rx="19" fill="#FFFFFF" stroke="#E6E9EE"/>
+      <text x="160" y="24" class="chip">NATS + wasmCloud</text>
+
+      <rect x="346" y="0" width="212" height="38" rx="19" fill="#FFFFFF" stroke="#E6E9EE"/>
+      <text x="366" y="24" class="chip">Multi-Channel Alerts</text>
+    </g>
+
+    <text x="0" y="486" class="cta">
+      <tspan x="0" dy="0">Run CE locally.</tspan>
+      <tspan x="0" dy="28">Full managed version: app.ekko.zone</tspan>
+    </text>
+  </g>
+
+  <!-- Right column visual stack -->
+  <g transform="translate(760,84)">
+    <rect x="0" y="0" width="468" height="472" rx="22" fill="#FFFFFF" stroke="#E6E9EE" filter="url(#shadowLg)"/>
+    <rect x="26" y="24" width="416" height="24" rx="12" fill="#F8FAFC"/>
+    <circle cx="40" cy="36" r="4" fill="#2563EB"/>
+    <circle cx="54" cy="36" r="4" fill="#10B981"/>
+    <circle cx="68" cy="36" r="4" fill="#E84142"/>
+    <rect x="84" y="30" width="120" height="12" rx="6" fill="#CBD5E1"/>
+
+    <rect x="26" y="64" width="416" height="122" rx="14" fill="#F8FAFC" stroke="#E2E8F0"/>
+    <text x="42" y="90" class="miniTitle">Dashboard Home</text>
+    <rect x="42" y="102" width="96" height="20" rx="10" fill="#DBEAFE"/>
+    <text x="55" y="116" class="miniText">Live</text>
+    <rect x="42" y="132" width="178" height="10" rx="5" fill="#CBD5E1"/>
+    <rect x="42" y="150" width="252" height="10" rx="5" fill="#E2E8F0"/>
+    <rect x="310" y="132" width="118" height="42" rx="12" fill="#2563EB"/>
+    <text x="339" y="157" class="badge">Create Alert</text>
+
+    <rect x="26" y="202" width="416" height="238" rx="14" fill="#FFFFFF" stroke="#E2E8F0"/>
+    <text x="42" y="230" class="miniTitle">Alert Detail</text>
+    <rect x="42" y="244" width="84" height="18" rx="9" fill="#DCFCE7"/>
+    <text x="56" y="257" class="miniText">Enabled</text>
+
+    <rect x="42" y="274" width="180" height="72" rx="10" fill="#F8FAFC" stroke="#E2E8F0"/>
+    <text x="54" y="296" class="miniText">Event</text>
+    <rect x="54" y="305" width="132" height="9" rx="4.5" fill="#CBD5E1"/>
+    <rect x="54" y="322" width="110" height="9" rx="4.5" fill="#E2E8F0"/>
+
+    <rect x="234" y="274" width="194" height="72" rx="10" fill="#F8FAFC" stroke="#E2E8F0"/>
+    <text x="246" y="296" class="miniText">Target</text>
+    <rect x="246" y="305" width="146" height="9" rx="4.5" fill="#CBD5E1"/>
+    <rect x="246" y="322" width="126" height="9" rx="4.5" fill="#E2E8F0"/>
+
+    <rect x="42" y="360" width="386" height="64" rx="10" fill="#FFF7D6" stroke="#F5D36B"/>
+    <text x="54" y="384" class="miniTitle">Notifications</text>
+    <rect x="54" y="394" width="246" height="8" rx="4" fill="#FCD34D"/>
+    <rect x="54" y="408" width="198" height="8" rx="4" fill="#FDE68A"/>
+
+    <rect x="316" y="12" width="140" height="34" rx="17" fill="#E84142" filter="url(#shadowMd)"/>
+    <text x="338" y="33" class="badge">Avalanche-first</text>
+  </g>
+</svg>
