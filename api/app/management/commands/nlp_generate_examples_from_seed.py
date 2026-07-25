@@ -8,7 +8,10 @@ from typing import Any, Dict, List
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
-from app.services.nlp.compiler import ProposedSpecCompilationError, compile_to_proposed_spec
+from app.services.nlp.compiler import (
+    ProposedSpecCompilationError,
+    compile_to_proposed_spec,
+)
 from app.services.nlp.eval.evaluator import evaluate_compiler_output
 from app.services.nlp.eval.seed_prompts import seed_prompt_cases
 from app.services.nlp.pipelines import PLAN_PIPELINE_ID
@@ -85,7 +88,11 @@ class Command(BaseCommand):
                             "nl_description": case.nl_description,
                             "context": dict(case.context),
                             "output_json": None,
-                            "_eval": {"ok": False, "errors": [str(exc)], "raw_response": (exc.raw_response or "")[:2000]},
+                            "_eval": {
+                                "ok": False,
+                                "errors": [str(exc)],
+                                "raw_response": (exc.raw_response or "")[:2000],
+                            },
                         }
                     )
                 continue
@@ -93,10 +100,16 @@ class Command(BaseCommand):
             eval_result = evaluate_compiler_output(
                 case_id=case.case_id,
                 proposed_spec=proposed,
-                expected_catalog_ids_any_of=list(case.expected_catalog_ids_any_of or []),
+                expected_catalog_ids_any_of=list(
+                    case.expected_catalog_ids_any_of or []
+                ),
                 expected_no_catalog_ids=bool(case.expected_no_catalog_ids),
-                expected_trigger_modes_any_of=list(case.expected_trigger_modes_any_of or []),
-                expected_missing_info_codes_any_of=list(case.expected_missing_info_codes_any_of or []),
+                expected_trigger_modes_any_of=list(
+                    case.expected_trigger_modes_any_of or []
+                ),
+                expected_missing_info_codes_any_of=list(
+                    case.expected_missing_info_codes_any_of or []
+                ),
                 expected_variable_ids_all=list(case.expected_variable_ids_all or []),
             )
 
@@ -122,7 +135,11 @@ class Command(BaseCommand):
                     }
                 )
 
-            status = self.style.SUCCESS("PASS") if eval_result.ok else self.style.ERROR("FAIL")
+            status = (
+                self.style.SUCCESS("PASS")
+                if eval_result.ok
+                else self.style.ERROR("FAIL")
+            )
             if eval_result.ok and is_incomplete and not include_incomplete:
                 self.stdout.write(f"[SKIP] {case.case_id} (missing_info present)")
             else:
@@ -130,5 +147,9 @@ class Command(BaseCommand):
             for err in eval_result.errors:
                 self.stdout.write(f"  - {err}")
 
-        out_path.write_text(json.dumps(examples, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        self.stdout.write(self.style.SUCCESS(f"Wrote {len(examples)} examples to {out_path}"))
+        out_path.write_text(
+            json.dumps(examples, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        self.stdout.write(
+            self.style.SUCCESS(f"Wrote {len(examples)} examples to {out_path}")
+        )

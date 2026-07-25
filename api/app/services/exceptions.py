@@ -19,7 +19,7 @@ class NLPProcessingError(Exception):
         self,
         message: str,
         details: Optional[Dict[str, Any]] = None,
-        stage: Optional[str] = None
+        stage: Optional[str] = None,
     ):
         """
         Initialize NLP processing error.
@@ -36,9 +36,9 @@ class NLPProcessingError(Exception):
     def to_dict(self) -> Dict[str, Any]:
         """Convert exception to dictionary for API response."""
         return {
-            'error': str(self),
-            'details': self.details,
-            'stage': self.stage,
+            "error": str(self),
+            "details": self.details,
+            "stage": self.stage,
         }
 
 
@@ -50,11 +50,7 @@ class AlertCreationError(Exception):
     during template or instance creation, after NLP has succeeded.
     """
 
-    def __init__(
-        self,
-        message: str,
-        details: Optional[Dict[str, Any]] = None
-    ):
+    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
         """
         Initialize alert creation error.
 
@@ -68,8 +64,8 @@ class AlertCreationError(Exception):
     def to_dict(self) -> Dict[str, Any]:
         """Convert exception to dictionary for API response."""
         return {
-            'error': str(self),
-            'details': self.details,
+            "error": str(self),
+            "details": self.details,
         }
 
 
@@ -81,5 +77,7 @@ class NLPNotConfiguredError(Exception):
     but the NLP service has not been properly configured.
     """
 
-    def __init__(self, message: str = "NLP service not configured. Check GEMINI_API_KEY setting."):
+    def __init__(
+        self, message: str = "NLP service not configured. Check GEMINI_API_KEY setting."
+    ):
         super().__init__(message)

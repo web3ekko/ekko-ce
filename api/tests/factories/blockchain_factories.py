@@ -64,32 +64,34 @@ class SubChainFactory(factory.django.DjangoModelFactory):
 
 class BlockchainFactory(factory.django.DjangoModelFactory):
     """Factory for Blockchain model"""
-    
+
     class Meta:
         model = Blockchain
-        django_get_or_create = ('symbol',)
-    
+        django_get_or_create = ("symbol",)
+
     name = factory.Faker("word")
-    symbol = factory.LazyAttribute(lambda obj: obj.name.lower()[:10] if obj.name else "eth")
+    symbol = factory.LazyAttribute(
+        lambda obj: obj.name.lower()[:10] if obj.name else "eth"
+    )
     chain_type = "EVM"
 
 
 class CategoryFactory(factory.django.DjangoModelFactory):
     """Factory for Category model"""
-    
+
     class Meta:
         model = Category
-        django_get_or_create = ('name',)
-    
+        django_get_or_create = ("name",)
+
     name = factory.Faker("word")
 
 
 class DaoFactory(factory.django.DjangoModelFactory):
     """Factory for Dao model"""
-    
+
     class Meta:
         model = Dao
-    
+
     name = factory.Faker("company")
     description = factory.Faker("text", max_nb_chars=500)
     recommended = factory.Faker("boolean", chance_of_getting_true=25)
@@ -97,16 +99,18 @@ class DaoFactory(factory.django.DjangoModelFactory):
 
 class WalletFactory(factory.django.DjangoModelFactory):
     """Factory for Wallet model"""
-    
+
     class Meta:
         model = Wallet
-    
+
     blockchain = factory.SubFactory(BlockchainFactory)
     address = factory.LazyFunction(lambda: f"0x{fake.sha256()[:40]}")
     name = factory.Faker("word")
     derived_name = None  # Will be auto-generated
     domains = factory.LazyFunction(
-        lambda: {"ens": [f"{fake.word()}.eth"]} if fake.boolean(chance_of_getting_true=30) else None
+        lambda: {"ens": [f"{fake.word()}.eth"]}
+        if fake.boolean(chance_of_getting_true=30)
+        else None
     )
     recommended = factory.Faker("boolean", chance_of_getting_true=10)
     balance = factory.LazyFunction(
@@ -115,7 +119,7 @@ class WalletFactory(factory.django.DjangoModelFactory):
     status = factory.Iterator(["active", "inactive", "monitoring"])
     subnet = factory.Iterator(["mainnet", "testnet", "goerli", "sepolia"])
     description = factory.Faker("text", max_nb_chars=200)
-    
+
     @factory.post_generation
     def generate_derived_name(self, create, extracted, **kwargs):
         """Generate derived name after creation"""
@@ -126,13 +130,15 @@ class WalletFactory(factory.django.DjangoModelFactory):
 
 class TokenFactory(factory.django.DjangoModelFactory):
     """Factory for Token model"""
-    
+
     class Meta:
         model = Token
-    
+
     chain = factory.SubFactory(ChainFactory)
     name = factory.Faker("word")
-    symbol = factory.LazyAttribute(lambda obj: obj.name.upper()[:10] if obj.name else "TKN")
+    symbol = factory.LazyAttribute(
+        lambda obj: obj.name.upper()[:10] if obj.name else "TKN"
+    )
     decimals = 18
     is_native = False
     contract_address = factory.LazyFunction(lambda: f"0x{fake.sha256()[:40]}")
@@ -140,98 +146,98 @@ class TokenFactory(factory.django.DjangoModelFactory):
 
 class DaoSubscriptionFactory(factory.django.DjangoModelFactory):
     """Factory for DaoSubscription model"""
-    
+
     class Meta:
         model = DaoSubscription
-    
+
     name = factory.Faker("word")
     dao = factory.SubFactory(DaoFactory)
-    user = factory.SubFactory('tests.factories.auth_factories.UserFactory')
+    user = factory.SubFactory("tests.factories.auth_factories.UserFactory")
     notifications_count = factory.Faker("random_int", min=0, max=100)
 
 
 class WalletSubscriptionFactory(factory.django.DjangoModelFactory):
     """Factory for WalletSubscription model"""
-    
+
     class Meta:
         model = WalletSubscription
-    
+
     wallet = factory.SubFactory(WalletFactory)
     name = factory.Faker("word")
-    user = factory.SubFactory('tests.factories.auth_factories.UserFactory')
+    user = factory.SubFactory("tests.factories.auth_factories.UserFactory")
     notifications_count = factory.Faker("random_int", min=0, max=100)
 
 
 class DaoWalletFactory(factory.django.DjangoModelFactory):
     """Factory for DaoWallet model"""
-    
+
     class Meta:
         model = DaoWallet
-    
+
     dao = factory.SubFactory(DaoFactory)
     wallet = factory.SubFactory(WalletFactory)
 
 
 class ImageFactory(factory.django.DjangoModelFactory):
     """Factory for Image model"""
-    
+
     class Meta:
         model = Image
-    
+
     url = factory.Faker("image_url")
 
 
 class StoryFactory(factory.django.DjangoModelFactory):
     """Factory for Story model"""
-    
+
     class Meta:
         model = Story
-    
+
     title = factory.Faker("sentence", nb_words=6)
     description = factory.Faker("text", max_nb_chars=300)
     content = factory.Faker("text", max_nb_chars=1000)
-    publication_date = factory.Faker("date_time_this_year", tzinfo=timezone.get_current_timezone())
+    publication_date = factory.Faker(
+        "date_time_this_year", tzinfo=timezone.get_current_timezone()
+    )
     image_url = factory.Faker("image_url")
     url = factory.Faker("url")
 
 
 class BlockchainStoryFactory(factory.django.DjangoModelFactory):
     """Factory for BlockchainStory model"""
-    
+
     class Meta:
         model = BlockchainStory
-    
+
     story = factory.SubFactory(StoryFactory)
     blockchain = factory.SubFactory(BlockchainFactory)
 
 
 class TagFactory(factory.django.DjangoModelFactory):
     """Factory for Tag model"""
-    
+
     class Meta:
         model = Tag
-        django_get_or_create = ('name',)
-    
+        django_get_or_create = ("name",)
+
     name = factory.Faker("word")
 
 
 class WalletBalanceFactory(factory.django.DjangoModelFactory):
     """Factory for WalletBalance model"""
-    
+
     class Meta:
         model = WalletBalance
-    
+
     wallet = factory.SubFactory(WalletFactory)
     balance = factory.LazyFunction(
         lambda: str(fake.random_int(min=0, max=1000000000000000000))
     )
-    token_price = factory.LazyFunction(
-        lambda: str(fake.random_int(min=1000, max=5000))
+    token_price = factory.LazyFunction(lambda: str(fake.random_int(min=1000, max=5000)))
+    fiat_value = factory.LazyFunction(lambda: str(fake.random_int(min=100, max=10000)))
+    timestamp = factory.Faker(
+        "date_time_this_year", tzinfo=timezone.get_current_timezone()
     )
-    fiat_value = factory.LazyFunction(
-        lambda: str(fake.random_int(min=100, max=10000))
-    )
-    timestamp = factory.Faker("date_time_this_year", tzinfo=timezone.get_current_timezone())
 
 
 # Utility functions for creating related objects
@@ -239,72 +245,73 @@ def create_wallet_with_balance_history(blockchain=None, **wallet_kwargs):
     """Create a wallet with balance history"""
     if blockchain is None:
         blockchain = BlockchainFactory()
-    
+
     wallet = WalletFactory(blockchain=blockchain, **wallet_kwargs)
-    
+
     # Create balance history
     balances = []
     for i in range(5):
         balance = WalletBalanceFactory(
-            wallet=wallet,
-            timestamp=timezone.now() - timedelta(days=i)
+            wallet=wallet, timestamp=timezone.now() - timedelta(days=i)
         )
         balances.append(balance)
-    
+
     return wallet, balances
 
 
 def create_dao_with_wallets(wallet_count=3, **dao_kwargs):
     """Create a DAO with associated wallets"""
     dao = DaoFactory(**dao_kwargs)
-    
+
     wallets = []
     for _ in range(wallet_count):
         wallet = WalletFactory()
         DaoWalletFactory(dao=dao, wallet=wallet)
         wallets.append(wallet)
-    
+
     return dao, wallets
 
 
 def create_blockchain_ecosystem(blockchain_name="Ethereum"):
     """Create a complete blockchain ecosystem"""
-    blockchain = BlockchainFactory(name=blockchain_name, symbol=blockchain_name.lower()[:3])
+    blockchain = BlockchainFactory(
+        name=blockchain_name, symbol=blockchain_name.lower()[:3]
+    )
     chain = ChainFactory(name=blockchain_name.lower(), display_name=blockchain_name)
-    
+
     # Create tokens
     tokens = [
         TokenFactory(chain=chain, name="USD Coin", symbol="USDC", decimals=6),
         TokenFactory(chain=chain, name="Wrapped Bitcoin", symbol="WBTC", decimals=8),
     ]
-    
+
     # Create wallets
     wallets = [WalletFactory(blockchain=blockchain) for _ in range(3)]
-    
+
     # Create DAOs
     daos = [DaoFactory() for _ in range(2)]
-    
+
     # Associate DAOs with wallets
     for dao in daos:
         for wallet in wallets[:2]:  # Each DAO gets 2 wallets
             DaoWalletFactory(dao=dao, wallet=wallet)
-    
+
     return {
-        'blockchain': blockchain,
-        'tokens': tokens,
-        'wallets': wallets,
-        'daos': daos,
+        "blockchain": blockchain,
+        "tokens": tokens,
+        "wallets": wallets,
+        "daos": daos,
     }
 
 
 def create_story_with_blockchains(blockchain_count=2, **story_kwargs):
     """Create a story associated with multiple blockchains"""
     story = StoryFactory(**story_kwargs)
-    
+
     blockchains = []
     for _ in range(blockchain_count):
         blockchain = BlockchainFactory()
         BlockchainStoryFactory(story=story, blockchain=blockchain)
         blockchains.append(blockchain)
-    
+
     return story, blockchains

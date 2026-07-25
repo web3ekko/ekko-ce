@@ -30,97 +30,92 @@ User = get_user_model()
 
 # Event Type Choices
 EVENT_TYPE_CHOICES = [
-    ('ACCOUNT_EVENT', 'Account Event'),
-    ('ASSET_EVENT', 'Asset Event'),
-    ('CONTRACT_INTERACTION', 'Contract Interaction'),
-    ('PROTOCOL_EVENT', 'Protocol Event'),
-    ('DEFI_EVENT', 'DeFi Event'),
-    ('ANOMALY_EVENT', 'Anomaly Event'),
+    ("ACCOUNT_EVENT", "Account Event"),
+    ("ASSET_EVENT", "Asset Event"),
+    ("CONTRACT_INTERACTION", "Contract Interaction"),
+    ("PROTOCOL_EVENT", "Protocol Event"),
+    ("DEFI_EVENT", "DeFi Event"),
+    ("ANOMALY_EVENT", "Anomaly Event"),
 ]
 
 # UI-friendly template type derived from event_type.
 EVENT_TYPE_TO_TEMPLATE_TYPE = {
-    'ACCOUNT_EVENT': 'wallet',
-    'ASSET_EVENT': 'token',
+    "ACCOUNT_EVENT": "wallet",
+    "ASSET_EVENT": "token",
     # Blockchain protocol / network-wide events.
-    'PROTOCOL_EVENT': 'network',
+    "PROTOCOL_EVENT": "network",
     # Application protocols (e.g., Aave, Uniswap) scoped to a network.
-    'DEFI_EVENT': 'protocol',
-    'CONTRACT_INTERACTION': 'contract',
-    'ANOMALY_EVENT': 'anomaly',
+    "DEFI_EVENT": "protocol",
+    "CONTRACT_INTERACTION": "contract",
+    "ANOMALY_EVENT": "anomaly",
 }
 
 # Targeting type derived from event_type/template_type.
 # This is used to determine what kind of group/key a subscription should target.
 EVENT_TYPE_TO_TARGET_ALERT_TYPE = {
-    'ACCOUNT_EVENT': AlertType.WALLET,
-    'ASSET_EVENT': AlertType.TOKEN,
+    "ACCOUNT_EVENT": AlertType.WALLET,
+    "ASSET_EVENT": AlertType.TOKEN,
     # Blockchain protocol events are network-scoped (e.g. blocks, reorgs).
-    'PROTOCOL_EVENT': AlertType.NETWORK,
+    "PROTOCOL_EVENT": AlertType.NETWORK,
     # DeFi/application protocol events are protocol-scoped (e.g. Aave health factor).
-    'DEFI_EVENT': AlertType.PROTOCOL,
-    'CONTRACT_INTERACTION': AlertType.CONTRACT,
+    "DEFI_EVENT": AlertType.PROTOCOL,
+    "CONTRACT_INTERACTION": AlertType.CONTRACT,
     # Anomalies are network-scoped today.
-    'ANOMALY_EVENT': AlertType.NETWORK,
+    "ANOMALY_EVENT": AlertType.NETWORK,
 }
 
 # Common Sub-Event Choices (extensible)
 SUB_EVENT_CHOICES = [
     # Account Events
-    ('ACCOUNT_CREATED', 'Account Created'),
-    ('NATIVE_SEND', 'Native Send'),
-    ('NATIVE_RECEIVE', 'Native Receive'),
-    ('TOKEN_ALLOWANCE_CHANGED', 'Token Allowance Changed'),
-    ('BALANCE_THRESHOLD', 'Balance Threshold'),
-    ('GAS_USAGE_SPIKE', 'Gas Usage Spike'),
-
+    ("ACCOUNT_CREATED", "Account Created"),
+    ("NATIVE_SEND", "Native Send"),
+    ("NATIVE_RECEIVE", "Native Receive"),
+    ("TOKEN_ALLOWANCE_CHANGED", "Token Allowance Changed"),
+    ("BALANCE_THRESHOLD", "Balance Threshold"),
+    ("GAS_USAGE_SPIKE", "Gas Usage Spike"),
     # Asset Events
-    ('TOKEN_MINT', 'Token Mint'),
-    ('TOKEN_BURN', 'Token Burn'),
-    ('TOKEN_TRANSFER', 'Token Transfer'),
-    ('TOKEN_METADATA_UPDATE', 'Token Metadata Update'),
-
+    ("TOKEN_MINT", "Token Mint"),
+    ("TOKEN_BURN", "Token Burn"),
+    ("TOKEN_TRANSFER", "Token Transfer"),
+    ("TOKEN_METADATA_UPDATE", "Token Metadata Update"),
     # Contract Interactions
-    ('DEPOSIT', 'Deposit'),
-    ('WITHDRAW', 'Withdraw'),
-    ('BORROW', 'Borrow'),
-    ('REPAY', 'Repay'),
-    ('LIQUIDATION', 'Liquidation'),
-    ('SWAP', 'Swap'),
-    ('ADD_LIQUIDITY', 'Add Liquidity'),
-    ('REMOVE_LIQUIDITY', 'Remove Liquidity'),
-
+    ("DEPOSIT", "Deposit"),
+    ("WITHDRAW", "Withdraw"),
+    ("BORROW", "Borrow"),
+    ("REPAY", "Repay"),
+    ("LIQUIDATION", "Liquidation"),
+    ("SWAP", "Swap"),
+    ("ADD_LIQUIDITY", "Add Liquidity"),
+    ("REMOVE_LIQUIDITY", "Remove Liquidity"),
     # Protocol Events
-    ('BLOCK_PRODUCED', 'Block Produced'),
-    ('CHAIN_REORG', 'Chain Reorg'),
-    ('VALIDATOR_SLASHED', 'Validator Slashed'),
-
+    ("BLOCK_PRODUCED", "Block Produced"),
+    ("CHAIN_REORG", "Chain Reorg"),
+    ("VALIDATOR_SLASHED", "Validator Slashed"),
     # Anomaly Events
-    ('LARGE_TRANSFER_OUTLIER', 'Large Transfer Outlier'),
-    ('PRIVILEGED_FUNCTION_CALLED', 'Privileged Function Called'),
-
+    ("LARGE_TRANSFER_OUTLIER", "Large Transfer Outlier"),
+    ("PRIVILEGED_FUNCTION_CALLED", "Privileged Function Called"),
     # Custom
-    ('CUSTOM', 'Custom'),
+    ("CUSTOM", "Custom"),
 ]
 
 # Priority Choices
 PRIORITY_CHOICES = [
-    ('high', 'High'),
-    ('normal', 'Normal'),
-    ('low', 'Low'),
+    ("high", "High"),
+    ("normal", "Normal"),
+    ("low", "Low"),
 ]
 
 # Trigger Mode Choices
 TRIGGER_MODE_CHOICES = [
-    ('event', 'Event'),
-    ('schedule', 'Schedule'),
+    ("event", "Event"),
+    ("schedule", "Schedule"),
 ]
 
 # Template Source Choices
 SOURCE_CHOICES = [
-    ('manual', 'Manual'),
-    ('nlp_generated', 'NLP Generated'),
-    ('system', 'System Default'),
+    ("manual", "Manual"),
+    ("nlp_generated", "NLP Generated"),
+    ("system", "System Default"),
 ]
 
 
@@ -157,7 +152,7 @@ def render_template_spec(template_spec: dict, params: dict) -> dict:
                 # Keep original if not in params
                 return match.group(0)
 
-        rendered_str = re.sub(r'\{\{(\w+)\}\}', replace_placeholder, template_str)
+        rendered_str = re.sub(r"\{\{(\w+)\}\}", replace_placeholder, template_str)
 
         # Convert back to dict
         return json.loads(rendered_str)
@@ -168,6 +163,7 @@ def render_template_spec(template_spec: dict, params: dict) -> dict:
 
 # NOTE: Legacy AlertTemplate v1 has been removed.
 # vNext templates are persisted in `app.models.alert_templates.AlertTemplate` and compiled into AlertExecutable.
+
 
 class AlertInstance(models.Model):
     """
@@ -197,27 +193,24 @@ class AlertInstance(models.Model):
     template_params = models.JSONField(
         null=True,
         blank=True,
-        help_text="Variable bindings for this alert instance (used at evaluation time)."
+        help_text="Variable bindings for this alert instance (used at evaluation time).",
     )
 
     # Standalone alert specification (only used if template is None)
     _standalone_spec = models.JSONField(
         null=True,
         blank=True,
-        help_text="Complete alert specification for standalone alerts"
+        help_text="Complete alert specification for standalone alerts",
     )
 
     # Event classification (denormalized for query performance)
     event_type = models.CharField(max_length=50, choices=EVENT_TYPE_CHOICES)
     sub_event = models.CharField(max_length=50, choices=SUB_EVENT_CHOICES)
     sub_event_confidence = models.FloatField(
-        default=1.0,
-        help_text="Confidence score for sub-event classification"
+        default=1.0, help_text="Confidence score for sub-event classification"
     )
     sub_event_proposed = models.CharField(
-        max_length=50,
-        blank=True,
-        help_text="Proposed sub-event if confidence < 0.8"
+        max_length=50, blank=True, help_text="Proposed sub-event if confidence < 0.8"
     )
 
     # State
@@ -226,33 +219,32 @@ class AlertInstance(models.Model):
 
     # NLP Processing Status (for async NL processing)
     PROCESSING_STATUS_CHOICES = [
-        ('pending', 'Pending'),        # Just created, waiting for NLP
-        ('processing', 'Processing'),  # NLP is working on it
-        ('completed', 'Completed'),    # NLP finished successfully
-        ('failed', 'Failed'),          # NLP processing failed
-        ('skipped', 'Skipped'),        # No NLP processing needed (template-based)
+        ("pending", "Pending"),  # Just created, waiting for NLP
+        ("processing", "Processing"),  # NLP is working on it
+        ("completed", "Completed"),  # NLP finished successfully
+        ("failed", "Failed"),  # NLP processing failed
+        ("skipped", "Skipped"),  # No NLP processing needed (template-based)
     ]
     processing_status = models.CharField(
         max_length=20,
         choices=PROCESSING_STATUS_CHOICES,
-        default='skipped',
-        help_text="NLP processing status for NL-to-spec conversion"
+        default="skipped",
+        help_text="NLP processing status for NL-to-spec conversion",
     )
     processing_error = models.TextField(
-        blank=True,
-        help_text="Error message if NLP processing failed"
+        blank=True, help_text="Error message if NLP processing failed"
     )
 
     # Trigger configuration for AlertJob creation
     trigger_type = models.CharField(
         max_length=20,
         choices=[
-            ('event_driven', 'Event-Driven'),
-            ('one_time', 'One-Time'),
-            ('periodic', 'Periodic')
+            ("event_driven", "Event-Driven"),
+            ("one_time", "One-Time"),
+            ("periodic", "Periodic"),
         ],
-        default='event_driven',
-        help_text="Determines how AlertJobs are created for this alert"
+        default="event_driven",
+        help_text="Determines how AlertJobs are created for this alert",
     )
     trigger_config = models.JSONField(
         default=dict,
@@ -260,18 +252,18 @@ class AlertInstance(models.Model):
         help_text="""Configuration for job creation based on trigger_type:
         event_driven: {"chains": ["ethereum"], "event_types": ["transfer"]} - created by blockchain actors
         one_time: {"reset_allowed": true} - created once by Alert Scheduler Provider
-        periodic: {"interval_seconds": 300, "schedule": "*/5 * * * *"} - created on schedule by provider"""
+        periodic: {"interval_seconds": 300, "schedule": "*/5 * * * *"} - created on schedule by provider""",
     )
 
     # Job creation tracking (managed by actors/provider)
     last_job_created_at = models.DateTimeField(
         null=True,
         blank=True,
-        help_text="Timestamp of last AlertJob creation (used for periodic scheduling)"
+        help_text="Timestamp of last AlertJob creation (used for periodic scheduling)",
     )
     job_creation_count = models.PositiveIntegerField(
         default=0,
-        help_text="Total number of AlertJobs created for this alert (debugging/analytics)"
+        help_text="Total number of AlertJobs created for this alert (debugging/analytics)",
     )
 
     # Alert Type and Target Group (Unified Group Model integration)
@@ -279,15 +271,15 @@ class AlertInstance(models.Model):
         max_length=20,
         choices=AlertType.choices,
         default=AlertType.WALLET,
-        help_text="Type of alert: wallet, network, or token - determines valid target types"
+        help_text="Type of alert: wallet, network, or token - determines valid target types",
     )
     target_group = models.ForeignKey(
         GenericGroup,
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
-        related_name='alert_instances',
-        help_text="Optional: Target group (wallet/network/token group) for this alert"
+        related_name="alert_instances",
+        help_text="Optional: Target group (wallet/network/token group) for this alert",
     )
 
     # Individual target keys for fine-grained targeting
@@ -295,55 +287,63 @@ class AlertInstance(models.Model):
     target_keys = models.JSONField(
         default=list,
         blank=True,
-        help_text='''Individual target keys for fine-grained targeting.
+        help_text="""Individual target keys for fine-grained targeting.
         Format: ["ETH:mainnet:0x123...", "SOL:mainnet:ABC..."]
 
         Targeting Resolution:
         1. If target_keys is set → use individual keys (specific wallets)
         2. Else if target_group is set → use all members in group
         3. Else → alert applies globally (based on spec.scope)
-        '''
+        """,
     )
 
     # If set, this alert instance was materialized from a GroupSubscription
     # (used for AlertGroup template subscriptions that clone instances per subscriber)
     source_subscription = models.ForeignKey(
-        'app.GroupSubscription',
+        "app.GroupSubscription",
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
-        related_name='alert_instances',
-        help_text="If set, this alert was created/managed by a GroupSubscription"
+        related_name="alert_instances",
+        help_text="If set, this alert was created/managed by a GroupSubscription",
     )
     disabled_by_subscription = models.BooleanField(
         default=False,
-        help_text="True if this alert was disabled by its GroupSubscription (not a user override)."
+        help_text="True if this alert was disabled by its GroupSubscription (not a user override).",
     )
 
     # Ownership
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='alert_instances')
-    author = models.CharField(max_length=42, blank=True, help_text="Blockchain address of author")
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="alert_instances"
+    )
+    author = models.CharField(
+        max_length=42, blank=True, help_text="Blockchain address of author"
+    )
 
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'alert_instances'
-        verbose_name = 'Alert Instance'
-        verbose_name_plural = 'Alert Instances'
-        unique_together = ['id', 'version']
+        db_table = "alert_instances"
+        verbose_name = "Alert Instance"
+        verbose_name_plural = "Alert Instances"
+        unique_together = ["id", "version"]
         indexes = [
-            models.Index(fields=['user', 'enabled']),
-            models.Index(fields=['event_type', 'sub_event']),
-            models.Index(fields=['template']),
-            models.Index(fields=['created_at']),
-            models.Index(fields=['version']),
-            models.Index(fields=['trigger_type', 'enabled']),  # For actor/provider queries
-            models.Index(fields=['processing_status']),  # For NLP processing queries
-            models.Index(fields=['alert_type', 'enabled']),  # For unified group queries
-            models.Index(fields=['target_group', 'enabled']),  # For group-based lookups
-            GinIndex(fields=['target_keys'], name='alert_instance_target_keys_gin'),  # For individual targeting
+            models.Index(fields=["user", "enabled"]),
+            models.Index(fields=["event_type", "sub_event"]),
+            models.Index(fields=["template"]),
+            models.Index(fields=["created_at"]),
+            models.Index(fields=["version"]),
+            models.Index(
+                fields=["trigger_type", "enabled"]
+            ),  # For actor/provider queries
+            models.Index(fields=["processing_status"]),  # For NLP processing queries
+            models.Index(fields=["alert_type", "enabled"]),  # For unified group queries
+            models.Index(fields=["target_group", "enabled"]),  # For group-based lookups
+            GinIndex(
+                fields=["target_keys"], name="alert_instance_target_keys_gin"
+            ),  # For individual targeting
         ]
 
     def __str__(self):
@@ -401,7 +401,9 @@ class AlertInstance(models.Model):
             raise ValidationError("Alert spec must be a non-empty dictionary")
 
         if spec.get("version") != "v1":
-            raise ValidationError(f"Unsupported alert spec version: {spec.get('version')}")
+            raise ValidationError(
+                f"Unsupported alert spec version: {spec.get('version')}"
+            )
 
         required_fields = ["trigger", "conditions", "action"]
         for field in required_fields:
@@ -434,7 +436,11 @@ class AlertInstance(models.Model):
                     template_id=self.template_id,
                     template_version=int(self.template_version),
                 ).first()
-                spec = tmpl_ver.template_spec if tmpl_ver is not None and isinstance(tmpl_ver.template_spec, dict) else {}
+                spec = (
+                    tmpl_ver.template_spec
+                    if tmpl_ver is not None and isinstance(tmpl_ver.template_spec, dict)
+                    else {}
+                )
                 scope = spec.get("scope") if isinstance(spec.get("scope"), dict) else {}
                 networks = scope.get("networks")
                 if isinstance(networks, list):
@@ -504,11 +510,13 @@ class AlertInstance(models.Model):
         valid_group_types = ALERT_TYPE_TO_GROUP_TYPE.get(self.alert_type, [])
 
         if self.target_group.group_type not in valid_group_types:
-            valid_types_str = ', '.join(valid_group_types)
-            raise ValidationError({
-                'target_group': f"Alert type '{self.alert_type}' requires target group of type "
-                               f"[{valid_types_str}], but got '{self.target_group.group_type}'"
-            })
+            valid_types_str = ", ".join(valid_group_types)
+            raise ValidationError(
+                {
+                    "target_group": f"Alert type '{self.alert_type}' requires target group of type "
+                    f"[{valid_types_str}], but got '{self.target_group.group_type}'"
+                }
+            )
 
     def validate_target_keys_format(self):
         """
@@ -524,40 +532,48 @@ class AlertInstance(models.Model):
             return
 
         if not isinstance(self.target_keys, list):
-            raise ValidationError({
-                'target_keys': "target_keys must be a list of strings"
-            })
+            raise ValidationError(
+                {"target_keys": "target_keys must be a list of strings"}
+            )
 
         for i, key in enumerate(self.target_keys):
             if not isinstance(key, str):
-                raise ValidationError({
-                    'target_keys': f"target_keys[{i}] must be a string, got {type(key).__name__}"
-                })
+                raise ValidationError(
+                    {
+                        "target_keys": f"target_keys[{i}] must be a string, got {type(key).__name__}"
+                    }
+                )
 
-            parts = key.split(':')
+            parts = key.split(":")
 
             # Validate based on alert_type
             if self.alert_type == AlertType.NETWORK:
                 # Network keys: {network}:{subnet}
                 if len(parts) < 2:
-                    raise ValidationError({
-                        'target_keys': f"Network key '{key}' must be in format 'network:subnet' "
-                                       f"(e.g., 'ETH:mainnet')"
-                    })
+                    raise ValidationError(
+                        {
+                            "target_keys": f"Network key '{key}' must be in format 'network:subnet' "
+                            f"(e.g., 'ETH:mainnet')"
+                        }
+                    )
             elif self.alert_type == AlertType.PROTOCOL:
                 # Protocol keys: {network}:{subnet}:{protocol}
                 if len(parts) < 3:
-                    raise ValidationError({
-                        'target_keys': f"Protocol key '{key}' must be in format 'network:subnet:protocol' "
-                                       f"(e.g., 'ETH:mainnet:aave')"
-                    })
+                    raise ValidationError(
+                        {
+                            "target_keys": f"Protocol key '{key}' must be in format 'network:subnet:protocol' "
+                            f"(e.g., 'ETH:mainnet:aave')"
+                        }
+                    )
             else:
                 # Wallet and token keys: {network}:{subnet}:{address}
                 if len(parts) < 3:
-                    raise ValidationError({
-                        'target_keys': f"Key '{key}' must be in format 'network:subnet:address' "
-                                       f"(e.g., 'ETH:mainnet:0x123...')"
-                    })
+                    raise ValidationError(
+                        {
+                            "target_keys": f"Key '{key}' must be in format 'network:subnet:address' "
+                            f"(e.g., 'ETH:mainnet:0x123...')"
+                        }
+                    )
 
     def get_effective_targets(self) -> List[str]:
         """
@@ -593,16 +609,18 @@ class AlertInstance(models.Model):
         # Enforce a single targeting mechanism to avoid double-indexing:
         # an alert instance must target either a group or explicit keys, but not both.
         if self.target_group and self.target_keys:
-            raise ValidationError({
-                'target_group': "Cannot set target_group when target_keys are provided",
-                'target_keys': "Cannot set target_keys when target_group is provided",
-            })
+            raise ValidationError(
+                {
+                    "target_group": "Cannot set target_group when target_keys are provided",
+                    "target_keys": "Cannot set target_keys when target_group is provided",
+                }
+            )
 
     @classmethod
     def get_latest_versions(cls, user=None):
         """Get latest version of each alert instance"""
-        queryset = cls.objects.values('id').annotate(
-            latest_version=models.Max('version')
+        queryset = cls.objects.values("id").annotate(
+            latest_version=models.Max("version")
         )
 
         if user:
@@ -611,10 +629,7 @@ class AlertInstance(models.Model):
         # Get the actual alert objects
         latest_alerts = []
         for item in queryset:
-            alert = cls.objects.get(
-                id=item['id'],
-                version=item['latest_version']
-            )
+            alert = cls.objects.get(id=item["id"], version=item["latest_version"])
             latest_alerts.append(alert)
 
         return latest_alerts
@@ -627,47 +642,61 @@ class AlertExecution(models.Model):
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    alert_instance = models.ForeignKey(AlertInstance, on_delete=models.CASCADE, related_name='executions')
+    alert_instance = models.ForeignKey(
+        AlertInstance, on_delete=models.CASCADE, related_name="executions"
+    )
     alert_version = models.IntegerField(help_text="Version of alert at execution time")
 
     # Execution context
     trigger_mode = models.CharField(max_length=20, choices=TRIGGER_MODE_CHOICES)
-    priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='normal')
+    priority = models.CharField(
+        max_length=10, choices=PRIORITY_CHOICES, default="normal"
+    )
 
     # Retry tracking (consolidated from JobRun)
-    attempt_number = models.IntegerField(default=1, help_text="Retry attempt number (1, 2, 3...)")
+    attempt_number = models.IntegerField(
+        default=1, help_text="Retry attempt number (1, 2, 3...)"
+    )
     max_retries = models.IntegerField(default=3, help_text="Maximum retry attempts")
 
     # Status lifecycle
     STATUS_CHOICES = [
-        ('queued', 'Queued'),
-        ('running', 'Running'),
-        ('completed', 'Completed'),
-        ('failed', 'Failed'),
-        ('timeout', 'Timeout'),
+        ("queued", "Queued"),
+        ("running", "Running"),
+        ("completed", "Completed"),
+        ("failed", "Failed"),
+        ("timeout", "Timeout"),
     ]
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='queued')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="queued")
 
     # Frozen execution context (for versioning safety)
     frozen_spec = models.JSONField(help_text="Alert spec frozen at execution time")
     execution_context = models.JSONField(
-        null=True,
-        blank=True,
-        help_text="Event data, block number, timestamp, etc."
+        null=True, blank=True, help_text="Event data, block number, timestamp, etc."
     )
 
     # Execution details (from NATS)
-    execution_id = models.CharField(max_length=255, blank=True, help_text="NATS execution ID")
+    execution_id = models.CharField(
+        max_length=255, blank=True, help_text="NATS execution ID"
+    )
 
     # Results
-    result = models.BooleanField(null=True, blank=True, help_text="Alert condition result (True/False)")
-    result_value = models.CharField(max_length=255, blank=True, help_text="Actual value that triggered alert")
-    result_metadata = models.JSONField(null=True, blank=True, help_text="Additional result context")
+    result = models.BooleanField(
+        null=True, blank=True, help_text="Alert condition result (True/False)"
+    )
+    result_value = models.CharField(
+        max_length=255, blank=True, help_text="Actual value that triggered alert"
+    )
+    result_metadata = models.JSONField(
+        null=True, blank=True, help_text="Additional result context"
+    )
 
     # Performance metrics
     execution_time_ms = models.IntegerField(null=True, blank=True)
     rows_processed = models.IntegerField(null=True, blank=True)
-    data_sources_used = models.JSONField(default=list, help_text="Data sources accessed during execution")
+    data_sources_used = models.JSONField(
+        default=list, help_text="Data sources accessed during execution"
+    )
 
     # Error handling
     error_message = models.TextField(blank=True)
@@ -675,7 +704,9 @@ class AlertExecution(models.Model):
 
     # Timing
     queued_at = models.DateTimeField(auto_now_add=True)
-    due_at = models.DateTimeField(null=True, blank=True, help_text="When job should execute")
+    due_at = models.DateTimeField(
+        null=True, blank=True, help_text="When job should execute"
+    )
     started_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
 
@@ -684,17 +715,17 @@ class AlertExecution(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'alert_executions'
-        verbose_name = 'Alert Execution'
-        verbose_name_plural = 'Alert Executions'
+        db_table = "alert_executions"
+        verbose_name = "Alert Execution"
+        verbose_name_plural = "Alert Executions"
         indexes = [
-            models.Index(fields=['alert_instance', 'alert_version']),
-            models.Index(fields=['status', 'priority']),
-            models.Index(fields=['trigger_mode']),
-            models.Index(fields=['queued_at']),
-            models.Index(fields=['started_at']),
-            models.Index(fields=['due_at']),
-            models.Index(fields=['result']),
+            models.Index(fields=["alert_instance", "alert_version"]),
+            models.Index(fields=["status", "priority"]),
+            models.Index(fields=["trigger_mode"]),
+            models.Index(fields=["queued_at"]),
+            models.Index(fields=["started_at"]),
+            models.Index(fields=["due_at"]),
+            models.Index(fields=["result"]),
         ]
 
     def __str__(self):
@@ -702,31 +733,48 @@ class AlertExecution(models.Model):
 
     def mark_started(self):
         """Mark execution as started"""
-        self.status = 'running'
+        self.status = "running"
         self.started_at = timezone.now()
-        self.save(update_fields=['status', 'started_at', 'updated_at'])
+        self.save(update_fields=["status", "started_at", "updated_at"])
 
     def mark_completed(self, result_data=None):
         """Mark execution as completed"""
-        self.status = 'completed'
+        self.status = "completed"
         self.completed_at = timezone.now()
         if result_data:
-            self.result = result_data.get('result')
-            self.result_value = result_data.get('result_value', '')
-            self.result_metadata = result_data.get('metadata')
-        self.save(update_fields=['status', 'completed_at', 'result', 'result_value', 'result_metadata', 'updated_at'])
+            self.result = result_data.get("result")
+            self.result_value = result_data.get("result_value", "")
+            self.result_metadata = result_data.get("metadata")
+        self.save(
+            update_fields=[
+                "status",
+                "completed_at",
+                "result",
+                "result_value",
+                "result_metadata",
+                "updated_at",
+            ]
+        )
 
     def mark_failed(self, error_message, error_details=None):
         """Mark execution as failed"""
-        self.status = 'failed'
+        self.status = "failed"
         self.completed_at = timezone.now()
         self.error_message = error_message
         self.error_details = error_details
-        self.save(update_fields=['status', 'completed_at', 'error_message', 'error_details', 'updated_at'])
+        self.save(
+            update_fields=[
+                "status",
+                "completed_at",
+                "error_message",
+                "error_details",
+                "updated_at",
+            ]
+        )
 
     def should_retry(self) -> bool:
         """Check if execution should be retried"""
-        return self.status == 'failed' and self.attempt_number < self.max_retries
+        return self.status == "failed" and self.attempt_number < self.max_retries
 
     def create_retry(self):
         """Create a retry execution"""
@@ -742,7 +790,10 @@ class AlertExecution(models.Model):
             max_retries=self.max_retries,
             frozen_spec=self.frozen_spec,
             execution_context=self.execution_context,
-            due_at=timezone.now() + timezone.timedelta(minutes=self.attempt_number * 5)  # Exponential backoff
+            due_at=timezone.now()
+            + timezone.timedelta(
+                minutes=self.attempt_number * 5
+            ),  # Exponential backoff
         )
         return retry
 
@@ -766,20 +817,24 @@ class AlertChangeLog(models.Model):
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    alert_instance = models.ForeignKey(AlertInstance, on_delete=models.CASCADE, related_name='change_logs')
+    alert_instance = models.ForeignKey(
+        AlertInstance, on_delete=models.CASCADE, related_name="change_logs"
+    )
 
     # Version tracking
-    from_version = models.IntegerField(null=True, blank=True, help_text="NULL for creation")
+    from_version = models.IntegerField(
+        null=True, blank=True, help_text="NULL for creation"
+    )
     to_version = models.IntegerField()
 
     # Change details
     CHANGE_TYPE_CHOICES = [
-        ('created', 'Created'),
-        ('updated', 'Updated'),
-        ('enabled', 'Enabled'),
-        ('disabled', 'Disabled'),
-        ('template_instantiated', 'Template Instantiated'),
-        ('params_updated', 'Parameters Updated'),
+        ("created", "Created"),
+        ("updated", "Updated"),
+        ("enabled", "Enabled"),
+        ("disabled", "Disabled"),
+        ("template_instantiated", "Template Instantiated"),
+        ("params_updated", "Parameters Updated"),
     ]
     change_type = models.CharField(max_length=25, choices=CHANGE_TYPE_CHOICES)
     changed_fields = models.JSONField(help_text="List of field names that changed")
@@ -794,13 +849,13 @@ class AlertChangeLog(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = 'alert_change_logs'
-        verbose_name = 'Alert Change Log'
-        verbose_name_plural = 'Alert Change Logs'
+        db_table = "alert_change_logs"
+        verbose_name = "Alert Change Log"
+        verbose_name_plural = "Alert Change Logs"
         indexes = [
-            models.Index(fields=['alert_instance', 'to_version']),
-            models.Index(fields=['created_at']),
-            models.Index(fields=['change_type']),
+            models.Index(fields=["alert_instance", "to_version"]),
+            models.Index(fields=["created_at"]),
+            models.Index(fields=["change_type"]),
         ]
 
     def __str__(self):
@@ -810,6 +865,7 @@ class AlertChangeLog(models.Model):
 # ===================================================================
 # Django Signals for Redis Cache Management
 # ===================================================================
+
 
 @receiver(post_save, sender=AlertInstance)
 def update_subscription_index_on_instance_save(sender, instance, created, **kwargs):
@@ -828,6 +884,7 @@ def update_subscription_index_on_instance_save(sender, instance, created, **kwar
     if instance.template_id:
         try:
             from app.services.notification_cache import NotificationCacheManager
+
             cache_manager = NotificationCacheManager()
 
             has_enabled_instance = AlertInstance.objects.filter(
@@ -838,8 +895,7 @@ def update_subscription_index_on_instance_save(sender, instance, created, **kwar
 
             if has_enabled_instance:
                 cache_manager.add_subscriber_to_template(
-                    str(instance.template_id),
-                    str(instance.user_id)
+                    str(instance.template_id), str(instance.user_id)
                 )
                 logger.info(
                     f"Ensured user {instance.user_id} is subscribed to template {instance.template_id} "
@@ -847,8 +903,7 @@ def update_subscription_index_on_instance_save(sender, instance, created, **kwar
                 )
             else:
                 cache_manager.remove_subscriber_from_template(
-                    str(instance.template_id),
-                    str(instance.user_id)
+                    str(instance.template_id), str(instance.user_id)
                 )
                 logger.info(
                     f"Ensured user {instance.user_id} is unsubscribed from template {instance.template_id} "
@@ -877,19 +932,23 @@ def update_subscription_index_on_instance_delete(sender, instance, **kwargs):
     if instance.template_id:
         try:
             # Check if user has any other alert instances for this template
-            has_other_instances = AlertInstance.objects.filter(
-                template_id=instance.template_id,
-                user_id=instance.user_id,
-                enabled=True,
-            ).exclude(id=instance.id).exists()
+            has_other_instances = (
+                AlertInstance.objects.filter(
+                    template_id=instance.template_id,
+                    user_id=instance.user_id,
+                    enabled=True,
+                )
+                .exclude(id=instance.id)
+                .exists()
+            )
 
             # Only remove from subscription index if no other instances exist
             if not has_other_instances:
                 from app.services.notification_cache import NotificationCacheManager
+
                 cache_manager = NotificationCacheManager()
                 cache_manager.remove_subscriber_from_template(
-                    str(instance.template_id),
-                    str(instance.user_id)
+                    str(instance.template_id), str(instance.user_id)
                 )
                 logger.info(
                     f"Removed user {instance.user_id} from template {instance.template_id} "
@@ -930,6 +989,7 @@ def increment_template_usage_count(sender, instance, created, **kwargs):
 # Default Network Alert Model
 # ===================================================================
 
+
 class DefaultNetworkAlert(models.Model):
     """
     System-managed default "All Transactions" alert per network/subnet.
@@ -959,29 +1019,28 @@ class DefaultNetworkAlert(models.Model):
     # Network identification - uses string reference to avoid circular import
     # Chain model is in blockchain.models
     chain = models.ForeignKey(
-        'blockchain.Chain',
+        "blockchain.Chain",
         on_delete=models.CASCADE,
-        related_name='default_alerts',
-        help_text="The blockchain chain (e.g., Ethereum, Solana)"
+        related_name="default_alerts",
+        help_text="The blockchain chain (e.g., Ethereum, Solana)",
     )
     subnet = models.CharField(
         max_length=50,
-        default='mainnet',
-        help_text="Network subnet (mainnet, testnet, etc.)"
+        default="mainnet",
+        help_text="Network subnet (mainnet, testnet, etc.)",
     )
 
     # Link to system AlertTemplate (type: ALL_TRANSACTIONS)
     alert_template = models.OneToOneField(
         "app.AlertTemplate",
         on_delete=models.PROTECT,
-        related_name='default_network_alert',
-        help_text="The fallback AlertTemplate for 'All Transactions' alerts"
+        related_name="default_network_alert",
+        help_text="The fallback AlertTemplate for 'All Transactions' alerts",
     )
 
     # Configuration
     enabled = models.BooleanField(
-        default=True,
-        help_text="Whether this default alert is active"
+        default=True, help_text="Whether this default alert is active"
     )
     settings = models.JSONField(
         default=dict,
@@ -991,7 +1050,7 @@ class DefaultNetworkAlert(models.Model):
             "default_priority": "normal",
             "cooldown_minutes": 5,
             "max_notifications_per_hour": 100
-        }"""
+        }""",
     )
 
     # Timestamps
@@ -999,13 +1058,13 @@ class DefaultNetworkAlert(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'default_network_alerts'
-        verbose_name = 'Default Network Alert'
-        verbose_name_plural = 'Default Network Alerts'
-        unique_together = ['chain', 'subnet']
+        db_table = "default_network_alerts"
+        verbose_name = "Default Network Alert"
+        verbose_name_plural = "Default Network Alerts"
+        unique_together = ["chain", "subnet"]
         indexes = [
-            models.Index(fields=['chain', 'subnet']),
-            models.Index(fields=['enabled']),
+            models.Index(fields=["chain", "subnet"]),
+            models.Index(fields=["enabled"]),
         ]
 
     def __str__(self):
@@ -1017,12 +1076,14 @@ class DefaultNetworkAlert(models.Model):
         # Ensure the linked template exists and is appropriate
         if self.alert_template_id:
             if not self.alert_template.is_public:
-                raise ValidationError({
-                    'alert_template': "Default network alert must use a public template"
-                })
+                raise ValidationError(
+                    {
+                        "alert_template": "Default network alert must use a public template"
+                    }
+                )
 
     @classmethod
-    def get_for_chain(cls, chain_name: str, subnet: str = 'mainnet'):
+    def get_for_chain(cls, chain_name: str, subnet: str = "mainnet"):
         """
         Get the default alert for a specific chain and subnet.
 
@@ -1034,16 +1095,14 @@ class DefaultNetworkAlert(models.Model):
             DefaultNetworkAlert instance or None if not found
         """
         try:
-            return cls.objects.select_related('alert_template', 'chain').get(
-                chain__name=chain_name,
-                subnet=subnet,
-                enabled=True
+            return cls.objects.select_related("alert_template", "chain").get(
+                chain__name=chain_name, subnet=subnet, enabled=True
             )
         except cls.DoesNotExist:
             return None
 
     @classmethod
-    def get_fallback_template(cls, chain_name: str, subnet: str = 'mainnet'):
+    def get_fallback_template(cls, chain_name: str, subnet: str = "mainnet"):
         """
         Get the fallback AlertTemplate for a chain.
 

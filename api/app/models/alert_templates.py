@@ -18,7 +18,9 @@ class AlertTemplate(models.Model):
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    fingerprint = models.CharField(max_length=80, db_index=True, help_text="sha256:... semantic fingerprint")
+    fingerprint = models.CharField(
+        max_length=80, db_index=True, help_text="sha256:... semantic fingerprint"
+    )
 
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
@@ -30,7 +32,9 @@ class AlertTemplate(models.Model):
     is_public = models.BooleanField(default=False)
     is_verified = models.BooleanField(default=False)
 
-    created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name="created_alert_templates")
+    created_by = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="created_alert_templates"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -38,7 +42,9 @@ class AlertTemplate(models.Model):
         db_table = "alert_templates"
         indexes = [
             models.Index(fields=["created_by"], name="at2_created_by_idx"),
-            models.Index(fields=["is_public", "is_verified"], name="at2_visibility_idx"),
+            models.Index(
+                fields=["is_public", "is_verified"], name="at2_visibility_idx"
+            ),
             models.Index(fields=["fingerprint"], name="at2_fingerprint_idx"),
         ]
 
@@ -80,8 +86,14 @@ class AlertTemplate(models.Model):
         map it into the historical template_type categories.
         """
         latest = self._latest_version_obj()
-        spec = latest.template_spec if latest is not None and isinstance(latest.template_spec, dict) else {}
-        metadata = spec.get("metadata") if isinstance(spec.get("metadata"), dict) else {}
+        spec = (
+            latest.template_spec
+            if latest is not None and isinstance(latest.template_spec, dict)
+            else {}
+        )
+        metadata = (
+            spec.get("metadata") if isinstance(spec.get("metadata"), dict) else {}
+        )
         event_type = str(metadata.get("event_type") or "").strip().upper()
         if event_type:
             mapping = {
@@ -102,7 +114,11 @@ class AlertTemplate(models.Model):
     def get_spec_variables(self) -> list[dict]:
         """Return variables[] from the latest pinned template_spec bundle."""
         latest = self._latest_version_obj()
-        spec = latest.template_spec if latest is not None and isinstance(latest.template_spec, dict) else {}
+        spec = (
+            latest.template_spec
+            if latest is not None and isinstance(latest.template_spec, dict)
+            else {}
+        )
         variables = spec.get("variables")
         return variables if isinstance(variables, list) else []
 
@@ -160,16 +176,28 @@ class AlertTemplateVersion(models.Model):
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    template = models.ForeignKey(AlertTemplate, on_delete=models.CASCADE, related_name="versions")
+    template = models.ForeignKey(
+        AlertTemplate, on_delete=models.CASCADE, related_name="versions"
+    )
     template_version = models.IntegerField()
 
-    template_spec = models.JSONField(help_text="AlertTemplate JSON (schema_version=alert_template_v2)")
-    spec_hash = models.CharField(max_length=80, help_text="sha256:... canonical template spec hash")
+    template_spec = models.JSONField(
+        help_text="AlertTemplate JSON (schema_version=alert_template_v2)"
+    )
+    spec_hash = models.CharField(
+        max_length=80, help_text="sha256:... canonical template spec hash"
+    )
 
-    executable_id = models.UUIDField(help_text="Deterministic UUIDv5 for the pinned executable")
-    executable = models.JSONField(help_text="AlertExecutable JSON (schema_version=alert_executable_v1)")
+    executable_id = models.UUIDField(
+        help_text="Deterministic UUIDv5 for the pinned executable"
+    )
+    executable = models.JSONField(
+        help_text="AlertExecutable JSON (schema_version=alert_executable_v1)"
+    )
 
-    registry_snapshot_kind = models.CharField(max_length=64, default="datasource_catalog")
+    registry_snapshot_kind = models.CharField(
+        max_length=64, default="datasource_catalog"
+    )
     registry_snapshot_version = models.CharField(max_length=64, default="v1")
     registry_snapshot_hash = models.CharField(max_length=80)
 
@@ -179,8 +207,12 @@ class AlertTemplateVersion(models.Model):
         db_table = "alert_template_versions"
         unique_together = [("template", "template_version")]
         indexes = [
-            models.Index(fields=["template", "template_version"], name="atv_template_ver_idx"),
-            models.Index(fields=["registry_snapshot_hash"], name="atv_snapshot_hash_idx"),
+            models.Index(
+                fields=["template", "template_version"], name="atv_template_ver_idx"
+            ),
+            models.Index(
+                fields=["registry_snapshot_hash"], name="atv_snapshot_hash_idx"
+            ),
         ]
 
     def __str__(self) -> str:

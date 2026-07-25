@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 class EvaluationMode(Enum):
     """Expression evaluation mode."""
+
     PER_ROW = "per_row"  # Simple per-row evaluation (Django handles)
     AGGREGATE = "aggregate"  # Aggregate functions (requires wasmCloud)
     WINDOW = "window"  # Window functions (requires wasmCloud)
@@ -29,6 +30,7 @@ class EvaluationMode(Enum):
 @dataclass
 class EvaluationResult:
     """Result from expression evaluation."""
+
     success: bool
     matched_rows: List[Dict[str, Any]] = field(default_factory=list)
     total_evaluated: int = 0
@@ -43,6 +45,7 @@ class EvaluationResult:
 @dataclass
 class ExpressionAnalysis:
     """Analysis of an expression to determine evaluation mode."""
+
     mode: EvaluationMode
     is_simple: bool
     requires_wasmcloud: bool
@@ -226,6 +229,7 @@ class SimpleDjangoEvaluator:
             EvaluationResult with matched rows and statistics
         """
         import time
+
         start = time.time()
 
         # Analyze expression
@@ -306,9 +310,7 @@ class SimpleDjangoEvaluator:
         normalized = self._normalize_expression(expression)
 
         # Extract threshold for near-miss detection
-        threshold_match = re.search(
-            r"(\w+)\s*([><=!]+)\s*(\d+(?:\.\d+)?)", normalized
-        )
+        threshold_match = re.search(r"(\w+)\s*([><=!]+)\s*(\d+(?:\.\d+)?)", normalized)
         if threshold_match:
             field_name = threshold_match.group(1)
             op = threshold_match.group(2)
@@ -356,7 +358,17 @@ class SimpleDjangoEvaluator:
         # Convert bare field names in comparisons to row dict access
         # field_name > 1000 -> row['field_name'] > 1000
         # But be careful not to convert Python keywords
-        keywords = {"and", "or", "not", "true", "false", "none", "True", "False", "None"}
+        keywords = {
+            "and",
+            "or",
+            "not",
+            "true",
+            "false",
+            "none",
+            "True",
+            "False",
+            "None",
+        }
 
         def replace_bare_field(match):
             field = match.group(1)
@@ -430,7 +442,9 @@ class SimpleDjangoEvaluator:
             self._validate_ast(tree)
 
             # Evaluate
-            result = eval(compile(tree, "<expression>", "eval"), {"__builtins__": {}}, namespace)
+            result = eval(
+                compile(tree, "<expression>", "eval"), {"__builtins__": {}}, namespace
+            )
             return bool(result)
 
         except (SyntaxError, ValueError) as e:
@@ -481,7 +495,9 @@ class SimpleDjangoEvaluator:
 
         for node in ast.walk(tree):
             if not isinstance(node, allowed_nodes):
-                raise ValueError(f"Unsafe operation in expression: {type(node).__name__}")
+                raise ValueError(
+                    f"Unsafe operation in expression: {type(node).__name__}"
+                )
 
     def _check_near_miss(
         self,

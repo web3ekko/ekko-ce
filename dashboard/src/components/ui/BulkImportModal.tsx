@@ -4,7 +4,7 @@
  * Reusable modal for bulk importing items (wallets, alerts, etc.)
  */
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback } from "react";
 import {
   Modal,
   Stack,
@@ -20,8 +20,8 @@ import {
   Tabs,
   Code,
   Alert,
-} from '@mantine/core'
-import { Dropzone } from '@mantine/dropzone'
+} from "@mantine/core";
+import { Dropzone } from "@mantine/dropzone";
 import {
   IconUpload,
   IconFile,
@@ -30,17 +30,20 @@ import {
   IconCheck,
   IconAlertCircle,
   IconX,
-} from '@tabler/icons-react'
+} from "@tabler/icons-react";
 
 interface BulkImportModalProps {
-  opened: boolean
-  onClose: () => void
-  title: string
-  description?: string
-  itemType: string
-  csvTemplate?: string
-  jsonTemplate?: string
-  onImport: (data: string, format: 'csv' | 'json') => Promise<{ success: number; failed: number; errors?: string[] }>
+  opened: boolean;
+  onClose: () => void;
+  title: string;
+  description?: string;
+  itemType: string;
+  csvTemplate?: string;
+  jsonTemplate?: string;
+  onImport: (
+    data: string,
+    format: "csv" | "json",
+  ) => Promise<{ success: number; failed: number; errors?: string[] }>;
 }
 
 export function BulkImportModal({
@@ -53,96 +56,106 @@ export function BulkImportModal({
   jsonTemplate,
   onImport,
 }: BulkImportModalProps) {
-  const [activeTab, setActiveTab] = useState<string | null>('upload')
-  const [importing, setImporting] = useState(false)
-  const [progress, setProgress] = useState(0)
-  const [result, setResult] = useState<{ success: number; failed: number; errors?: string[] } | null>(null)
-  const [pasteData, setPasteData] = useState('')
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [activeTab, setActiveTab] = useState<string | null>("upload");
+  const [importing, setImporting] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [result, setResult] = useState<{
+    success: number;
+    failed: number;
+    errors?: string[];
+  } | null>(null);
+  const [pasteData, setPasteData] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const handleDrop = useCallback((files: File[]) => {
     if (files.length > 0) {
-      setSelectedFile(files[0])
-      setResult(null)
+      setSelectedFile(files[0]);
+      setResult(null);
     }
-  }, [])
+  }, []);
 
   const handleImport = async () => {
-    if (!selectedFile && !pasteData) return
+    if (!selectedFile && !pasteData) return;
 
-    setImporting(true)
-    setProgress(0)
-    setResult(null)
+    setImporting(true);
+    setProgress(0);
+    setResult(null);
 
     try {
-      let data = ''
-      let format: 'csv' | 'json' = 'csv'
+      let data = "";
+      let format: "csv" | "json" = "csv";
 
       if (selectedFile) {
-        data = await selectedFile.text()
-        format = selectedFile.name.endsWith('.json') ? 'json' : 'csv'
+        data = await selectedFile.text();
+        format = selectedFile.name.endsWith(".json") ? "json" : "csv";
       } else if (pasteData) {
-        data = pasteData
+        data = pasteData;
         // Try to detect format
         try {
-          JSON.parse(pasteData)
-          format = 'json'
+          JSON.parse(pasteData);
+          format = "json";
         } catch {
-          format = 'csv'
+          format = "csv";
         }
       }
 
       // Simulate progress
       const progressInterval = setInterval(() => {
-        setProgress(prev => Math.min(prev + 10, 90))
-      }, 100)
+        setProgress((prev) => Math.min(prev + 10, 90));
+      }, 100);
 
-      const importResult = await onImport(data, format)
+      const importResult = await onImport(data, format);
 
-      clearInterval(progressInterval)
-      setProgress(100)
-      setResult(importResult)
+      clearInterval(progressInterval);
+      setProgress(100);
+      setResult(importResult);
 
       if (importResult.success > 0 && importResult.failed === 0) {
         setTimeout(() => {
-          onClose()
-          resetState()
-        }, 1500)
+          onClose();
+          resetState();
+        }, 1500);
       }
     } catch (error) {
       setResult({
         success: 0,
         failed: 1,
-        errors: [error instanceof Error ? error.message : 'Import failed'],
-      })
+        errors: [error instanceof Error ? error.message : "Import failed"],
+      });
     } finally {
-      setImporting(false)
+      setImporting(false);
     }
-  }
+  };
 
   const resetState = () => {
-    setSelectedFile(null)
-    setPasteData('')
-    setProgress(0)
-    setResult(null)
-    setActiveTab('upload')
-  }
+    setSelectedFile(null);
+    setPasteData("");
+    setProgress(0);
+    setResult(null);
+    setActiveTab("upload");
+  };
 
   const handleClose = () => {
-    resetState()
-    onClose()
-  }
+    resetState();
+    onClose();
+  };
 
   return (
     <Modal
       opened={opened}
       onClose={handleClose}
-      title={<Text fw={600} size="sm">{title}</Text>}
+      title={
+        <Text fw={600} size="sm">
+          {title}
+        </Text>
+      }
       size="lg"
     >
       <Stack gap="md">
         {description && (
-          <Text size="sm" c="dimmed">{description}</Text>
+          <Text size="sm" c="dimmed">
+            {description}
+          </Text>
         )}
 
         <Tabs value={activeTab} onChange={setActiveTab}>
@@ -162,13 +175,18 @@ export function BulkImportModal({
             <Dropzone
               onDrop={handleDrop}
               accept={{
-                'text/csv': ['.csv'],
-                'application/json': ['.json'],
+                "text/csv": [".csv"],
+                "application/json": [".json"],
               }}
               maxSize={5 * 1024 * 1024}
               multiple={false}
             >
-              <Group justify="center" gap="xl" mih={120} style={{ pointerEvents: 'none' }}>
+              <Group
+                justify="center"
+                gap="xl"
+                mih={120}
+                style={{ pointerEvents: "none" }}
+              >
                 <Dropzone.Accept>
                   <IconCheck size={32} color="var(--mantine-color-green-6)" />
                 </Dropzone.Accept>
@@ -178,21 +196,31 @@ export function BulkImportModal({
                 <Dropzone.Idle>
                   {selectedFile ? (
                     <Stack align="center" gap="xs">
-                      <ThemeIcon size="lg" variant="light" color="blue" radius="xl">
-                        {selectedFile.name.endsWith('.json') ? (
+                      <ThemeIcon
+                        size="lg"
+                        variant="light"
+                        color="blue"
+                        radius="xl"
+                      >
+                        {selectedFile.name.endsWith(".json") ? (
                           <IconBraces size={20} />
                         ) : (
                           <IconFileTypeCsv size={20} />
                         )}
                       </ThemeIcon>
-                      <Text size="sm" fw={500}>{selectedFile.name}</Text>
+                      <Text size="sm" fw={500}>
+                        {selectedFile.name}
+                      </Text>
                       <Text size="xs" c="dimmed">
                         {(selectedFile.size / 1024).toFixed(1)} KB
                       </Text>
                     </Stack>
                   ) : (
                     <Stack align="center" gap="xs">
-                      <IconUpload size={32} color="var(--mantine-color-gray-5)" />
+                      <IconUpload
+                        size={32}
+                        color="var(--mantine-color-gray-5)"
+                      />
                       <div>
                         <Text size="sm" ta="center">
                           Drop CSV or JSON file here
@@ -220,7 +248,7 @@ export function BulkImportModal({
                 value={pasteData}
                 onChange={(e) => setPasteData(e.target.value)}
                 styles={{
-                  input: { fontFamily: 'monospace', fontSize: 12 },
+                  input: { fontFamily: "monospace", fontSize: 12 },
                 }}
               />
             </Stack>
@@ -240,8 +268,12 @@ export function BulkImportModal({
                         <IconFileTypeCsv size={14} />
                       </ThemeIcon>
                       <div>
-                        <Text size="sm" fw={500}>CSV Template</Text>
-                        <Text size="xs" c="dimmed">Comma-separated values</Text>
+                        <Text size="sm" fw={500}>
+                          CSV Template
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                          Comma-separated values
+                        </Text>
                       </div>
                     </Group>
                     <Button size="xs" variant="light">
@@ -262,8 +294,12 @@ export function BulkImportModal({
                         <IconBraces size={14} />
                       </ThemeIcon>
                       <div>
-                        <Text size="sm" fw={500}>JSON Template</Text>
-                        <Text size="xs" c="dimmed">JavaScript Object Notation</Text>
+                        <Text size="sm" fw={500}>
+                          JSON Template
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                          JavaScript Object Notation
+                        </Text>
                       </div>
                     </Group>
                     <Button size="xs" variant="light">
@@ -283,8 +319,12 @@ export function BulkImportModal({
         {importing && (
           <Stack gap="xs">
             <Group justify="space-between">
-              <Text size="xs" c="dimmed">Importing {itemType}...</Text>
-              <Text size="xs" fw={500}>{progress}%</Text>
+              <Text size="xs" c="dimmed">
+                Importing {itemType}...
+              </Text>
+              <Text size="xs" fw={500}>
+                {progress}%
+              </Text>
             </Group>
             <Progress value={progress} size="sm" animated />
           </Stack>
@@ -293,8 +333,20 @@ export function BulkImportModal({
         {/* Result */}
         {result && (
           <Alert
-            color={result.failed === 0 ? 'green' : result.success === 0 ? 'red' : 'yellow'}
-            icon={result.failed === 0 ? <IconCheck size={16} /> : <IconAlertCircle size={16} />}
+            color={
+              result.failed === 0
+                ? "green"
+                : result.success === 0
+                  ? "red"
+                  : "yellow"
+            }
+            icon={
+              result.failed === 0 ? (
+                <IconCheck size={16} />
+              ) : (
+                <IconAlertCircle size={16} />
+              )
+            }
           >
             <Group gap="xs">
               {result.success > 0 && (
@@ -326,12 +378,12 @@ export function BulkImportModal({
             onClick={handleImport}
             loading={importing}
             disabled={!selectedFile && !pasteData}
-            style={{ backgroundColor: '#2563EB' }}
+            style={{ backgroundColor: "#2563EB" }}
           >
             Import {itemType}
           </Button>
         </Group>
       </Stack>
     </Modal>
-  )
+  );
 }

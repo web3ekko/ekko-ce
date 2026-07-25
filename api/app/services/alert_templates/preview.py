@@ -56,12 +56,19 @@ def _parse_rfc3339_to_epoch_millis(value: str) -> int:
             text = text[:-1] + "+00:00"
         dt = datetime.fromisoformat(text)
     except Exception as e:
-        raise AlertTemplatePreviewError(f"Invalid rfc3339 timestamp: {value!r}: {e}") from e
+        raise AlertTemplatePreviewError(
+            f"Invalid rfc3339 timestamp: {value!r}: {e}"
+        ) from e
     return _epoch_millis(dt)
 
 
 def _chain_for_network(network: str) -> str:
-    mapping = {"ETH": "ethereum", "AVAX": "avalanche", "SOL": "solana", "BTC": "bitcoin"}
+    mapping = {
+        "ETH": "ethereum",
+        "AVAX": "avalanche",
+        "SOL": "solana",
+        "BTC": "bitcoin",
+    }
     chain = mapping.get(network.strip().upper())
     if not chain:
         raise AlertTemplatePreviewError(f"Unsupported network: {network!r}")
@@ -92,9 +99,13 @@ def _resolve_binding_expr(expr: Any, *, eval_ctx_json: dict[str, Any]) -> Any:
             var = s[2:-2].strip()
             vars_obj = eval_ctx_json.get("variables")
             if not isinstance(vars_obj, dict):
-                raise AlertTemplatePreviewError("evaluation_context.variables must be an object")
+                raise AlertTemplatePreviewError(
+                    "evaluation_context.variables must be an object"
+                )
             if var not in vars_obj:
-                raise AlertTemplatePreviewError(f"variable {var!r} not found for binding")
+                raise AlertTemplatePreviewError(
+                    f"variable {var!r} not found for binding"
+                )
             return vars_obj[var]
         return s
     return expr
@@ -108,7 +119,9 @@ def _to_sql_param(expected_type: str, value: Any) -> dict[str, Any]:
         try:
             return {"Int64": int(value)}
         except Exception as e:
-            raise AlertTemplatePreviewError(f"Invalid integer param: {value!r}: {e}") from e
+            raise AlertTemplatePreviewError(
+                f"Invalid integer param: {value!r}: {e}"
+            ) from e
     if t == "boolean":
         if isinstance(value, bool):
             return {"Bool": value}
@@ -131,7 +144,9 @@ def _to_sql_param(expected_type: str, value: Any) -> dict[str, Any]:
         if isinstance(value, list):
             return {"String": ",".join(str(v) for v in value)}
         return {"String": str(value)}
-    raise AlertTemplatePreviewError(f"Unsupported datasource param type: {expected_type!r}")
+    raise AlertTemplatePreviewError(
+        f"Unsupported datasource param type: {expected_type!r}"
+    )
 
 
 def _build_ducklake_query_parameters(
@@ -142,14 +157,18 @@ def _build_ducklake_query_parameters(
 ) -> list[dict[str, Any]]:
     entry = get_catalog_entry(catalog_id)
     if entry is None or entry.sql is None:
-        raise AlertTemplatePreviewError(f"catalog entry {catalog_id!r} missing runtime SQL")
+        raise AlertTemplatePreviewError(
+            f"catalog entry {catalog_id!r} missing runtime SQL"
+        )
 
     param_types: dict[str, str] = {p.name: p.type for p in entry.params}
     params: list[dict[str, Any]] = []
     for name in entry.sql.param_order:
         expected = param_types.get(name, "string")
         if name in bindings:
-            resolved = _resolve_binding_expr(bindings[name], eval_ctx_json=eval_ctx_json)
+            resolved = _resolve_binding_expr(
+                bindings[name], eval_ctx_json=eval_ctx_json
+            )
         else:
             # Conservative defaults (mirrors wasmCloud runtime behavior).
             if name == "target_keys":
@@ -165,7 +184,9 @@ def _build_ducklake_query_parameters(
             elif name == "scheduled_for":
                 resolved = _jsonpath_get(eval_ctx_json, "schedule.scheduled_for")
             else:
-                raise AlertTemplatePreviewError(f"missing required datasource binding for {name!r}")
+                raise AlertTemplatePreviewError(
+                    f"missing required datasource binding for {name!r}"
+                )
 
         params.append(_to_sql_param(expected, resolved))
 
@@ -182,7 +203,9 @@ def _coerce_numeric(a: Any, b: Any) -> Tuple[Any, Any]:
     return a, b
 
 
-def _resolve_expr_operand(operand: Any, *, row: dict[str, Any], variables: dict[str, Any]) -> Any:
+def _resolve_expr_operand(
+    operand: Any, *, row: dict[str, Any], variables: dict[str, Any]
+) -> Any:
     if isinstance(operand, dict) and "op" in operand:
         return eval_expr_ast(operand, row=row, variables=variables)
     if isinstance(operand, str):
@@ -209,7 +232,9 @@ def _resolve_expr_operand(operand: Any, *, row: dict[str, Any], variables: dict[
     return operand
 
 
-def eval_expr_ast(expr: dict[str, Any], *, row: dict[str, Any], variables: dict[str, Any]) -> Any:
+def eval_expr_ast(
+    expr: dict[str, Any], *, row: dict[str, Any], variables: dict[str, Any]
+) -> Any:
     op = str(expr.get("op") or "").strip().lower()
     if not op:
         raise AlertTemplatePreviewError("Expression op must be a non-empty string")
@@ -280,7 +305,9 @@ def eval_expr_ast(expr: dict[str, Any], *, row: dict[str, Any], variables: dict[
     raise AlertTemplatePreviewError(f"Unsupported expr op: {op!r}")
 
 
-def _conditions_match(conditions: dict[str, Any], *, row: dict[str, Any], variables: dict[str, Any]) -> bool:
+def _conditions_match(
+    conditions: dict[str, Any], *, row: dict[str, Any], variables: dict[str, Any]
+) -> bool:
     all_exprs = conditions.get("all") if isinstance(conditions.get("all"), list) else []
     any_exprs = conditions.get("any") if isinstance(conditions.get("any"), list) else []
     not_exprs = conditions.get("not") if isinstance(conditions.get("not"), list) else []
@@ -339,15 +366,41 @@ class TemplatePreviewService:
         if not isinstance(datasources, list) or not datasources:
             raise AlertTemplatePreviewError("Executable has no datasources")
 
-        enrichments = executable.get("enrichments") if isinstance(executable.get("enrichments"), list) else []
-        conditions = executable.get("conditions") if isinstance(executable.get("conditions"), dict) else {}
+        enrichments = (
+            executable.get("enrichments")
+            if isinstance(executable.get("enrichments"), list)
+            else []
+        )
+        conditions = (
+            executable.get("conditions")
+            if isinstance(executable.get("conditions"), dict)
+            else {}
+        )
 
         eval_ctx = {
             "schema_version": "evaluation_context_v1",
-            "run": {"run_id": "preview", "attempt": 1, "trigger_type": "periodic", "enqueued_at": _now_rfc3339()},
-            "instance": {"instance_id": "preview", "user_id": "preview", "template_id": "preview", "template_version": 1},
-            "partition": {"network": req.network, "subnet": req.subnet, "chain_id": int(req.chain_id)},
-            "schedule": {"scheduled_for": req.effective_as_of_rfc3339, "data_lag_secs": 0, "effective_as_of": req.effective_as_of_rfc3339},
+            "run": {
+                "run_id": "preview",
+                "attempt": 1,
+                "trigger_type": "periodic",
+                "enqueued_at": _now_rfc3339(),
+            },
+            "instance": {
+                "instance_id": "preview",
+                "user_id": "preview",
+                "template_id": "preview",
+                "template_version": 1,
+            },
+            "partition": {
+                "network": req.network,
+                "subnet": req.subnet,
+                "chain_id": int(req.chain_id),
+            },
+            "schedule": {
+                "scheduled_for": req.effective_as_of_rfc3339,
+                "data_lag_secs": 0,
+                "effective_as_of": req.effective_as_of_rfc3339,
+            },
             "targets": {"mode": "keys", "keys": list(req.target_keys)},
             "variables": dict(req.variables),
         }
@@ -359,13 +412,17 @@ class TemplatePreviewService:
                 continue
             ds_id = str(ds.get("id") or "").strip()
             catalog_id = str(ds.get("catalog_id") or "").strip()
-            bindings = ds.get("bindings") if isinstance(ds.get("bindings"), dict) else {}
+            bindings = (
+                ds.get("bindings") if isinstance(ds.get("bindings"), dict) else {}
+            )
             if not ds_id or not catalog_id:
                 continue
 
             entry = get_catalog_entry(catalog_id)
             if entry is None or entry.sql is None:
-                raise AlertTemplatePreviewError(f"Unknown or non-query catalog_id: {catalog_id!r}")
+                raise AlertTemplatePreviewError(
+                    f"Unknown or non-query catalog_id: {catalog_id!r}"
+                )
 
             params = _build_ducklake_query_parameters(
                 catalog_id=catalog_id,
@@ -399,7 +456,9 @@ class TemplatePreviewService:
         for key in req.target_keys:
             row = {
                 "target_key": key,
-                "datasources": {ds_id: per_ds.get(ds_id, {}).get(key, {}) for ds_id in per_ds.keys()},
+                "datasources": {
+                    ds_id: per_ds.get(ds_id, {}).get(key, {}) for ds_id in per_ds.keys()
+                },
                 "enrichment": {},
             }
 
@@ -414,7 +473,9 @@ class TemplatePreviewService:
                 expr = enr.get("expr")
                 if not isinstance(expr, dict):
                     continue
-                row["enrichment"][name] = eval_expr_ast(expr, row=row, variables=req.variables)
+                row["enrichment"][name] = eval_expr_ast(
+                    expr, row=row, variables=req.variables
+                )
 
             is_match = _conditions_match(conditions, row=row, variables=req.variables)
             evaluated_rows.append({"target_key": key, "matched": is_match, "data": row})
@@ -454,8 +515,12 @@ class NatsDuckLakeQueryExecutor:
     Note: DuckLake Read replies with Arrow IPC stream bytes; decoding requires `pyarrow`.
     """
 
-    def __init__(self, *, nats_url: Optional[str] = None, request_timeout_seconds: int = 15):
-        self._nats_url = nats_url or getattr(settings, "NATS_URL", "nats://localhost:4222")
+    def __init__(
+        self, *, nats_url: Optional[str] = None, request_timeout_seconds: int = 15
+    ):
+        self._nats_url = nats_url or getattr(
+            settings, "NATS_URL", "nats://localhost:4222"
+        )
         self._timeout = request_timeout_seconds
         self._nc = None
 
@@ -476,7 +541,9 @@ class NatsDuckLakeQueryExecutor:
             try:
                 import nats
             except ImportError as exc:
-                raise AlertTemplatePreviewError("nats-py is required for template preview") from exc
+                raise AlertTemplatePreviewError(
+                    "nats-py is required for template preview"
+                ) from exc
 
             if self._nc is None or not self._nc.is_connected:
                 self._nc = await nats.connect(self._nats_url)
@@ -489,7 +556,9 @@ class NatsDuckLakeQueryExecutor:
                 "timeout_seconds": int(timeout_seconds or self._timeout),
                 "parameters": parameters or None,
             }
-            msg = await self._nc.request(subject, json.dumps(payload).encode("utf-8"), timeout=self._timeout)
+            msg = await self._nc.request(
+                subject, json.dumps(payload).encode("utf-8"), timeout=self._timeout
+            )
             return _decode_arrow_ipc_rows(msg.data)
 
         loop = asyncio.new_event_loop()
@@ -503,11 +572,15 @@ def _decode_arrow_ipc_rows(payload: bytes) -> list[dict[str, Any]]:
     try:
         import pyarrow.ipc as ipc
     except Exception as exc:
-        raise AlertTemplatePreviewError("pyarrow is required to decode DuckLake query responses") from exc
+        raise AlertTemplatePreviewError(
+            "pyarrow is required to decode DuckLake query responses"
+        ) from exc
 
     try:
         reader = ipc.open_stream(payload)
         table = reader.read_all()
         return table.to_pylist()
     except Exception as exc:
-        raise AlertTemplatePreviewError(f"Failed to decode Arrow IPC stream: {exc}") from exc
+        raise AlertTemplatePreviewError(
+            f"Failed to decode Arrow IPC stream: {exc}"
+        ) from exc

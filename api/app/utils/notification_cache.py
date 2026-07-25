@@ -129,14 +129,13 @@ def warm_user_endpoint_cache(user_id: str) -> Dict[str, Any]:
     from app.models.notifications import NotificationChannelEndpoint
 
     endpoints = NotificationChannelEndpoint.objects.filter(
-        owner_type='user',
-        owner_id=user_id
-    ).order_by('-created_at')
+        owner_type="user", owner_id=user_id
+    ).order_by("-created_at")
 
     cache_data = {
-        'user_id': str(user_id),
-        'endpoints': [ep.to_cache_format() for ep in endpoints],
-        'cached_at': timezone.now().isoformat()
+        "user_id": str(user_id),
+        "endpoints": [ep.to_cache_format() for ep in endpoints],
+        "cached_at": timezone.now().isoformat(),
     }
 
     cache_key = get_user_endpoints_cache_key(user_id)
@@ -163,14 +162,13 @@ def warm_team_endpoint_cache(team_id: str) -> Dict[str, Any]:
     from app.models.notifications import NotificationChannelEndpoint
 
     endpoints = NotificationChannelEndpoint.objects.filter(
-        owner_type='team',
-        owner_id=team_id
-    ).order_by('-created_at')
+        owner_type="team", owner_id=team_id
+    ).order_by("-created_at")
 
     cache_data = {
-        'team_id': str(team_id),
-        'endpoints': [ep.to_cache_format() for ep in endpoints],
-        'cached_at': timezone.now().isoformat()
+        "team_id": str(team_id),
+        "endpoints": [ep.to_cache_format() for ep in endpoints],
+        "cached_at": timezone.now().isoformat(),
     }
 
     cache_key = get_team_endpoints_cache_key(team_id)
@@ -199,19 +197,18 @@ def warm_member_override_cache(team_id: str, user_id: str) -> Dict[str, Any]:
 
     try:
         override = TeamMemberNotificationOverride.objects.get(
-            team_id=team_id,
-            member_id=user_id
+            team_id=team_id, member_id=user_id
         )
         cache_data = override.to_cache_format()
     except TeamMemberNotificationOverride.DoesNotExist:
         # Default: all notifications enabled
         cache_data = {
-            'team_id': str(team_id),
-            'member_id': str(user_id),
-            'team_notifications_enabled': True,
-            'disabled_endpoints': [],
-            'disabled_priorities': [],
-            'updated_at': timezone.now().isoformat()
+            "team_id": str(team_id),
+            "member_id": str(user_id),
+            "team_notifications_enabled": True,
+            "disabled_endpoints": [],
+            "disabled_priorities": [],
+            "updated_at": timezone.now().isoformat(),
         }
 
     cache_key = get_member_override_cache_key(team_id, user_id)
@@ -240,21 +237,18 @@ def warm_team_members_cache(team_id: str) -> Dict[str, Any]:
 
     # Get all active team members
     team_members = TeamMember.objects.filter(
-        team_id=team_id,
-        is_active=True
-    ).values_list('user_id', flat=True)
+        team_id=team_id, is_active=True
+    ).values_list("user_id", flat=True)
 
     # Get all overrides for this team
-    overrides = TeamMemberNotificationOverride.objects.filter(
-        team_id=team_id
-    )
+    overrides = TeamMemberNotificationOverride.objects.filter(team_id=team_id)
 
     # Build member override map
     override_map = {
         str(override.member_id): {
-            'team_notifications_enabled': override.team_notifications_enabled,
-            'disabled_endpoints': [str(ep_id) for ep_id in override.disabled_endpoints],
-            'disabled_priorities': override.disabled_priorities
+            "team_notifications_enabled": override.team_notifications_enabled,
+            "disabled_endpoints": [str(ep_id) for ep_id in override.disabled_endpoints],
+            "disabled_priorities": override.disabled_priorities,
         }
         for override in overrides
     }
@@ -264,23 +258,22 @@ def warm_team_members_cache(team_id: str) -> Dict[str, Any]:
         member_id_str = str(member_id)
         if member_id_str not in override_map:
             override_map[member_id_str] = {
-                'team_notifications_enabled': True,
-                'disabled_endpoints': [],
-                'disabled_priorities': []
+                "team_notifications_enabled": True,
+                "disabled_endpoints": [],
+                "disabled_priorities": [],
             }
 
     cache_data = {
-        'team_id': str(team_id),
-        'members': override_map,
-        'cached_at': timezone.now().isoformat()
+        "team_id": str(team_id),
+        "members": override_map,
+        "cached_at": timezone.now().isoformat(),
     }
 
     cache_key = get_team_members_cache_key(team_id)
     cache.set(cache_key, cache_data, CACHE_TTL)
 
     logger.debug(
-        f"Warmed team members cache: {cache_key} "
-        f"({len(override_map)} members)"
+        f"Warmed team members cache: {cache_key} " f"({len(override_map)} members)"
     )
 
     return cache_data
@@ -355,29 +348,29 @@ def get_cached_team_members(team_id: str) -> Optional[Dict[str, Any]]:
 
 
 # Signal handlers for automatic cache warming
-@receiver(post_save, sender='app.NotificationChannelEndpoint')
+@receiver(post_save, sender="app.NotificationChannelEndpoint")
 def warm_endpoint_cache_on_save(sender, instance, created, **kwargs):
     """Automatically warm cache when endpoint is created or updated."""
-    if instance.owner_type == 'user':
+    if instance.owner_type == "user":
         warm_user_endpoint_cache(instance.owner_id)
-    elif instance.owner_type == 'team':
+    elif instance.owner_type == "team":
         warm_team_endpoint_cache(instance.owner_id)
         # Also invalidate team members bulk cache
         invalidate_team_members_cache(instance.owner_id)
 
 
-@receiver(post_delete, sender='app.NotificationChannelEndpoint')
+@receiver(post_delete, sender="app.NotificationChannelEndpoint")
 def invalidate_endpoint_cache_on_delete(sender, instance, **kwargs):
     """Invalidate cache when endpoint is deleted."""
-    if instance.owner_type == 'user':
+    if instance.owner_type == "user":
         invalidate_user_endpoint_cache(instance.owner_id)
-    elif instance.owner_type == 'team':
+    elif instance.owner_type == "team":
         invalidate_team_endpoint_cache(instance.owner_id)
         # Also invalidate team members bulk cache
         invalidate_team_members_cache(instance.owner_id)
 
 
-@receiver(post_save, sender='app.TeamMemberNotificationOverride')
+@receiver(post_save, sender="app.TeamMemberNotificationOverride")
 def warm_override_cache_on_save(sender, instance, created, **kwargs):
     """Automatically warm cache when override is created or updated."""
     warm_member_override_cache(instance.team_id, instance.member_id)
@@ -385,7 +378,7 @@ def warm_override_cache_on_save(sender, instance, created, **kwargs):
     invalidate_team_members_cache(instance.team_id)
 
 
-@receiver(post_delete, sender='app.TeamMemberNotificationOverride')
+@receiver(post_delete, sender="app.TeamMemberNotificationOverride")
 def invalidate_override_cache_on_delete(sender, instance, **kwargs):
     """Invalidate cache when override is deleted."""
     invalidate_member_override_cache(instance.team_id, instance.member_id)

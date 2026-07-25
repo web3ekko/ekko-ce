@@ -4,32 +4,47 @@
  * Displays key statistics from alert preview/dry-run results
  */
 
-import { Card, Group, Stack, Text, SimpleGrid, ThemeIcon, Tooltip } from '@mantine/core'
+import {
+  Card,
+  Group,
+  Stack,
+  Text,
+  SimpleGrid,
+  ThemeIcon,
+  Tooltip,
+} from "@mantine/core";
 import {
   IconChartBar,
   IconBell,
   IconPercentage,
   IconClock,
   IconCalendar,
-} from '@tabler/icons-react'
-import { motion } from 'framer-motion'
-import type { PreviewSummary } from '../../../services/alerts-api'
+} from "@tabler/icons-react";
+import { motion } from "framer-motion";
+import type { PreviewSummary } from "../../../services/alerts-api";
 
 interface PreviewSummaryCardProps {
-  summary: PreviewSummary
-  timeRange?: string
+  summary: PreviewSummary;
+  timeRange?: string;
 }
 
 interface StatItemProps {
-  icon: React.ReactNode
-  label: string
-  value: string | number
-  color: string
-  tooltip?: string
-  delay: number
+  icon: React.ReactNode;
+  label: string;
+  value: string | number;
+  color: string;
+  tooltip?: string;
+  delay: number;
 }
 
-function StatItem({ icon, label, value, color, tooltip, delay }: StatItemProps) {
+function StatItem({
+  icon,
+  label,
+  value,
+  color,
+  tooltip,
+  delay,
+}: StatItemProps) {
   const content = (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -50,44 +65,47 @@ function StatItem({ icon, label, value, color, tooltip, delay }: StatItemProps) 
         </Stack>
       </Group>
     </motion.div>
-  )
+  );
 
   if (tooltip) {
     return (
       <Tooltip label={tooltip} position="top" withArrow>
         {content}
       </Tooltip>
-    )
+    );
   }
 
-  return content
+  return content;
 }
 
-export function PreviewSummaryCard({ summary, timeRange }: PreviewSummaryCardProps) {
+export function PreviewSummaryCard({
+  summary,
+  timeRange,
+}: PreviewSummaryCardProps) {
   const formatNumber = (num: number): string => {
     if (num >= 1000) {
-      return `${(num / 1000).toFixed(1)}K`
+      return `${(num / 1000).toFixed(1)}K`;
     }
-    return num.toLocaleString()
-  }
+    return num.toLocaleString();
+  };
 
   const formatPercent = (rate: number): string => {
-    return `${(rate * 100).toFixed(2)}%`
-  }
+    return `${(rate * 100).toFixed(2)}%`;
+  };
 
   const formatTime = (ms: number): string => {
     if (ms < 1000) {
-      return `${ms.toFixed(0)}ms`
+      return `${ms.toFixed(0)}ms`;
     }
-    return `${(ms / 1000).toFixed(2)}s`
-  }
+    return `${(ms / 1000).toFixed(2)}s`;
+  };
 
   const getTriggerRateColor = (rate: number): string => {
-    if (rate === 0) return 'gray'
-    if (rate < 0.01) return 'green' // Low trigger rate is usually good
-    if (rate < 0.05) return 'yellow'
-    return 'orange' // High trigger rate might indicate noise
-  }
+    if (rate === 0) return "gray";
+    if (rate < 0.01) return "green"; // Low trigger rate is usually good
+    if (rate < 0.05) return "yellow";
+    return "orange"; // High trigger rate might indicate noise
+  };
 
   return (
     <Card shadow="sm" padding="lg" radius="md" withBorder>
@@ -120,7 +138,7 @@ export function PreviewSummaryCard({ summary, timeRange }: PreviewSummaryCardPro
             icon={<IconBell size={18} />}
             label="Would Trigger"
             value={formatNumber(summary.would_have_triggered)}
-            color={summary.would_have_triggered > 0 ? 'green' : 'gray'}
+            color={summary.would_have_triggered > 0 ? "green" : "gray"}
             tooltip={`${summary.would_have_triggered.toLocaleString()} events would have triggered this alert`}
             delay={0.1}
           />
@@ -157,7 +175,7 @@ export function PreviewSummaryCard({ summary, timeRange }: PreviewSummaryCardPro
         )}
       </Stack>
     </Card>
-  )
+  );
 }
 
-export default PreviewSummaryCard
+export default PreviewSummaryCard;

@@ -1,10 +1,10 @@
 /**
  * Notification Center Component
- * 
+ *
  * Displays notification history and manages notification preferences
  */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState } from "react";
 import {
   Popover,
   Badge,
@@ -19,7 +19,7 @@ import {
   ThemeIcon,
   Tooltip,
   Center,
-} from '@mantine/core'
+} from "@mantine/core";
 import {
   IconBell,
   IconBellOff,
@@ -30,11 +30,14 @@ import {
   IconAlertCircle,
   IconAlertTriangle,
   IconInfoCircle,
-} from '@tabler/icons-react'
-import { mapPriorityToSeverity, useWebSocketStore } from '../../store/websocket'
-import { notificationService } from '../../services/notifications'
-import { notificationsApiService } from '../../services/notifications-api'
-import { motion, AnimatePresence } from 'framer-motion'
+} from "@tabler/icons-react";
+import {
+  mapPriorityToSeverity,
+  useWebSocketStore,
+} from "../../store/websocket";
+import { notificationService } from "../../services/notifications";
+import { notificationsApiService } from "../../services/notifications-api";
+import { motion, AnimatePresence } from "framer-motion";
 
 const iconMap = {
   info: IconInfoCircle,
@@ -42,102 +45,108 @@ const iconMap = {
   error: IconAlertCircle,
   success: IconCheck,
   critical: IconBell,
-}
+};
 
 const colorMap = {
-  info: 'blue',
-  warning: 'yellow',
-  error: 'red',
-  success: 'green',
-  critical: 'red',
-}
+  info: "blue",
+  warning: "yellow",
+  error: "red",
+  success: "green",
+  critical: "red",
+};
 
 export function NotificationCenter() {
-  const [opened, setOpened] = useState(false)
-  const [soundEnabled, setSoundEnabled] = useState(notificationService.isSoundEnabled())
+  const [opened, setOpened] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(
+    notificationService.isSoundEnabled(),
+  );
   // Use selectors to prevent re-renders
-  const notifications = useWebSocketStore((state) => state.notifications)
-  const clearNotifications = useWebSocketStore((state) => state.clearNotifications)
-  const setNotifications = useWebSocketStore((state) => state.setNotifications)
-  
+  const notifications = useWebSocketStore((state) => state.notifications);
+  const clearNotifications = useWebSocketStore(
+    (state) => state.clearNotifications,
+  );
+  const setNotifications = useWebSocketStore((state) => state.setNotifications);
+
   // Calculate derived state locally to avoid selector issues
-  const unreadNotifications = notifications.filter(n => !n.read)
-  const unreadCount = unreadNotifications.length
+  const unreadNotifications = notifications.filter((n) => !n.read);
+  const unreadCount = unreadNotifications.length;
 
   useEffect(() => {
     if (!opened || notifications.length > 0) {
-      return
+      return;
     }
 
-    let cancelled = false
+    let cancelled = false;
 
     const loadHistory = async () => {
       try {
-        const history = await notificationsApiService.getHistory({ limit: 50 })
-        if (cancelled) return
+        const history = await notificationsApiService.getHistory({ limit: 50 });
+        if (cancelled) return;
 
         const mapped = history.results.map((item) => ({
           id: item.notification_id || `history-${item.alert_id}`,
-          type: 'alert' as const,
-          title: item.title || item.alert_name || 'Notification',
-          message: item.message || item.title || item.alert_name || '',
+          type: "alert" as const,
+          title: item.title || item.alert_name || "Notification",
+          message: item.message || item.title || item.alert_name || "",
           timestamp: item.created_at,
           severity: mapPriorityToSeverity(item.priority),
           read: true,
-        }))
+        }));
 
         if (mapped.length > 0) {
-          setNotifications(mapped)
+          setNotifications(mapped);
         }
       } catch (error) {
-        console.error('Failed to load notification history:', error)
+        console.error("Failed to load notification history:", error);
       }
-    }
+    };
 
-    loadHistory()
+    loadHistory();
 
     return () => {
-      cancelled = true
-    }
-  }, [opened, notifications.length, setNotifications])
+      cancelled = true;
+    };
+  }, [opened, notifications.length, setNotifications]);
 
   const truncateAddress = (address: string, chars: number = 4) => {
-    if (!address || address.length < chars * 2 + 2) return address
-    return `${address.slice(0, chars + 2)}...${address.slice(-chars)}`
-  }
+    if (!address || address.length < chars * 2 + 2) return address;
+    return `${address.slice(0, chars + 2)}...${address.slice(-chars)}`;
+  };
 
   const formatNotificationText = (text: string) => {
-    if (!text) return text
-    return text.replace(/0x[a-fA-F0-9]{40}/g, (match) => truncateAddress(match, 4))
-  }
-
+    if (!text) return text;
+    return text.replace(/0x[a-fA-F0-9]{40}/g, (match) =>
+      truncateAddress(match, 4),
+    );
+  };
 
   const handleToggleSound = () => {
-    const newState = notificationService.toggleSound()
-    setSoundEnabled(newState)
-  }
+    const newState = notificationService.toggleSound();
+    setSoundEnabled(newState);
+  };
 
   const markAsRead = (id: string) => {
     // In a real app, this would update the store
-    console.log('Mark as read:', id)
-  }
+    console.log("Mark as read:", id);
+  };
 
   const getRelativeTime = (timestamp: string) => {
-    if (!timestamp) return '—'
-    const now = Date.now()
-    const time = new Date(timestamp).getTime()
-    if (Number.isNaN(time)) return '—'
-    const diff = now - time
+    if (!timestamp) return "—";
+    const now = Date.now();
+    const time = new Date(timestamp).getTime();
+    if (Number.isNaN(time)) return "—";
+    const diff = now - time;
 
-    if (diff < 60 * 1000) return 'Just now'
-    if (diff < 60 * 60 * 1000) return `${Math.floor(diff / (60 * 1000))}m ago`
-    if (diff < 24 * 60 * 60 * 1000) return `${Math.floor(diff / (60 * 60 * 1000))}h ago`
-    return new Date(timestamp).toLocaleDateString()
-  }
+    if (diff < 60 * 1000) return "Just now";
+    if (diff < 60 * 60 * 1000) return `${Math.floor(diff / (60 * 1000))}m ago`;
+    if (diff < 24 * 60 * 60 * 1000)
+      return `${Math.floor(diff / (60 * 60 * 1000))}h ago`;
+    return new Date(timestamp).toLocaleDateString();
+  };
 
   return (
-    <Popover 
-      opened={opened} 
+    <Popover
+      opened={opened}
       onChange={setOpened}
       width={400}
       position="bottom-end"
@@ -147,14 +156,14 @@ export function NotificationCenter() {
     >
       <Popover.Target>
         <Tooltip label="Notifications">
-          <ActionIcon 
-            size="lg" 
+          <ActionIcon
+            size="lg"
             variant="subtle"
             onClick={() => setOpened((o) => !o)}
             aria-label="Notifications"
             data-testid="notification-center-button"
           >
-            <div style={{ position: 'relative' }}>
+            <div style={{ position: "relative" }}>
               <IconBell size={20} />
               <AnimatePresence>
                 {unreadCount > 0 && (
@@ -163,7 +172,7 @@ export function NotificationCenter() {
                     animate={{ scale: 1 }}
                     exit={{ scale: 0 }}
                     style={{
-                      position: 'absolute',
+                      position: "absolute",
                       top: -8,
                       right: -8,
                     }}
@@ -198,14 +207,18 @@ export function NotificationCenter() {
               Notifications
             </Text>
             <Group spacing="xs">
-              <Tooltip label={soundEnabled ? 'Disable sound' : 'Enable sound'}>
+              <Tooltip label={soundEnabled ? "Disable sound" : "Enable sound"}>
                 <ActionIcon
                   size="sm"
                   variant="subtle"
                   onClick={handleToggleSound}
-                  color={soundEnabled ? 'blue' : 'gray'}
+                  color={soundEnabled ? "blue" : "gray"}
                 >
-                  {soundEnabled ? <IconVolume size={16} /> : <IconVolumeOff size={16} />}
+                  {soundEnabled ? (
+                    <IconVolume size={16} />
+                  ) : (
+                    <IconVolumeOff size={16} />
+                  )}
                 </ActionIcon>
               </Tooltip>
               {notifications.length > 0 && (
@@ -227,17 +240,25 @@ export function NotificationCenter() {
 
           {/* Notifications List */}
           {notifications.length > 0 ? (
-            <ScrollArea.Autosize maxHeight={400} px="md" py="xs" data-testid="notification-center-list">
+            <ScrollArea.Autosize
+              maxHeight={400}
+              px="md"
+              py="xs"
+              data-testid="notification-center-list"
+            >
               <Stack spacing="xs">
                 <AnimatePresence>
                   {notifications.map((notification) => {
-                    const Icon = iconMap[notification.severity]
-                    const color = colorMap[notification.severity]
-                    const rawTitle = (notification.title || '').trim()
-                    const rawMessage = (notification.message || '').trim()
-                    const displayTitle =
-                      formatNotificationText(rawTitle || rawMessage || 'Notification')
-                    const displayMessage = formatNotificationText(rawMessage || rawTitle)
+                    const Icon = iconMap[notification.severity];
+                    const color = colorMap[notification.severity];
+                    const rawTitle = (notification.title || "").trim();
+                    const rawMessage = (notification.message || "").trim();
+                    const displayTitle = formatNotificationText(
+                      rawTitle || rawMessage || "Notification",
+                    );
+                    const displayMessage = formatNotificationText(
+                      rawMessage || rawTitle,
+                    );
 
                     return (
                       <motion.div
@@ -252,12 +273,14 @@ export function NotificationCenter() {
                           withBorder
                           style={{
                             borderLeft: `3px solid var(--mantine-color-${color}-6)`,
-                            cursor: notification.read ? 'default' : 'pointer',
-                            backgroundColor: notification.read 
-                              ? 'transparent' 
+                            cursor: notification.read ? "default" : "pointer",
+                            backgroundColor: notification.read
+                              ? "transparent"
                               : `var(--mantine-color-${color}-0)`,
                           }}
-                          onClick={() => !notification.read && markAsRead(notification.id)}
+                          onClick={() =>
+                            !notification.read && markAsRead(notification.id)
+                          }
                         >
                           <Group noWrap align="flex-start">
                             <ThemeIcon
@@ -269,7 +292,11 @@ export function NotificationCenter() {
                               <Icon size={14} />
                             </ThemeIcon>
                             <Stack spacing={4} style={{ flex: 1 }}>
-                              <Group position="apart" align="flex-start" wrap="nowrap">
+                              <Group
+                                position="apart"
+                                align="flex-start"
+                                wrap="nowrap"
+                              >
                                 <Text
                                   size="sm"
                                   fw={600}
@@ -277,9 +304,9 @@ export function NotificationCenter() {
                                   style={{
                                     flex: 1,
                                     minWidth: 0,
-                                    whiteSpace: 'normal',
-                                    wordBreak: 'break-word',
-                                    overflowWrap: 'anywhere',
+                                    whiteSpace: "normal",
+                                    wordBreak: "break-word",
+                                    overflowWrap: "anywhere",
                                   }}
                                 >
                                   {displayTitle}
@@ -293,9 +320,9 @@ export function NotificationCenter() {
                                   size="sm"
                                   c="#475569"
                                   style={{
-                                    whiteSpace: 'normal',
-                                    wordBreak: 'break-word',
-                                    overflowWrap: 'anywhere',
+                                    whiteSpace: "normal",
+                                    wordBreak: "break-word",
+                                    overflowWrap: "anywhere",
                                   }}
                                 >
                                   {displayMessage}
@@ -305,7 +332,7 @@ export function NotificationCenter() {
                           </Group>
                         </Paper>
                       </motion.div>
-                    )
+                    );
                   })}
                 </AnimatePresence>
               </Stack>
@@ -324,11 +351,11 @@ export function NotificationCenter() {
           {/* Footer */}
           <Divider />
           <Group position="center" p="xs">
-            <Button 
-              variant="subtle" 
+            <Button
+              variant="subtle"
               size="xs"
               onClick={() => {
-                setOpened(false)
+                setOpened(false);
                 // Navigate to full notifications page
               }}
             >
@@ -338,5 +365,5 @@ export function NotificationCenter() {
         </Stack>
       </Popover.Dropdown>
     </Popover>
-  )
+  );
 }

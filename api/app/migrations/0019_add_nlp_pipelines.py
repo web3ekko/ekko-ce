@@ -25,7 +25,6 @@ def create_default_pipeline(apps, schema_editor) -> None:
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("app", "0018_remove_deprecated_alerttemplate_fields"),
     ]
@@ -36,7 +35,12 @@ class Migration(migrations.Migration):
             fields=[
                 (
                     "id",
-                    models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID"),
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
                 ),
                 ("pipeline_id", models.CharField(max_length=64, unique=True)),
                 ("name", models.CharField(max_length=200)),
@@ -50,7 +54,12 @@ class Migration(migrations.Migration):
             fields=[
                 (
                     "id",
-                    models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID"),
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
                 ),
                 ("version", models.CharField(max_length=64)),
                 ("system_prompt_suffix", models.TextField(blank=True, default="")),

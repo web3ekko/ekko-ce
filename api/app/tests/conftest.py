@@ -29,7 +29,7 @@ def redis_container():
         yield redis
 
 
-@pytest.fixture(scope="session") 
+@pytest.fixture(scope="session")
 def nats_container():
     """Start NATS container for testing"""
     with DockerCompose(".", compose_file_name="docker-compose.test.yml") as compose:
@@ -44,9 +44,9 @@ def test_settings(redis_container, nats_container):
     """Override Django settings for testing"""
     return override_settings(
         DATABASES={
-            'default': {
-                'ENGINE': 'django.db.backends.sqlite3',
-                'NAME': ':memory:',
+            "default": {
+                "ENGINE": "django.db.backends.sqlite3",
+                "NAME": ":memory:",
             }
         },
         NATS_URL=nats_container,
@@ -61,10 +61,10 @@ def user():
     """Create test user"""
     User = get_user_model()
     return User.objects.create_user(
-        email='test@example.com',
-        first_name='Test',
-        last_name='User',
-        password='testpass123'
+        email="test@example.com",
+        first_name="Test",
+        last_name="User",
+        password="testpass123",
     )
 
 
@@ -73,12 +73,12 @@ def admin_user():
     """Create admin test user"""
     User = get_user_model()
     return User.objects.create_user(
-        email='admin@example.com',
-        first_name='Admin',
-        last_name='User',
-        password='adminpass123',
+        email="admin@example.com",
+        first_name="Admin",
+        last_name="User",
+        password="adminpass123",
         is_staff=True,
-        is_superuser=True
+        is_superuser=True,
     )
 
 
@@ -88,8 +88,14 @@ def sample_alert_template(user):
     import uuid
 
     from app.models.alert_templates import AlertTemplate, AlertTemplateVersion
-    from app.services.alert_templates.compilation import CompileContext, compile_template_to_executable
-    from app.services.alert_templates.hashing import compute_template_fingerprint, compute_template_spec_hash
+    from app.services.alert_templates.compilation import (
+        CompileContext,
+        compile_template_to_executable,
+    )
+    from app.services.alert_templates.hashing import (
+        compute_template_fingerprint,
+        compute_template_spec_hash,
+    )
     from app.services.alert_templates.registry_snapshot import get_registry_snapshot
 
     template_id = uuid.uuid4()
@@ -126,9 +132,16 @@ def sample_alert_template(user):
         "derivations": [],
         "trigger": {
             "evaluation_mode": "periodic",
-            "condition_ast": {"op": "lt", "left": "balance_latest", "right": "{{threshold}}"},
+            "condition_ast": {
+                "op": "lt",
+                "left": "balance_latest",
+                "right": "{{threshold}}",
+            },
             "cron_cadence_seconds": 300,
-            "dedupe": {"cooldown_seconds": 300, "key_template": "{{instance_id}}:{{target.key}}"},
+            "dedupe": {
+                "cooldown_seconds": 300,
+                "key_template": "{{instance_id}}:{{target.key}}",
+            },
             "pruning_hints": {"evm": {"tx_type": "any"}},
         },
         "notification": {
@@ -152,7 +165,11 @@ def sample_alert_template(user):
 
     executable = compile_template_to_executable(
         template_spec,
-        ctx=CompileContext(template_id=template_id, template_version=template_version, registry_snapshot=snapshot),
+        ctx=CompileContext(
+            template_id=template_id,
+            template_version=template_version,
+            registry_snapshot=snapshot,
+        ),
     )
 
     template = AlertTemplate.objects.create(
@@ -183,6 +200,7 @@ def sample_alert_template(user):
 def sample_alert(user, sample_alert_template):
     """Create sample alert instance"""
     from app.models.alerts import AlertInstance
+
     return AlertInstance.objects.create(
         name="My ETH Balance Alert",
         nl_description="Alert when my ETH balance drops below 0.5 ETH",
@@ -208,6 +226,7 @@ def sample_alert(user, sample_alert_template):
 def sample_execution(sample_alert):
     """Create sample alert execution"""
     from app.models.alerts import AlertExecution
+
     return AlertExecution.objects.create(
         alert_instance=sample_alert,
         alert_version=sample_alert.version,
@@ -218,10 +237,10 @@ def sample_execution(sample_alert):
         result_metadata={
             "wallet_address": "0x742d35Cc6634C0532925a3b8D4C9db96c4b4d8b",
             "balance": "15.5",
-            "token_symbol": "ETH"
+            "token_symbol": "ETH",
         },
         execution_time_ms=5000,
-        rows_processed=1000
+        rows_processed=1000,
     )
 
 
@@ -241,16 +260,13 @@ def mock_nats_message():
         "version": 1,
         "nl_description": "Alert when my ETH balance goes above 10",
         "chain_scope": [
-            {
-                "chain_id": "ethereum-uuid",
-                "sub_chain_ids": ["mainnet-uuid"]
-            }
+            {"chain_id": "ethereum-uuid", "sub_chain_ids": ["mainnet-uuid"]}
         ],
         "user_id": "user-uuid",
         "change_type": "created",
         "enabled": True,
         "published_at": "2024-01-01T00:00:00Z",
-        "source": "django-api"
+        "source": "django-api",
     }
 
 
@@ -258,6 +274,7 @@ def mock_nats_message():
 def api_client():
     """Create API client for testing"""
     from rest_framework.test import APIClient
+
     return APIClient()
 
 
@@ -278,14 +295,20 @@ def admin_client(api_client, admin_user):
 # Test data factories
 class AlertTemplateFactory:
     """Factory for creating test alert templates"""
-    
+
     @staticmethod
     def create_balance_template(user, **kwargs):
         import uuid
 
         from app.models.alert_templates import AlertTemplate, AlertTemplateVersion
-        from app.services.alert_templates.compilation import CompileContext, compile_template_to_executable
-        from app.services.alert_templates.hashing import compute_template_fingerprint, compute_template_spec_hash
+        from app.services.alert_templates.compilation import (
+            CompileContext,
+            compile_template_to_executable,
+        )
+        from app.services.alert_templates.hashing import (
+            compute_template_fingerprint,
+            compute_template_spec_hash,
+        )
         from app.services.alert_templates.registry_snapshot import get_registry_snapshot
 
         template_id = kwargs.pop("id", uuid.uuid4())
@@ -295,22 +318,49 @@ class AlertTemplateFactory:
         template_spec = {
             "schema_version": "alert_template_v2",
             "name": kwargs.get("name", "Balance Alert Template"),
-            "description": kwargs.get("description", "Alert when balance crosses threshold"),
+            "description": kwargs.get(
+                "description", "Alert when balance crosses threshold"
+            ),
             "target_kind": kwargs.get("target_kind", "wallet"),
             "scope": {"networks": ["ETH:mainnet"], "instrument_constraints": []},
             "variables": [
-                {"id": "threshold", "type": "decimal", "label": "Threshold", "required": True, "default": 0.5}
+                {
+                    "id": "threshold",
+                    "type": "decimal",
+                    "label": "Threshold",
+                    "required": True,
+                    "default": 0.5,
+                }
             ],
-            "signals": {"principals": [], "factors": [{"name": "balance_latest", "unit": "WEI", "update_sources": [{"ref": "ducklake.wallet_balance_window"}]}]},
+            "signals": {
+                "principals": [],
+                "factors": [
+                    {
+                        "name": "balance_latest",
+                        "unit": "WEI",
+                        "update_sources": [{"ref": "ducklake.wallet_balance_window"}],
+                    }
+                ],
+            },
             "derivations": [],
             "trigger": {
                 "evaluation_mode": "periodic",
-                "condition_ast": {"op": "lt", "left": "balance_latest", "right": "{{threshold}}"},
+                "condition_ast": {
+                    "op": "lt",
+                    "left": "balance_latest",
+                    "right": "{{threshold}}",
+                },
                 "cron_cadence_seconds": 300,
-                "dedupe": {"cooldown_seconds": 300, "key_template": "{{instance_id}}:{{target.key}}"},
+                "dedupe": {
+                    "cooldown_seconds": 300,
+                    "key_template": "{{instance_id}}:{{target.key}}",
+                },
                 "pruning_hints": {"evm": {"tx_type": "any"}},
             },
-            "notification": {"title_template": "Balance alert", "body_template": "Balance: {{balance_latest}}"},
+            "notification": {
+                "title_template": "Balance alert",
+                "body_template": "Balance: {{balance_latest}}",
+            },
             "fallbacks": [],
             "assumptions": [],
         }
@@ -327,7 +377,11 @@ class AlertTemplateFactory:
         template_spec["spec_hash"] = compute_template_spec_hash(template_spec)
         executable = compile_template_to_executable(
             template_spec,
-            ctx=CompileContext(template_id=uuid.UUID(str(template_id)), template_version=template_version, registry_snapshot=snapshot),
+            ctx=CompileContext(
+                template_id=uuid.UUID(str(template_id)),
+                template_version=template_version,
+                registry_snapshot=snapshot,
+            ),
         )
 
         template = AlertTemplate.objects.create(
@@ -352,7 +406,7 @@ class AlertTemplateFactory:
             registry_snapshot_hash=str(snapshot.get("hash")),
         )
         return template
-    
+
     @staticmethod
     def create_transfer_template(user, **kwargs):
         # For now, reuse the same minimal vNext shape as balance templates; callers can override fields.
@@ -367,6 +421,7 @@ class AlertInstanceFactory:
     @staticmethod
     def create_balance_alert(user, template=None, **kwargs):
         from app.models.alerts import AlertInstance
+
         defaults = {
             "name": "Balance Alert",
             "nl_description": "Alert when balance goes above threshold",

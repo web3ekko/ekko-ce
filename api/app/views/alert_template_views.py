@@ -74,7 +74,13 @@ class AlertTemplateViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ["target_kind", "is_public", "is_verified"]
     search_fields = ["name", "description"]
-    ordering_fields = ["created_at", "updated_at", "name", "usage_count", "latest_template_version"]
+    ordering_fields = [
+        "created_at",
+        "updated_at",
+        "name",
+        "usage_count",
+        "latest_template_version",
+    ]
     ordering = ["-updated_at"]
 
     def get_serializer_class(self):
@@ -91,7 +97,9 @@ class AlertTemplateViewSet(viewsets.ModelViewSet):
         # - marketplace: is_public=True
         # - org-shared: is_verified=True (repurposed in v1; retained for consistency)
         # - owner: created_by=user
-        base = AlertTemplate.objects.filter(created_by=user) | AlertTemplate.objects.filter(is_public=True)
+        base = AlertTemplate.objects.filter(
+            created_by=user
+        ) | AlertTemplate.objects.filter(is_public=True)
 
         try:
             from organizations.models import TeamMember
@@ -103,7 +111,9 @@ class AlertTemplateViewSet(viewsets.ModelViewSet):
                 org_user_ids = TeamMember.objects.filter(
                     team__organization_id__in=list(org_ids), is_active=True
                 ).values_list("user_id", flat=True)
-                base = base | AlertTemplate.objects.filter(is_verified=True, created_by__in=list(org_user_ids))
+                base = base | AlertTemplate.objects.filter(
+                    is_verified=True, created_by__in=list(org_user_ids)
+                )
         except Exception:
             # If org models are unavailable for any reason, fall back to private + marketplace.
             pass
@@ -151,19 +161,27 @@ class AlertTemplateViewSet(viewsets.ModelViewSet):
 
         job_id = str(serializer.validated_data["job_id"])
         publish_to_org = bool(serializer.validated_data.get("publish_to_org", False))
-        publish_to_marketplace = bool(serializer.validated_data.get("publish_to_marketplace", False))
+        publish_to_marketplace = bool(
+            serializer.validated_data.get("publish_to_marketplace", False)
+        )
 
         user_id = str(request.user.id)
         cache_key = f"nlp:proposed_spec:{user_id}:{job_id}"
         proposed_spec = cache.get(cache_key)
         if not proposed_spec:
             return Response(
-                {"success": False, "code": "proposed_spec_expired", "message": "Please re-run Parse."},
+                {
+                    "success": False,
+                    "code": "proposed_spec_expired",
+                    "message": "Please re-run Parse.",
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         try:
-            template_spec, _required = extract_template_from_proposed_spec(proposed_spec, expected_job_id=job_id)
+            template_spec, _required = extract_template_from_proposed_spec(
+                proposed_spec, expected_job_id=job_id
+            )
         except ProposedSpecError as e:
             return Response(
                 {"success": False, "code": "proposed_spec_invalid", "message": str(e)},
@@ -174,7 +192,9 @@ class AlertTemplateViewSet(viewsets.ModelViewSet):
         fingerprint = compute_template_fingerprint(template_for_hashing)
 
         # 1) Owner idempotency: return existing template if the user already saved it.
-        owner_candidate = AlertTemplate.objects.filter(created_by=request.user, fingerprint=fingerprint).first()
+        owner_candidate = AlertTemplate.objects.filter(
+            created_by=request.user, fingerprint=fingerprint
+        ).first()
         if owner_candidate is not None:
             update_fields = []
 
@@ -189,7 +209,9 @@ class AlertTemplateViewSet(viewsets.ModelViewSet):
                 update_fields.append("is_verified")
 
             if update_fields:
-                owner_candidate.save(update_fields=sorted(set(update_fields + ["updated_at"])))
+                owner_candidate.save(
+                    update_fields=sorted(set(update_fields + ["updated_at"]))
+                )
 
             latest = _latest_template_version(owner_candidate)
             if latest is None:
@@ -224,7 +246,9 @@ class AlertTemplateViewSet(viewsets.ModelViewSet):
             )
 
         # 2) Marketplace dedupe: never create duplicates of existing marketplace templates.
-        marketplace_candidate = AlertTemplate.objects.filter(is_public=True, fingerprint=fingerprint).first()
+        marketplace_candidate = AlertTemplate.objects.filter(
+            is_public=True, fingerprint=fingerprint
+        ).first()
         if marketplace_candidate is not None:
             latest = _latest_template_version(marketplace_candidate)
             return Response(
@@ -233,7 +257,9 @@ class AlertTemplateViewSet(viewsets.ModelViewSet):
                     "code": "marketplace_template_exists",
                     "existing_template": {
                         "template_id": str(marketplace_candidate.id),
-                        "template_version": int(latest.template_version) if latest is not None else 1,
+                        "template_version": int(latest.template_version)
+                        if latest is not None
+                        else 1,
                         "fingerprint": fingerprint,
                     },
                 },
@@ -273,12 +299,18 @@ class AlertTemplateViewSet(viewsets.ModelViewSet):
         exec_id = executable.get("executable_id")
         if not isinstance(exec_id, str) or not exec_id.strip():
             return Response(
-                {"success": False, "code": "executable_invalid", "message": "Compiled executable missing id"},
+                {
+                    "success": False,
+                    "code": "executable_invalid",
+                    "message": "Compiled executable missing id",
+                },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
         with transaction.atomic():
-            name, description, target_kind = _derive_template_identity_fields(template_to_persist)
+            name, description, target_kind = _derive_template_identity_fields(
+                template_to_persist
+            )
             template = AlertTemplate.objects.create(
                 id=template_id,
                 fingerprint=fingerprint,
@@ -297,7 +329,9 @@ class AlertTemplateViewSet(viewsets.ModelViewSet):
                 spec_hash=spec_hash,
                 executable_id=uuid.UUID(exec_id),
                 executable=executable,
-                registry_snapshot_kind=str(snapshot.get("kind") or "datasource_catalog"),
+                registry_snapshot_kind=str(
+                    snapshot.get("kind") or "datasource_catalog"
+                ),
                 registry_snapshot_version=str(snapshot.get("version") or "v1"),
                 registry_snapshot_hash=str(snapshot.get("hash") or ""),
             )
@@ -315,9 +349,9 @@ class AlertTemplateViewSet(viewsets.ModelViewSet):
                     "publish_to_org": bool(template.is_verified),
                     "publish_to_marketplace": bool(template.is_public),
                 },
-                },
-                status=status.HTTP_201_CREATED,
-            )
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
     @action(detail=False, methods=["post"], url_path="preview")
     def preview(self, request):
@@ -328,7 +362,9 @@ class AlertTemplateViewSet(viewsets.ModelViewSet):
         the server fetches ProposedSpec from Redis by job_id and uses its compiled_executable.
         """
 
-        serializer = AlertTemplateInlinePreviewSerializer(data=request.data, context={"request": request})
+        serializer = AlertTemplateInlinePreviewSerializer(
+            data=request.data, context={"request": request}
+        )
         serializer.is_valid(raise_exception=True)
 
         job_id = str(serializer.validated_data["job_id"])
@@ -342,13 +378,21 @@ class AlertTemplateViewSet(viewsets.ModelViewSet):
         proposed_spec = cache.get(cache_key)
         if not proposed_spec:
             return Response(
-                {"success": False, "code": "proposed_spec_expired", "message": "Please re-run Parse."},
+                {
+                    "success": False,
+                    "code": "proposed_spec_expired",
+                    "message": "Please re-run Parse.",
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         try:
-            template_spec, _required = extract_template_from_proposed_spec(proposed_spec, expected_job_id=job_id)
-            executable = extract_compiled_executable_from_proposed_spec(proposed_spec, expected_job_id=job_id)
+            template_spec, _required = extract_template_from_proposed_spec(
+                proposed_spec, expected_job_id=job_id
+            )
+            executable = extract_compiled_executable_from_proposed_spec(
+                proposed_spec, expected_job_id=job_id
+            )
         except ProposedSpecError as e:
             return Response(
                 {"success": False, "code": "proposed_spec_invalid", "message": str(e)},
@@ -366,9 +410,14 @@ class AlertTemplateViewSet(viewsets.ModelViewSet):
             normalize_network_subnet_key,
             normalize_network_subnet_protocol_key,
         )
-        from app.services.alert_templates import AlertTemplateSpecError, validate_variable_values_against_template
+        from app.services.alert_templates import (
+            AlertTemplateSpecError,
+            validate_variable_values_against_template,
+        )
 
-        template_target_kind = str(template_spec.get("target_kind") or "wallet").strip().lower()
+        template_target_kind = (
+            str(template_spec.get("target_kind") or "wallet").strip().lower()
+        )
         alert_type = (
             template_target_kind
             if template_target_kind in {c[0] for c in AlertType.choices}
@@ -377,7 +426,11 @@ class AlertTemplateViewSet(viewsets.ModelViewSet):
 
         if not isinstance(target_selector, dict):
             return Response(
-                {"success": False, "code": "invalid_target_selector", "message": "target_selector must be an object"},
+                {
+                    "success": False,
+                    "code": "invalid_target_selector",
+                    "message": "target_selector must be an object",
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
         mode = target_selector.get("mode")
@@ -392,10 +445,16 @@ class AlertTemplateViewSet(viewsets.ModelViewSet):
             )
 
         try:
-            resolved_variables = validate_variable_values_against_template(template_spec, variable_values)
+            resolved_variables = validate_variable_values_against_template(
+                template_spec, variable_values
+            )
         except AlertTemplateSpecError as e:
             return Response(
-                {"success": False, "code": "invalid_variable_values", "message": str(e)},
+                {
+                    "success": False,
+                    "code": "invalid_variable_values",
+                    "message": str(e),
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -404,7 +463,11 @@ class AlertTemplateViewSet(viewsets.ModelViewSet):
             raw_keys = target_selector.get("keys")
             if not isinstance(raw_keys, list) or not raw_keys:
                 return Response(
-                    {"success": False, "code": "invalid_target_selector", "message": "keys must be a non-empty list"},
+                    {
+                        "success": False,
+                        "code": "invalid_target_selector",
+                        "message": "keys must be a non-empty list",
+                    },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             normalized: list[str] = []
@@ -418,7 +481,9 @@ class AlertTemplateViewSet(viewsets.ModelViewSet):
                 elif alert_type == AlertType.NFT:
                     text = raw.strip()
                     if text.count(":") >= 3:
-                        normalized.append(normalize_network_subnet_address_token_id_key(text))
+                        normalized.append(
+                            normalize_network_subnet_address_token_id_key(text)
+                        )
                     else:
                         normalized.append(normalize_network_subnet_address_key(text))
                 else:
@@ -429,19 +494,31 @@ class AlertTemplateViewSet(viewsets.ModelViewSet):
             group_id = target_selector.get("group_id")
             if not group_id:
                 return Response(
-                    {"success": False, "code": "invalid_target_selector", "message": "group_id is required"},
+                    {
+                        "success": False,
+                        "code": "invalid_target_selector",
+                        "message": "group_id is required",
+                    },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             try:
                 group = GenericGroup.objects.get(id=group_id)
             except GenericGroup.DoesNotExist:
                 return Response(
-                    {"success": False, "code": "invalid_target_selector", "message": "Group not found"},
+                    {
+                        "success": False,
+                        "code": "invalid_target_selector",
+                        "message": "Group not found",
+                    },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             if group.owner_id != request.user.id:
                 return Response(
-                    {"success": False, "code": "invalid_target_selector", "message": "Group not accessible"},
+                    {
+                        "success": False,
+                        "code": "invalid_target_selector",
+                        "message": "Group not accessible",
+                    },
                     status=status.HTTP_403_FORBIDDEN,
                 )
             valid_group_types = ALERT_TYPE_TO_GROUP_TYPE.get(alert_type, [])
@@ -459,7 +536,11 @@ class AlertTemplateViewSet(viewsets.ModelViewSet):
 
         if not target_keys:
             return Response(
-                {"success": False, "code": "no_targets", "message": "No targets available for preview."},
+                {
+                    "success": False,
+                    "code": "no_targets",
+                    "message": "No targets available for preview.",
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -484,7 +565,9 @@ class AlertTemplateViewSet(viewsets.ModelViewSet):
         merged_sample: list[dict[str, Any]] = []
         total_evaluated = 0
         total_matched = 0
-        for (net, sub), keys in sorted(partitions.items(), key=lambda kv: (kv[0][0], kv[0][1])):
+        for (net, sub), keys in sorted(
+            partitions.items(), key=lambda kv: (kv[0][0], kv[0][1])
+        ):
             chain_id = 1 if net == "ETH" else 43114 if net == "AVAX" else 0
             if chain_id == 0:
                 continue
@@ -507,10 +590,16 @@ class AlertTemplateViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            summary = result.get("summary") if isinstance(result.get("summary"), dict) else {}
+            summary = (
+                result.get("summary") if isinstance(result.get("summary"), dict) else {}
+            )
             total_evaluated += int(summary.get("total_events_evaluated") or 0)
             total_matched += int(summary.get("would_have_triggered") or 0)
-            for sample in result.get("sample_triggers") if isinstance(result.get("sample_triggers"), list) else []:
+            for sample in (
+                result.get("sample_triggers")
+                if isinstance(result.get("sample_triggers"), list)
+                else []
+            ):
                 if len(merged_sample) >= 10:
                     break
                 merged_sample.append(sample)
@@ -521,7 +610,9 @@ class AlertTemplateViewSet(viewsets.ModelViewSet):
                 "summary": {
                     "total_events_evaluated": total_evaluated,
                     "would_have_triggered": total_matched,
-                    "trigger_rate": round((total_matched / total_evaluated) if total_evaluated else 0.0, 4),
+                    "trigger_rate": round(
+                        (total_matched / total_evaluated) if total_evaluated else 0.0, 4
+                    ),
                     "estimated_daily_triggers": 0.0,
                     "evaluation_time_ms": 0.0,
                 },

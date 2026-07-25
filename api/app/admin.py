@@ -12,23 +12,24 @@ import json
 from unfold.admin import ModelAdmin, TabularInline, StackedInline
 
 from .models.alerts import (
-    AlertInstance, AlertChangeLog, AlertExecution,
-    DefaultNetworkAlert
+    AlertInstance,
+    AlertChangeLog,
+    AlertExecution,
+    DefaultNetworkAlert,
 )
 from .models.alert_templates import AlertTemplate, AlertTemplateVersion
-from .models.groups import (
-    GenericGroup, GroupSubscription, UserWalletGroup
-)
+from .models.groups import GenericGroup, GroupSubscription, UserWalletGroup
 from .models.blockchain import BlockchainNode
 from .models.nlp import NLPPipeline, NLPPipelineVersion
 
 
 class AlertExecutionInline(TabularInline):
     """Inline admin for Alert Executions"""
+
     model = AlertExecution
     extra = 0
-    readonly_fields = ['started_at', 'completed_at', 'status', 'attempt_number']
-    fields = ['attempt_number', 'status', 'result', 'started_at', 'completed_at']
+    readonly_fields = ["started_at", "completed_at", "status", "attempt_number"]
+    fields = ["attempt_number", "status", "result", "started_at", "completed_at"]
 
     def has_add_permission(self, request, obj=None):
         return False  # Executions are created automatically
@@ -36,10 +37,17 @@ class AlertExecutionInline(TabularInline):
 
 class AlertChangeLogInline(TabularInline):
     """Inline admin for Alert Change Logs"""
+
     model = AlertChangeLog
     extra = 0
-    readonly_fields = ['created_at', 'changed_by', 'change_type', 'from_version', 'to_version']
-    fields = ['change_type', 'from_version', 'to_version', 'changed_by', 'created_at']
+    readonly_fields = [
+        "created_at",
+        "changed_by",
+        "change_type",
+        "from_version",
+        "to_version",
+    ]
+    fields = ["change_type", "from_version", "to_version", "changed_by", "created_at"]
 
     def has_add_permission(self, request, obj=None):
         return False  # Change logs are auto-generated
@@ -69,6 +77,7 @@ class AlertTemplateVersionInline(TabularInline):
 @admin.register(AlertTemplate)
 class AlertTemplateAdmin(ModelAdmin):
     """Admin for Alert Templates (vNext)."""
+
     list_display = [
         "name",
         "target_kind",
@@ -88,7 +97,15 @@ class AlertTemplateAdmin(ModelAdmin):
     fieldsets = (
         (
             "Basic Information",
-            {"fields": ("name", "description", "created_by", "target_kind", "fingerprint")},
+            {
+                "fields": (
+                    "name",
+                    "description",
+                    "created_by",
+                    "target_kind",
+                    "fingerprint",
+                )
+            },
         ),
         ("Publishing", {"fields": ("is_public", "is_verified")}),
         (
@@ -107,7 +124,9 @@ class AlertTemplateAdmin(ModelAdmin):
     fingerprint_short.short_description = "Fingerprint"
 
     def latest_version(self, obj):
-        latest = obj.versions.order_by("-template_version").only("template_version").first()
+        latest = (
+            obj.versions.order_by("-template_version").only("template_version").first()
+        )
         return latest.template_version if latest else "-"
 
     latest_version.short_description = "Latest Version"
@@ -120,39 +139,93 @@ class AlertTemplateAdmin(ModelAdmin):
 @admin.register(AlertInstance)
 class AlertInstanceAdmin(ModelAdmin):
     """Admin for Alert Instances - User subscriptions to alerts"""
+
     list_display = [
-        'name', 'version', 'user', 'enabled', 'event_type', 'sub_event',
-        'template_name', 'has_executions', 'created_at'
+        "name",
+        "version",
+        "user",
+        "enabled",
+        "event_type",
+        "sub_event",
+        "template_name",
+        "has_executions",
+        "created_at",
     ]
-    list_filter = ['enabled', 'version', 'event_type', 'sub_event', 'created_at', 'template']
-    search_fields = ['name', 'nl_description', 'user__email', 'user__first_name', 'user__last_name']
-    readonly_fields = ['created_at', 'updated_at', 'nl_description_preview', 'spec_preview']
-    ordering = ['-created_at', '-version']
+    list_filter = [
+        "enabled",
+        "version",
+        "event_type",
+        "sub_event",
+        "created_at",
+        "template",
+    ]
+    search_fields = [
+        "name",
+        "nl_description",
+        "user__email",
+        "user__first_name",
+        "user__last_name",
+    ]
+    readonly_fields = [
+        "created_at",
+        "updated_at",
+        "nl_description_preview",
+        "spec_preview",
+    ]
+    ordering = ["-created_at", "-version"]
 
     fieldsets = (
-        ('Basic Information', {
-            'fields': ('name', 'nl_description', 'nl_description_preview', 'version', 'enabled', 'user', 'author')
-        }),
-        ('Event Classification', {
-            'fields': ('event_type', 'sub_event', 'sub_event_confidence', 'sub_event_proposed')
-        }),
-        ('Template Configuration', {
-            'fields': ('template', 'template_params'),
-            'description': 'Template-based alert configuration (leave empty for standalone)'
-        }),
-        ('Standalone Configuration', {
-            'fields': ('_standalone_spec',),
-            'description': 'For standalone alerts without templates',
-            'classes': ('collapse',)
-        }),
-        ('Computed Specification', {
-            'fields': ('spec_preview',),
-            'description': 'Computed spec from template + params or standalone spec'
-        }),
-        ('Timestamps', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
+        (
+            "Basic Information",
+            {
+                "fields": (
+                    "name",
+                    "nl_description",
+                    "nl_description_preview",
+                    "version",
+                    "enabled",
+                    "user",
+                    "author",
+                )
+            },
+        ),
+        (
+            "Event Classification",
+            {
+                "fields": (
+                    "event_type",
+                    "sub_event",
+                    "sub_event_confidence",
+                    "sub_event_proposed",
+                )
+            },
+        ),
+        (
+            "Template Configuration",
+            {
+                "fields": ("template", "template_params"),
+                "description": "Template-based alert configuration (leave empty for standalone)",
+            },
+        ),
+        (
+            "Standalone Configuration",
+            {
+                "fields": ("_standalone_spec",),
+                "description": "For standalone alerts without templates",
+                "classes": ("collapse",),
+            },
+        ),
+        (
+            "Computed Specification",
+            {
+                "fields": ("spec_preview",),
+                "description": "Computed spec from template + params or standalone spec",
+            },
+        ),
+        (
+            "Timestamps",
+            {"fields": ("created_at", "updated_at"), "classes": ("collapse",)},
+        ),
     )
 
     inlines = [AlertExecutionInline, AlertChangeLogInline]
@@ -167,79 +240,111 @@ class AlertInstanceAdmin(ModelAdmin):
             formatted = json.dumps(spec, indent=2)
             if len(formatted) > 500:
                 formatted = formatted[:500] + "..."
-            return format_html('<pre style="white-space: pre-wrap;">{}</pre>', formatted)
+            return format_html(
+                '<pre style="white-space: pre-wrap;">{}</pre>', formatted
+            )
         except:
             return "Invalid JSON"
-    spec_preview.short_description = 'Computed Spec Preview'
+
+    spec_preview.short_description = "Computed Spec Preview"
 
     def nl_description_preview(self, obj):
         """Show a preview of the natural language description"""
         if len(obj.nl_description) > 100:
             return obj.nl_description[:100] + "..."
         return obj.nl_description
-    nl_description_preview.short_description = 'Description Preview'
+
+    nl_description_preview.short_description = "Description Preview"
 
     def template_name(self, obj):
         """Display template name"""
         if obj.template:
             return obj.template.name
         return "Standalone"
-    template_name.short_description = 'Template'
+
+    template_name.short_description = "Template"
 
     def has_executions(self, obj):
         """Check if alert has any executions"""
         return obj.executions.exists()
+
     has_executions.boolean = True
-    has_executions.short_description = 'Has Executions'
+    has_executions.short_description = "Has Executions"
 
     def get_queryset(self, request):
         """Optimize queryset with select_related"""
-        return super().get_queryset(request).select_related('user', 'template')
+        return super().get_queryset(request).select_related("user", "template")
 
 
 @admin.register(AlertChangeLog)
 class AlertChangeLogAdmin(ModelAdmin):
     """Admin for Alert Change Logs"""
+
     list_display = [
-        'alert_instance_name', 'change_type', 'version_change', 'changed_by', 'created_at'
+        "alert_instance_name",
+        "change_type",
+        "version_change",
+        "changed_by",
+        "created_at",
     ]
-    list_filter = ['change_type', 'created_at', 'changed_by']
-    search_fields = ['alert_instance__name', 'changed_by__email', 'change_reason']
+    list_filter = ["change_type", "created_at", "changed_by"]
+    search_fields = ["alert_instance__name", "changed_by__email", "change_reason"]
     readonly_fields = [
-        'created_at', 'changed_fields_display', 'old_values_display',
-        'new_values_display'
+        "created_at",
+        "changed_fields_display",
+        "old_values_display",
+        "new_values_display",
     ]
-    ordering = ['-created_at']
+    ordering = ["-created_at"]
 
     fieldsets = (
-        ('Change Information', {
-            'fields': ('alert_instance', 'change_type', 'version_change', 'changed_by', 'change_reason')
-        }),
-        ('Change Details', {
-            'fields': ('changed_fields_display', 'old_values_display', 'new_values_display'),
-            'classes': ('collapse',)
-        }),
-        ('Raw Data', {
-            'fields': ('changed_fields', 'old_values', 'new_values'),
-            'classes': ('collapse',)
-        }),
-        ('Timestamp', {
-            'fields': ('created_at',)
-        }),
+        (
+            "Change Information",
+            {
+                "fields": (
+                    "alert_instance",
+                    "change_type",
+                    "version_change",
+                    "changed_by",
+                    "change_reason",
+                )
+            },
+        ),
+        (
+            "Change Details",
+            {
+                "fields": (
+                    "changed_fields_display",
+                    "old_values_display",
+                    "new_values_display",
+                ),
+                "classes": ("collapse",),
+            },
+        ),
+        (
+            "Raw Data",
+            {
+                "fields": ("changed_fields", "old_values", "new_values"),
+                "classes": ("collapse",),
+            },
+        ),
+        ("Timestamp", {"fields": ("created_at",)}),
     )
 
     def alert_instance_name(self, obj):
         """Display alert instance name with link"""
-        url = reverse('admin:app_alertinstance_change', args=[obj.alert_instance.pk])
+        url = reverse("admin:app_alertinstance_change", args=[obj.alert_instance.pk])
         return format_html('<a href="{}">{}</a>', url, obj.alert_instance.name)
-    alert_instance_name.short_description = 'Alert Instance'
+
+    alert_instance_name.short_description = "Alert Instance"
 
     def version_change(self, obj):
         """Display version change"""
         if obj.from_version:
             return f"v{obj.from_version} → v{obj.to_version}"
         return f"Created v{obj.to_version}"
-    version_change.short_description = 'Version Change'
+
+    version_change.short_description = "Version Change"
 
     def changed_fields_display(self, obj):
         """Display changed fields in a readable format"""
@@ -248,10 +353,11 @@ class AlertChangeLogAdmin(ModelAdmin):
 
         try:
             formatted = json.dumps(obj.changed_fields, indent=2)
-            return format_html('<pre>{}</pre>', formatted)
+            return format_html("<pre>{}</pre>", formatted)
         except:
             return "Invalid format"
-    changed_fields_display.short_description = 'Changed Fields'
+
+    changed_fields_display.short_description = "Changed Fields"
 
     def old_values_display(self, obj):
         """Display old values in a readable format"""
@@ -263,7 +369,8 @@ class AlertChangeLogAdmin(ModelAdmin):
             return format_html('<pre style="color: #666;">{}</pre>', formatted)
         except:
             return "Invalid format"
-    old_values_display.short_description = 'Old Values'
+
+    old_values_display.short_description = "Old Values"
 
     def new_values_display(self, obj):
         """Display new values in a readable format"""
@@ -275,62 +382,95 @@ class AlertChangeLogAdmin(ModelAdmin):
             return format_html('<pre style="color: #0a0;">{}</pre>', formatted)
         except:
             return "Invalid format"
-    new_values_display.short_description = 'New Values'
+
+    new_values_display.short_description = "New Values"
 
     def get_queryset(self, request):
         """Optimize queryset"""
-        return super().get_queryset(request).select_related('alert_instance', 'changed_by')
+        return (
+            super().get_queryset(request).select_related("alert_instance", "changed_by")
+        )
 
 
 @admin.register(AlertExecution)
 class AlertExecutionAdmin(ModelAdmin):
     """Admin for Alert Executions - Consolidated execution and retry tracking"""
+
     list_display = [
-        'alert_instance_name', 'attempt_number', 'max_retries', 'status', 'result',
-        'execution_time_ms', 'started_at', 'completed_at'
+        "alert_instance_name",
+        "attempt_number",
+        "max_retries",
+        "status",
+        "result",
+        "execution_time_ms",
+        "started_at",
+        "completed_at",
     ]
-    list_filter = ['status', 'result', 'started_at', 'attempt_number']
-    search_fields = ['alert_instance__name', 'error_message']
+    list_filter = ["status", "result", "started_at", "attempt_number"]
+    search_fields = ["alert_instance__name", "error_message"]
     readonly_fields = [
-        'started_at', 'created_at', 'updated_at', 'frozen_spec_display',
-        'result_metadata_display', 'result_data_display', 'error_details_display'
+        "started_at",
+        "created_at",
+        "updated_at",
+        "frozen_spec_display",
+        "result_metadata_display",
+        "result_data_display",
+        "error_details_display",
     ]
-    ordering = ['-started_at']
+    ordering = ["-started_at"]
 
     fieldsets = (
-        ('Execution Information', {
-            'fields': ('alert_instance', 'attempt_number', 'max_retries', 'status')
-        }),
-        ('Timing', {
-            'fields': ('started_at', 'completed_at', 'execution_time_ms')
-        }),
-        ('Frozen Specification', {
-            'fields': ('frozen_spec_display', 'frozen_spec'),
-            'description': 'Alert spec frozen at execution time for version safety',
-            'classes': ('collapse',)
-        }),
-        ('Results', {
-            'fields': ('result', 'result_data_display', 'result_data', 'result_metadata_display', 'result_metadata')
-        }),
-        ('Performance', {
-            'fields': ('rows_processed', 'data_sources_used'),
-            'classes': ('collapse',)
-        }),
-        ('Error Information', {
-            'fields': ('error_message', 'error_details_display', 'error_details'),
-            'classes': ('collapse',)
-        }),
-        ('Timestamps', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
+        (
+            "Execution Information",
+            {"fields": ("alert_instance", "attempt_number", "max_retries", "status")},
+        ),
+        ("Timing", {"fields": ("started_at", "completed_at", "execution_time_ms")}),
+        (
+            "Frozen Specification",
+            {
+                "fields": ("frozen_spec_display", "frozen_spec"),
+                "description": "Alert spec frozen at execution time for version safety",
+                "classes": ("collapse",),
+            },
+        ),
+        (
+            "Results",
+            {
+                "fields": (
+                    "result",
+                    "result_data_display",
+                    "result_data",
+                    "result_metadata_display",
+                    "result_metadata",
+                )
+            },
+        ),
+        (
+            "Performance",
+            {
+                "fields": ("rows_processed", "data_sources_used"),
+                "classes": ("collapse",),
+            },
+        ),
+        (
+            "Error Information",
+            {
+                "fields": ("error_message", "error_details_display", "error_details"),
+                "classes": ("collapse",),
+            },
+        ),
+        (
+            "Timestamps",
+            {"fields": ("created_at", "updated_at"), "classes": ("collapse",)},
+        ),
     )
 
     def alert_instance_name(self, obj):
         """Display alert instance name with link"""
-        url = reverse('admin:app_alertinstance_change', args=[obj.alert_instance.pk])
+        url = reverse("admin:app_alertinstance_change", args=[obj.alert_instance.pk])
         return format_html('<a href="{}">{}</a>', url, obj.alert_instance.name)
-    alert_instance_name.short_description = 'Alert Instance'
+
+    alert_instance_name.short_description = "Alert Instance"
 
     def frozen_spec_display(self, obj):
         """Display frozen spec in a readable format"""
@@ -341,10 +481,13 @@ class AlertExecutionAdmin(ModelAdmin):
             formatted = json.dumps(obj.frozen_spec, indent=2)
             if len(formatted) > 500:
                 formatted = formatted[:500] + "..."
-            return format_html('<pre style="background: #f0f0f0; padding: 10px;">{}</pre>', formatted)
+            return format_html(
+                '<pre style="background: #f0f0f0; padding: 10px;">{}</pre>', formatted
+            )
         except:
             return "Invalid format"
-    frozen_spec_display.short_description = 'Frozen Spec'
+
+    frozen_spec_display.short_description = "Frozen Spec"
 
     def result_data_display(self, obj):
         """Display result data in a readable format"""
@@ -355,10 +498,11 @@ class AlertExecutionAdmin(ModelAdmin):
             formatted = json.dumps(obj.result_data, indent=2)
             if len(formatted) > 500:
                 formatted = formatted[:500] + "..."
-            return format_html('<pre>{}</pre>', formatted)
+            return format_html("<pre>{}</pre>", formatted)
         except:
             return "Invalid format"
-    result_data_display.short_description = 'Result Data'
+
+    result_data_display.short_description = "Result Data"
 
     def result_metadata_display(self, obj):
         """Display result metadata in a readable format"""
@@ -367,10 +511,11 @@ class AlertExecutionAdmin(ModelAdmin):
 
         try:
             formatted = json.dumps(obj.result_metadata, indent=2)
-            return format_html('<pre>{}</pre>', formatted)
+            return format_html("<pre>{}</pre>", formatted)
         except:
             return "Invalid format"
-    result_metadata_display.short_description = 'Result Metadata'
+
+    result_metadata_display.short_description = "Result Metadata"
 
     def error_details_display(self, obj):
         """Display error details in a readable format"""
@@ -382,87 +527,119 @@ class AlertExecutionAdmin(ModelAdmin):
             return format_html('<pre style="color: red;">{}</pre>', formatted)
         except:
             return "Invalid format"
-    error_details_display.short_description = 'Error Details'
+
+    error_details_display.short_description = "Error Details"
 
     def get_queryset(self, request):
         """Optimize queryset"""
-        return super().get_queryset(request).select_related('alert_instance')
+        return super().get_queryset(request).select_related("alert_instance")
 
 
 @admin.register(BlockchainNode)
 class BlockchainNodeAdmin(ModelAdmin):
     list_display = [
-        'chain_name', 'network', 'subnet', 'vm_type', 'enabled',
-        'is_primary', 'health_status', 'latency_display', 'success_rate_display'
+        "chain_name",
+        "network",
+        "subnet",
+        "vm_type",
+        "enabled",
+        "is_primary",
+        "health_status",
+        "latency_display",
+        "success_rate_display",
     ]
-    list_filter = ['enabled', 'vm_type', 'network', 'is_primary']
-    search_fields = ['chain_name', 'chain_id', 'network']
-    readonly_fields = ['created_at', 'updated_at', 'last_health_check', 'health_status_detail']
-    ordering = ['network', 'priority']
+    list_filter = ["enabled", "vm_type", "network", "is_primary"]
+    search_fields = ["chain_name", "chain_id", "network"]
+    readonly_fields = [
+        "created_at",
+        "updated_at",
+        "last_health_check",
+        "health_status_detail",
+    ]
+    ordering = ["network", "priority"]
 
     fieldsets = (
-        ('Basic Information', {
-            'fields': ('chain_id', 'chain_name', 'network', 'subnet', 'vm_type')
-        }),
-        ('Connection Details', {
-            'fields': ('rpc_url', 'ws_url'),
-            'description': 'RPC and WebSocket URLs for node connection'
-        }),
-        ('Configuration', {
-            'fields': ('enabled', 'is_primary', 'priority')
-        }),
-        ('Health Metrics', {
-            'fields': ('latency_ms', 'success_rate', 'last_health_check', 'health_status_detail'),
-            'classes': ('collapse',)
-        }),
-        ('Timestamps', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
+        (
+            "Basic Information",
+            {"fields": ("chain_id", "chain_name", "network", "subnet", "vm_type")},
+        ),
+        (
+            "Connection Details",
+            {
+                "fields": ("rpc_url", "ws_url"),
+                "description": "RPC and WebSocket URLs for node connection",
+            },
+        ),
+        ("Configuration", {"fields": ("enabled", "is_primary", "priority")}),
+        (
+            "Health Metrics",
+            {
+                "fields": (
+                    "latency_ms",
+                    "success_rate",
+                    "last_health_check",
+                    "health_status_detail",
+                ),
+                "classes": ("collapse",),
+            },
+        ),
+        (
+            "Timestamps",
+            {"fields": ("created_at", "updated_at"), "classes": ("collapse",)},
+        ),
     )
 
-    actions = ['enable_nodes', 'disable_nodes', 'run_health_check', 'export_to_nats', 'sync_to_redis']
+    actions = [
+        "enable_nodes",
+        "disable_nodes",
+        "run_health_check",
+        "export_to_nats",
+        "sync_to_redis",
+    ]
 
     def health_status(self, obj):
         """Display health status with visual indicator"""
         if obj.is_healthy:
-            return format_html('<span style="color: {};">●</span> {}', 'green', 'Healthy')
-        return format_html('<span style="color: {};">●</span> {}', 'red', 'Unhealthy')
-    health_status.short_description = 'Health'
+            return format_html(
+                '<span style="color: {};">●</span> {}', "green", "Healthy"
+            )
+        return format_html('<span style="color: {};">●</span> {}', "red", "Unhealthy")
+
+    health_status.short_description = "Health"
 
     def latency_display(self, obj):
         """Display latency with color coding"""
         if not obj.latency_ms:
-            return '-'
+            return "-"
 
-        color = 'green'
+        color = "green"
         if obj.latency_ms > 500:
-            color = 'orange'
+            color = "orange"
         if obj.latency_ms > 1000:
-            color = 'red'
+            color = "red"
 
         return format_html(
-            '<span style="color: {};">{} ms</span>',
-            color, obj.latency_ms
+            '<span style="color: {};">{} ms</span>', color, obj.latency_ms
         )
-    latency_display.short_description = 'Latency'
+
+    latency_display.short_description = "Latency"
 
     def success_rate_display(self, obj):
         """Display success rate with color coding"""
         if not obj.success_rate:
-            return '-'
+            return "-"
 
-        color = 'green'
+        color = "green"
         if obj.success_rate < 95:
-            color = 'orange'
+            color = "orange"
         if obj.success_rate < 90:
-            color = 'red'
+            color = "red"
 
         return format_html(
-            '<span style="color: {};">{}%</span>',
-            color, obj.success_rate
+            '<span style="color: {};">{}%</span>', color, obj.success_rate
         )
-    success_rate_display.short_description = 'Success Rate'
+
+    success_rate_display.short_description = "Success Rate"
 
     def health_status_detail(self, obj):
         """Detailed health status information"""
@@ -476,33 +653,42 @@ class BlockchainNodeAdmin(ModelAdmin):
             status_parts.append(f"Success Rate: {obj.success_rate}%")
         status_parts.append(f"Last Check: {obj.last_health_check}")
 
-        return format_html('<br>'.join(status_parts))
-    health_status_detail.short_description = 'Health Details'
+        return format_html("<br>".join(status_parts))
+
+    health_status_detail.short_description = "Health Details"
 
     def enable_nodes(self, request, queryset):
         """Enable selected nodes"""
         updated = queryset.update(enabled=True)
-        self.message_user(request, f'{updated} nodes enabled.')
-    enable_nodes.short_description = 'Enable selected nodes'
+        self.message_user(request, f"{updated} nodes enabled.")
+
+    enable_nodes.short_description = "Enable selected nodes"
 
     def disable_nodes(self, request, queryset):
         """Disable selected nodes"""
         updated = queryset.update(enabled=False)
-        self.message_user(request, f'{updated} nodes disabled.')
-    disable_nodes.short_description = 'Disable selected nodes'
+        self.message_user(request, f"{updated} nodes disabled.")
+
+    disable_nodes.short_description = "Disable selected nodes"
 
     def run_health_check(self, request, queryset):
         """Trigger health check for selected nodes"""
         # This would normally trigger an async task via NATS
-        self.message_user(request, f'Health check initiated for {queryset.count()} nodes.')
-    run_health_check.short_description = 'Run health check'
+        self.message_user(
+            request, f"Health check initiated for {queryset.count()} nodes."
+        )
+
+    run_health_check.short_description = "Run health check"
 
     def export_to_nats(self, request, queryset):
         """Export node configuration to NATS for wasmCloud actors"""
         # This would publish configuration to NATS
         configs = [node.get_connection_config() for node in queryset if node.enabled]
-        self.message_user(request, f'Exported {len(configs)} node configurations to NATS.')
-    export_to_nats.short_description = 'Export to NATS'
+        self.message_user(
+            request, f"Exported {len(configs)} node configurations to NATS."
+        )
+
+    export_to_nats.short_description = "Export to NATS"
 
     def sync_to_redis(self, request, queryset):
         """Sync selected node configurations to Redis for wasmCloud providers"""
@@ -524,65 +710,88 @@ class BlockchainNodeAdmin(ModelAdmin):
 
         message_parts = []
         if synced > 0:
-            message_parts.append(f'{synced} synced')
+            message_parts.append(f"{synced} synced")
         if failed > 0:
-            message_parts.append(f'{failed} failed')
+            message_parts.append(f"{failed} failed")
         if skipped > 0:
-            message_parts.append(f'{skipped} skipped (disabled)')
+            message_parts.append(f"{skipped} skipped (disabled)")
 
         self.message_user(request, f'Redis sync: {", ".join(message_parts)}.')
-    sync_to_redis.short_description = 'Sync to Redis (provider config)'
+
+    sync_to_redis.short_description = "Sync to Redis (provider config)"
 
 
 # ===================================================================
 # Group Model Admin
 # ===================================================================
 
+
 @admin.register(GenericGroup)
 class GenericGroupAdmin(ModelAdmin):
     """Admin for Generic Groups - Unified group model"""
+
     list_display = [
-        'name', 'group_type', 'owner', 'member_count', 'visibility_display',
-        'alert_type_display', 'created_at'
+        "name",
+        "group_type",
+        "owner",
+        "member_count",
+        "visibility_display",
+        "alert_type_display",
+        "created_at",
     ]
-    list_filter = ['group_type', 'created_at']
-    search_fields = ['name', 'description', 'owner__email']
-    readonly_fields = ['created_at', 'updated_at', 'member_count', 'member_preview', 'settings_display']
-    ordering = ['-created_at']
+    list_filter = ["group_type", "created_at"]
+    search_fields = ["name", "description", "owner__email"]
+    readonly_fields = [
+        "created_at",
+        "updated_at",
+        "member_count",
+        "member_preview",
+        "settings_display",
+    ]
+    ordering = ["-created_at"]
 
     fieldsets = (
-        ('Basic Information', {
-            'fields': ('name', 'description', 'group_type', 'owner')
-        }),
-        ('Settings', {
-            'fields': ('settings', 'settings_display'),
-            'description': 'Group-specific settings (visibility, alert_type, etc.)'
-        }),
-        ('Members', {
-            'fields': ('member_count', 'member_data', 'member_preview'),
-            'description': 'Group members in JSONB format'
-        }),
-        ('Timestamps', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
+        (
+            "Basic Information",
+            {"fields": ("name", "description", "group_type", "owner")},
+        ),
+        (
+            "Settings",
+            {
+                "fields": ("settings", "settings_display"),
+                "description": "Group-specific settings (visibility, alert_type, etc.)",
+            },
+        ),
+        (
+            "Members",
+            {
+                "fields": ("member_count", "member_data", "member_preview"),
+                "description": "Group members in JSONB format",
+            },
+        ),
+        (
+            "Timestamps",
+            {"fields": ("created_at", "updated_at"), "classes": ("collapse",)},
+        ),
     )
 
     def visibility_display(self, obj):
         """Display visibility setting"""
         visibility = obj.get_visibility()
-        if visibility == 'public':
-            return format_html('<span style="color: {};">{}</span>', 'green', 'Public')
-        return format_html('<span style="color: {};">{}</span>', 'gray', 'Private')
-    visibility_display.short_description = 'Visibility'
+        if visibility == "public":
+            return format_html('<span style="color: {};">{}</span>', "green", "Public")
+        return format_html('<span style="color: {};">{}</span>', "gray", "Private")
+
+    visibility_display.short_description = "Visibility"
 
     def alert_type_display(self, obj):
         """Display alert_type for AlertGroups"""
         alert_type = obj.get_alert_type()
         if alert_type:
             return alert_type
-        return '-'
-    alert_type_display.short_description = 'Alert Type'
+        return "-"
+
+    alert_type_display.short_description = "Alert Type"
 
     def settings_display(self, obj):
         """Display settings in readable format"""
@@ -590,73 +799,104 @@ class GenericGroupAdmin(ModelAdmin):
             return "No settings"
         try:
             formatted = json.dumps(obj.settings, indent=2)
-            return format_html('<pre>{}</pre>', formatted)
+            return format_html("<pre>{}</pre>", formatted)
         except:
             return "Invalid format"
-    settings_display.short_description = 'Settings Preview'
+
+    settings_display.short_description = "Settings Preview"
 
     def member_preview(self, obj):
         """Show a preview of member data"""
-        members = obj.member_data.get('members', {})
+        members = obj.member_data.get("members", {})
         if not members:
             return "No members"
 
         preview_keys = list(members.keys())[:5]
-        preview_text = '\n'.join(preview_keys)
+        preview_text = "\n".join(preview_keys)
         if len(members) > 5:
-            preview_text += f'\n... and {len(members) - 5} more'
-        return format_html('<pre>{}</pre>', preview_text)
-    member_preview.short_description = 'Members Preview'
+            preview_text += f"\n... and {len(members) - 5} more"
+        return format_html("<pre>{}</pre>", preview_text)
+
+    member_preview.short_description = "Members Preview"
 
     def get_queryset(self, request):
         """Optimize queryset"""
-        return super().get_queryset(request).select_related('owner')
+        return super().get_queryset(request).select_related("owner")
 
 
 @admin.register(GroupSubscription)
 class GroupSubscriptionAdmin(ModelAdmin):
     """Admin for Group Subscriptions - Links AlertGroups to target groups"""
+
     list_display = [
-        'subscription_display', 'owner', 'is_active', 'alert_type_display',
-        'target_type_display', 'created_at'
+        "subscription_display",
+        "owner",
+        "is_active",
+        "alert_type_display",
+        "target_type_display",
+        "created_at",
     ]
-    list_filter = ['is_active', 'created_at']
-    search_fields = ['alert_group__name', 'target_group__name', 'target_key', 'owner__email']
-    readonly_fields = ['created_at', 'updated_at', 'settings_display']
-    ordering = ['-created_at']
+    list_filter = ["is_active", "created_at"]
+    search_fields = [
+        "alert_group__name",
+        "target_group__name",
+        "target_key",
+        "owner__email",
+    ]
+    readonly_fields = ["created_at", "updated_at", "settings_display"]
+    ordering = ["-created_at"]
 
     fieldsets = (
-        ('Subscription Details', {
-            'fields': ('alert_group', 'target_group', 'target_key', 'owner', 'is_active')
-        }),
-        ('Settings Override', {
-            'fields': ('settings', 'settings_display'),
-            'description': 'Override settings for this subscription'
-        }),
-        ('Timestamps', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
+        (
+            "Subscription Details",
+            {
+                "fields": (
+                    "alert_group",
+                    "target_group",
+                    "target_key",
+                    "owner",
+                    "is_active",
+                )
+            },
+        ),
+        (
+            "Settings Override",
+            {
+                "fields": ("settings", "settings_display"),
+                "description": "Override settings for this subscription",
+            },
+        ),
+        (
+            "Timestamps",
+            {"fields": ("created_at", "updated_at"), "classes": ("collapse",)},
+        ),
     )
 
     def subscription_display(self, obj):
         """Display subscription as arrow notation"""
-        target = obj.target_group.name if obj.target_group else (obj.target_key or "<missing target>")
+        target = (
+            obj.target_group.name
+            if obj.target_group
+            else (obj.target_key or "<missing target>")
+        )
         return f"{obj.alert_group.name} → {target}"
-    subscription_display.short_description = 'Subscription'
+
+    subscription_display.short_description = "Subscription"
 
     def alert_type_display(self, obj):
         """Display alert type from alert group"""
         alert_type = obj.alert_group.get_alert_type() if obj.alert_group else None
-        return alert_type or '-'
-    alert_type_display.short_description = 'Alert Type'
+        return alert_type or "-"
+
+    alert_type_display.short_description = "Alert Type"
 
     def target_type_display(self, obj):
         """Display target group type"""
         if obj.target_group:
             return obj.target_group.group_type
-        return obj.alert_group.get_alert_type() if obj.alert_group else '-'
-    target_type_display.short_description = 'Target Type'
+        return obj.alert_group.get_alert_type() if obj.alert_group else "-"
+
+    target_type_display.short_description = "Target Type"
 
     def settings_display(self, obj):
         """Display settings in readable format"""
@@ -664,51 +904,64 @@ class GroupSubscriptionAdmin(ModelAdmin):
             return "No overrides"
         try:
             formatted = json.dumps(obj.settings, indent=2)
-            return format_html('<pre>{}</pre>', formatted)
+            return format_html("<pre>{}</pre>", formatted)
         except:
             return "Invalid format"
-    settings_display.short_description = 'Settings Preview'
+
+    settings_display.short_description = "Settings Preview"
 
     def get_queryset(self, request):
         """Optimize queryset"""
-        return super().get_queryset(request).select_related(
-            'alert_group', 'target_group', 'owner'
+        return (
+            super()
+            .get_queryset(request)
+            .select_related("alert_group", "target_group", "owner")
         )
 
 
 @admin.register(DefaultNetworkAlert)
 class DefaultNetworkAlertAdmin(ModelAdmin):
     """Admin for Default Network Alerts - Fallback alerts per chain/subnet"""
+
     list_display = [
-        'chain_display', 'subnet', 'alert_template', 'enabled', 'created_at'
+        "chain_display",
+        "subnet",
+        "alert_template",
+        "enabled",
+        "created_at",
     ]
-    list_filter = ['enabled', 'subnet', 'created_at']
-    search_fields = ['chain__name', 'chain__symbol', 'alert_template__name']
-    readonly_fields = ['created_at', 'updated_at', 'settings_display']
-    ordering = ['chain__name', 'subnet']
+    list_filter = ["enabled", "subnet", "created_at"]
+    search_fields = ["chain__name", "chain__symbol", "alert_template__name"]
+    readonly_fields = ["created_at", "updated_at", "settings_display"]
+    ordering = ["chain__name", "subnet"]
 
     fieldsets = (
-        ('Network Identification', {
-            'fields': ('chain', 'subnet')
-        }),
-        ('Alert Template', {
-            'fields': ('alert_template', 'enabled'),
-            'description': 'The fallback template for this network'
-        }),
-        ('Settings', {
-            'fields': ('settings', 'settings_display'),
-            'description': 'Default settings for alerts using this template'
-        }),
-        ('Timestamps', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
+        ("Network Identification", {"fields": ("chain", "subnet")}),
+        (
+            "Alert Template",
+            {
+                "fields": ("alert_template", "enabled"),
+                "description": "The fallback template for this network",
+            },
+        ),
+        (
+            "Settings",
+            {
+                "fields": ("settings", "settings_display"),
+                "description": "Default settings for alerts using this template",
+            },
+        ),
+        (
+            "Timestamps",
+            {"fields": ("created_at", "updated_at"), "classes": ("collapse",)},
+        ),
     )
 
     def chain_display(self, obj):
         """Display chain name with symbol"""
         return f"{obj.chain.name} ({obj.chain.symbol})"
-    chain_display.short_description = 'Chain'
+
+    chain_display.short_description = "Chain"
 
     def settings_display(self, obj):
         """Display settings in readable format"""
@@ -716,58 +969,75 @@ class DefaultNetworkAlertAdmin(ModelAdmin):
             return "No settings"
         try:
             formatted = json.dumps(obj.settings, indent=2)
-            return format_html('<pre>{}</pre>', formatted)
+            return format_html("<pre>{}</pre>", formatted)
         except:
             return "Invalid format"
-    settings_display.short_description = 'Settings Preview'
+
+    settings_display.short_description = "Settings Preview"
 
     def get_queryset(self, request):
         """Optimize queryset"""
-        return super().get_queryset(request).select_related('chain', 'alert_template')
+        return super().get_queryset(request).select_related("chain", "alert_template")
 
 
 @admin.register(UserWalletGroup)
 class UserWalletGroupAdmin(ModelAdmin):
     """Admin for User Wallet Groups - Provider-managed wallet associations"""
+
     list_display = [
-        'user', 'wallet_group', 'provider', 'wallet_count_display',
-        'notification_routing', 'is_active', 'created_at'
+        "user",
+        "wallet_group",
+        "provider",
+        "wallet_count_display",
+        "notification_routing",
+        "is_active",
+        "created_at",
     ]
-    list_filter = ['is_active', 'notification_routing', 'created_at']
-    search_fields = ['user__email', 'wallet_group__name', 'provider__email']
+    list_filter = ["is_active", "notification_routing", "created_at"]
+    search_fields = ["user__email", "wallet_group__name", "provider__email"]
     readonly_fields = [
-        'created_at', 'updated_at', 'wallet_keys_display',
-        'access_control_display'
+        "created_at",
+        "updated_at",
+        "wallet_keys_display",
+        "access_control_display",
     ]
-    ordering = ['-created_at']
+    ordering = ["-created_at"]
 
     fieldsets = (
-        ('Relationships', {
-            'fields': ('user', 'wallet_group', 'provider', 'callback')
-        }),
-        ('Wallet Keys', {
-            'fields': ('wallet_keys', 'wallet_keys_display'),
-            'description': 'Wallet addresses managed by the provider for this user'
-        }),
-        ('Notification Settings', {
-            'fields': ('auto_subscribe_alerts', 'notification_routing'),
-            'description': 'How notifications are routed for this user'
-        }),
-        ('Access Control', {
-            'fields': ('access_control', 'access_control_display', 'is_active'),
-            'description': 'Who can edit this membership'
-        }),
-        ('Timestamps', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
+        ("Relationships", {"fields": ("user", "wallet_group", "provider", "callback")}),
+        (
+            "Wallet Keys",
+            {
+                "fields": ("wallet_keys", "wallet_keys_display"),
+                "description": "Wallet addresses managed by the provider for this user",
+            },
+        ),
+        (
+            "Notification Settings",
+            {
+                "fields": ("auto_subscribe_alerts", "notification_routing"),
+                "description": "How notifications are routed for this user",
+            },
+        ),
+        (
+            "Access Control",
+            {
+                "fields": ("access_control", "access_control_display", "is_active"),
+                "description": "Who can edit this membership",
+            },
+        ),
+        (
+            "Timestamps",
+            {"fields": ("created_at", "updated_at"), "classes": ("collapse",)},
+        ),
     )
 
     def wallet_count_display(self, obj):
         """Display wallet count"""
         count = obj.get_wallet_count()
         return f"{count} wallets"
-    wallet_count_display.short_description = 'Wallets'
+
+    wallet_count_display.short_description = "Wallets"
 
     def wallet_keys_display(self, obj):
         """Display wallet keys preview"""
@@ -775,11 +1045,12 @@ class UserWalletGroupAdmin(ModelAdmin):
             return "No wallets"
 
         preview = obj.wallet_keys[:5]
-        text = '\n'.join(preview)
+        text = "\n".join(preview)
         if len(obj.wallet_keys) > 5:
-            text += f'\n... and {len(obj.wallet_keys) - 5} more'
-        return format_html('<pre>{}</pre>', text)
-    wallet_keys_display.short_description = 'Wallet Keys Preview'
+            text += f"\n... and {len(obj.wallet_keys) - 5} more"
+        return format_html("<pre>{}</pre>", text)
+
+    wallet_keys_display.short_description = "Wallet Keys Preview"
 
     def access_control_display(self, obj):
         """Display access control in readable format"""
@@ -787,15 +1058,18 @@ class UserWalletGroupAdmin(ModelAdmin):
             return "No access control set"
         try:
             formatted = json.dumps(obj.access_control, indent=2)
-            return format_html('<pre>{}</pre>', formatted)
+            return format_html("<pre>{}</pre>", formatted)
         except:
             return "Invalid format"
-    access_control_display.short_description = 'Access Control Preview'
+
+    access_control_display.short_description = "Access Control Preview"
 
     def get_queryset(self, request):
         """Optimize queryset"""
-        return super().get_queryset(request).select_related(
-            'user', 'wallet_group', 'provider', 'callback'
+        return (
+            super()
+            .get_queryset(request)
+            .select_related("user", "wallet_group", "provider", "callback")
         )
 
 
@@ -823,7 +1097,10 @@ class NLPPipelineAdmin(ModelAdmin):
     fieldsets = (
         ("Pipeline", {"fields": ("pipeline_id", "name", "description")}),
         ("Active Version", {"fields": ("active_version",)}),
-        ("Timestamps", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
+        (
+            "Timestamps",
+            {"fields": ("created_at", "updated_at"), "classes": ("collapse",)},
+        ),
     )
 
 
@@ -836,7 +1113,13 @@ class NLPPipelineVersionAdmin(ModelAdmin):
 
     fieldsets = (
         ("Version", {"fields": ("pipeline", "version")}),
-        ("Prompt Configuration", {"fields": ("system_prompt_suffix", "user_prompt_context")}),
+        (
+            "Prompt Configuration",
+            {"fields": ("system_prompt_suffix", "user_prompt_context")},
+        ),
         ("Few-Shot Examples", {"fields": ("examples",)}),
-        ("Timestamps", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
+        (
+            "Timestamps",
+            {"fields": ("created_at", "updated_at"), "classes": ("collapse",)},
+        ),
     )

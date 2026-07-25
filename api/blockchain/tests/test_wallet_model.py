@@ -54,4 +54,3 @@ class WalletModelTest(TestCase):
                 address=f"0x{'a' * 40}",
                 name="Duplicate Mainnet Wallet",
             )
-

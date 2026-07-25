@@ -34,8 +34,18 @@ def test_alert_template_variable_names_from_latest_spec():
     template = AlertTemplateFactory(
         created_by=user,
         variables=[
-            {"id": "threshold", "type": "decimal", "required": True, "validation": {"min": 0}},
-            {"id": "window_duration", "type": "duration", "required": True, "default": "24h"},
+            {
+                "id": "threshold",
+                "type": "decimal",
+                "required": True,
+                "validation": {"min": 0},
+            },
+            {
+                "id": "window_duration",
+                "type": "duration",
+                "required": True,
+                "default": "24h",
+            },
         ],
     )
     assert template.get_variable_names() == ["threshold", "window_duration"]
@@ -68,7 +78,12 @@ def test_instance_rejects_template_and_standalone():
         template=template,
         template_version=1,
         template_params={},
-        _standalone_spec={"version": "v1", "trigger": {}, "conditions": {}, "action": {}},
+        _standalone_spec={
+            "version": "v1",
+            "trigger": {},
+            "conditions": {},
+            "action": {},
+        },
         event_type="ACCOUNT_EVENT",
         sub_event="CUSTOM",
         user=user,
@@ -133,9 +148,10 @@ def test_execution_mark_started_and_completed():
     assert execution.status == "running"
     assert execution.started_at is not None
 
-    execution.mark_completed(result_data={"result": True, "result_value": "ok", "metadata": {"k": "v"}})
+    execution.mark_completed(
+        result_data={"result": True, "result_value": "ok", "metadata": {"k": "v"}}
+    )
     execution.refresh_from_db()
     assert execution.status == "completed"
     assert execution.result is True
     assert execution.result_value == "ok"
-

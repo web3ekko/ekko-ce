@@ -311,9 +311,7 @@ class TestDuckLakeServiceQuery:
         mock_duckdb.connect.return_value = mock_conn
 
         service = get_ducklake_service()
-        results = service.query(
-            "SELECT * FROM test WHERE id = $id", params={"id": 1}
-        )
+        results = service.query("SELECT * FROM test WHERE id = $id", params={"id": 1})
 
         assert len(results) == 1
         assert results[0] == {"id": 1, "name": "filtered"}
@@ -398,9 +396,7 @@ class TestDuckLakeServiceSnapshots:
         mock_duckdb.connect.return_value = mock_conn
 
         service = get_ducklake_service()
-        results = service.query_at_snapshot(
-            "SELECT * FROM test", snapshot_id=42
-        )
+        results = service.query_at_snapshot("SELECT * FROM test", snapshot_id=42)
 
         assert len(results) == 1
         assert results[0] == {"id": 1, "value": "historical"}

@@ -4,24 +4,32 @@
  * Reusable bulk action bar for list/grid pages with selection support
  */
 
-import { Paper, Group, Checkbox, Text, ActionIcon, Tooltip, Transition } from '@mantine/core'
-import { IconX } from '@tabler/icons-react'
-import type { ReactNode } from 'react'
+import {
+  Paper,
+  Group,
+  Checkbox,
+  Text,
+  ActionIcon,
+  Tooltip,
+  Transition,
+} from "@mantine/core";
+import { IconX } from "@tabler/icons-react";
+import type { ReactNode } from "react";
 
 export interface BulkAction {
-  icon: ReactNode
-  label: string
-  color: string
-  onClick: () => void
+  icon: ReactNode;
+  label: string;
+  color: string;
+  onClick: () => void;
 }
 
 interface MultiSelectActionBarProps {
-  selectedCount: number
-  totalCount: number
-  onSelectAll: () => void
-  onClearSelection: () => void
-  actions: BulkAction[]
-  mounted?: boolean
+  selectedCount: number;
+  totalCount: number;
+  onSelectAll: () => void;
+  onClearSelection: () => void;
+  actions: BulkAction[];
+  mounted?: boolean;
 }
 
 export function MultiSelectActionBar({
@@ -32,11 +40,15 @@ export function MultiSelectActionBar({
   actions,
   mounted = true,
 }: MultiSelectActionBarProps) {
-  const isAllSelected = selectedCount === totalCount && totalCount > 0
-  const isIndeterminate = selectedCount > 0 && selectedCount < totalCount
+  const isAllSelected = selectedCount === totalCount && totalCount > 0;
+  const isIndeterminate = selectedCount > 0 && selectedCount < totalCount;
 
   return (
-    <Transition mounted={mounted && selectedCount > 0} transition="slide-down" duration={200}>
+    <Transition
+      mounted={mounted && selectedCount > 0}
+      transition="slide-down"
+      duration={200}
+    >
       {(styles) => (
         <Paper style={styles} p="xs" radius="sm" withBorder bg="#EFF6FF">
           <Group justify="space-between" align="center">
@@ -72,5 +84,5 @@ export function MultiSelectActionBar({
         </Paper>
       )}
     </Transition>
-  )
+  );
 }

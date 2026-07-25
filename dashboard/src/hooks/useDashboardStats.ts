@@ -4,58 +4,61 @@
  * Shared dashboard stats hook with periodic refresh and WebSocket-driven updates.
  */
 
-import { useCallback, useEffect } from 'react'
-import { useDashboardStatsStore } from '../store/dashboard-stats'
-import { websocketService, EVENTS } from '../services/websocket'
+import { useCallback, useEffect } from "react";
+import { useDashboardStatsStore } from "../store/dashboard-stats";
+import { websocketService, EVENTS } from "../services/websocket";
 
-const DEFAULT_REFRESH_INTERVAL_MS = 60000
-const EVENT_REFRESH_COOLDOWN_MS = 5000
+const DEFAULT_REFRESH_INTERVAL_MS = 60000;
+const EVENT_REFRESH_COOLDOWN_MS = 5000;
 
-let sharedSubscriberCount = 0
-let sharedIntervalId: ReturnType<typeof setInterval> | null = null
-let sharedIntervalMs: number | null = null
-let sharedEventUnsubscribers: Array<() => void> = []
-let lastEventRefreshAt = 0
+let sharedSubscriberCount = 0;
+let sharedIntervalId: ReturnType<typeof setInterval> | null = null;
+let sharedIntervalMs: number | null = null;
+let sharedEventUnsubscribers: Array<() => void> = [];
+let lastEventRefreshAt = 0;
 
 interface UseDashboardStatsOptions {
-  refreshIntervalMs?: number
-  refreshOnEvents?: boolean
+  refreshIntervalMs?: number;
+  refreshOnEvents?: boolean;
 }
 
 export function useDashboardStats(options: UseDashboardStatsOptions = {}) {
-  const { refreshIntervalMs = DEFAULT_REFRESH_INTERVAL_MS, refreshOnEvents = true } = options
+  const {
+    refreshIntervalMs = DEFAULT_REFRESH_INTERVAL_MS,
+    refreshOnEvents = true,
+  } = options;
 
-  const stats = useDashboardStatsStore((state) => state.stats)
-  const isLoading = useDashboardStatsStore((state) => state.isLoading)
-  const error = useDashboardStatsStore((state) => state.error)
-  const lastUpdatedAt = useDashboardStatsStore((state) => state.lastUpdatedAt)
-  const loadStats = useDashboardStatsStore((state) => state.loadStats)
+  const stats = useDashboardStatsStore((state) => state.stats);
+  const isLoading = useDashboardStatsStore((state) => state.isLoading);
+  const error = useDashboardStatsStore((state) => state.error);
+  const lastUpdatedAt = useDashboardStatsStore((state) => state.lastUpdatedAt);
+  const loadStats = useDashboardStatsStore((state) => state.loadStats);
 
   const refresh = useCallback(
     (silent = true) => loadStats({ silent }),
-    [loadStats]
-  )
+    [loadStats],
+  );
 
   useEffect(() => {
-    refresh(false)
-  }, [refresh])
+    refresh(false);
+  }, [refresh]);
 
   useEffect(() => {
-    sharedSubscriberCount += 1
+    sharedSubscriberCount += 1;
 
     const sharedRefresh = () => {
-      useDashboardStatsStore.getState().loadStats({ silent: true })
-    }
+      useDashboardStatsStore.getState().loadStats({ silent: true });
+    };
 
     if (refreshOnEvents && sharedEventUnsubscribers.length === 0) {
       const handler = () => {
-        const now = Date.now()
+        const now = Date.now();
         if (now - lastEventRefreshAt < EVENT_REFRESH_COOLDOWN_MS) {
-          return
+          return;
         }
-        lastEventRefreshAt = now
-        sharedRefresh()
-      }
+        lastEventRefreshAt = now;
+        sharedRefresh();
+      };
 
       sharedEventUnsubscribers = [
         websocketService.on(EVENTS.ALERT_TRIGGERED, handler),
@@ -65,37 +68,40 @@ export function useDashboardStats(options: UseDashboardStatsOptions = {}) {
         websocketService.on(EVENTS.ALERT_STATUS_CHANGED, handler),
         websocketService.on(EVENTS.WALLET_ADDED, handler),
         websocketService.on(EVENTS.WALLET_REMOVED, handler),
-        websocketService.on('dashboard:stats', handler),
-      ]
+        websocketService.on("dashboard:stats", handler),
+      ];
     }
 
     if (refreshIntervalMs && refreshIntervalMs > 0) {
-      if (sharedIntervalId === null || (sharedIntervalMs !== null && refreshIntervalMs < sharedIntervalMs)) {
+      if (
+        sharedIntervalId === null ||
+        (sharedIntervalMs !== null && refreshIntervalMs < sharedIntervalMs)
+      ) {
         if (sharedIntervalId) {
-          clearInterval(sharedIntervalId)
+          clearInterval(sharedIntervalId);
         }
-        sharedIntervalMs = refreshIntervalMs
+        sharedIntervalMs = refreshIntervalMs;
         sharedIntervalId = setInterval(() => {
-          sharedRefresh()
-        }, refreshIntervalMs)
+          sharedRefresh();
+        }, refreshIntervalMs);
       }
     }
 
     return () => {
-      sharedSubscriberCount -= 1
+      sharedSubscriberCount -= 1;
       if (sharedSubscriberCount <= 0) {
-        sharedSubscriberCount = 0
+        sharedSubscriberCount = 0;
         if (sharedIntervalId) {
-          clearInterval(sharedIntervalId)
-          sharedIntervalId = null
+          clearInterval(sharedIntervalId);
+          sharedIntervalId = null;
         }
-        sharedIntervalMs = null
-        sharedEventUnsubscribers.forEach((unsubscribe) => unsubscribe())
-        sharedEventUnsubscribers = []
-        lastEventRefreshAt = 0
+        sharedIntervalMs = null;
+        sharedEventUnsubscribers.forEach((unsubscribe) => unsubscribe());
+        sharedEventUnsubscribers = [];
+        lastEventRefreshAt = 0;
       }
-    }
-  }, [refreshIntervalMs, refreshOnEvents])
+    };
+  }, [refreshIntervalMs, refreshOnEvents]);
 
   return {
     stats,
@@ -103,5 +109,5 @@ export function useDashboardStats(options: UseDashboardStatsOptions = {}) {
     error,
     lastUpdatedAt,
     refresh: () => refresh(false),
-  }
+  };
 }

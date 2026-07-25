@@ -33,27 +33,25 @@ class WalletNickname(models.Model):
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='wallet_nicknames',
-        help_text="The user who created this nickname"
+        related_name="wallet_nicknames",
+        help_text="The user who created this nickname",
     )
     wallet_address = models.CharField(
         max_length=255,
         db_index=True,
-        help_text="The blockchain wallet address (e.g., 0x1234...)"
+        help_text="The blockchain wallet address (e.g., 0x1234...)",
     )
     custom_name = models.CharField(
         max_length=50,
         validators=[MinLengthValidator(1), MaxLengthValidator(50)],
-        help_text="Custom name for the wallet (1-50 characters)"
+        help_text="Custom name for the wallet (1-50 characters)",
     )
     chain_id = models.IntegerField(
         db_index=True,
-        help_text="Blockchain network chain ID (e.g., 1 for Ethereum mainnet)"
+        help_text="Blockchain network chain ID (e.g., 1 for Ethereum mainnet)",
     )
     notes = models.TextField(
-        blank=True,
-        default='',
-        help_text="Optional notes about this wallet"
+        blank=True, default="", help_text="Optional notes about this wallet"
     )
 
     # Timestamps
@@ -61,18 +59,18 @@ class WalletNickname(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'wallet_nicknames'
-        verbose_name = 'Wallet Nickname'
-        verbose_name_plural = 'Wallet Nicknames'
-        ordering = ['-created_at']
+        db_table = "wallet_nicknames"
+        verbose_name = "Wallet Nickname"
+        verbose_name_plural = "Wallet Nicknames"
+        ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=['user', 'chain_id']),
-            models.Index(fields=['wallet_address']),
+            models.Index(fields=["user", "chain_id"]),
+            models.Index(fields=["wallet_address"]),
         ]
         constraints = [
             models.UniqueConstraint(
-                fields=['user', 'wallet_address', 'chain_id'],
-                name='unique_user_wallet_chain'
+                fields=["user", "wallet_address", "chain_id"],
+                name="unique_user_wallet_chain",
             )
         ]
 
@@ -125,14 +123,14 @@ class WalletNickname(models.Model):
 
         # Validate EVM address format (0x followed by 40 hex characters)
         # This covers Ethereum, Polygon, Avalanche, BSC, etc.
-        evm_pattern = r'^0x[a-fA-F0-9]{40}$'
+        evm_pattern = r"^0x[a-fA-F0-9]{40}$"
 
         if not re.match(evm_pattern, self.wallet_address):
             # Check if it might be a Bitcoin or Solana address
             # Bitcoin: starts with 1, 3, or bc1 (base58/bech32)
             # Solana: base58 encoded, typically 32-44 characters
-            bitcoin_pattern = r'^(1|3|bc1)[a-zA-Z0-9]{25,62}$'
-            solana_pattern = r'^[1-9A-HJ-NP-Za-km-z]{32,44}$'
+            bitcoin_pattern = r"^(1|3|bc1)[a-zA-Z0-9]{25,62}$"
+            solana_pattern = r"^[1-9A-HJ-NP-Za-km-z]{32,44}$"
 
             if re.match(bitcoin_pattern, self.wallet_address):
                 # Valid Bitcoin address
@@ -141,13 +139,15 @@ class WalletNickname(models.Model):
                 # Valid Solana address
                 pass
             else:
-                raise ValidationError({
-                    'wallet_address': (
-                        'Invalid wallet address format. Must be a valid blockchain address '
-                        '(EVM: 0x followed by 40 hex characters, Bitcoin: standard address, '
-                        'Solana: base58 encoded address)'
-                    )
-                })
+                raise ValidationError(
+                    {
+                        "wallet_address": (
+                            "Invalid wallet address format. Must be a valid blockchain address "
+                            "(EVM: 0x followed by 40 hex characters, Bitcoin: standard address, "
+                            "Solana: base58 encoded address)"
+                        )
+                    }
+                )
 
     def save(self, *args, **kwargs) -> None:
         """Save with validation"""
@@ -165,11 +165,8 @@ class WalletNickname(models.Model):
 
     @classmethod
     def get_nickname_for_address(
-        cls,
-        user: User,
-        address: str,
-        chain_id: int
-    ) -> Optional['WalletNickname']:
+        cls, user: User, address: str, chain_id: int
+    ) -> Optional["WalletNickname"]:
         """
         Retrieve a wallet nickname for a specific user, address, and chain.
 
@@ -183,19 +180,14 @@ class WalletNickname(models.Model):
         """
         try:
             return cls.objects.get(
-                user=user,
-                wallet_address=address.lower(),
-                chain_id=chain_id
+                user=user, wallet_address=address.lower(), chain_id=chain_id
             )
         except cls.DoesNotExist:
             return None
 
     @classmethod
     def get_display_name_or_address(
-        cls,
-        user: User,
-        address: str,
-        chain_id: int
+        cls, user: User, address: str, chain_id: int
     ) -> str:
         """
         Get custom name if exists, otherwise return truncated address.
@@ -227,6 +219,7 @@ class WalletNickname(models.Model):
 # Django Signals for Redis Cache Invalidation
 # ===================================================================
 
+
 @receiver(post_save, sender=WalletNickname)
 @receiver(post_delete, sender=WalletNickname)
 def invalidate_wallet_nickname_cache(sender, instance, **kwargs):
@@ -243,9 +236,12 @@ def invalidate_wallet_nickname_cache(sender, instance, **kwargs):
     """
     try:
         from app.services.notification_cache import NotificationCacheManager
+
         cache_manager = NotificationCacheManager()
         cache_manager.invalidate_wallet_nicknames(str(instance.user_id))
         logger.info(f"Invalidated wallet nickname cache for user {instance.user_id}")
     except Exception as e:
         # Signal handlers should NOT raise exceptions that break model operations
-        logger.error(f"Error invalidating wallet nickname cache for user {instance.user_id}: {e}")
+        logger.error(
+            f"Error invalidating wallet nickname cache for user {instance.user_id}: {e}"
+        )

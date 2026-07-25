@@ -26,14 +26,14 @@ from .wallet_nickname_views import WalletNicknameViewSet
 
 # Re-export for backward compatibility
 __all__ = [
-    'AlertTemplateViewSet',
-    'AlertInstanceViewSet',
-    'DefaultNetworkAlertViewSet',
-    'ChainViewSet',
-    'NotificationChannelEndpointViewSet',
-    'TeamNotificationChannelEndpointViewSet',
-    'TeamMemberNotificationOverrideViewSet',
-    'GenericGroupViewSet',
-    'GroupSubscriptionViewSet',
-    'WalletNicknameViewSet',
+    "AlertTemplateViewSet",
+    "AlertInstanceViewSet",
+    "DefaultNetworkAlertViewSet",
+    "ChainViewSet",
+    "NotificationChannelEndpointViewSet",
+    "TeamNotificationChannelEndpointViewSet",
+    "TeamMemberNotificationOverrideViewSet",
+    "GenericGroupViewSet",
+    "GroupSubscriptionViewSet",
+    "WalletNicknameViewSet",
 ]

@@ -28,14 +28,16 @@ def sync_telegram_config_on_save(sender, instance, **kwargs):
     - New Telegram endpoint is created
     - Existing Telegram endpoint is updated (enabled/disabled, verified, config changed)
     """
-    if instance.channel_type == 'telegram':
+    if instance.channel_type == "telegram":
         logger.info(f"Syncing Telegram config for user {instance.owner_id} after save")
 
         cache_service = TelegramCacheService()
         success = cache_service.sync_telegram_config_to_redis(str(instance.owner_id))
 
         if success:
-            logger.info(f"Successfully synced Telegram config for user {instance.owner_id}")
+            logger.info(
+                f"Successfully synced Telegram config for user {instance.owner_id}"
+            )
         else:
             logger.error(f"Failed to sync Telegram config for user {instance.owner_id}")
 
@@ -47,13 +49,17 @@ def sync_telegram_config_on_delete(sender, instance, **kwargs):
 
     This will clear the cache if no other enabled Telegram endpoints exist for the user.
     """
-    if instance.channel_type == 'telegram':
-        logger.info(f"Syncing Telegram config for user {instance.owner_id} after delete")
+    if instance.channel_type == "telegram":
+        logger.info(
+            f"Syncing Telegram config for user {instance.owner_id} after delete"
+        )
 
         cache_service = TelegramCacheService()
         success = cache_service.sync_telegram_config_to_redis(str(instance.owner_id))
 
         if success:
-            logger.info(f"Successfully synced Telegram config for user {instance.owner_id}")
+            logger.info(
+                f"Successfully synced Telegram config for user {instance.owner_id}"
+            )
         else:
             logger.error(f"Failed to sync Telegram config for user {instance.owner_id}")

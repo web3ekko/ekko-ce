@@ -16,80 +16,80 @@
      ======================================== */
 
   /* Backgrounds - Bright white with cool neutrals */
-  --color-background: #FFFFFF;           /* Pure white base */
-  --color-surface: #F7F9FC;              /* Soft neutral surface */
-  --color-surface-hover: #F1F4F9;        /* Hover state */
-  --color-surface-active: #E6EAF2;       /* Active/pressed state */
-  --color-surface-elevated: #FFFFFF;     /* Elevated cards */
+  --color-background: #ffffff; /* Pure white base */
+  --color-surface: #f7f9fc; /* Soft neutral surface */
+  --color-surface-hover: #f1f4f9; /* Hover state */
+  --color-surface-active: #e6eaf2; /* Active/pressed state */
+  --color-surface-elevated: #ffffff; /* Elevated cards */
 
   /* Surface variants for visual hierarchy */
-  --surface-subtle: #F8FAFD;             /* Very light wash */
-  --surface-interactive: #F3F6FB;        /* Interactive elements */
-  --surface-data: #FBFCFF;               /* Data displays */
+  --surface-subtle: #f8fafd; /* Very light wash */
+  --surface-interactive: #f3f6fb; /* Interactive elements */
+  --surface-data: #fbfcff; /* Data displays */
 
   /* Text - High contrast for readability */
-  --text-primary: #0F172A;               /* Navy black - primary text */
-  --text-secondary: #334155;             /* Slate - secondary text */
-  --text-tertiary: #475569;              /* Muted slate - tertiary text */
-  --text-disabled: #94A3B8;              /* Soft gray - disabled state */
-  --text-inverse: #FFFFFF;               /* White text on dark backgrounds */
+  --text-primary: #0f172a; /* Navy black - primary text */
+  --text-secondary: #334155; /* Slate - secondary text */
+  --text-tertiary: #475569; /* Muted slate - tertiary text */
+  --text-disabled: #94a3b8; /* Soft gray - disabled state */
+  --text-inverse: #ffffff; /* White text on dark backgrounds */
 
   /* ========================================
      BRAND COLORS
      ======================================== */
 
   /* Primary Brand - Blue */
-  --ekko-primary: #2563EB;
-  --ekko-primary-light: #3B82F6;
-  --ekko-primary-dark: #1D4ED8;
-  --ekko-primary-subtle: #EFF6FF;        /* For backgrounds */
-  --ekko-primary-hover: #1D4ED8;
+  --ekko-primary: #2563eb;
+  --ekko-primary-light: #3b82f6;
+  --ekko-primary-dark: #1d4ed8;
+  --ekko-primary-subtle: #eff6ff; /* For backgrounds */
+  --ekko-primary-hover: #1d4ed8;
 
   /* Secondary Accent - Teal */
-  --ekko-secondary: #14B8A6;
-  --ekko-secondary-light: #2DD4BF;
-  --ekko-secondary-dark: #0F766E;
-  --ekko-secondary-subtle: #E0F2F1;
+  --ekko-secondary: #14b8a6;
+  --ekko-secondary-light: #2dd4bf;
+  --ekko-secondary-dark: #0f766e;
+  --ekko-secondary-subtle: #e0f2f1;
 
   /* Accent - Orange for highlights */
-  --ekko-accent: #FB923C;
-  --ekko-accent-light: #FBBF24;
-  --ekko-accent-dark: #F97316;
-  --ekko-accent-subtle: #FFF7ED;
+  --ekko-accent: #fb923c;
+  --ekko-accent-light: #fbbf24;
+  --ekko-accent-dark: #f97316;
+  --ekko-accent-subtle: #fff7ed;
 
   /* ========================================
      BLOCKCHAIN-SPECIFIC COLORS (VIBRANT)
      ======================================== */
 
   /* Ethereum - Bold blue */
-  --chain-ethereum: #627EEA;
-  --chain-ethereum-light: #7C94F5;
-  --chain-ethereum-subtle: #EEF2FF;
+  --chain-ethereum: #627eea;
+  --chain-ethereum-light: #7c94f5;
+  --chain-ethereum-subtle: #eef2ff;
   --chain-ethereum-shadow: rgba(98, 126, 234, 0.3);
 
   /* Bitcoin - Vibrant orange */
-  --chain-bitcoin: #F7931A;
-  --chain-bitcoin-light: #FFAA4D;
-  --chain-bitcoin-subtle: #FFF7ED;
+  --chain-bitcoin: #f7931a;
+  --chain-bitcoin-light: #ffaa4d;
+  --chain-bitcoin-subtle: #fff7ed;
   --chain-bitcoin-shadow: rgba(247, 147, 26, 0.3);
 
   /* Solana - Bright green */
-  --chain-solana: #00FFA3;
-  --chain-solana-light: #4DFFB8;
-  --chain-solana-dark: #00C89A;
-  --chain-solana-subtle: #ECFDF5;
+  --chain-solana: #00ffa3;
+  --chain-solana-light: #4dffb8;
+  --chain-solana-dark: #00c89a;
+  --chain-solana-subtle: #ecfdf5;
   --chain-solana-shadow: rgba(0, 255, 163, 0.3);
 
   /* Avalanche - Bold red */
-  --chain-avalanche: #E84142;
-  --chain-avalanche-light: #F87171;
-  --chain-avalanche-subtle: #FEF2F2;
+  --chain-avalanche: #e84142;
+  --chain-avalanche-light: #f87171;
+  --chain-avalanche-subtle: #fef2f2;
   --chain-avalanche-shadow: rgba(232, 65, 66, 0.3);
 
   /* Polygon - Vivid purple */
-  --chain-polygon: #8247E5;
-  --chain-polygon-light: #A855F7;
-  --chain-polygon-subtle: #F5F3FF;
+  --chain-polygon: #8247e5;
+  --chain-polygon-light: #a855f7;
+  --chain-polygon-subtle: #f5f3ff;
   --chain-polygon-shadow: rgba(130, 71, 229, 0.3);
 
   /* ========================================
@@ -97,47 +97,47 @@
      ======================================== */
 
   /* Success - Bold green */
-  --status-success: #10B981;
-  --status-success-light: #34D399;
-  --status-success-bg: #ECFDF5;
-  --status-success-border: #6EE7B7;
+  --status-success: #10b981;
+  --status-success-light: #34d399;
+  --status-success-bg: #ecfdf5;
+  --status-success-border: #6ee7b7;
   --status-success-shadow: rgba(16, 185, 129, 0.24);
 
   /* Warning - Bold orange */
-  --status-warning: #FB923C;
-  --status-warning-light: #FDBA74;
-  --status-warning-bg: #FFF7ED;
-  --status-warning-border: #FED7AA;
+  --status-warning: #fb923c;
+  --status-warning-light: #fdba74;
+  --status-warning-bg: #fff7ed;
+  --status-warning-border: #fed7aa;
   --status-warning-shadow: rgba(251, 146, 60, 0.24);
 
   /* Error - Bold red */
-  --status-error: #EF4444;
-  --status-error-light: #F87171;
-  --status-error-bg: #FEF2F2;
-  --status-error-border: #FCA5A5;
+  --status-error: #ef4444;
+  --status-error-light: #f87171;
+  --status-error-bg: #fef2f2;
+  --status-error-border: #fca5a5;
   --status-error-shadow: rgba(239, 68, 68, 0.24);
 
   /* Info - Blue */
-  --status-info: #2563EB;
-  --status-info-light: #3B82F6;
-  --status-info-bg: #EFF6FF;
-  --status-info-border: #93C5FD;
+  --status-info: #2563eb;
+  --status-info-light: #3b82f6;
+  --status-info-bg: #eff6ff;
+  --status-info-border: #93c5fd;
   --status-info-shadow: rgba(37, 99, 235, 0.24);
 
   /* ========================================
      BORDERS - Subtle to strong
      ======================================== */
 
-  --border-subtle: #E6E9EE;              /* Very light borders */
-  --border-default: #D6DDE5;             /* Standard borders */
-  --border-strong: #B8C2D0;              /* Emphasized borders */
+  --border-subtle: #e6e9ee; /* Very light borders */
+  --border-default: #d6dde5; /* Standard borders */
+  --border-strong: #b8c2d0; /* Emphasized borders */
   --border-accent: rgba(37, 99, 235, 0.28); /* Colored borders - primary blue */
 
   /* Border widths */
   --border-width-thin: 1px;
   --border-width-default: 1px;
   --border-width-thick: 2px;
-  --border-width-accent: 4px;            /* Left border accent */
+  --border-width-accent: 4px; /* Left border accent */
 
   /* ========================================
      SHADOWS - Multi-layer Stripe-style
@@ -149,52 +149,83 @@
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.04), 0 2px 4px rgba(0, 0, 0, 0.02);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.06), 0 4px 6px rgba(0, 0, 0, 0.03);
   --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.08), 0 10px 10px rgba(0, 0, 0, 0.04);
-  --shadow-2xl: 0 25px 50px rgba(0, 0, 0, 0.12), 0 12px 24px rgba(0, 0, 0, 0.06);
+  --shadow-2xl:
+    0 25px 50px rgba(0, 0, 0, 0.12), 0 12px 24px rgba(0, 0, 0, 0.06);
 
   /* Colored shadows for brand elements */
-  --shadow-primary: 0 4px 6px rgba(37, 99, 235, 0.24), 0 2px 4px rgba(37, 99, 235, 0.16);
-  --shadow-primary-hover: 0 10px 18px rgba(37, 99, 235, 0.24), 0 6px 10px rgba(37, 99, 235, 0.12);
-  --shadow-success: 0 4px 6px rgba(16, 185, 129, 0.2), 0 2px 4px rgba(16, 185, 129, 0.12);
-  --shadow-error: 0 4px 6px rgba(239, 68, 68, 0.22), 0 2px 4px rgba(239, 68, 68, 0.14);
+  --shadow-primary:
+    0 4px 6px rgba(37, 99, 235, 0.24), 0 2px 4px rgba(37, 99, 235, 0.16);
+  --shadow-primary-hover:
+    0 10px 18px rgba(37, 99, 235, 0.24), 0 6px 10px rgba(37, 99, 235, 0.12);
+  --shadow-success:
+    0 4px 6px rgba(16, 185, 129, 0.2), 0 2px 4px rgba(16, 185, 129, 0.12);
+  --shadow-error:
+    0 4px 6px rgba(239, 68, 68, 0.22), 0 2px 4px rgba(239, 68, 68, 0.14);
 
   /* ========================================
      GRADIENTS - Subtle backgrounds
      ======================================== */
 
   /* Card gradients */
-  --gradient-card-default: linear-gradient(135deg, rgba(255, 255, 255, 0.97) 0%, rgba(247, 249, 252, 0.98) 100%);
-  --gradient-card-elevated: linear-gradient(135deg, rgba(255, 255, 255, 1) 0%, rgba(251, 252, 255, 1) 100%);
-  --gradient-card-interactive: linear-gradient(135deg, rgba(37, 99, 235, 0.03) 0%, rgba(59, 130, 246, 0.03) 100%);
+  --gradient-card-default: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.97) 0%,
+    rgba(247, 249, 252, 0.98) 100%
+  );
+  --gradient-card-elevated: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(251, 252, 255, 1) 100%
+  );
+  --gradient-card-interactive: linear-gradient(
+    135deg,
+    rgba(37, 99, 235, 0.03) 0%,
+    rgba(59, 130, 246, 0.03) 100%
+  );
 
   /* Brand gradients */
-  --gradient-premium: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
-  --gradient-success: linear-gradient(135deg, #0EA371 0%, #10B981 100%);
-  --gradient-warning: linear-gradient(135deg, #F97316 0%, #FB923C 100%);
-  --gradient-error: linear-gradient(135deg, #DC2626 0%, #EF4444 100%);
+  --gradient-premium: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  --gradient-success: linear-gradient(135deg, #0ea371 0%, #10b981 100%);
+  --gradient-warning: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
+  --gradient-error: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
 
   /* Subtle tinted backgrounds */
-  --gradient-ethereum: linear-gradient(135deg, rgba(98, 126, 234, 0.05) 0%, rgba(98, 126, 234, 0.02) 100%);
-  --gradient-bitcoin: linear-gradient(135deg, rgba(247, 147, 26, 0.05) 0%, rgba(247, 147, 26, 0.02) 100%);
-  --gradient-solana: linear-gradient(135deg, rgba(0, 255, 163, 0.05) 0%, rgba(0, 255, 163, 0.02) 100%);
+  --gradient-ethereum: linear-gradient(
+    135deg,
+    rgba(98, 126, 234, 0.05) 0%,
+    rgba(98, 126, 234, 0.02) 100%
+  );
+  --gradient-bitcoin: linear-gradient(
+    135deg,
+    rgba(247, 147, 26, 0.05) 0%,
+    rgba(247, 147, 26, 0.02) 100%
+  );
+  --gradient-solana: linear-gradient(
+    135deg,
+    rgba(0, 255, 163, 0.05) 0%,
+    rgba(0, 255, 163, 0.02) 100%
+  );
 
   /* ========================================
      TYPOGRAPHY SYSTEM
      ======================================== */
 
   /* Font families */
-  --font-family-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-  --font-family-mono: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', 'Roboto Mono', monospace;
+  --font-family-sans:
+    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", sans-serif;
+  --font-family-mono:
+    "SF Mono", "Monaco", "Inconsolata", "Fira Code", "Roboto Mono", monospace;
 
   /* Font sizes */
-  --text-xs: 0.75rem;      /* 12px - Captions, labels */
-  --text-sm: 0.875rem;     /* 14px - Small body text */
-  --text-base: 1rem;       /* 16px - Body text */
-  --text-lg: 1.125rem;     /* 18px - Large body */
-  --text-xl: 1.25rem;      /* 20px - Subtitle */
-  --text-2xl: 1.5rem;      /* 24px - Small heading */
-  --text-3xl: 1.875rem;    /* 30px - Medium heading */
-  --text-4xl: 2.25rem;     /* 36px - Large heading */
-  --text-5xl: 3rem;        /* 48px - Hero heading */
+  --text-xs: 0.75rem; /* 12px - Captions, labels */
+  --text-sm: 0.875rem; /* 14px - Small body text */
+  --text-base: 1rem; /* 16px - Body text */
+  --text-lg: 1.125rem; /* 18px - Large body */
+  --text-xl: 1.25rem; /* 20px - Subtitle */
+  --text-2xl: 1.5rem; /* 24px - Small heading */
+  --text-3xl: 1.875rem; /* 30px - Medium heading */
+  --text-4xl: 2.25rem; /* 36px - Large heading */
+  --text-5xl: 3rem; /* 48px - Hero heading */
 
   /* Font weights */
   --font-light: 300;
@@ -207,7 +238,7 @@
   --leading-tight: 1.25;
   --leading-snug: 1.375;
   --leading-normal: 1.5;
-  --leading-relaxed: 1.6;      /* Increased for readability */
+  --leading-relaxed: 1.6; /* Increased for readability */
   --leading-loose: 2;
 
   /* Letter spacing */
@@ -222,37 +253,37 @@
      ======================================== */
 
   --space-0: 0;
-  --space-1: 0.25rem;    /* 4px */
-  --space-2: 0.5rem;     /* 8px */
-  --space-3: 0.75rem;    /* 12px */
-  --space-4: 1rem;       /* 16px */
-  --space-5: 1.25rem;    /* 20px */
-  --space-6: 1.5rem;     /* 24px */
-  --space-8: 2rem;       /* 32px */
-  --space-10: 2.5rem;    /* 40px */
-  --space-12: 3rem;      /* 48px */
-  --space-16: 4rem;      /* 64px */
-  --space-20: 5rem;      /* 80px */
-  --space-24: 6rem;      /* 96px */
+  --space-1: 0.25rem; /* 4px */
+  --space-2: 0.5rem; /* 8px */
+  --space-3: 0.75rem; /* 12px */
+  --space-4: 1rem; /* 16px */
+  --space-5: 1.25rem; /* 20px */
+  --space-6: 1.5rem; /* 24px */
+  --space-8: 2rem; /* 32px */
+  --space-10: 2.5rem; /* 40px */
+  --space-12: 3rem; /* 48px */
+  --space-16: 4rem; /* 64px */
+  --space-20: 5rem; /* 80px */
+  --space-24: 6rem; /* 96px */
 
   /* Component spacing - DENSITY OPTIMIZED */
-  --card-padding-compact: var(--space-3);    /* 12px - for very dense displays */
-  --card-padding-default: var(--space-4);    /* 16px - standard (was 24px) */
-  --card-padding-spacious: var(--space-5);   /* 20px - comfortable (was 32px) */
-  --card-gap-default: var(--space-4);        /* 16px - between cards (was 24px) */
-  --section-gap-default: var(--space-5);     /* 20px - between sections */
-  --element-gap-default: var(--space-3);     /* 12px - within components */
+  --card-padding-compact: var(--space-3); /* 12px - for very dense displays */
+  --card-padding-default: var(--space-4); /* 16px - standard (was 24px) */
+  --card-padding-spacious: var(--space-5); /* 20px - comfortable (was 32px) */
+  --card-gap-default: var(--space-4); /* 16px - between cards (was 24px) */
+  --section-gap-default: var(--space-5); /* 20px - between sections */
+  --element-gap-default: var(--space-3); /* 12px - within components */
 
   /* ========================================
      BORDER RADIUS (Professional, tighter)
      ======================================== */
 
   --radius-xs: 4px;
-  --radius-sm: 6px;       /* was 8px - tighter */
-  --radius-md: 8px;       /* was 12px - tighter for cards */
-  --radius-lg: 10px;      /* was 16px - tighter */
-  --radius-xl: 12px;      /* was 20px - tighter */
-  --radius-2xl: 16px;     /* was 24px - tighter */
+  --radius-sm: 6px; /* was 8px - tighter */
+  --radius-md: 8px; /* was 12px - tighter for cards */
+  --radius-lg: 10px; /* was 16px - tighter */
+  --radius-xl: 12px; /* was 20px - tighter */
+  --radius-2xl: 16px; /* was 24px - tighter */
   --radius-full: 9999px;
 
   /* ========================================
@@ -318,7 +349,7 @@
   --card-shadow-hover: var(--shadow-lg);
 
   /* Input states */
-  --input-bg: #FFFFFF;
+  --input-bg: #ffffff;
   --input-border: var(--border-default);
   --input-border-focus: var(--ekko-primary);
   --input-shadow-focus: 0 0 0 3px var(--ekko-primary-subtle);

@@ -5,7 +5,7 @@
  * connected services, and data/privacy controls
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect } from "react";
 import {
   Container,
   Title,
@@ -31,9 +31,9 @@ import {
   Tabs,
   ThemeIcon,
   FileButton,
-} from '@mantine/core'
-import { useForm } from '@mantine/form'
-import { notifications } from '@mantine/notifications'
+} from "@mantine/core";
+import { useForm } from "@mantine/form";
+import { notifications } from "@mantine/notifications";
 import {
   IconUser,
   IconMail,
@@ -53,104 +53,110 @@ import {
   IconChevronRight,
   IconGlobe,
   IconClock,
-} from '@tabler/icons-react'
-import { useNavigate } from 'react-router-dom'
-import { useAuthStore } from '../../store/auth'
+} from "@tabler/icons-react";
+import { useNavigate } from "react-router-dom";
+import { useAuthStore } from "../../store/auth";
 import {
   usersApiService,
   type UserProfile,
   type UserPreferences,
   type ConnectedService,
   type ActiveSession,
-} from '../../services/users-api'
+} from "../../services/users-api";
 
 export function ProfilePage() {
-  const navigate = useNavigate()
-  const { user, isLoading: authLoading } = useAuthStore()
+  const navigate = useNavigate();
+  const { user, isLoading: authLoading } = useAuthStore();
 
-  const [isLoading, setIsLoading] = useState(true)
-  const [isSaving, setIsSaving] = useState(false)
-  const [isEditing, setIsEditing] = useState(false)
-  const [profile, setProfile] = useState<UserProfile | null>(null)
-  const [preferences, setPreferences] = useState<UserPreferences | null>(null)
-  const [connectedServices, setConnectedServices] = useState<ConnectedService[]>([])
-  const [sessions, setSessions] = useState<ActiveSession[]>([])
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
-  const [deleteConfirmation, setDeleteConfirmation] = useState('')
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [preferences, setPreferences] = useState<UserPreferences | null>(null);
+  const [connectedServices, setConnectedServices] = useState<
+    ConnectedService[]
+  >([]);
+  const [sessions, setSessions] = useState<ActiveSession[]>([]);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
 
   const profileForm = useForm({
     initialValues: {
-      name: '',
-      display_name: '',
-      bio: '',
-      timezone: 'America/New_York',
-      language: 'en',
+      name: "",
+      display_name: "",
+      bio: "",
+      timezone: "America/New_York",
+      language: "en",
     },
     validate: {
-      name: (value) => (value.length < 1 ? 'Name is required' : null),
+      name: (value) => (value.length < 1 ? "Name is required" : null),
     },
-  })
+  });
 
   const notificationForm = useForm({
     initialValues: {
       email_alerts: true,
       push_notifications: true,
-      alert_digest: 'instant' as const,
+      alert_digest: "instant" as const,
       marketing_emails: false,
       security_alerts: true,
     },
-  })
+  });
 
   // Load profile data on mount
   useEffect(() => {
-    loadProfileData()
-  }, [])
+    loadProfileData();
+  }, []);
 
   const loadProfileData = async () => {
-    setIsLoading(true)
+    setIsLoading(true);
     try {
-      const [profileData, preferencesData, servicesData, sessionsData] = await Promise.all([
-        usersApiService.getProfile(),
-        usersApiService.getPreferences(),
-        usersApiService.getConnectedServices(),
-        usersApiService.getActiveSessions(),
-      ])
+      const [profileData, preferencesData, servicesData, sessionsData] =
+        await Promise.all([
+          usersApiService.getProfile(),
+          usersApiService.getPreferences(),
+          usersApiService.getConnectedServices(),
+          usersApiService.getActiveSessions(),
+        ]);
 
-      setProfile(profileData)
-      setPreferences(preferencesData)
-      setConnectedServices(servicesData)
-      setSessions(sessionsData)
+      setProfile(profileData);
+      setPreferences(preferencesData);
+      setConnectedServices(servicesData);
+      setSessions(sessionsData);
 
       // Initialize form values
       profileForm.setValues({
-        name: profileData.name || '',
-        display_name: profileData.display_name || '',
-        bio: profileData.bio || '',
-        timezone: profileData.timezone || 'America/New_York',
-        language: profileData.language || 'en',
-      })
+        name: profileData.name || "",
+        display_name: profileData.display_name || "",
+        bio: profileData.bio || "",
+        timezone: profileData.timezone || "America/New_York",
+        language: profileData.language || "en",
+      });
 
       notificationForm.setValues({
         email_alerts: preferencesData.notification_preferences.email_alerts,
-        push_notifications: preferencesData.notification_preferences.push_notifications,
+        push_notifications:
+          preferencesData.notification_preferences.push_notifications,
         alert_digest: preferencesData.notification_preferences.alert_digest,
-        marketing_emails: preferencesData.notification_preferences.marketing_emails,
-        security_alerts: preferencesData.notification_preferences.security_alerts,
-      })
+        marketing_emails:
+          preferencesData.notification_preferences.marketing_emails,
+        security_alerts:
+          preferencesData.notification_preferences.security_alerts,
+      });
     } catch (error: any) {
-      console.error('Failed to load profile:', error)
+      console.error("Failed to load profile:", error);
       notifications.show({
-        title: 'Error',
-        message: 'Failed to load profile data',
-        color: 'red',
-      })
+        title: "Error",
+        message: "Failed to load profile data",
+        color: "red",
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleSaveProfile = async (values: typeof profileForm.values) => {
-    setIsSaving(true)
+    setIsSaving(true);
     try {
       await usersApiService.updateProfile({
         name: values.name,
@@ -158,7 +164,7 @@ export function ProfilePage() {
         bio: values.bio,
         timezone: values.timezone,
         language: values.language,
-      })
+      });
 
       setProfile((prev) =>
         prev
@@ -170,192 +176,195 @@ export function ProfilePage() {
               timezone: values.timezone,
               language: values.language,
             }
-          : null
-      )
+          : null,
+      );
 
-      setIsEditing(false)
+      setIsEditing(false);
       notifications.show({
-        title: 'Profile Updated',
-        message: 'Your profile has been saved successfully',
-        color: 'green',
+        title: "Profile Updated",
+        message: "Your profile has been saved successfully",
+        color: "green",
         icon: <IconCheck size={16} />,
-      })
+      });
     } catch (error: any) {
-      console.error('Failed to save profile:', error)
+      console.error("Failed to save profile:", error);
       notifications.show({
-        title: 'Error',
-        message: error.message || 'Failed to save profile',
-        color: 'red',
-      })
+        title: "Error",
+        message: error.message || "Failed to save profile",
+        color: "red",
+      });
     } finally {
-      setIsSaving(false)
+      setIsSaving(false);
     }
-  }
+  };
 
   const handleSaveNotifications = async () => {
-    setIsSaving(true)
+    setIsSaving(true);
     try {
       await usersApiService.updatePreferences({
         notification_preferences: notificationForm.values,
-      })
+      });
 
       notifications.show({
-        title: 'Preferences Updated',
-        message: 'Notification settings saved',
-        color: 'green',
+        title: "Preferences Updated",
+        message: "Notification settings saved",
+        color: "green",
         icon: <IconCheck size={16} />,
-      })
+      });
     } catch (error: any) {
-      console.error('Failed to save preferences:', error)
+      console.error("Failed to save preferences:", error);
       notifications.show({
-        title: 'Error',
-        message: error.message || 'Failed to save preferences',
-        color: 'red',
-      })
+        title: "Error",
+        message: error.message || "Failed to save preferences",
+        color: "red",
+      });
     } finally {
-      setIsSaving(false)
+      setIsSaving(false);
     }
-  }
+  };
 
   const handleAvatarUpload = async (file: File | null) => {
-    if (!file) return
+    if (!file) return;
 
     // Validate file
-    if (!file.type.startsWith('image/')) {
+    if (!file.type.startsWith("image/")) {
       notifications.show({
-        title: 'Invalid File',
-        message: 'Please select an image file',
-        color: 'red',
-      })
-      return
+        title: "Invalid File",
+        message: "Please select an image file",
+        color: "red",
+      });
+      return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
       notifications.show({
-        title: 'File Too Large',
-        message: 'Image must be less than 5MB',
-        color: 'red',
-      })
-      return
+        title: "File Too Large",
+        message: "Image must be less than 5MB",
+        color: "red",
+      });
+      return;
     }
 
     try {
-      const result = await usersApiService.uploadAvatar(file)
-      setProfile((prev) => (prev ? { ...prev, avatar_url: result.avatar_url } : null))
+      const result = await usersApiService.uploadAvatar(file);
+      setProfile((prev) =>
+        prev ? { ...prev, avatar_url: result.avatar_url } : null,
+      );
       notifications.show({
-        title: 'Avatar Updated',
-        message: 'Your avatar has been uploaded',
-        color: 'green',
+        title: "Avatar Updated",
+        message: "Your avatar has been uploaded",
+        color: "green",
         icon: <IconCheck size={16} />,
-      })
+      });
     } catch (error: any) {
-      console.error('Failed to upload avatar:', error)
+      console.error("Failed to upload avatar:", error);
       notifications.show({
-        title: 'Error',
-        message: error.message || 'Failed to upload avatar',
-        color: 'red',
-      })
+        title: "Error",
+        message: error.message || "Failed to upload avatar",
+        color: "red",
+      });
     }
-  }
+  };
 
   const handleExportData = async () => {
     try {
       notifications.show({
-        title: 'Export Started',
-        message: 'Your data export is being prepared. You will receive an email when ready.',
-        color: 'blue',
-      })
-      await usersApiService.requestDataExport()
+        title: "Export Started",
+        message:
+          "Your data export is being prepared. You will receive an email when ready.",
+        color: "blue",
+      });
+      await usersApiService.requestDataExport();
     } catch (error: any) {
-      console.error('Failed to request export:', error)
+      console.error("Failed to request export:", error);
       notifications.show({
-        title: 'Error',
-        message: error.message || 'Failed to request data export',
-        color: 'red',
-      })
+        title: "Error",
+        message: error.message || "Failed to request data export",
+        color: "red",
+      });
     }
-  }
+  };
 
   const handleDeleteAccount = async () => {
-    if (deleteConfirmation.toLowerCase() !== 'delete my account') {
+    if (deleteConfirmation.toLowerCase() !== "delete my account") {
       notifications.show({
-        title: 'Confirmation Required',
+        title: "Confirmation Required",
         message: 'Please type "delete my account" to confirm',
-        color: 'red',
-      })
-      return
+        color: "red",
+      });
+      return;
     }
 
     try {
-      await usersApiService.deleteAccount(deleteConfirmation)
+      await usersApiService.deleteAccount(deleteConfirmation);
       notifications.show({
-        title: 'Account Deleted',
-        message: 'Your account has been scheduled for deletion',
-        color: 'blue',
-      })
+        title: "Account Deleted",
+        message: "Your account has been scheduled for deletion",
+        color: "blue",
+      });
       // Redirect to login or home
-      navigate('/auth/login')
+      navigate("/auth/login");
     } catch (error: any) {
-      console.error('Failed to delete account:', error)
+      console.error("Failed to delete account:", error);
       notifications.show({
-        title: 'Error',
-        message: error.message || 'Failed to delete account',
-        color: 'red',
-      })
+        title: "Error",
+        message: error.message || "Failed to delete account",
+        color: "red",
+      });
     }
-  }
+  };
 
   const handleRevokeSession = async (sessionId: string) => {
     try {
-      await usersApiService.revokeSession(sessionId)
-      setSessions((prev) => prev.filter((s) => s.id !== sessionId))
+      await usersApiService.revokeSession(sessionId);
+      setSessions((prev) => prev.filter((s) => s.id !== sessionId));
       notifications.show({
-        title: 'Session Revoked',
-        message: 'The session has been logged out',
-        color: 'blue',
-      })
+        title: "Session Revoked",
+        message: "The session has been logged out",
+        color: "blue",
+      });
     } catch (error: any) {
-      console.error('Failed to revoke session:', error)
+      console.error("Failed to revoke session:", error);
       notifications.show({
-        title: 'Error',
-        message: error.message || 'Failed to revoke session',
-        color: 'red',
-      })
+        title: "Error",
+        message: error.message || "Failed to revoke session",
+        color: "red",
+      });
     }
-  }
+  };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    })
-  }
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
 
   const formatRelativeTime = (dateString: string) => {
-    const date = new Date(dateString)
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffMins = Math.floor(diffMs / 60000)
-    const diffHours = Math.floor(diffMins / 60)
-    const diffDays = Math.floor(diffHours / 24)
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
 
-    if (diffMins < 1) return 'Just now'
-    if (diffMins < 60) return `${diffMins}m ago`
-    if (diffHours < 24) return `${diffHours}h ago`
-    return `${diffDays}d ago`
-  }
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return `${diffDays}d ago`;
+  };
 
   const getServiceIcon = (type: string) => {
     switch (type) {
-      case 'slack':
-        return <IconBrandSlack size={16} />
-      case 'telegram':
-        return <IconBrandTelegram size={16} />
+      case "slack":
+        return <IconBrandSlack size={16} />;
+      case "telegram":
+        return <IconBrandTelegram size={16} />;
       default:
-        return <IconWebhook size={16} />
+        return <IconWebhook size={16} />;
     }
-  }
+  };
 
   return (
     <Container size="lg" py="xl">
@@ -377,7 +386,10 @@ export function ProfilePage() {
             <Tabs.Tab value="profile" leftSection={<IconUser size={16} />}>
               Profile
             </Tabs.Tab>
-            <Tabs.Tab value="notifications" leftSection={<IconBell size={16} />}>
+            <Tabs.Tab
+              value="notifications"
+              leftSection={<IconBell size={16} />}
+            >
               Notifications
             </Tabs.Tab>
             <Tabs.Tab value="sessions" leftSection={<IconDevices size={16} />}>
@@ -413,18 +425,21 @@ export function ProfilePage() {
                     <Stack gap="md">
                       {/* Avatar Section */}
                       <Group gap="lg">
-                        <div style={{ position: 'relative' }}>
+                        <div style={{ position: "relative" }}>
                           <Avatar
                             size={80}
                             radius="xl"
                             src={profile?.avatar_url}
                             color="blue"
-                            style={{ border: '3px solid #F1F5F9' }}
+                            style={{ border: "3px solid #F1F5F9" }}
                           >
-                            {profile?.name?.[0]?.toUpperCase() || 'U'}
+                            {profile?.name?.[0]?.toUpperCase() || "U"}
                           </Avatar>
                           {isEditing && (
-                            <FileButton onChange={handleAvatarUpload} accept="image/*">
+                            <FileButton
+                              onChange={handleAvatarUpload}
+                              accept="image/*"
+                            >
                               {(props) => (
                                 <ActionIcon
                                   {...props}
@@ -433,10 +448,10 @@ export function ProfilePage() {
                                   variant="filled"
                                   color="blue"
                                   style={{
-                                    position: 'absolute',
+                                    position: "absolute",
                                     bottom: 0,
                                     right: 0,
-                                    border: '2px solid white',
+                                    border: "2px solid white",
                                   }}
                                 >
                                   <IconCamera size={12} />
@@ -447,13 +462,13 @@ export function ProfilePage() {
                         </div>
                         <div>
                           <Text fw={600} c="#0F172A">
-                            {profile?.name || 'User'}
+                            {profile?.name || "User"}
                           </Text>
                           <Text size="sm" c="#64748B">
                             {profile?.email}
                           </Text>
                           <Badge size="xs" variant="light" color="blue" mt={4}>
-                            {profile?.role || 'User'}
+                            {profile?.role || "User"}
                           </Badge>
                         </div>
                       </Group>
@@ -465,7 +480,7 @@ export function ProfilePage() {
                         label="Full Name"
                         placeholder="Your full name"
                         disabled={!isEditing}
-                        {...profileForm.getInputProps('name')}
+                        {...profileForm.getInputProps("name")}
                       />
 
                       <TextInput
@@ -473,12 +488,12 @@ export function ProfilePage() {
                         placeholder="How others see you"
                         description="This is shown publicly"
                         disabled={!isEditing}
-                        {...profileForm.getInputProps('display_name')}
+                        {...profileForm.getInputProps("display_name")}
                       />
 
                       <TextInput
                         label="Email"
-                        value={profile?.email || ''}
+                        value={profile?.email || ""}
                         disabled
                         leftSection={<IconMail size={16} />}
                         description="Contact support to change your email"
@@ -489,7 +504,7 @@ export function ProfilePage() {
                         placeholder="Tell us about yourself"
                         minRows={3}
                         disabled={!isEditing}
-                        {...profileForm.getInputProps('bio')}
+                        {...profileForm.getInputProps("bio")}
                       />
 
                       <Grid>
@@ -499,16 +514,31 @@ export function ProfilePage() {
                             leftSection={<IconClock size={16} />}
                             disabled={!isEditing}
                             data={[
-                              { value: 'America/New_York', label: 'Eastern (ET)' },
-                              { value: 'America/Chicago', label: 'Central (CT)' },
-                              { value: 'America/Denver', label: 'Mountain (MT)' },
-                              { value: 'America/Los_Angeles', label: 'Pacific (PT)' },
-                              { value: 'Europe/London', label: 'London (GMT)' },
-                              { value: 'Europe/Paris', label: 'Paris (CET)' },
-                              { value: 'Asia/Tokyo', label: 'Tokyo (JST)' },
-                              { value: 'Asia/Shanghai', label: 'Shanghai (CST)' },
+                              {
+                                value: "America/New_York",
+                                label: "Eastern (ET)",
+                              },
+                              {
+                                value: "America/Chicago",
+                                label: "Central (CT)",
+                              },
+                              {
+                                value: "America/Denver",
+                                label: "Mountain (MT)",
+                              },
+                              {
+                                value: "America/Los_Angeles",
+                                label: "Pacific (PT)",
+                              },
+                              { value: "Europe/London", label: "London (GMT)" },
+                              { value: "Europe/Paris", label: "Paris (CET)" },
+                              { value: "Asia/Tokyo", label: "Tokyo (JST)" },
+                              {
+                                value: "Asia/Shanghai",
+                                label: "Shanghai (CST)",
+                              },
                             ]}
-                            {...profileForm.getInputProps('timezone')}
+                            {...profileForm.getInputProps("timezone")}
                           />
                         </Grid.Col>
                         <Grid.Col span={6}>
@@ -517,14 +547,14 @@ export function ProfilePage() {
                             leftSection={<IconGlobe size={16} />}
                             disabled={!isEditing}
                             data={[
-                              { value: 'en', label: 'English' },
-                              { value: 'es', label: 'Spanish' },
-                              { value: 'fr', label: 'French' },
-                              { value: 'de', label: 'German' },
-                              { value: 'ja', label: 'Japanese' },
-                              { value: 'zh', label: 'Chinese' },
+                              { value: "en", label: "English" },
+                              { value: "es", label: "Spanish" },
+                              { value: "fr", label: "French" },
+                              { value: "de", label: "German" },
+                              { value: "ja", label: "Japanese" },
+                              { value: "zh", label: "Chinese" },
                             ]}
-                            {...profileForm.getInputProps('language')}
+                            {...profileForm.getInputProps("language")}
                           />
                         </Grid.Col>
                       </Grid>
@@ -534,8 +564,8 @@ export function ProfilePage() {
                           <Button
                             variant="subtle"
                             onClick={() => {
-                              setIsEditing(false)
-                              profileForm.reset()
+                              setIsEditing(false);
+                              profileForm.reset();
                             }}
                           >
                             Cancel
@@ -560,7 +590,7 @@ export function ProfilePage() {
                       </Text>
                       <ActionIcon
                         variant="subtle"
-                        onClick={() => navigate('/dashboard/settings/security')}
+                        onClick={() => navigate("/dashboard/settings/security")}
                       >
                         <IconChevronRight size={16} />
                       </ActionIcon>
@@ -573,10 +603,10 @@ export function ProfilePage() {
                         </Text>
                         <Badge
                           size="xs"
-                          color={profile?.two_factor_enabled ? 'green' : 'gray'}
+                          color={profile?.two_factor_enabled ? "green" : "gray"}
                           variant="light"
                         >
-                          {profile?.two_factor_enabled ? 'Enabled' : 'Not Set'}
+                          {profile?.two_factor_enabled ? "Enabled" : "Not Set"}
                         </Badge>
                       </Group>
                     </Stack>
@@ -586,7 +616,7 @@ export function ProfilePage() {
                       fullWidth
                       mt="md"
                       size="xs"
-                      onClick={() => navigate('/dashboard/settings/security')}
+                      onClick={() => navigate("/dashboard/settings/security")}
                     >
                       Manage Security
                     </Button>
@@ -611,7 +641,7 @@ export function ProfilePage() {
                                 <ThemeIcon
                                   size="sm"
                                   variant="light"
-                                  color={service.is_active ? 'green' : 'gray'}
+                                  color={service.is_active ? "green" : "gray"}
                                 >
                                   {getServiceIcon(service.service_type)}
                                 </ThemeIcon>
@@ -626,10 +656,10 @@ export function ProfilePage() {
                               </Group>
                               <Badge
                                 size="xs"
-                                color={service.is_active ? 'green' : 'gray'}
+                                color={service.is_active ? "green" : "gray"}
                                 variant="dot"
                               >
-                                {service.is_active ? 'Active' : 'Inactive'}
+                                {service.is_active ? "Active" : "Inactive"}
                               </Badge>
                             </Group>
                           </Paper>
@@ -642,7 +672,9 @@ export function ProfilePage() {
                       fullWidth
                       mt="md"
                       size="xs"
-                      onClick={() => navigate('/dashboard/settings/notifications')}
+                      onClick={() =>
+                        navigate("/dashboard/settings/notifications")
+                      }
                     >
                       Manage Channels
                     </Button>
@@ -659,7 +691,9 @@ export function ProfilePage() {
                           Member since
                         </Text>
                         <Text size="sm" fw={500}>
-                          {profile?.created_at ? formatDate(profile.created_at) : '-'}
+                          {profile?.created_at
+                            ? formatDate(profile.created_at)
+                            : "-"}
                         </Text>
                       </Group>
                       <Group justify="space-between">
@@ -667,7 +701,9 @@ export function ProfilePage() {
                           Last login
                         </Text>
                         <Text size="sm" fw={500}>
-                          {profile?.last_login ? formatRelativeTime(profile.last_login) : '-'}
+                          {profile?.last_login
+                            ? formatRelativeTime(profile.last_login)
+                            : "-"}
                         </Text>
                       </Group>
                       <Group justify="space-between">
@@ -705,7 +741,9 @@ export function ProfilePage() {
                   <Switch
                     size="md"
                     color="blue"
-                    {...notificationForm.getInputProps('email_alerts', { type: 'checkbox' })}
+                    {...notificationForm.getInputProps("email_alerts", {
+                      type: "checkbox",
+                    })}
                   />
                 </Group>
 
@@ -723,7 +761,9 @@ export function ProfilePage() {
                   <Switch
                     size="md"
                     color="blue"
-                    {...notificationForm.getInputProps('push_notifications', { type: 'checkbox' })}
+                    {...notificationForm.getInputProps("push_notifications", {
+                      type: "checkbox",
+                    })}
                   />
                 </Group>
 
@@ -742,12 +782,12 @@ export function ProfilePage() {
                     w={180}
                     size="sm"
                     data={[
-                      { value: 'instant', label: 'Instant' },
-                      { value: 'daily', label: 'Daily' },
-                      { value: 'weekly', label: 'Weekly' },
-                      { value: 'none', label: 'Never' },
+                      { value: "instant", label: "Instant" },
+                      { value: "daily", label: "Daily" },
+                      { value: "weekly", label: "Weekly" },
+                      { value: "none", label: "Never" },
                     ]}
-                    {...notificationForm.getInputProps('alert_digest')}
+                    {...notificationForm.getInputProps("alert_digest")}
                   />
                 </Group>
 
@@ -765,7 +805,9 @@ export function ProfilePage() {
                   <Switch
                     size="md"
                     color="blue"
-                    {...notificationForm.getInputProps('security_alerts', { type: 'checkbox' })}
+                    {...notificationForm.getInputProps("security_alerts", {
+                      type: "checkbox",
+                    })}
                   />
                 </Group>
 
@@ -783,11 +825,17 @@ export function ProfilePage() {
                   <Switch
                     size="md"
                     color="blue"
-                    {...notificationForm.getInputProps('marketing_emails', { type: 'checkbox' })}
+                    {...notificationForm.getInputProps("marketing_emails", {
+                      type: "checkbox",
+                    })}
                   />
                 </Group>
 
-                <Button onClick={handleSaveNotifications} loading={isSaving} mt="md">
+                <Button
+                  onClick={handleSaveNotifications}
+                  loading={isSaving}
+                  mt="md"
+                >
                   Save Preferences
                 </Button>
               </Stack>
@@ -824,7 +872,7 @@ export function ProfilePage() {
                         <ThemeIcon
                           size="lg"
                           variant="light"
-                          color={session.is_current ? 'blue' : 'gray'}
+                          color={session.is_current ? "blue" : "gray"}
                         >
                           <IconDevices size={20} />
                         </ThemeIcon>
@@ -843,7 +891,8 @@ export function ProfilePage() {
                             {session.location} • {session.ip_address}
                           </Text>
                           <Text size="xs" c="#94A3B8">
-                            Last active: {formatRelativeTime(session.last_active)}
+                            Last active:{" "}
+                            {formatRelativeTime(session.last_active)}
                           </Text>
                         </div>
                       </Group>
@@ -876,7 +925,8 @@ export function ProfilePage() {
                       Export Your Data
                     </Text>
                     <Text size="sm" c="#64748B" mt="xs">
-                      Download a copy of all your data including alerts, wallets, and settings
+                      Download a copy of all your data including alerts,
+                      wallets, and settings
                     </Text>
                   </div>
                   <Button
@@ -890,13 +940,13 @@ export function ProfilePage() {
               </Card>
 
               {/* Delete Account */}
-              <Card withBorder p="lg" style={{ borderColor: '#FCA5A5' }}>
+              <Card withBorder p="lg" style={{ borderColor: "#FCA5A5" }}>
                 <Text fw={600} c="#DC2626">
                   Danger Zone
                 </Text>
                 <Text size="sm" c="#64748B" mt="xs" mb="md">
-                  Once you delete your account, all your data will be permanently removed. This
-                  action cannot be undone.
+                  Once you delete your account, all your data will be
+                  permanently removed. This action cannot be undone.
                 </Text>
                 <Button
                   color="red"
@@ -916,22 +966,23 @@ export function ProfilePage() {
       <Modal
         opened={deleteModalOpen}
         onClose={() => {
-          setDeleteModalOpen(false)
-          setDeleteConfirmation('')
+          setDeleteModalOpen(false);
+          setDeleteConfirmation("");
         }}
         title={<Text fw={600}>Delete Account</Text>}
         centered
       >
         <Stack>
           <Alert color="red" icon={<IconAlertTriangle size={16} />}>
-            This action is irreversible. All your data will be permanently deleted.
+            This action is irreversible. All your data will be permanently
+            deleted.
           </Alert>
 
           <Text size="sm">
-            To confirm, type{' '}
+            To confirm, type{" "}
             <Text span fw={600}>
               delete my account
-            </Text>{' '}
+            </Text>{" "}
             below:
           </Text>
 
@@ -945,15 +996,17 @@ export function ProfilePage() {
             <Button
               variant="subtle"
               onClick={() => {
-                setDeleteModalOpen(false)
-                setDeleteConfirmation('')
+                setDeleteModalOpen(false);
+                setDeleteConfirmation("");
               }}
             >
               Cancel
             </Button>
             <Button
               color="red"
-              disabled={deleteConfirmation.toLowerCase() !== 'delete my account'}
+              disabled={
+                deleteConfirmation.toLowerCase() !== "delete my account"
+              }
               onClick={handleDeleteAccount}
             >
               Delete Account
@@ -962,5 +1015,5 @@ export function ProfilePage() {
         </Stack>
       </Modal>
     </Container>
-  )
+  );
 }

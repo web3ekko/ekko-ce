@@ -28,11 +28,29 @@ class Migration(migrations.Migration):
                 migrations.CreateModel(
                     name="AlertTemplate",
                     fields=[
-                        ("id", models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, serialize=False)),
-                        ("fingerprint", models.CharField(max_length=80, db_index=True, help_text="sha256:... semantic fingerprint")),
+                        (
+                            "id",
+                            models.UUIDField(
+                                primary_key=True,
+                                default=uuid.uuid4,
+                                editable=False,
+                                serialize=False,
+                            ),
+                        ),
+                        (
+                            "fingerprint",
+                            models.CharField(
+                                max_length=80,
+                                db_index=True,
+                                help_text="sha256:... semantic fingerprint",
+                            ),
+                        ),
                         ("name", models.CharField(max_length=255)),
                         ("description", models.TextField(blank=True)),
-                        ("target_kind", models.CharField(max_length=32, default="wallet")),
+                        (
+                            "target_kind",
+                            models.CharField(max_length=32, default="wallet"),
+                        ),
                         ("is_public", models.BooleanField(default=False)),
                         ("is_verified", models.BooleanField(default=False)),
                         ("created_at", models.DateTimeField(auto_now_add=True)),
@@ -51,7 +69,15 @@ class Migration(migrations.Migration):
                 migrations.CreateModel(
                     name="AlertTemplateVersion",
                     fields=[
-                        ("id", models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, serialize=False)),
+                        (
+                            "id",
+                            models.UUIDField(
+                                primary_key=True,
+                                default=uuid.uuid4,
+                                editable=False,
+                                serialize=False,
+                            ),
+                        ),
                         (
                             "template",
                             models.ForeignKey(
@@ -61,12 +87,41 @@ class Migration(migrations.Migration):
                             ),
                         ),
                         ("template_version", models.IntegerField()),
-                        ("template_spec", models.JSONField(help_text="AlertTemplate JSON (schema_version=alert_template_v2)")),
-                        ("spec_hash", models.CharField(max_length=80, help_text="sha256:... canonical template spec hash")),
-                        ("executable_id", models.UUIDField(help_text="Deterministic UUIDv5 for the pinned executable")),
-                        ("executable", models.JSONField(help_text="AlertExecutable JSON (schema_version=alert_executable_v1)")),
-                        ("registry_snapshot_kind", models.CharField(max_length=64, default="datasource_catalog")),
-                        ("registry_snapshot_version", models.CharField(max_length=64, default="v1")),
+                        (
+                            "template_spec",
+                            models.JSONField(
+                                help_text="AlertTemplate JSON (schema_version=alert_template_v2)"
+                            ),
+                        ),
+                        (
+                            "spec_hash",
+                            models.CharField(
+                                max_length=80,
+                                help_text="sha256:... canonical template spec hash",
+                            ),
+                        ),
+                        (
+                            "executable_id",
+                            models.UUIDField(
+                                help_text="Deterministic UUIDv5 for the pinned executable"
+                            ),
+                        ),
+                        (
+                            "executable",
+                            models.JSONField(
+                                help_text="AlertExecutable JSON (schema_version=alert_executable_v1)"
+                            ),
+                        ),
+                        (
+                            "registry_snapshot_kind",
+                            models.CharField(
+                                max_length=64, default="datasource_catalog"
+                            ),
+                        ),
+                        (
+                            "registry_snapshot_version",
+                            models.CharField(max_length=64, default="v1"),
+                        ),
                         ("registry_snapshot_hash", models.CharField(max_length=80)),
                         ("created_at", models.DateTimeField(auto_now_add=True)),
                     ],
@@ -107,7 +162,15 @@ class Migration(migrations.Migration):
                 migrations.CreateModel(
                     name="AlertTemplateVersion",
                     fields=[
-                        ("id", models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, serialize=False)),
+                        (
+                            "id",
+                            models.UUIDField(
+                                primary_key=True,
+                                default=uuid.uuid4,
+                                editable=False,
+                                serialize=False,
+                            ),
+                        ),
                         (
                             "template",
                             models.ForeignKey(
@@ -117,12 +180,41 @@ class Migration(migrations.Migration):
                             ),
                         ),
                         ("template_version", models.IntegerField()),
-                        ("template_spec", models.JSONField(help_text="AlertTemplate JSON (schema_version=alert_template_v2)")),
-                        ("spec_hash", models.CharField(max_length=80, help_text="sha256:... canonical template spec hash")),
-                        ("executable_id", models.UUIDField(help_text="Deterministic UUIDv5 for the pinned executable")),
-                        ("executable", models.JSONField(help_text="AlertExecutable JSON (schema_version=alert_executable_v1)")),
-                        ("registry_snapshot_kind", models.CharField(max_length=64, default="datasource_catalog")),
-                        ("registry_snapshot_version", models.CharField(max_length=64, default="v1")),
+                        (
+                            "template_spec",
+                            models.JSONField(
+                                help_text="AlertTemplate JSON (schema_version=alert_template_v2)"
+                            ),
+                        ),
+                        (
+                            "spec_hash",
+                            models.CharField(
+                                max_length=80,
+                                help_text="sha256:... canonical template spec hash",
+                            ),
+                        ),
+                        (
+                            "executable_id",
+                            models.UUIDField(
+                                help_text="Deterministic UUIDv5 for the pinned executable"
+                            ),
+                        ),
+                        (
+                            "executable",
+                            models.JSONField(
+                                help_text="AlertExecutable JSON (schema_version=alert_executable_v1)"
+                            ),
+                        ),
+                        (
+                            "registry_snapshot_kind",
+                            models.CharField(
+                                max_length=64, default="datasource_catalog"
+                            ),
+                        ),
+                        (
+                            "registry_snapshot_version",
+                            models.CharField(max_length=64, default="v1"),
+                        ),
                         ("registry_snapshot_hash", models.CharField(max_length=80)),
                         ("created_at", models.DateTimeField(auto_now_add=True)),
                     ],
@@ -142,23 +234,34 @@ class Migration(migrations.Migration):
                 ),
                 migrations.AddIndex(
                     model_name="alerttemplate",
-                    index=models.Index(fields=["created_by"], name="at2_created_by_idx"),
+                    index=models.Index(
+                        fields=["created_by"], name="at2_created_by_idx"
+                    ),
                 ),
                 migrations.AddIndex(
                     model_name="alerttemplate",
-                    index=models.Index(fields=["is_public", "is_verified"], name="at2_visibility_idx"),
+                    index=models.Index(
+                        fields=["is_public", "is_verified"], name="at2_visibility_idx"
+                    ),
                 ),
                 migrations.AddIndex(
                     model_name="alerttemplate",
-                    index=models.Index(fields=["fingerprint"], name="at2_fingerprint_idx"),
+                    index=models.Index(
+                        fields=["fingerprint"], name="at2_fingerprint_idx"
+                    ),
                 ),
                 migrations.AddIndex(
                     model_name="alerttemplateversion",
-                    index=models.Index(fields=["template", "template_version"], name="atv_template_ver_idx"),
+                    index=models.Index(
+                        fields=["template", "template_version"],
+                        name="atv_template_ver_idx",
+                    ),
                 ),
                 migrations.AddIndex(
                     model_name="alerttemplateversion",
-                    index=models.Index(fields=["registry_snapshot_hash"], name="atv_snapshot_hash_idx"),
+                    index=models.Index(
+                        fields=["registry_snapshot_hash"], name="atv_snapshot_hash_idx"
+                    ),
                 ),
                 migrations.AddIndex(
                     model_name="alertinstance",
@@ -167,4 +270,3 @@ class Migration(migrations.Migration):
             ],
         )
     ]
-

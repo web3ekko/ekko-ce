@@ -1,11 +1,11 @@
 /**
  * Alert Management Store
- * 
+ *
  * Global state management for alerts using Zustand
  */
 
-import { create } from 'zustand'
-import { persist, createJSONStorage } from 'zustand/middleware'
+import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
 import type {
   Alert,
   AlertTemplate,
@@ -14,59 +14,62 @@ import type {
   CreateAlertRequest,
   UpdateAlertRequest,
   NotificationChannel,
-} from '../types/alerts'
-import { alertApiService } from '../services/alerts'
+} from "../types/alerts";
+import { alertApiService } from "../services/alerts";
 
 interface AlertStore {
   // State
-  alerts: Alert[]
-  templates: AlertTemplate[]
-  channels: NotificationChannel[]
-  selectedAlerts: string[]
-  currentAlert: Alert | null
-  
+  alerts: Alert[];
+  templates: AlertTemplate[];
+  channels: NotificationChannel[];
+  selectedAlerts: string[];
+  currentAlert: Alert | null;
+
   // UI state
-  isLoading: boolean
-  error: string | null
-  filters: AlertFilters
-  sort: AlertSortOptions
+  isLoading: boolean;
+  error: string | null;
+  filters: AlertFilters;
+  sort: AlertSortOptions;
   pagination: {
-    page: number
-    perPage: number
-    total: number
-    hasNext: boolean
-    hasPrev: boolean
-  }
-  
+    page: number;
+    perPage: number;
+    total: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+
   // Actions - Alert CRUD
-  loadAlerts: (refresh?: boolean) => Promise<void>
-  getAlert: (alertId: string) => Promise<Alert | null>
-  createAlert: (data: CreateAlertRequest) => Promise<Alert | null>
-  updateAlert: (alertId: string, data: UpdateAlertRequest) => Promise<Alert | null>
-  deleteAlert: (alertId: string) => Promise<boolean>
-  duplicateAlert: (alertId: string, name?: string) => Promise<Alert | null>
-  toggleAlert: (alertId: string, enabled: boolean) => Promise<boolean>
-  
+  loadAlerts: (refresh?: boolean) => Promise<void>;
+  getAlert: (alertId: string) => Promise<Alert | null>;
+  createAlert: (data: CreateAlertRequest) => Promise<Alert | null>;
+  updateAlert: (
+    alertId: string,
+    data: UpdateAlertRequest,
+  ) => Promise<Alert | null>;
+  deleteAlert: (alertId: string) => Promise<boolean>;
+  duplicateAlert: (alertId: string, name?: string) => Promise<Alert | null>;
+  toggleAlert: (alertId: string, enabled: boolean) => Promise<boolean>;
+
   // Actions - Templates
-  loadTemplates: (category?: string, search?: string) => Promise<void>
-  getTemplate: (templateId: string) => Promise<AlertTemplate | null>
-  
+  loadTemplates: (category?: string, search?: string) => Promise<void>;
+  getTemplate: (templateId: string) => Promise<AlertTemplate | null>;
+
   // Actions - Channels
-  loadChannels: (teamId?: string) => Promise<void>
-  testChannel: (channelId: string) => Promise<boolean>
-  
+  loadChannels: (teamId?: string) => Promise<void>;
+  testChannel: (channelId: string) => Promise<boolean>;
+
   // Actions - Selection and UI
-  selectAlert: (alertId: string) => void
-  selectMultipleAlerts: (alertIds: string[]) => void
-  clearSelection: () => void
-  setFilters: (filters: Partial<AlertFilters>) => void
-  setSort: (sort: AlertSortOptions) => void
-  setPage: (page: number) => void
-  clearError: () => void
-  
+  selectAlert: (alertId: string) => void;
+  selectMultipleAlerts: (alertIds: string[]) => void;
+  clearSelection: () => void;
+  setFilters: (filters: Partial<AlertFilters>) => void;
+  setSort: (sort: AlertSortOptions) => void;
+  setPage: (page: number) => void;
+  clearError: () => void;
+
   // Actions - Bulk operations
-  bulkUpdateAlerts: (updates: UpdateAlertRequest) => Promise<boolean>
-  bulkDeleteAlerts: () => Promise<boolean>
+  bulkUpdateAlerts: (updates: UpdateAlertRequest) => Promise<boolean>;
+  bulkDeleteAlerts: () => Promise<boolean>;
 }
 
 export const useAlertStore = create<AlertStore>()(
@@ -81,7 +84,7 @@ export const useAlertStore = create<AlertStore>()(
       isLoading: false,
       error: null,
       filters: {},
-      sort: { field: 'updated_at', direction: 'desc' },
+      sort: { field: "updated_at", direction: "desc" },
       pagination: {
         page: 1,
         perPage: 20,
@@ -92,20 +95,20 @@ export const useAlertStore = create<AlertStore>()(
 
       // Alert CRUD actions
       loadAlerts: async (refresh = false) => {
-        const state = get()
-        
-        if (state.isLoading && !refresh) return
-        
-        set({ isLoading: true, error: null })
-        
+        const state = get();
+
+        if (state.isLoading && !refresh) return;
+
+        set({ isLoading: true, error: null });
+
         try {
           const response = await alertApiService.getAlerts(
             state.filters,
             state.sort,
             state.pagination.page,
-            state.pagination.perPage
-          )
-          
+            state.pagination.perPage,
+          );
+
           set({
             alerts: response.alerts,
             pagination: {
@@ -116,290 +119,310 @@ export const useAlertStore = create<AlertStore>()(
               hasPrev: response.has_prev,
             },
             isLoading: false,
-          })
+          });
         } catch (error: any) {
           set({
-            error: error.message || 'Failed to load alerts',
+            error: error.message || "Failed to load alerts",
             isLoading: false,
-          })
+          });
         }
       },
 
       getAlert: async (alertId: string) => {
-        set({ isLoading: true, error: null })
-        
+        set({ isLoading: true, error: null });
+
         try {
-          const alert = await alertApiService.getAlert(alertId)
-          set({ currentAlert: alert, isLoading: false })
-          return alert
+          const alert = await alertApiService.getAlert(alertId);
+          set({ currentAlert: alert, isLoading: false });
+          return alert;
         } catch (error: any) {
           set({
-            error: error.message || 'Failed to load alert',
+            error: error.message || "Failed to load alert",
             isLoading: false,
-          })
-          return null
+          });
+          return null;
         }
       },
 
       createAlert: async (data: CreateAlertRequest) => {
-        set({ isLoading: true, error: null })
-        
+        set({ isLoading: true, error: null });
+
         try {
-          const alert = await alertApiService.createAlert(data)
-          
+          const alert = await alertApiService.createAlert(data);
+
           // Add to alerts list
-          set(state => ({
+          set((state) => ({
             alerts: [alert, ...state.alerts],
             isLoading: false,
-          }))
-          
-          return alert
+          }));
+
+          return alert;
         } catch (error: any) {
           set({
-            error: error.message || 'Failed to create alert',
+            error: error.message || "Failed to create alert",
             isLoading: false,
-          })
-          return null
+          });
+          return null;
         }
       },
 
       updateAlert: async (alertId: string, data: UpdateAlertRequest) => {
-        set({ isLoading: true, error: null })
-        
+        set({ isLoading: true, error: null });
+
         try {
-          const updatedAlert = await alertApiService.updateAlert(alertId, data)
-          
+          const updatedAlert = await alertApiService.updateAlert(alertId, data);
+
           // Update in alerts list
-          set(state => ({
-            alerts: state.alerts.map(alert => 
-              alert.id === alertId ? updatedAlert : alert
+          set((state) => ({
+            alerts: state.alerts.map((alert) =>
+              alert.id === alertId ? updatedAlert : alert,
             ),
-            currentAlert: state.currentAlert?.id === alertId ? updatedAlert : state.currentAlert,
+            currentAlert:
+              state.currentAlert?.id === alertId
+                ? updatedAlert
+                : state.currentAlert,
             isLoading: false,
-          }))
-          
-          return updatedAlert
+          }));
+
+          return updatedAlert;
         } catch (error: any) {
           set({
-            error: error.message || 'Failed to update alert',
+            error: error.message || "Failed to update alert",
             isLoading: false,
-          })
-          return null
+          });
+          return null;
         }
       },
 
       deleteAlert: async (alertId: string) => {
-        set({ isLoading: true, error: null })
-        
+        set({ isLoading: true, error: null });
+
         try {
-          await alertApiService.deleteAlert(alertId)
-          
+          await alertApiService.deleteAlert(alertId);
+
           // Remove from alerts list
-          set(state => ({
-            alerts: state.alerts.filter(alert => alert.id !== alertId),
-            selectedAlerts: state.selectedAlerts.filter(id => id !== alertId),
-            currentAlert: state.currentAlert?.id === alertId ? null : state.currentAlert,
+          set((state) => ({
+            alerts: state.alerts.filter((alert) => alert.id !== alertId),
+            selectedAlerts: state.selectedAlerts.filter((id) => id !== alertId),
+            currentAlert:
+              state.currentAlert?.id === alertId ? null : state.currentAlert,
             isLoading: false,
-          }))
-          
-          return true
+          }));
+
+          return true;
         } catch (error: any) {
           set({
-            error: error.message || 'Failed to delete alert',
+            error: error.message || "Failed to delete alert",
             isLoading: false,
-          })
-          return false
+          });
+          return false;
         }
       },
 
       duplicateAlert: async (alertId: string, name?: string) => {
-        set({ isLoading: true, error: null })
-        
+        set({ isLoading: true, error: null });
+
         try {
-          const duplicatedAlert = await alertApiService.duplicateAlert(alertId, name)
-          
+          const duplicatedAlert = await alertApiService.duplicateAlert(
+            alertId,
+            name,
+          );
+
           // Add to alerts list
-          set(state => ({
+          set((state) => ({
             alerts: [duplicatedAlert, ...state.alerts],
             isLoading: false,
-          }))
-          
-          return duplicatedAlert
+          }));
+
+          return duplicatedAlert;
         } catch (error: any) {
           set({
-            error: error.message || 'Failed to duplicate alert',
+            error: error.message || "Failed to duplicate alert",
             isLoading: false,
-          })
-          return null
+          });
+          return null;
         }
       },
 
       toggleAlert: async (alertId: string, enabled: boolean) => {
         try {
-          const updatedAlert = await alertApiService.toggleAlert(alertId, enabled)
-          
+          const updatedAlert = await alertApiService.toggleAlert(
+            alertId,
+            enabled,
+          );
+
           // Update in alerts list
-          set(state => ({
-            alerts: state.alerts.map(alert => 
-              alert.id === alertId ? updatedAlert : alert
+          set((state) => ({
+            alerts: state.alerts.map((alert) =>
+              alert.id === alertId ? updatedAlert : alert,
             ),
-            currentAlert: state.currentAlert?.id === alertId ? updatedAlert : state.currentAlert,
-          }))
-          
-          return true
+            currentAlert:
+              state.currentAlert?.id === alertId
+                ? updatedAlert
+                : state.currentAlert,
+          }));
+
+          return true;
         } catch (error: any) {
-          set({ error: error.message || 'Failed to toggle alert' })
-          return false
+          set({ error: error.message || "Failed to toggle alert" });
+          return false;
         }
       },
 
       // Template actions
       loadTemplates: async (category?: string, search?: string) => {
-        set({ isLoading: true, error: null })
-        
+        set({ isLoading: true, error: null });
+
         try {
-          const templates = await alertApiService.getTemplates(category, search)
-          set({ templates, isLoading: false })
+          const templates = await alertApiService.getTemplates(
+            category,
+            search,
+          );
+          set({ templates, isLoading: false });
         } catch (error: any) {
           set({
-            error: error.message || 'Failed to load templates',
+            error: error.message || "Failed to load templates",
             isLoading: false,
-          })
+          });
         }
       },
 
       getTemplate: async (templateId: string) => {
         try {
-          return await alertApiService.getTemplate(templateId)
+          return await alertApiService.getTemplate(templateId);
         } catch (error: any) {
-          set({ error: error.message || 'Failed to load template' })
-          return null
+          set({ error: error.message || "Failed to load template" });
+          return null;
         }
       },
 
       // Channel actions
       loadChannels: async (teamId?: string) => {
         try {
-          const channels = await alertApiService.getNotificationChannels(teamId)
-          set({ channels })
+          const channels =
+            await alertApiService.getNotificationChannels(teamId);
+          set({ channels });
         } catch (error: any) {
-          set({ error: error.message || 'Failed to load channels' })
+          set({ error: error.message || "Failed to load channels" });
         }
       },
 
       testChannel: async (channelId: string) => {
         try {
-          const result = await alertApiService.testNotificationChannel(channelId)
-          return result.success
+          const result =
+            await alertApiService.testNotificationChannel(channelId);
+          return result.success;
         } catch (error: any) {
-          set({ error: error.message || 'Failed to test channel' })
-          return false
+          set({ error: error.message || "Failed to test channel" });
+          return false;
         }
       },
 
       // Selection and UI actions
       selectAlert: (alertId: string) => {
-        set(state => ({
+        set((state) => ({
           selectedAlerts: state.selectedAlerts.includes(alertId)
-            ? state.selectedAlerts.filter(id => id !== alertId)
-            : [...state.selectedAlerts, alertId]
-        }))
+            ? state.selectedAlerts.filter((id) => id !== alertId)
+            : [...state.selectedAlerts, alertId],
+        }));
       },
 
       selectMultipleAlerts: (alertIds: string[]) => {
-        set({ selectedAlerts: alertIds })
+        set({ selectedAlerts: alertIds });
       },
 
       clearSelection: () => {
-        set({ selectedAlerts: [] })
+        set({ selectedAlerts: [] });
       },
 
       setFilters: (filters: Partial<AlertFilters>) => {
-        set(state => ({
+        set((state) => ({
           filters: { ...state.filters, ...filters },
           pagination: { ...state.pagination, page: 1 }, // Reset to first page
-        }))
-        
+        }));
+
         // Reload alerts with new filters
-        get().loadAlerts(true)
+        get().loadAlerts(true);
       },
 
       setSort: (sort: AlertSortOptions) => {
-        set({ sort })
-        get().loadAlerts(true)
+        set({ sort });
+        get().loadAlerts(true);
       },
 
       setPage: (page: number) => {
-        set(state => ({
-          pagination: { ...state.pagination, page }
-        }))
-        get().loadAlerts(true)
+        set((state) => ({
+          pagination: { ...state.pagination, page },
+        }));
+        get().loadAlerts(true);
       },
 
       clearError: () => {
-        set({ error: null })
+        set({ error: null });
       },
 
       // Bulk operations
       bulkUpdateAlerts: async (updates: UpdateAlertRequest) => {
-        const { selectedAlerts } = get()
-        
-        if (selectedAlerts.length === 0) return false
-        
-        set({ isLoading: true, error: null })
-        
+        const { selectedAlerts } = get();
+
+        if (selectedAlerts.length === 0) return false;
+
+        set({ isLoading: true, error: null });
+
         try {
-          await alertApiService.bulkUpdateAlerts(selectedAlerts, updates)
-          
+          await alertApiService.bulkUpdateAlerts(selectedAlerts, updates);
+
           // Reload alerts to get updated data
-          await get().loadAlerts(true)
-          set({ selectedAlerts: [], isLoading: false })
-          
-          return true
+          await get().loadAlerts(true);
+          set({ selectedAlerts: [], isLoading: false });
+
+          return true;
         } catch (error: any) {
           set({
-            error: error.message || 'Failed to update alerts',
+            error: error.message || "Failed to update alerts",
             isLoading: false,
-          })
-          return false
+          });
+          return false;
         }
       },
 
       bulkDeleteAlerts: async () => {
-        const { selectedAlerts } = get()
-        
-        if (selectedAlerts.length === 0) return false
-        
-        set({ isLoading: true, error: null })
-        
+        const { selectedAlerts } = get();
+
+        if (selectedAlerts.length === 0) return false;
+
+        set({ isLoading: true, error: null });
+
         try {
-          await alertApiService.bulkDeleteAlerts(selectedAlerts)
-          
+          await alertApiService.bulkDeleteAlerts(selectedAlerts);
+
           // Remove from alerts list
-          set(state => ({
-            alerts: state.alerts.filter(alert => !selectedAlerts.includes(alert.id)),
+          set((state) => ({
+            alerts: state.alerts.filter(
+              (alert) => !selectedAlerts.includes(alert.id),
+            ),
             selectedAlerts: [],
             isLoading: false,
-          }))
-          
-          return true
+          }));
+
+          return true;
         } catch (error: any) {
           set({
-            error: error.message || 'Failed to delete alerts',
+            error: error.message || "Failed to delete alerts",
             isLoading: false,
-          })
-          return false
+          });
+          return false;
         }
       },
     }),
     {
-      name: 'ekko-alert-storage',
+      name: "ekko-alert-storage",
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         filters: state.filters,
         sort: state.sort,
         pagination: { ...state.pagination, page: 1 }, // Don't persist current page
       }),
-    }
-  )
-)
+    },
+  ),
+);

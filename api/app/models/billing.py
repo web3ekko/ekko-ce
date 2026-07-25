@@ -25,8 +25,12 @@ class BillingPlan(models.Model):
 
     max_wallets = models.PositiveIntegerField(default=0, help_text="0 means unlimited")
     max_alerts = models.PositiveIntegerField(default=0, help_text="0 means unlimited")
-    max_api_calls = models.PositiveIntegerField(default=0, help_text="0 means unlimited")
-    max_notifications = models.PositiveIntegerField(default=0, help_text="0 means unlimited")
+    max_api_calls = models.PositiveIntegerField(
+        default=0, help_text="0 means unlimited"
+    )
+    max_notifications = models.PositiveIntegerField(
+        default=0, help_text="0 means unlimited"
+    )
 
     is_active = models.BooleanField(default=True)
     is_default = models.BooleanField(default=False)
@@ -58,8 +62,14 @@ class BillingSubscription(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="billing_subscriptions")
-    plan = models.ForeignKey(BillingPlan, on_delete=models.PROTECT, related_name="subscriptions")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="billing_subscriptions",
+    )
+    plan = models.ForeignKey(
+        BillingPlan, on_delete=models.PROTECT, related_name="subscriptions"
+    )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="active")
     current_period_start = models.DateTimeField()
     current_period_end = models.DateTimeField()
@@ -92,7 +102,9 @@ class BillingInvoice(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    subscription = models.ForeignKey(BillingSubscription, on_delete=models.CASCADE, related_name="invoices")
+    subscription = models.ForeignKey(
+        BillingSubscription, on_delete=models.CASCADE, related_name="invoices"
+    )
     amount_usd = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="open")
     billed_at = models.DateTimeField()

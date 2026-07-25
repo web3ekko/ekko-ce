@@ -21,23 +21,55 @@ def _minimal_template_v2() -> dict:
         "description": "Alert when balance drops below threshold",
         "target_kind": "wallet",
         "scope": {"networks": ["ETH:mainnet"], "instrument_constraints": []},
-        "variables": [{"id": "threshold", "type": "decimal", "label": "Threshold", "required": True, "default": 0.5}],
-        "signals": {"principals": [], "factors": [{"name": "balance_latest", "unit": "WEI", "update_sources": [{"ref": "ducklake.wallet_balance_window"}]}]},
+        "variables": [
+            {
+                "id": "threshold",
+                "type": "decimal",
+                "label": "Threshold",
+                "required": True,
+                "default": 0.5,
+            }
+        ],
+        "signals": {
+            "principals": [],
+            "factors": [
+                {
+                    "name": "balance_latest",
+                    "unit": "WEI",
+                    "update_sources": [{"ref": "ducklake.wallet_balance_window"}],
+                }
+            ],
+        },
         "derivations": [],
         "trigger": {
             "evaluation_mode": "periodic",
-            "condition_ast": {"op": "lt", "left": "balance_latest", "right": "{{threshold}}"},
+            "condition_ast": {
+                "op": "lt",
+                "left": "balance_latest",
+                "right": "{{threshold}}",
+            },
             "cron_cadence_seconds": 300,
-            "dedupe": {"cooldown_seconds": 300, "key_template": "{{instance_id}}:{{target.key}}"},
+            "dedupe": {
+                "cooldown_seconds": 300,
+                "key_template": "{{instance_id}}:{{target.key}}",
+            },
             "pruning_hints": {"evm": {"tx_type": "any"}},
         },
-        "notification": {"title_template": "Balance alert", "body_template": "Balance: {{balance_latest}}"},
+        "notification": {
+            "title_template": "Balance alert",
+            "body_template": "Balance: {{balance_latest}}",
+        },
         "fallbacks": [],
         "assumptions": [],
     }
 
 
-@override_settings(GEMINI_API_KEY="test", NLP_ENABLED=True, NLP_PROPOSED_SPEC_TTL_SECS=3600, NLP_REQUIRE_DSPY=True)
+@override_settings(
+    GEMINI_API_KEY="test",
+    NLP_ENABLED=True,
+    NLP_PROPOSED_SPEC_TTL_SECS=3600,
+    NLP_REQUIRE_DSPY=True,
+)
 class TestNLPCompiler(TestCase):
     def test_dspy_does_not_require_global_configure(self):
         dspy_logic = types.SimpleNamespace(
@@ -62,7 +94,9 @@ class TestNLPCompiler(TestCase):
         class _Settings:
             @staticmethod
             def configure(*_args, **_kwargs):
-                raise RuntimeError("settings.configure should not be called per-request")
+                raise RuntimeError(
+                    "settings.configure should not be called per-request"
+                )
 
         class LM:
             def __init__(self, *args, **kwargs):
@@ -156,9 +190,7 @@ class TestNLPCompiler(TestCase):
         fake_dspy.LiteLLM = LiteLLM
         fake_dspy.settings = _Settings()
 
-        nl_description = (
-            "Alert me if my wallet has more than 2 transactions in the last 24 hours on Ethereum"
-        )
+        nl_description = "Alert me if my wallet has more than 2 transactions in the last 24 hours on Ethereum"
 
         with patch.dict(sys.modules, {"dspy": fake_dspy}):
             job_id = "b7bd2f2f-9eaf-42a5-a822-0799b89d0f2d"
@@ -174,8 +206,13 @@ class TestNLPCompiler(TestCase):
         assert proposed["job_id"] == job_id
         assert proposed["pipeline_id"] == PLAN_PIPELINE_ID
         assert proposed["template"]["schema_version"] == "alert_template_v2"
-        assert proposed["compiled_executable"]["schema_version"] == "alert_executable_v1"
-        assert proposed["template"]["notification"]["title_template"] == "Balance alert: {{target.short}}"
+        assert (
+            proposed["compiled_executable"]["schema_version"] == "alert_executable_v1"
+        )
+        assert (
+            proposed["template"]["notification"]["title_template"]
+            == "Balance alert: {{target.short}}"
+        )
         assert proposed["template"]["notification"]["body_template"] == (
             "Balance for {{target.short}} is {{balance_latest}} (below 0.5)"
         )
@@ -257,13 +294,21 @@ class TestNLPCompiler(TestCase):
         )
         prompt = _build_system_prompt_v2(pipeline)
         assert "notification.title_template MUST be short" in prompt
-        assert "notification.body_template MUST include at least one placeholder" in prompt
+        assert (
+            "notification.body_template MUST include at least one placeholder" in prompt
+        )
         assert "{{target.short}}" in prompt
-        assert set(proposed["required_user_inputs"]["supported_trigger_types"]) == {"periodic", "event_driven"}
+        assert set(proposed["required_user_inputs"]["supported_trigger_types"]) == {
+            "periodic",
+            "event_driven",
+        }
 
         exe = proposed["compiled_executable"]
         ds_ids = {d.get("id") for d in exe.get("datasources") or []}
         assert "ds_ducklake_address_transactions_count_24h" in ds_ids
         cond = exe["conditions"]["all"][0]
         assert cond["op"] == "gt"
-        assert cond["left"] == "$.datasources.ds_ducklake_address_transactions_count_24h.tx_count_24h"
+        assert (
+            cond["left"]
+            == "$.datasources.ds_ducklake_address_transactions_count_24h.tx_count_24h"
+        )

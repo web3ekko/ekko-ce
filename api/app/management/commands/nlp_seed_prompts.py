@@ -24,6 +24,9 @@ class Command(BaseCommand):
             raise CommandError(f"Parent directory does not exist: {out.parent}")
 
         data = seed_prompt_cases_as_dicts()
-        out.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        self.stdout.write(self.style.SUCCESS(f"Wrote {len(data)} seed prompts to {out}"))
-
+        out.write_text(
+            json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        self.stdout.write(
+            self.style.SUCCESS(f"Wrote {len(data)} seed prompts to {out}")
+        )

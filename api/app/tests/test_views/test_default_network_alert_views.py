@@ -40,7 +40,9 @@ class TestDefaultNetworkAlertViews:
         assert result["alert_template"] == str(sample_alert_template.id)
         assert result["enabled"] is True
 
-    def test_toggle_default_network_alert(self, api_client, user, sample_alert_template):
+    def test_toggle_default_network_alert(
+        self, api_client, user, sample_alert_template
+    ):
         api_client.force_authenticate(user=user)
 
         chain = Chain.objects.create(

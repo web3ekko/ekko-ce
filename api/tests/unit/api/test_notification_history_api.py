@@ -238,10 +238,13 @@ class TestUserNotificationHistoryAPI:
         mock_ducklake.get_user_notifications = mock_get_notifications
 
         url = reverse("alerts:notification-history")
-        response = client.get(url, {
-            "start_date": "2026-01-01T00:00:00Z",
-            "end_date": "2026-01-07T23:59:59Z",
-        })
+        response = client.get(
+            url,
+            {
+                "start_date": "2026-01-01T00:00:00Z",
+                "end_date": "2026-01-07T23:59:59Z",
+            },
+        )
 
         assert response.status_code == status.HTTP_200_OK
         assert captured_kwargs.get("start_date") is not None

@@ -13,9 +13,19 @@ class Command(BaseCommand):
     help = "Import curated NLP pipeline examples into NLPPipelineVersion (no code deploy required)."
 
     def add_arguments(self, parser):
-        parser.add_argument("--pipeline-id", required=True, help="Pipeline id (e.g., dspy_plan_compiler_v2)")
-        parser.add_argument("--pipeline-version", required=True, help="Pipeline version label (e.g., v2)")
-        parser.add_argument("--file", required=True, help="Path to JSON file containing examples list")
+        parser.add_argument(
+            "--pipeline-id",
+            required=True,
+            help="Pipeline id (e.g., dspy_plan_compiler_v2)",
+        )
+        parser.add_argument(
+            "--pipeline-version",
+            required=True,
+            help="Pipeline version label (e.g., v2)",
+        )
+        parser.add_argument(
+            "--file", required=True, help="Path to JSON file containing examples list"
+        )
         parser.add_argument(
             "--set-active",
             action="store_true",
@@ -69,7 +79,9 @@ class Command(BaseCommand):
                 defaults={"name": name, "description": description},
             )
             if created:
-                self.stdout.write(self.style.SUCCESS(f"Created NLPPipeline {pipeline_id}"))
+                self.stdout.write(
+                    self.style.SUCCESS(f"Created NLPPipeline {pipeline_id}")
+                )
 
             ver, _ = NLPPipelineVersion.objects.update_or_create(
                 pipeline=pipeline,
@@ -90,4 +102,8 @@ class Command(BaseCommand):
                 pipeline.full_clean()
                 pipeline.save()
 
-        self.stdout.write(self.style.SUCCESS(f"Imported {len(payload)} examples into {pipeline_id}@{version}"))
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Imported {len(payload)} examples into {pipeline_id}@{version}"
+            )
+        )

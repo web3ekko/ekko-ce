@@ -46,7 +46,7 @@ class NotificationCacheManager:
         """
         self.redis_client = redis_client or redis.Redis.from_url(
             settings.REDIS_URL,
-            decode_responses=True  # Automatically decode responses to strings
+            decode_responses=True,  # Automatically decode responses to strings
         )
 
     # === Alert Subscription Index ===
@@ -82,12 +82,18 @@ class NotificationCacheManager:
 
                 # Save updated array as JSON (PERMANENT - no expiry)
                 self.redis_client.set(cache_key, json.dumps(subscribers))
-                logger.debug(f"Added user {user_id} to template {template_id} subscribers")
+                logger.debug(
+                    f"Added user {user_id} to template {template_id} subscribers"
+                )
             else:
-                logger.debug(f"User {user_id} already subscribed to template {template_id}")
+                logger.debug(
+                    f"User {user_id} already subscribed to template {template_id}"
+                )
 
         except redis.RedisError as e:
-            logger.error(f"Redis error adding subscriber to template {template_id}: {e}")
+            logger.error(
+                f"Redis error adding subscriber to template {template_id}: {e}"
+            )
         except json.JSONDecodeError as e:
             logger.error(f"JSON decode error for template {template_id}: {e}")
 
@@ -117,14 +123,20 @@ class NotificationCacheManager:
 
                     # Save updated array as JSON (PERMANENT - no expiry)
                     self.redis_client.set(cache_key, json.dumps(subscribers))
-                    logger.debug(f"Removed user {user_id} from template {template_id} subscribers")
+                    logger.debug(
+                        f"Removed user {user_id} from template {template_id} subscribers"
+                    )
                 else:
-                    logger.debug(f"User {user_id} not found in template {template_id} subscribers")
+                    logger.debug(
+                        f"User {user_id} not found in template {template_id} subscribers"
+                    )
             else:
                 logger.debug(f"No subscribers found for template {template_id}")
 
         except redis.RedisError as e:
-            logger.error(f"Redis error removing subscriber from template {template_id}: {e}")
+            logger.error(
+                f"Redis error removing subscriber from template {template_id}: {e}"
+            )
         except json.JSONDecodeError as e:
             logger.error(f"JSON decode error for template {template_id}: {e}")
 
@@ -153,7 +165,9 @@ class NotificationCacheManager:
                 return []
 
         except redis.RedisError as e:
-            logger.error(f"Redis error getting subscribers for template {template_id}: {e}")
+            logger.error(
+                f"Redis error getting subscribers for template {template_id}: {e}"
+            )
             return []
         except json.JSONDecodeError as e:
             logger.error(f"JSON decode error for template {template_id}: {e}")
@@ -179,9 +193,9 @@ class NotificationCacheManager:
         """
         try:
             # Query PostgreSQL for all user's wallet nicknames
-            nicknames = WalletNickname.objects.filter(
-                user_id=user_id
-            ).values('wallet_address', 'chain_id', 'custom_name')
+            nicknames = WalletNickname.objects.filter(user_id=user_id).values(
+                "wallet_address", "chain_id", "custom_name"
+            )
 
             if not nicknames:
                 logger.debug(f"No wallet nicknames found for user {user_id}")
@@ -193,7 +207,7 @@ class NotificationCacheManager:
 
             for nickname in nicknames:
                 hash_field = f"{nickname['wallet_address']}:{nickname['chain_id']}"
-                nickname_map[hash_field] = nickname['custom_name']
+                nickname_map[hash_field] = nickname["custom_name"]
 
             # Store in Redis as JSON object (PERMANENT - no expiry)
             self.redis_client.set(cache_key, json.dumps(nickname_map))
@@ -224,7 +238,9 @@ class NotificationCacheManager:
             self.redis_client.delete(cache_key)
             logger.info(f"Invalidated wallet nicknames cache for user {user_id}")
         except redis.RedisError as e:
-            logger.error(f"Redis error invalidating wallet nicknames for user {user_id}: {e}")
+            logger.error(
+                f"Redis error invalidating wallet nicknames for user {user_id}: {e}"
+            )
 
     def get_wallet_nicknames(self, user_id: str) -> Dict[str, str]:
         """
@@ -259,7 +275,9 @@ class NotificationCacheManager:
             return self.cache_wallet_nicknames(user_id)
 
         except redis.RedisError as e:
-            logger.error(f"Redis error getting wallet nicknames for user {user_id}: {e}")
+            logger.error(
+                f"Redis error getting wallet nicknames for user {user_id}: {e}"
+            )
             # Fallback to PostgreSQL on Redis error
             return self._get_wallet_nicknames_from_db(user_id)
         except json.JSONDecodeError as e:
@@ -280,18 +298,20 @@ class NotificationCacheManager:
             Dictionary mapping "address:chain_id" to custom nickname
         """
         try:
-            nicknames = WalletNickname.objects.filter(
-                user_id=user_id
-            ).values('wallet_address', 'chain_id', 'custom_name')
+            nicknames = WalletNickname.objects.filter(user_id=user_id).values(
+                "wallet_address", "chain_id", "custom_name"
+            )
 
             nickname_map = {}
             for nickname in nicknames:
                 hash_field = f"{nickname['wallet_address']}:{nickname['chain_id']}"
-                nickname_map[hash_field] = nickname['custom_name']
+                nickname_map[hash_field] = nickname["custom_name"]
 
             return nickname_map
         except Exception as e:
-            logger.error(f"Database error getting wallet nicknames for user {user_id}: {e}")
+            logger.error(
+                f"Database error getting wallet nicknames for user {user_id}: {e}"
+            )
             return {}
 
     # === Accounts Wallet Labels Cache ===
@@ -339,11 +359,15 @@ class NotificationCacheManager:
                 labels[normalized_key] = label
 
             self.redis_client.set(cache_key, json.dumps(labels))
-            logger.info(f"Cached {len(labels)} accounts wallet labels for user {user_id}")
+            logger.info(
+                f"Cached {len(labels)} accounts wallet labels for user {user_id}"
+            )
             return labels
 
         except Exception as e:
-            logger.error(f"Error caching accounts wallet labels for user {user_id}: {e}")
+            logger.error(
+                f"Error caching accounts wallet labels for user {user_id}: {e}"
+            )
             return {}
 
     def invalidate_accounts_wallet_labels(self, user_id: str) -> None:
@@ -353,7 +377,9 @@ class NotificationCacheManager:
             self.redis_client.delete(cache_key)
             logger.info(f"Invalidated accounts wallet labels cache for user {user_id}")
         except redis.RedisError as e:
-            logger.error(f"Redis error invalidating accounts wallet labels for user {user_id}: {e}")
+            logger.error(
+                f"Redis error invalidating accounts wallet labels for user {user_id}: {e}"
+            )
 
     def get_accounts_wallet_labels(self, user_id: str) -> Dict[str, str]:
         """
@@ -369,7 +395,9 @@ class NotificationCacheManager:
                 return json.loads(cached_json)
             return self.cache_accounts_wallet_labels(user_id)
         except Exception as e:
-            logger.error(f"Error getting accounts wallet labels for user {user_id}: {e}")
+            logger.error(
+                f"Error getting accounts wallet labels for user {user_id}: {e}"
+            )
             return {}
 
     # === User Notification Settings Cache ===
@@ -393,7 +421,7 @@ class NotificationCacheManager:
         """
         try:
             # Query PostgreSQL for user settings
-            settings_obj = UserNotificationSettings.objects.select_related('user').get(
+            settings_obj = UserNotificationSettings.objects.select_related("user").get(
                 user_id=user_id
             )
 
@@ -466,7 +494,9 @@ class NotificationCacheManager:
             return self.cache_user_settings(user_id)
 
         except redis.RedisError as e:
-            logger.error(f"Redis error getting notification settings for user {user_id}: {e}")
+            logger.error(
+                f"Redis error getting notification settings for user {user_id}: {e}"
+            )
             # Fallback to PostgreSQL on Redis error
             return self._get_user_settings_from_db(user_id)
 
@@ -483,7 +513,7 @@ class NotificationCacheManager:
             Dictionary containing user notification settings
         """
         try:
-            settings_obj = UserNotificationSettings.objects.select_related('user').get(
+            settings_obj = UserNotificationSettings.objects.select_related("user").get(
                 user_id=user_id
             )
             return settings_obj.to_cache_format()
@@ -491,7 +521,9 @@ class NotificationCacheManager:
             logger.warning(f"No notification settings found for user {user_id}")
             return {}
         except Exception as e:
-            logger.error(f"Database error getting notification settings for user {user_id}: {e}")
+            logger.error(
+                f"Database error getting notification settings for user {user_id}: {e}"
+            )
             return {}
 
     # === Utility Methods ===
@@ -520,7 +552,7 @@ class NotificationCacheManager:
             thirty_days_ago = timezone.now() - timedelta(days=30)
             active_users = User.objects.filter(
                 last_login__gte=thirty_days_ago
-            ).values_list('id', flat=True)[:limit]
+            ).values_list("id", flat=True)[:limit]
 
             cached_count = 0
             for user_id in active_users:
@@ -560,12 +592,12 @@ class NotificationCacheManager:
             return {
                 "status": "healthy" if test_value == "ok" else "degraded",
                 "redis_connected": True,
-                "message": "Redis connection successful"
+                "message": "Redis connection successful",
             }
         except redis.RedisError as e:
             logger.error(f"Redis health check failed: {e}")
             return {
                 "status": "unhealthy",
                 "redis_connected": False,
-                "message": f"Redis connection failed: {str(e)}"
+                "message": f"Redis connection failed: {str(e)}",
             }

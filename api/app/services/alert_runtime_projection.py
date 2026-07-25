@@ -28,7 +28,8 @@ def _redis_client() -> redis.Redis:
     cache_location = settings.CACHES.get("default", {}).get("LOCATION")
     redis_url = (
         cache_location
-        if isinstance(cache_location, str) and cache_location.startswith(("redis://", "rediss://", "unix://"))
+        if isinstance(cache_location, str)
+        and cache_location.startswith(("redis://", "rediss://", "unix://"))
         else getattr(settings, "REDIS_URL", cache_location)
     )
     return redis.from_url(redis_url, decode_responses=True)
@@ -40,6 +41,7 @@ def _instance_key(instance_id: str) -> str:
 
 def _template_key(template_id: str, template_version: int) -> str:
     return f"{TEMPLATE_KEY_PREFIX}{template_id}:{template_version}"
+
 
 def _executable_key(template_id: str, template_version: int) -> str:
     return f"{EXECUTABLE_KEY_PREFIX}{template_id}:{template_version}"
@@ -125,7 +127,9 @@ class AlertRuntimeProjection:
     def __init__(self) -> None:
         self._redis = _redis_client()
 
-    def get_template_spec(self, template_id: str, template_version: int) -> Optional[dict]:
+    def get_template_spec(
+        self, template_id: str, template_version: int
+    ) -> Optional[dict]:
         raw = self._redis.get(_template_key(template_id, template_version))
         if not raw:
             return None
@@ -135,7 +139,9 @@ class AlertRuntimeProjection:
             return None
         return decoded if isinstance(decoded, dict) else None
 
-    def get_executable_spec(self, template_id: str, template_version: int) -> Optional[dict]:
+    def get_executable_spec(
+        self, template_id: str, template_version: int
+    ) -> Optional[dict]:
         raw = self._redis.get(_executable_key(template_id, template_version))
         if not raw:
             return None
@@ -145,7 +151,9 @@ class AlertRuntimeProjection:
             return None
         return decoded if isinstance(decoded, dict) else None
 
-    def project_template_bundle(self, *, template_id: str, template_version: int) -> Optional[dict]:
+    def project_template_bundle(
+        self, *, template_id: str, template_version: int
+    ) -> Optional[dict]:
         """
         Project a pinned AlertTemplateVersion bundle (template_spec + executable) into Redis.
 
@@ -157,7 +165,9 @@ class AlertRuntimeProjection:
         try:
             from app.models.alert_templates import AlertTemplateVersion
         except Exception:
-            logger.warning("Skipping template bundle Redis projection: AlertTemplate models unavailable")
+            logger.warning(
+                "Skipping template bundle Redis projection: AlertTemplate models unavailable"
+            )
             return None
 
         tmpl_ver = AlertTemplateVersion.objects.filter(
@@ -171,8 +181,12 @@ class AlertRuntimeProjection:
             )
             return None
 
-        template_spec = tmpl_ver.template_spec if isinstance(tmpl_ver.template_spec, dict) else None
-        executable = tmpl_ver.executable if isinstance(tmpl_ver.executable, dict) else None
+        template_spec = (
+            tmpl_ver.template_spec if isinstance(tmpl_ver.template_spec, dict) else None
+        )
+        executable = (
+            tmpl_ver.executable if isinstance(tmpl_ver.executable, dict) else None
+        )
         if not template_spec or not executable:
             logger.warning(
                 "Skipping template bundle Redis projection for %s v%s: missing artifacts",
@@ -207,7 +221,9 @@ class AlertRuntimeProjection:
 
         with self._redis.pipeline() as pipe:
             if existing.mode == "group" and existing.group_id:
-                pipe.srem(_event_idx_group_instances_key(existing.group_id), instance_id)
+                pipe.srem(
+                    _event_idx_group_instances_key(existing.group_id), instance_id
+                )
             if existing.mode == "keys":
                 for key in existing.keys:
                     pipe.srem(_event_idx_target_instances_key(key), instance_id)
@@ -227,14 +243,19 @@ class AlertRuntimeProjection:
         template_id_raw = getattr(instance, "template_id", None)
         template_version_raw = getattr(instance, "template_version", None)
         if not template_id_raw or not template_version_raw:
-            logger.warning("Skipping instance Redis projection for %s: missing template reference", instance_id)
+            logger.warning(
+                "Skipping instance Redis projection for %s: missing template reference",
+                instance_id,
+            )
             return
 
         template_id = str(template_id_raw)
         template_version = int(template_version_raw)
         executable_spec = self.get_executable_spec(template_id, template_version)
         if executable_spec is None:
-            self.project_template_bundle(template_id=template_id, template_version=template_version)
+            self.project_template_bundle(
+                template_id=template_id, template_version=template_version
+            )
             executable_spec = self.get_executable_spec(template_id, template_version)
         if executable_spec is None:
             logger.warning(
@@ -269,21 +290,32 @@ class AlertRuntimeProjection:
                 dict(notification_template_raw),
                 notification_overrides,
             )
-        notification_template = _normalize_notification_template(notification_template_raw)
+        notification_template = _normalize_notification_template(
+            notification_template_raw
+        )
 
         action = executable_spec.get("action")
         if not isinstance(action, dict):
             action = {}
 
         variable_values = template_params if isinstance(template_params, dict) else {}
-        if isinstance(template_params, dict) and NOTIFICATION_OVERRIDE_KEY in template_params:
-            variable_values = {k: v for k, v in template_params.items() if k != NOTIFICATION_OVERRIDE_KEY}
+        if (
+            isinstance(template_params, dict)
+            and NOTIFICATION_OVERRIDE_KEY in template_params
+        ):
+            variable_values = {
+                k: v
+                for k, v in template_params.items()
+                if k != NOTIFICATION_OVERRIDE_KEY
+            }
 
         snapshot = {
             "instance_id": instance_id,
             "alert_name": alert_name,
             "alert_description": alert_description,
-            "user_id": str(getattr(instance, "user_id")) if getattr(instance, "user_id", None) else None,
+            "user_id": str(getattr(instance, "user_id"))
+            if getattr(instance, "user_id", None)
+            else None,
             "enabled": True,
             "priority": priority,
             "template_id": template_id,
@@ -303,7 +335,10 @@ class AlertRuntimeProjection:
                 existing=existing_index,
                 desired=target_selector,
             )
-            pipe.set(_instance_key(instance_id), json.dumps(snapshot, separators=(",", ":"), sort_keys=True))
+            pipe.set(
+                _instance_key(instance_id),
+                json.dumps(snapshot, separators=(",", ":"), sort_keys=True),
+            )
             pipe.execute()
 
     def _get_existing_instance_snapshot(self, instance_id: str) -> dict:
@@ -353,13 +388,21 @@ class AlertRuntimeProjection:
         desired_mode = desired.get("mode")
         if desired_mode == "group":
             desired_group = desired.get("group_id")
-            if existing.mode == "group" and existing.group_id and existing.group_id != desired_group:
-                pipe.srem(_event_idx_group_instances_key(existing.group_id), instance_id)
+            if (
+                existing.mode == "group"
+                and existing.group_id
+                and existing.group_id != desired_group
+            ):
+                pipe.srem(
+                    _event_idx_group_instances_key(existing.group_id), instance_id
+                )
             if existing.mode == "keys":
                 for key in existing.keys:
                     pipe.srem(_event_idx_target_instances_key(key), instance_id)
             if desired_group:
-                pipe.sadd(_event_idx_group_instances_key(str(desired_group)), instance_id)
+                pipe.sadd(
+                    _event_idx_group_instances_key(str(desired_group)), instance_id
+                )
             return
 
         desired_keys_raw = desired.get("keys")

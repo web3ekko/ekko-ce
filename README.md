@@ -10,18 +10,7 @@ Open-source, real-time blockchain monitoring and alerting built for Avalanche te
 
 Create alerts in natural language, evaluate them in a low-latency event pipeline, and deliver notifications fast across multiple channels.
 
-[Run locally](#quick-start) | [View screenshots](#screenshots) | [Use full hosted version](https://app.ekko.zone)
-
-## GitHub Launch Copy
-
-Design spec for social image: [`screens/GITHUB-SOCIAL-PREVIEW-SPEC.md`](./screens/GITHUB-SOCIAL-PREVIEW-SPEC.md)
-
-**Suggested repo description (<=160 chars):**
-Avalanche-first open-source monitoring and alerting platform with natural-language alerts, fast NATS+wasmCloud runtime, and multi-channel notifications.
-
-**Suggested social preview text:**
-Ekko CE helps teams monitor Avalanche activity in real time. Build alerts in plain English, route notifications instantly, and self-host the full stack in minutes.
-
+[Run locally](#quick-start) | [Tutorials & Guides](docs/tutorials/README.md) | [View screenshots](#screenshots) | [Use full hosted version](https://app.ekko.zone)
 ## Why Teams Choose Ekko CE
 
 - **Natural-language alerts**: define monitoring logic in plain English.
@@ -116,9 +105,9 @@ docker compose up --build
 - Dashboard: `http://localhost:3000`
 - API root: `http://localhost:8000/`
 - API health: `http://localhost:8000/health/`
-- Django admin: `http://localhost:8000/admin/`
+- Admin: `http://localhost:8000/admin/`
 - NATS monitoring: `http://localhost:8222`
-- MinIO console: `http://localhost:9001`
+- MinIO console (storage): `http://localhost:9001`
 
 ### 4) Optional admin user
 
@@ -135,6 +124,15 @@ docker compose down
 # full reset (includes volumes)
 docker compose down -v
 ```
+
+## Tutorials & Guides
+
+Explore step-by-step guides in the [`docs/tutorials/`](docs/tutorials/README.md) directory:
+
+1. 🚀 [Quickstart: Natural Language Alerts & Webhooks](docs/tutorials/01-quickstart-natural-language-alerts.md)
+2. 🔺 [Monitoring Avalanche Subnets (L1s) & Custom Chains](docs/tutorials/02-monitoring-avalanche-subnets.md)
+3. 📋 [Building Custom Alert Templates & Parameter Schemas](docs/tutorials/03-creating-alert-templates.md)
+4. 🦀 [Extending Ekko: Writing a Custom wasmCloud Actor in Rust](docs/tutorials/04-writing-wasmcloud-actors.md)
 
 ## Copy/Paste Demo Prompts
 
@@ -200,3 +198,8 @@ docker compose logs -f wasmcloud
 # migrations
 docker compose exec api python manage.py migrate
 ```
+
+## License
+
+Distributed under the MIT License. See [LICENSE](./LICENSE) for details.
+

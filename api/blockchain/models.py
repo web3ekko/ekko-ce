@@ -21,8 +21,12 @@ class Chain(models.Model):
     """Blockchain networks for the new alert system"""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=100, unique=True)  # "ethereum", "polygon", "avalanche"
-    display_name = models.CharField(max_length=100)       # "Ethereum", "Polygon", "Avalanche"
+    name = models.CharField(
+        max_length=100, unique=True
+    )  # "ethereum", "polygon", "avalanche"
+    display_name = models.CharField(
+        max_length=100
+    )  # "Ethereum", "Polygon", "Avalanche"
     chain_id = models.IntegerField(unique=True, null=True, blank=True)  # 1, 137, 43114
     rpc_url = models.URLField(max_length=500, blank=True)
     explorer_url = models.URLField(max_length=500, blank=True)
@@ -31,13 +35,13 @@ class Chain(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = 'chains'
-        verbose_name = 'Chain'
-        verbose_name_plural = 'Chains'
-        ordering = ['display_name']
+        db_table = "chains"
+        verbose_name = "Chain"
+        verbose_name_plural = "Chains"
+        ordering = ["display_name"]
         indexes = [
-            models.Index(fields=['enabled']),
-            models.Index(fields=['name']),
+            models.Index(fields=["enabled"]),
+            models.Index(fields=["name"]),
         ]
 
     def __str__(self):
@@ -50,7 +54,7 @@ class Chain(models.Model):
     @property
     def native_token_object(self):
         """Property to access native token object"""
-        if not hasattr(self, '_native_token_cache'):
+        if not hasattr(self, "_native_token_cache"):
             self._native_token_cache = self.get_native_token()
         return self._native_token_cache
 
@@ -59,9 +63,13 @@ class SubChain(models.Model):
     """Sub-networks within chains (mainnet, testnets, L2s)"""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    chain = models.ForeignKey(Chain, on_delete=models.CASCADE, related_name='sub_chains')
-    name = models.CharField(max_length=100)               # "mainnet", "goerli", "arbitrum"
-    display_name = models.CharField(max_length=100)       # "Mainnet", "Goerli Testnet", "Arbitrum One"
+    chain = models.ForeignKey(
+        Chain, on_delete=models.CASCADE, related_name="sub_chains"
+    )
+    name = models.CharField(max_length=100)  # "mainnet", "goerli", "arbitrum"
+    display_name = models.CharField(
+        max_length=100
+    )  # "Mainnet", "Goerli Testnet", "Arbitrum One"
     network_id = models.IntegerField(null=True, blank=True)
     rpc_url = models.URLField(max_length=500, blank=True)
     explorer_url = models.URLField(max_length=500, blank=True)
@@ -70,14 +78,14 @@ class SubChain(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = 'sub_chains'
-        verbose_name = 'Sub Chain'
-        verbose_name_plural = 'Sub Chains'
-        unique_together = ['chain', 'name']
-        ordering = ['chain__display_name', 'display_name']
+        db_table = "sub_chains"
+        verbose_name = "Sub Chain"
+        verbose_name_plural = "Sub Chains"
+        unique_together = ["chain", "name"]
+        ordering = ["chain__display_name", "display_name"]
         indexes = [
-            models.Index(fields=['chain', 'enabled']),
-            models.Index(fields=['is_testnet']),
+            models.Index(fields=["chain", "enabled"]),
+            models.Index(fields=["is_testnet"]),
         ]
 
     def __str__(self):
@@ -89,7 +97,9 @@ class Blockchain(models.Model):
 
     id = models.UUIDField(default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255, unique=True, null=True, blank=True)
-    symbol = models.CharField(max_length=255, unique=True, primary_key=True)  # Primary key like original
+    symbol = models.CharField(
+        max_length=255, unique=True, primary_key=True
+    )  # Primary key like original
     chain_type = models.CharField(max_length=255, null=True, blank=True)
 
     # Timestamps
@@ -97,9 +107,9 @@ class Blockchain(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'blockchain'
-        verbose_name = 'Blockchain'
-        verbose_name_plural = 'Blockchains'
+        db_table = "blockchain"
+        verbose_name = "Blockchain"
+        verbose_name_plural = "Blockchains"
 
     def __str__(self):
         return f"{self.name} ({self.symbol})" if self.name else self.symbol
@@ -116,9 +126,9 @@ class Category(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'categories'
-        verbose_name = 'Category'
-        verbose_name_plural = 'Categories'
+        db_table = "categories"
+        verbose_name = "Category"
+        verbose_name_plural = "Categories"
 
     def __str__(self):
         return self.name
@@ -137,9 +147,9 @@ class Dao(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'dao'
-        verbose_name = 'DAO'
-        verbose_name_plural = 'DAOs'
+        db_table = "dao"
+        verbose_name = "DAO"
+        verbose_name_plural = "DAOs"
 
     def __str__(self):
         return self.name
@@ -152,9 +162,9 @@ class Wallet(models.Model):
     blockchain = models.ForeignKey(
         Blockchain,
         on_delete=models.CASCADE,
-        related_name='wallets',
-        to_field='symbol',
-        db_column='blockchain_symbol'
+        related_name="wallets",
+        to_field="symbol",
+        db_column="blockchain_symbol",
     )
     address = models.CharField(max_length=255)
     name = models.TextField()
@@ -163,9 +173,15 @@ class Wallet(models.Model):
     recommended = models.BooleanField(default=False)
 
     # Extended fields from ekko-ce integration
-    balance = models.CharField(max_length=255, null=True, blank=True)  # Handle large numbers
-    status = models.CharField(max_length=50, default='active')  # active, inactive, monitoring
-    subnet = models.CharField(max_length=100, default='mainnet')  # mainnet, testnet, etc.
+    balance = models.CharField(
+        max_length=255, null=True, blank=True
+    )  # Handle large numbers
+    status = models.CharField(
+        max_length=50, default="active"
+    )  # active, inactive, monitoring
+    subnet = models.CharField(
+        max_length=100, default="mainnet"
+    )  # mainnet, testnet, etc.
     description = models.TextField(null=True, blank=True)
 
     # Timestamps
@@ -173,14 +189,14 @@ class Wallet(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'wallet'
-        verbose_name = 'Wallet'
-        verbose_name_plural = 'Wallets'
-        unique_together = [['blockchain', 'subnet', 'address']]
+        db_table = "wallet"
+        verbose_name = "Wallet"
+        verbose_name_plural = "Wallets"
+        unique_together = [["blockchain", "subnet", "address"]]
         indexes = [
-            models.Index(fields=['blockchain']),
-            models.Index(fields=['address']),
-            models.Index(fields=['recommended']),
+            models.Index(fields=["blockchain"]),
+            models.Index(fields=["address"]),
+            models.Index(fields=["recommended"]),
         ]
 
     def generate_derived_name(self):
@@ -220,8 +236,10 @@ class DaoSubscription(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255, null=True, blank=True)
-    dao = models.ForeignKey(Dao, on_delete=models.CASCADE, related_name='subscriptions')
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='dao_subscriptions')
+    dao = models.ForeignKey(Dao, on_delete=models.CASCADE, related_name="subscriptions")
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="dao_subscriptions"
+    )
     notifications_count = models.IntegerField(default=0)
 
     # Timestamps
@@ -229,13 +247,13 @@ class DaoSubscription(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'daoSubscription'
-        verbose_name = 'DAO Subscription'
-        verbose_name_plural = 'DAO Subscriptions'
-        unique_together = [['dao', 'user']]
+        db_table = "daoSubscription"
+        verbose_name = "DAO Subscription"
+        verbose_name_plural = "DAO Subscriptions"
+        unique_together = [["dao", "user"]]
         indexes = [
-            models.Index(fields=['dao']),
-            models.Index(fields=['user']),
+            models.Index(fields=["dao"]),
+            models.Index(fields=["user"]),
         ]
 
     def derived_name(self):
@@ -250,9 +268,13 @@ class WalletSubscription(models.Model):
     """User subscriptions to wallet notifications"""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    wallet = models.ForeignKey(Wallet, on_delete=models.CASCADE, related_name='subscriptions')
+    wallet = models.ForeignKey(
+        Wallet, on_delete=models.CASCADE, related_name="subscriptions"
+    )
     name = models.CharField(max_length=255, null=True, blank=True)
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='wallet_subscriptions')
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="wallet_subscriptions"
+    )
     notifications_count = models.IntegerField(default=0)
 
     # Timestamps
@@ -260,13 +282,13 @@ class WalletSubscription(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'walletSubscription'
-        verbose_name = 'Wallet Subscription'
-        verbose_name_plural = 'Wallet Subscriptions'
-        unique_together = [['wallet', 'user']]
+        db_table = "walletSubscription"
+        verbose_name = "Wallet Subscription"
+        verbose_name_plural = "Wallet Subscriptions"
+        unique_together = [["wallet", "user"]]
         indexes = [
-            models.Index(fields=['wallet']),
-            models.Index(fields=['user']),
+            models.Index(fields=["wallet"]),
+            models.Index(fields=["user"]),
         ]
 
     def derived_name(self):
@@ -281,21 +303,23 @@ class DaoWallet(models.Model):
     """Many-to-many relationship between DAOs and wallets"""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    dao = models.ForeignKey(Dao, on_delete=models.CASCADE, related_name='dao_wallets')
-    wallet = models.ForeignKey(Wallet, on_delete=models.CASCADE, related_name='dao_wallets')
+    dao = models.ForeignKey(Dao, on_delete=models.CASCADE, related_name="dao_wallets")
+    wallet = models.ForeignKey(
+        Wallet, on_delete=models.CASCADE, related_name="dao_wallets"
+    )
 
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'daoWallet'
-        verbose_name = 'DAO Wallet'
-        verbose_name_plural = 'DAO Wallets'
-        unique_together = [['dao', 'wallet']]
+        db_table = "daoWallet"
+        verbose_name = "DAO Wallet"
+        verbose_name_plural = "DAO Wallets"
+        unique_together = [["dao", "wallet"]]
         indexes = [
-            models.Index(fields=['dao']),
-            models.Index(fields=['wallet']),
+            models.Index(fields=["dao"]),
+            models.Index(fields=["wallet"]),
         ]
 
     def __str__(self):
@@ -311,20 +335,26 @@ class Token(models.Model):
     chain = models.ForeignKey(
         Chain,
         on_delete=models.CASCADE,
-        related_name='tokens',
-        help_text="The blockchain network this token belongs to"
+        related_name="tokens",
+        help_text="The blockchain network this token belongs to",
     )
 
     # Token details
-    name = models.CharField(max_length=255, help_text="Token name (e.g., Ethereum, Polygon)")
-    symbol = models.CharField(max_length=10, help_text="Token symbol (e.g., ETH, MATIC)")
-    decimals = models.IntegerField(default=18, help_text="Number of decimals for the token")
+    name = models.CharField(
+        max_length=255, help_text="Token name (e.g., Ethereum, Polygon)"
+    )
+    symbol = models.CharField(
+        max_length=10, help_text="Token symbol (e.g., ETH, MATIC)"
+    )
+    decimals = models.IntegerField(
+        default=18, help_text="Number of decimals for the token"
+    )
 
     # Native token flag
     is_native = models.BooleanField(
         default=False,
         help_text="Whether this is the native token of the chain",
-        db_index=True
+        db_index=True,
     )
 
     # Contract address (null for native tokens)
@@ -332,7 +362,7 @@ class Token(models.Model):
         max_length=255,
         null=True,
         blank=True,
-        help_text="Smart contract address (null for native tokens)"
+        help_text="Smart contract address (null for native tokens)",
     )
 
     # Timestamps
@@ -340,25 +370,24 @@ class Token(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'token'
-        verbose_name = 'Token'
-        verbose_name_plural = 'Tokens'
+        db_table = "token"
+        verbose_name = "Token"
+        verbose_name_plural = "Tokens"
         indexes = [
-            models.Index(fields=['chain', 'is_native']),
-            models.Index(fields=['chain', 'contract_address']),
-            models.Index(fields=['symbol']),
-            models.Index(fields=['is_native']),
+            models.Index(fields=["chain", "is_native"]),
+            models.Index(fields=["chain", "contract_address"]),
+            models.Index(fields=["symbol"]),
+            models.Index(fields=["is_native"]),
         ]
         constraints = [
             models.UniqueConstraint(
-                fields=['chain'],
+                fields=["chain"],
                 condition=models.Q(is_native=True),
-                name='unique_native_token_per_chain'
+                name="unique_native_token_per_chain",
             ),
             models.UniqueConstraint(
-                fields=['chain', 'contract_address'],
-                name='unique_contract_per_chain'
-            )
+                fields=["chain", "contract_address"], name="unique_contract_per_chain"
+            ),
         ]
 
     def __str__(self):
@@ -373,24 +402,27 @@ class Token(models.Model):
         if self.is_native:
             # Native tokens should not have contract address
             if self.contract_address:
-                raise ValidationError({
-                    'contract_address': 'Native tokens should not have a contract address'
-                })
+                raise ValidationError(
+                    {
+                        "contract_address": "Native tokens should not have a contract address"
+                    }
+                )
             # Check if another native token exists for this chain
-            existing = Token.objects.filter(
-                chain=self.chain,
-                is_native=True
-            ).exclude(pk=self.pk)
+            existing = Token.objects.filter(chain=self.chain, is_native=True).exclude(
+                pk=self.pk
+            )
             if existing.exists():
-                raise ValidationError({
-                    'is_native': f'Chain {self.chain} already has a native token'
-                })
+                raise ValidationError(
+                    {"is_native": f"Chain {self.chain} already has a native token"}
+                )
         else:
             # Non-native tokens must have contract address
             if not self.contract_address:
-                raise ValidationError({
-                    'contract_address': 'Non-native tokens must have a contract address'
-                })
+                raise ValidationError(
+                    {
+                        "contract_address": "Non-native tokens must have a contract address"
+                    }
+                )
 
     def save(self, *args, **kwargs):
         self.full_clean()
@@ -399,26 +431,26 @@ class Token(models.Model):
         # Update chain's native_token field if this is native
         if self.is_native:
             self.chain.native_token = self.symbol
-            self.chain.save(update_fields=['native_token'])
+            self.chain.save(update_fields=["native_token"])
 
-    def get_redis_key(self, subnet='mainnet'):
+    def get_redis_key(self, subnet="mainnet"):
         """Generate Redis key for this token"""
         if self.is_native:
             return f"native_token:{self.chain.name}:{subnet}"
         return f"token:{self.chain.name}:{self.contract_address}"
 
-    def to_redis_dict(self, subnet='mainnet'):
+    def to_redis_dict(self, subnet="mainnet"):
         """Convert to dictionary for Redis storage"""
         return {
-            'symbol': self.symbol,
-            'name': self.name,
-            'decimals': self.decimals,
-            'is_native': self.is_native,
-            'contract_address': self.contract_address,
-            'chain_name': self.chain.name,
-            'chain_display_name': self.chain.display_name,
-            'network': self.chain.name,
-            'subnet': subnet
+            "symbol": self.symbol,
+            "name": self.name,
+            "decimals": self.decimals,
+            "is_native": self.is_native,
+            "contract_address": self.contract_address,
+            "chain_name": self.chain.name,
+            "chain_display_name": self.chain.display_name,
+            "network": self.chain.name,
+            "subnet": subnet,
         }
 
 
@@ -433,9 +465,9 @@ class Image(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'images'
-        verbose_name = 'Image'
-        verbose_name_plural = 'Images'
+        db_table = "images"
+        verbose_name = "Image"
+        verbose_name_plural = "Images"
 
     def __str__(self):
         return self.url
@@ -457,9 +489,9 @@ class Story(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'story'
-        verbose_name = 'Story'
-        verbose_name_plural = 'Stories'
+        db_table = "story"
+        verbose_name = "Story"
+        verbose_name_plural = "Stories"
 
     def __str__(self):
         return self.title or f"Story {self.id}"
@@ -468,22 +500,24 @@ class Story(models.Model):
 class BlockchainStory(models.Model):
     """Many-to-many relationship between stories and blockchains"""
 
-    story = models.ForeignKey(Story, on_delete=models.CASCADE, related_name='blockchain_stories')
+    story = models.ForeignKey(
+        Story, on_delete=models.CASCADE, related_name="blockchain_stories"
+    )
     blockchain = models.ForeignKey(
         Blockchain,
         on_delete=models.CASCADE,
-        to_field='symbol',
-        db_column='blockchain_symbol'
+        to_field="symbol",
+        db_column="blockchain_symbol",
     )
 
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = 'story_blockchain'
-        verbose_name = 'Blockchain Story'
-        verbose_name_plural = 'Blockchain Stories'
-        unique_together = [['story', 'blockchain']]
+        db_table = "story_blockchain"
+        verbose_name = "Blockchain Story"
+        verbose_name_plural = "Blockchain Stories"
+        unique_together = [["story", "blockchain"]]
 
     def __str__(self):
         return f"{self.story.title} - {self.blockchain.symbol}"
@@ -500,9 +534,9 @@ class Tag(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'tags'
-        verbose_name = 'Tag'
-        verbose_name_plural = 'Tags'
+        db_table = "tags"
+        verbose_name = "Tag"
+        verbose_name_plural = "Tags"
 
     def __str__(self):
         return self.name
@@ -512,20 +546,26 @@ class WalletBalance(models.Model):
     """Wallet balance history tracking"""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    wallet = models.ForeignKey(Wallet, on_delete=models.CASCADE, related_name='balance_history')
+    wallet = models.ForeignKey(
+        Wallet, on_delete=models.CASCADE, related_name="balance_history"
+    )
     balance = models.CharField(max_length=255)  # Handle large numbers as string
-    token_price = models.CharField(max_length=255, null=True, blank=True)  # Token price in USD
-    fiat_value = models.CharField(max_length=255, null=True, blank=True)  # Fiat value in USD
+    token_price = models.CharField(
+        max_length=255, null=True, blank=True
+    )  # Token price in USD
+    fiat_value = models.CharField(
+        max_length=255, null=True, blank=True
+    )  # Fiat value in USD
     timestamp = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = 'wallet_balances'
-        verbose_name = 'Wallet Balance'
-        verbose_name_plural = 'Wallet Balances'
+        db_table = "wallet_balances"
+        verbose_name = "Wallet Balance"
+        verbose_name_plural = "Wallet Balances"
         indexes = [
-            models.Index(fields=['wallet']),
-            models.Index(fields=['timestamp']),
-            models.Index(fields=['wallet', 'timestamp']),
+            models.Index(fields=["wallet"]),
+            models.Index(fields=["timestamp"]),
+            models.Index(fields=["wallet", "timestamp"]),
         ]
 
     def __str__(self):
@@ -537,13 +577,9 @@ def get_redis_client():
     """Get Redis client instance"""
     try:
         import redis
+
         # TODO: Get Redis configuration from Django settings
-        return redis.Redis(
-            host='localhost',
-            port=6379,
-            db=0,
-            decode_responses=True
-        )
+        return redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
     except ImportError:
         print("Redis not installed, skipping Redis population")
         return None
@@ -562,7 +598,7 @@ def populate_redis_on_token_save(sender, instance, created, **kwargs):
             return
 
         # For native tokens, create entries for common subnets
-        subnets = ['mainnet', 'testnet', 'devnet']
+        subnets = ["mainnet", "testnet", "devnet"]
         for subnet in subnets:
             redis_key = instance.get_redis_key(subnet)
             redis_value = json.dumps(instance.to_redis_dict(subnet))
@@ -574,7 +610,9 @@ def populate_redis_on_token_save(sender, instance, created, **kwargs):
             mapping_key = f"token_mapping:{instance.chain.name}:{subnet}"
             redis_client.set(mapping_key, instance.symbol)
 
-        print(f"✅ Redis populated with native token: {instance.symbol} for {instance.chain.name}")
+        print(
+            f"✅ Redis populated with native token: {instance.symbol} for {instance.chain.name}"
+        )
     except Exception as e:
         print(f"❌ Failed to populate Redis for token {instance.symbol}: {e}")
 
@@ -591,7 +629,7 @@ def remove_from_redis_on_token_delete(sender, instance, **kwargs):
             return
 
         # Remove entries for all subnets
-        subnets = ['mainnet', 'testnet', 'devnet']
+        subnets = ["mainnet", "testnet", "devnet"]
         for subnet in subnets:
             redis_key = instance.get_redis_key(subnet)
             mapping_key = f"token_mapping:{instance.chain.name}:{subnet}"
@@ -613,6 +651,6 @@ def update_chain_native_token(sender, instance, created, **kwargs):
         native_token = instance.get_native_token()
         if native_token and instance.native_token != native_token.symbol:
             instance.native_token = native_token.symbol
-            instance.save(update_fields=['native_token'])
+            instance.save(update_fields=["native_token"])
     except Exception as e:
         print(f"❌ Failed to update native token for chain {instance.name}: {e}")

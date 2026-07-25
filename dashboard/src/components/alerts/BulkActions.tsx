@@ -1,10 +1,10 @@
 /**
  * Bulk Actions Component
- * 
+ *
  * Bulk operations for selected alerts
  */
 
-import { useState } from 'react'
+import { useState } from "react";
 import {
   Group,
   Button,
@@ -17,10 +17,10 @@ import {
   Select,
   Textarea,
   Alert,
-} from '@mantine/core'
-import { useDisclosure } from '@mantine/hooks'
-import { modals } from '@mantine/modals'
-import { notifications } from '@mantine/notifications'
+} from "@mantine/core";
+import { useDisclosure } from "@mantine/hooks";
+import { modals } from "@mantine/modals";
+import { notifications } from "@mantine/notifications";
 import {
   IconX,
   IconChevronDown,
@@ -32,151 +32,152 @@ import {
   IconDownload,
   IconAlertCircle,
   IconCheck,
-} from '@tabler/icons-react'
-import { useAlertStore } from '../../store/alerts'
+} from "@tabler/icons-react";
+import { useAlertStore } from "../../store/alerts";
 
 interface BulkActionsProps {
-  selectedCount: number
-  onClearSelection: () => void
+  selectedCount: number;
+  onClearSelection: () => void;
 }
 
-export function BulkActions({ selectedCount, onClearSelection }: BulkActionsProps) {
-  const [editModalOpened, { open: openEditModal, close: closeEditModal }] = useDisclosure(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const [editField, setEditField] = useState<string>('')
-  const [editValue, setEditValue] = useState<string>('')
+export function BulkActions({
+  selectedCount,
+  onClearSelection,
+}: BulkActionsProps) {
+  const [editModalOpened, { open: openEditModal, close: closeEditModal }] =
+    useDisclosure(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [editField, setEditField] = useState<string>("");
+  const [editValue, setEditValue] = useState<string>("");
 
-  const { 
-    selectedAlerts, 
-    bulkUpdateAlerts, 
-    bulkDeleteAlerts,
-    alerts 
-  } = useAlertStore()
+  const { selectedAlerts, bulkUpdateAlerts, bulkDeleteAlerts, alerts } =
+    useAlertStore();
 
   const handleBulkEnable = async () => {
-    setIsLoading(true)
+    setIsLoading(true);
     try {
-      const success = await bulkUpdateAlerts({ enabled: true })
+      const success = await bulkUpdateAlerts({ enabled: true });
       if (success) {
         notifications.show({
-          title: 'Alerts enabled',
+          title: "Alerts enabled",
           message: `${selectedCount} alerts have been enabled`,
-          color: 'green',
+          color: "green",
           icon: <IconPlayerPlay size="1rem" />,
-        })
-        onClearSelection()
+        });
+        onClearSelection();
       }
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleBulkDisable = async () => {
-    setIsLoading(true)
+    setIsLoading(true);
     try {
-      const success = await bulkUpdateAlerts({ enabled: false })
+      const success = await bulkUpdateAlerts({ enabled: false });
       if (success) {
         notifications.show({
-          title: 'Alerts disabled',
+          title: "Alerts disabled",
           message: `${selectedCount} alerts have been disabled`,
-          color: 'orange',
+          color: "orange",
           icon: <IconPlayerPause size="1rem" />,
-        })
-        onClearSelection()
+        });
+        onClearSelection();
       }
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleBulkDelete = () => {
     modals.openConfirmModal({
-      title: 'Delete Selected Alerts',
+      title: "Delete Selected Alerts",
       children: (
         <Stack gap="md">
           <Text size="sm">
-            Are you sure you want to delete {selectedCount} selected alerts? 
+            Are you sure you want to delete {selectedCount} selected alerts?
             This action cannot be undone.
           </Text>
           <Alert color="red" icon={<IconAlertCircle size="1rem" />}>
             <Text size="sm">
-              This will permanently delete all selected alerts and their execution history.
+              This will permanently delete all selected alerts and their
+              execution history.
             </Text>
           </Alert>
         </Stack>
       ),
-      labels: { confirm: 'Delete', cancel: 'Cancel' },
-      confirmProps: { color: 'red' },
+      labels: { confirm: "Delete", cancel: "Cancel" },
+      confirmProps: { color: "red" },
       onConfirm: async () => {
-        setIsLoading(true)
+        setIsLoading(true);
         try {
-          const success = await bulkDeleteAlerts()
+          const success = await bulkDeleteAlerts();
           if (success) {
             notifications.show({
-              title: 'Alerts deleted',
+              title: "Alerts deleted",
               message: `${selectedCount} alerts have been deleted`,
-              color: 'green',
+              color: "green",
               icon: <IconTrash size="1rem" />,
-            })
-            onClearSelection()
+            });
+            onClearSelection();
           }
         } finally {
-          setIsLoading(false)
+          setIsLoading(false);
         }
       },
-    })
-  }
+    });
+  };
 
   const handleBulkEdit = () => {
-    setEditField('')
-    setEditValue('')
-    openEditModal()
-  }
+    setEditField("");
+    setEditValue("");
+    openEditModal();
+  };
 
   const handleEditSubmit = async () => {
-    if (!editField || !editValue) return
+    if (!editField || !editValue) return;
 
-    setIsLoading(true)
+    setIsLoading(true);
     try {
-      const updates: any = {}
-      
-      if (editField === 'description') {
-        updates.description = editValue
+      const updates: any = {};
+
+      if (editField === "description") {
+        updates.description = editValue;
       }
       // Add more fields as needed
 
-      const success = await bulkUpdateAlerts(updates)
+      const success = await bulkUpdateAlerts(updates);
       if (success) {
         notifications.show({
-          title: 'Alerts updated',
+          title: "Alerts updated",
           message: `${selectedCount} alerts have been updated`,
-          color: 'green',
+          color: "green",
           icon: <IconCheck size="1rem" />,
-        })
-        onClearSelection()
-        closeEditModal()
+        });
+        onClearSelection();
+        closeEditModal();
       }
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleBulkExport = () => {
     // This would trigger the export functionality
     notifications.show({
-      title: 'Export started',
+      title: "Export started",
       message: `Exporting ${selectedCount} selected alerts`,
-      color: 'blue',
+      color: "blue",
       icon: <IconDownload size="1rem" />,
-    })
-  }
+    });
+  };
 
   const getSelectedAlertNames = () => {
     return selectedAlerts
-      .map(id => alerts.find(alert => alert.id === id)?.name)
+      .map((id) => alerts.find((alert) => alert.id === id)?.name)
       .filter(Boolean)
-      .slice(0, 3) // Show first 3 names
-  }
+      .slice(0, 3); // Show first 3 names
+  };
 
   return (
     <>
@@ -184,18 +185,18 @@ export function BulkActions({ selectedCount, onClearSelection }: BulkActionsProp
         justify="space-between"
         p="md"
         style={{
-          backgroundColor: 'var(--mantine-color-blue-0)',
-          border: '1px solid var(--mantine-color-blue-3)',
-          borderRadius: 'var(--mantine-radius-md)',
+          backgroundColor: "var(--mantine-color-blue-0)",
+          border: "1px solid var(--mantine-color-blue-3)",
+          borderRadius: "var(--mantine-radius-md)",
         }}
       >
         <Group gap="md">
           <Badge size="lg" variant="filled">
             {selectedCount} selected
           </Badge>
-          
+
           <Text size="sm" c="dimmed">
-            {getSelectedAlertNames().join(', ')}
+            {getSelectedAlertNames().join(", ")}
             {selectedCount > 3 && ` and ${selectedCount - 3} more`}
           </Text>
         </Group>
@@ -255,11 +256,7 @@ export function BulkActions({ selectedCount, onClearSelection }: BulkActionsProp
             </Menu.Dropdown>
           </Menu>
 
-          <ActionIcon
-            variant="subtle"
-            size="sm"
-            onClick={onClearSelection}
-          >
+          <ActionIcon variant="subtle" size="sm" onClick={onClearSelection}>
             <IconX size="1rem" />
           </ActionIcon>
         </Group>
@@ -281,14 +278,14 @@ export function BulkActions({ selectedCount, onClearSelection }: BulkActionsProp
             label="Field to Edit"
             placeholder="Select field"
             value={editField}
-            onChange={(value) => setEditField(value || '')}
+            onChange={(value) => setEditField(value || "")}
             data={[
-              { value: 'description', label: 'Description' },
+              { value: "description", label: "Description" },
               // Add more editable fields as needed
             ]}
           />
 
-          {editField === 'description' && (
+          {editField === "description" && (
             <Textarea
               label="New Description"
               placeholder="Enter new description"
@@ -299,10 +296,7 @@ export function BulkActions({ selectedCount, onClearSelection }: BulkActionsProp
           )}
 
           <Group justify="flex-end" gap="sm">
-            <Button
-              variant="subtle"
-              onClick={closeEditModal}
-            >
+            <Button variant="subtle" onClick={closeEditModal}>
               Cancel
             </Button>
             <Button
@@ -316,7 +310,7 @@ export function BulkActions({ selectedCount, onClearSelection }: BulkActionsProp
         </Stack>
       </Modal>
     </>
-  )
+  );
 }
 
-export default BulkActions
+export default BulkActions;

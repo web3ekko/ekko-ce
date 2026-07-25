@@ -4,8 +4,8 @@
  * Implements the new signup flow with 6-digit verification codes
  */
 
-import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
   TextInput,
   Button,
@@ -19,9 +19,9 @@ import {
   Progress,
   ThemeIcon,
   Loader,
-} from '@mantine/core'
-import { useForm } from '@mantine/form'
-import { notifications } from '@mantine/notifications'
+} from "@mantine/core";
+import { useForm } from "@mantine/form";
+import { notifications } from "@mantine/notifications";
 import {
   IconMail,
   IconAlertCircle,
@@ -29,195 +29,208 @@ import {
   IconShield,
   IconRefresh,
   IconArrowLeft,
-} from '@tabler/icons-react'
-import { authApiService } from '../../services/auth-api'
-import { useAuthStore } from '../../store/auth'
+} from "@tabler/icons-react";
+import { authApiService } from "../../services/auth-api";
+import { useAuthStore } from "../../store/auth";
 
-type SignupStep = 'email' | 'verify-code' | 'complete'
+type SignupStep = "email" | "verify-code" | "complete";
 
 interface SignupFormData {
-  email: string
+  email: string;
 }
 
 export function SignupPage() {
-  const [step, setStep] = useState<SignupStep>('email')
-  const [isLoading, setIsLoading] = useState(false)
-  const [email, setEmail] = useState('')
-  const [verificationCode, setVerificationCode] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [resendTimer, setResendTimer] = useState(0)
-  const [codeAttempts, setCodeAttempts] = useState(0)
+  const [step, setStep] = useState<SignupStep>("email");
+  const [isLoading, setIsLoading] = useState(false);
+  const [email, setEmail] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [resendTimer, setResendTimer] = useState(0);
+  const [codeAttempts, setCodeAttempts] = useState(0);
 
-  const navigate = useNavigate()
-  const { setUser, setTokens } = useAuthStore()
+  const navigate = useNavigate();
+  const { setUser, setTokens } = useAuthStore();
 
   const form = useForm<SignupFormData>({
     initialValues: {
-      email: '',
+      email: "",
     },
     validate: {
       email: (value) => {
-        if (!value) return 'Email is required'
-        if (!/^\S+@\S+\.\S+$/.test(value)) return 'Invalid email format'
-        return null
+        if (!value) return "Email is required";
+        if (!/^\S+@\S+\.\S+$/.test(value)) return "Invalid email format";
+        return null;
       },
     },
-  })
+  });
 
   // Countdown timer for resend code
   useEffect(() => {
     if (resendTimer > 0) {
-      const timer = setTimeout(() => setResendTimer(resendTimer - 1), 1000)
-      return () => clearTimeout(timer)
+      const timer = setTimeout(() => setResendTimer(resendTimer - 1), 1000);
+      return () => clearTimeout(timer);
     }
-  }, [resendTimer])
+  }, [resendTimer]);
 
   const handleEmailSubmit = async (values: SignupFormData) => {
-    setIsLoading(true)
-    setError(null)
+    setIsLoading(true);
+    setError(null);
 
     try {
       // Check if account already exists
-      const accountCheck = await authApiService.checkAccountStatus(values.email)
-      
+      const accountCheck = await authApiService.checkAccountStatus(
+        values.email,
+      );
+
       // Only block if account exists AND is active
-      if (accountCheck.status === 'active_account') {
-        setError('An active account already exists with this email. Please sign in instead.')
-        setIsLoading(false)
-        return
+      if (accountCheck.status === "active_account") {
+        setError(
+          "An active account already exists with this email. Please sign in instead.",
+        );
+        setIsLoading(false);
+        return;
       }
-      
+
       // For inactive accounts and new users, proceed with signup
       // This allows inactive users to complete their signup
 
       // Start signup process
-      const response = await authApiService.signup(values.email)
-      
+      const response = await authApiService.signup(values.email);
+
       if (response.success) {
-        setEmail(values.email)
-        setStep('verify-code')
-        setResendTimer(60) // 60 second cooldown
-        
+        setEmail(values.email);
+        setStep("verify-code");
+        setResendTimer(60); // 60 second cooldown
+
         notifications.show({
-          title: 'Verification code sent!',
+          title: "Verification code sent!",
           message: `We've sent a 6-digit code to ${values.email}`,
-          color: 'green',
+          color: "green",
           icon: <IconMail size={16} />,
-        })
+        });
       }
     } catch (error: any) {
-      console.error('Signup error:', error)
-      setError(error.response?.data?.error || 'Failed to send verification code')
+      console.error("Signup error:", error);
+      setError(
+        error.response?.data?.error || "Failed to send verification code",
+      );
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleVerifyCode = async () => {
     if (verificationCode.length !== 6) {
-      setError('Please enter the complete 6-digit code')
-      return
+      setError("Please enter the complete 6-digit code");
+      return;
     }
 
-    setIsLoading(true)
-    setError(null)
+    setIsLoading(true);
+    setError(null);
 
     try {
-      const response = await authApiService.verifySignupCode(email, verificationCode)
-      
+      const response = await authApiService.verifySignupCode(
+        email,
+        verificationCode,
+      );
+
       if (response.success && response.token) {
         if (response.user) {
           const user = {
             ...response.user,
-            first_name: '',
-            last_name: '',
-            full_name: response.user.name || '',
-            preferred_auth_method: 'email' as const,
+            first_name: "",
+            last_name: "",
+            full_name: response.user.name || "",
+            preferred_auth_method: "email" as const,
             is_email_verified: true,
             has_passkey: false,
             has_2fa: false,
-          }
-          setUser(user)
+          };
+          setUser(user);
         }
 
-        setTokens({ access: response.token, refresh: response.token })
-        setStep('complete')
+        setTokens({ access: response.token, refresh: response.token });
+        setStep("complete");
 
         notifications.show({
-          title: 'Account created successfully!',
-          message: 'Your email has been verified and your account is ready.',
-          color: 'green',
+          title: "Account created successfully!",
+          message: "Your email has been verified and your account is ready.",
+          color: "green",
           icon: <IconCheck size={16} />,
-        })
+        });
 
-        localStorage.setItem('showWelcomeMessage', 'true')
+        localStorage.setItem("showWelcomeMessage", "true");
 
         setTimeout(() => {
-          navigate('/dashboard')
-        }, 2000)
+          navigate("/dashboard");
+        }, 2000);
       } else {
-        setError(response.message || 'Invalid code. Please try again.')
+        setError(response.message || "Invalid code. Please try again.");
       }
     } catch (error: any) {
-      console.error('Verify code error:', error)
-      setCodeAttempts(codeAttempts + 1)
-      
+      console.error("Verify code error:", error);
+      setCodeAttempts(codeAttempts + 1);
+
       if (codeAttempts >= 2) {
-        setError('Too many failed attempts. Please request a new code.')
+        setError("Too many failed attempts. Please request a new code.");
       } else {
-        setError('Invalid code. Please try again.')
+        setError("Invalid code. Please try again.");
       }
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleResendCode = async () => {
-    if (resendTimer > 0) return
+    if (resendTimer > 0) return;
 
-    setIsLoading(true)
-    setError(null)
+    setIsLoading(true);
+    setError(null);
 
     try {
-      const response = await authApiService.resendCode(email, 'signup')
-      
+      const response = await authApiService.resendCode(email, "signup");
+
       if (response.success) {
-        setResendTimer(60)
-        setCodeAttempts(0)
-        setVerificationCode('')
-        
+        setResendTimer(60);
+        setCodeAttempts(0);
+        setVerificationCode("");
+
         notifications.show({
-          title: 'New code sent!',
-          message: 'Check your email for the new verification code',
-          color: 'green',
+          title: "New code sent!",
+          message: "Check your email for the new verification code",
+          color: "green",
           icon: <IconMail size={16} />,
-        })
+        });
       }
     } catch (error: any) {
-      console.error('Resend code error:', error)
-      setError(error.response?.data?.error || 'Failed to resend code')
+      console.error("Resend code error:", error);
+      setError(error.response?.data?.error || "Failed to resend code");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const getStepProgress = () => {
     switch (step) {
-      case 'email': return 0
-      case 'verify-code': return 50
-      case 'complete': return 100
-      default: return 0
+      case "email":
+        return 0;
+      case "verify-code":
+        return 50;
+      case "complete":
+        return 100;
+      default:
+        return 0;
     }
-  }
+  };
 
   // Render different steps
   const renderStep = () => {
     switch (step) {
-      case 'email':
+      case "email":
         return (
           <form onSubmit={form.onSubmit(handleEmailSubmit)}>
             <Stack gap="md">
-              <div style={{ textAlign: 'center' }}>
+              <div style={{ textAlign: "center" }}>
                 <Title order={2}>Enter your email</Title>
                 <Text c="dimmed" mt="sm">
                   We'll send you a verification code
@@ -234,7 +247,7 @@ export function SignupPage() {
                 label="Email address"
                 placeholder="your@email.com"
                 required
-                {...form.getInputProps('email')}
+                {...form.getInputProps("email")}
                 leftSection={<IconMail size={16} />}
               />
 
@@ -257,9 +270,9 @@ export function SignupPage() {
               </Group>
             </Stack>
           </form>
-        )
+        );
 
-      case 'verify-code':
+      case "verify-code":
         return (
           <Stack gap="md">
             <Group justify="space-between" mb="md">
@@ -267,16 +280,16 @@ export function SignupPage() {
                 variant="subtle"
                 leftSection={<IconArrowLeft size={16} />}
                 onClick={() => {
-                  setStep('email')
-                  setVerificationCode('')
-                  setError(null)
+                  setStep("email");
+                  setVerificationCode("");
+                  setError(null);
                 }}
               >
                 Back
               </Button>
             </Group>
 
-            <div style={{ textAlign: 'center' }}>
+            <div style={{ textAlign: "center" }}>
               <Title order={2}>Enter verification code</Title>
               <Text c="dimmed" mt="sm">
                 We sent a 6-digit code to <strong>{email}</strong>
@@ -297,9 +310,9 @@ export function SignupPage() {
               size="lg"
               styles={{
                 input: {
-                  textAlign: 'center',
-                  fontFamily: 'monospace',
-                  fontSize: '1.5rem',
+                  textAlign: "center",
+                  fontFamily: "monospace",
+                  fontSize: "1.5rem",
                 },
               }}
               autoFocus
@@ -327,15 +340,15 @@ export function SignupPage() {
                 disabled={resendTimer > 0}
                 fullWidth
               >
-                {resendTimer > 0 
-                  ? `Resend code in ${resendTimer}s` 
-                  : 'Resend code'}
+                {resendTimer > 0
+                  ? `Resend code in ${resendTimer}s`
+                  : "Resend code"}
               </Button>
             </Stack>
           </Stack>
-        )
+        );
 
-      case 'complete':
+      case "complete":
         return (
           <Stack gap="md" align="center">
             <ThemeIcon size="xl" radius="xl" color="green">
@@ -350,16 +363,16 @@ export function SignupPage() {
               Redirecting to dashboard...
             </Text>
           </Stack>
-        )
+        );
     }
-  }
+  };
 
   return (
     <Stack gap="xl">
       {/* Progress indicator */}
       <Progress value={getStepProgress()} size="sm" radius="xl" />
-      
+
       {renderStep()}
     </Stack>
-  )
+  );
 }

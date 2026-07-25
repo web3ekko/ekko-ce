@@ -1,10 +1,10 @@
 /**
  * Template Selection Component
- * 
+ *
  * Browse and select alert templates with categories and search
  */
 
-import { useState } from 'react'
+import { useState } from "react";
 import {
   Stack,
   Title,
@@ -18,7 +18,7 @@ import {
   Grid,
   Center,
   Loader,
-} from '@mantine/core'
+} from "@mantine/core";
 import {
   IconSearch,
   IconTemplate,
@@ -26,66 +26,79 @@ import {
   IconUsers,
   IconArrowLeft,
   IconArrowRight,
-} from '@tabler/icons-react'
-import { EmptyState } from '../common/EmptyState'
-import type { AlertTemplate, TemplateCategory } from '../../types/alerts'
+} from "@tabler/icons-react";
+import { EmptyState } from "../common/EmptyState";
+import type { AlertTemplate, TemplateCategory } from "../../types/alerts";
 
 interface TemplateSelectionProps {
-  templates: AlertTemplate[]
-  onTemplateSelect: (template: AlertTemplate) => void
-  onBack: () => void
+  templates: AlertTemplate[];
+  onTemplateSelect: (template: AlertTemplate) => void;
+  onBack: () => void;
 }
 
 const CATEGORY_OPTIONS = [
-  { value: '', label: 'All Categories' },
-  { value: 'account_monitoring', label: 'Account Monitoring' },
-  { value: 'contract_events', label: 'Contract Events' },
-  { value: 'defi_protocols', label: 'DeFi Protocols' },
-  { value: 'nft_tracking', label: 'NFT Tracking' },
-  { value: 'governance', label: 'Governance' },
-  { value: 'security', label: 'Security' },
-  { value: 'performance', label: 'Performance' },
-  { value: 'custom', label: 'Custom' },
-]
+  { value: "", label: "All Categories" },
+  { value: "account_monitoring", label: "Account Monitoring" },
+  { value: "contract_events", label: "Contract Events" },
+  { value: "defi_protocols", label: "DeFi Protocols" },
+  { value: "nft_tracking", label: "NFT Tracking" },
+  { value: "governance", label: "Governance" },
+  { value: "security", label: "Security" },
+  { value: "performance", label: "Performance" },
+  { value: "custom", label: "Custom" },
+];
 
-export function TemplateSelection({ 
-  templates, 
-  onTemplateSelect, 
-  onBack 
+export function TemplateSelection({
+  templates,
+  onTemplateSelect,
+  onBack,
 }: TemplateSelectionProps) {
-  const [searchQuery, setSearchQuery] = useState('')
-  const [selectedCategory, setSelectedCategory] = useState<string>('')
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
 
   // Filter templates based on search and category
-  const filteredTemplates = templates.filter(template => {
-    const matchesSearch = !searchQuery || 
+  const filteredTemplates = templates.filter((template) => {
+    const matchesSearch =
+      !searchQuery ||
       template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       template.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      template.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-    
-    const matchesCategory = !selectedCategory || template.category === selectedCategory
-    
-    return matchesSearch && matchesCategory
-  })
+      template.tags.some((tag) =>
+        tag.toLowerCase().includes(searchQuery.toLowerCase()),
+      );
+
+    const matchesCategory =
+      !selectedCategory || template.category === selectedCategory;
+
+    return matchesSearch && matchesCategory;
+  });
 
   const getCategoryLabel = (category: TemplateCategory) => {
-    const option = CATEGORY_OPTIONS.find(opt => opt.value === category)
-    return option?.label || category
-  }
+    const option = CATEGORY_OPTIONS.find((opt) => opt.value === category);
+    return option?.label || category;
+  };
 
   const getCategoryColor = (category: TemplateCategory) => {
     switch (category) {
-      case 'account_monitoring': return 'blue'
-      case 'contract_events': return 'green'
-      case 'defi_protocols': return 'purple'
-      case 'nft_tracking': return 'pink'
-      case 'governance': return 'orange'
-      case 'security': return 'red'
-      case 'performance': return 'yellow'
-      case 'custom': return 'gray'
-      default: return 'gray'
+      case "account_monitoring":
+        return "blue";
+      case "contract_events":
+        return "green";
+      case "defi_protocols":
+        return "purple";
+      case "nft_tracking":
+        return "pink";
+      case "governance":
+        return "orange";
+      case "security":
+        return "red";
+      case "performance":
+        return "yellow";
+      case "custom":
+        return "gray";
+      default:
+        return "gray";
     }
-  }
+  };
 
   if (templates.length === 0) {
     return (
@@ -95,13 +108,13 @@ export function TemplateSelection({
           <Text>Loading templates...</Text>
         </Stack>
       </Center>
-    )
+    );
   }
 
   return (
     <Stack gap="xl">
       {/* Header */}
-      <div style={{ textAlign: 'center' }}>
+      <div style={{ textAlign: "center" }}>
         <Title order={3}>Choose an Alert Template</Title>
         <Text c="dimmed" mt="sm">
           Select a pre-built template to get started quickly
@@ -116,12 +129,12 @@ export function TemplateSelection({
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
-        
+
         <Select
           placeholder="All Categories"
           data={CATEGORY_OPTIONS}
           value={selectedCategory}
-          onChange={(value) => setSelectedCategory(value || '')}
+          onChange={(value) => setSelectedCategory(value || "")}
           clearable
         />
       </Group>
@@ -142,19 +155,19 @@ export function TemplateSelection({
                 padding="lg"
                 radius="md"
                 withBorder
-                style={{ 
-                  cursor: 'pointer',
-                  height: '100%',
-                  transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                style={{
+                  cursor: "pointer",
+                  height: "100%",
+                  transition: "transform 0.2s ease, box-shadow 0.2s ease",
                 }}
                 onClick={() => onTemplateSelect(template)}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)'
-                  e.currentTarget.style.boxShadow = 'var(--mantine-shadow-md)'
+                  e.currentTarget.style.transform = "translateY(-2px)";
+                  e.currentTarget.style.boxShadow = "var(--mantine-shadow-md)";
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)'
-                  e.currentTarget.style.boxShadow = 'var(--mantine-shadow-sm)'
+                  e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.boxShadow = "var(--mantine-shadow-sm)";
                 }}
               >
                 <Stack gap="md" h="100%">
@@ -167,11 +180,13 @@ export function TemplateSelection({
                     >
                       {getCategoryLabel(template.category)}
                     </Badge>
-                    
+
                     {template.is_public && (
                       <Group gap="xs">
                         <IconUsers size="0.875rem" />
-                        <Text size="xs" c="dimmed">Public</Text>
+                        <Text size="xs" c="dimmed">
+                          Public
+                        </Text>
                       </Group>
                     )}
                   </Group>
@@ -181,7 +196,7 @@ export function TemplateSelection({
                     <Title order={5} lineClamp={2}>
                       {template.name}
                     </Title>
-                    
+
                     <Text size="sm" c="dimmed" lineClamp={3}>
                       {template.description}
                     </Text>
@@ -212,14 +227,12 @@ export function TemplateSelection({
                   <Group justify="space-between" align="center">
                     <Group gap="xs">
                       <IconStar size="0.875rem" />
-                      <Text size="sm">
-                        {template.rating.toFixed(1)}
-                      </Text>
+                      <Text size="sm">{template.rating.toFixed(1)}</Text>
                       <Text size="xs" c="dimmed">
                         ({template.reviews_count})
                       </Text>
                     </Group>
-                    
+
                     <Text size="xs" c="dimmed">
                       Used {template.usage_count} times
                     </Text>
@@ -240,13 +253,14 @@ export function TemplateSelection({
         >
           Back
         </Button>
-        
+
         <Text size="sm" c="dimmed">
-          {filteredTemplates.length} template{filteredTemplates.length !== 1 ? 's' : ''} available
+          {filteredTemplates.length} template
+          {filteredTemplates.length !== 1 ? "s" : ""} available
         </Text>
       </Group>
     </Stack>
-  )
+  );
 }
 
-export default TemplateSelection
+export default TemplateSelection;

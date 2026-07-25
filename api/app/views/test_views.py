@@ -19,7 +19,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-@api_view(['GET'])
+@api_view(["GET"])
 @permission_classes([AllowAny])
 def get_verification_code(request):
     """
@@ -52,56 +52,59 @@ def get_verification_code(request):
             "Attempted to access test verification endpoint in production mode"
         )
         return Response(
-            {'error': 'Not available in production'},
-            status=status.HTTP_403_FORBIDDEN
+            {"error": "Not available in production"}, status=status.HTTP_403_FORBIDDEN
         )
 
-    email = request.query_params.get('email')
-    purpose = request.query_params.get('purpose', 'signup')
+    email = request.query_params.get("email")
+    purpose = request.query_params.get("purpose", "signup")
 
     if not email:
         return Response(
-            {'error': 'email parameter required'},
-            status=status.HTTP_400_BAD_REQUEST
+            {"error": "email parameter required"}, status=status.HTTP_400_BAD_REQUEST
         )
 
     # Validate purpose
-    valid_purposes = ['signup', 'signin', 'recovery']
+    valid_purposes = ["signup", "signin", "recovery"]
     if purpose not in valid_purposes:
         return Response(
-            {'error': f'Invalid purpose. Must be one of: {valid_purposes}'},
-            status=status.HTTP_400_BAD_REQUEST
+            {"error": f"Invalid purpose. Must be one of: {valid_purposes}"},
+            status=status.HTTP_400_BAD_REQUEST,
         )
 
     # Find the most recent valid (unused, unexpired) code
-    code = EmailVerificationCode.objects.filter(
-        email__iexact=email,
-        purpose=purpose,
-        used_at__isnull=True,
-        expires_at__gt=timezone.now()
-    ).order_by('-created_at').first()
+    code = (
+        EmailVerificationCode.objects.filter(
+            email__iexact=email,
+            purpose=purpose,
+            used_at__isnull=True,
+            expires_at__gt=timezone.now(),
+        )
+        .order_by("-created_at")
+        .first()
+    )
 
     if code:
         logger.debug(
             f"[E2E Test] Returning verification code for {email} (purpose: {purpose})"
         )
-        return Response({
-            'code': code.code,
-            'expires_at': code.expires_at.isoformat(),
-            'purpose': code.purpose,
-            'created_at': code.created_at.isoformat()
-        })
+        return Response(
+            {
+                "code": code.code,
+                "expires_at": code.expires_at.isoformat(),
+                "purpose": code.purpose,
+                "created_at": code.created_at.isoformat(),
+            }
+        )
 
     logger.debug(
         f"[E2E Test] No valid verification code found for {email} (purpose: {purpose})"
     )
     return Response(
-        {'code': None, 'error': 'No valid code found'},
-        status=status.HTTP_404_NOT_FOUND
+        {"code": None, "error": "No valid code found"}, status=status.HTTP_404_NOT_FOUND
     )
 
 
-@api_view(['GET'])
+@api_view(["GET"])
 @permission_classes([AllowAny])
 def health_check(request):
     """
@@ -110,8 +113,10 @@ def health_check(request):
     Returns:
         200: { "status": "ok", "debug_mode": true/false }
     """
-    return Response({
-        'status': 'ok',
-        'debug_mode': settings.DEBUG,
-        'test_endpoints_available': settings.DEBUG
-    })
+    return Response(
+        {
+            "status": "ok",
+            "debug_mode": settings.DEBUG,
+            "test_endpoints_available": settings.DEBUG,
+        }
+    )

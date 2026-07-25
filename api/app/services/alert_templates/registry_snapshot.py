@@ -30,4 +30,3 @@ def get_registry_snapshot() -> Dict[str, str]:
         "version": version,
         "hash": f"sha256:{digest}",
     }
-

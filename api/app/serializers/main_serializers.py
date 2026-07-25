@@ -5,7 +5,10 @@ Django REST Framework Serializers for Enhanced Alert System
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from ..models.alerts import (
-    AlertInstance, AlertChangeLog, AlertExecution, DefaultNetworkAlert
+    AlertInstance,
+    AlertChangeLog,
+    AlertExecution,
+    DefaultNetworkAlert,
 )
 
 User = get_user_model()
@@ -13,35 +16,77 @@ User = get_user_model()
 
 class AlertChangeLogSerializer(serializers.ModelSerializer):
     """Serializer for Alert Change Logs"""
-    changed_by_email = serializers.EmailField(source='changed_by.email', read_only=True)
-    alert_instance_name = serializers.CharField(source='alert_instance.name', read_only=True)
+
+    changed_by_email = serializers.EmailField(source="changed_by.email", read_only=True)
+    alert_instance_name = serializers.CharField(
+        source="alert_instance.name", read_only=True
+    )
 
     class Meta:
         model = AlertChangeLog
         fields = [
-            'id', 'alert_instance', 'alert_instance_name', 'from_version', 'to_version',
-            'change_type', 'changed_fields', 'old_values', 'new_values',
-            'changed_by', 'changed_by_email', 'change_reason', 'created_at'
+            "id",
+            "alert_instance",
+            "alert_instance_name",
+            "from_version",
+            "to_version",
+            "change_type",
+            "changed_fields",
+            "old_values",
+            "new_values",
+            "changed_by",
+            "changed_by_email",
+            "change_reason",
+            "created_at",
         ]
-        read_only_fields = ['id', 'created_at', 'changed_by_email', 'alert_instance_name']
+        read_only_fields = [
+            "id",
+            "created_at",
+            "changed_by_email",
+            "alert_instance_name",
+        ]
 
 
 class AlertExecutionSerializer(serializers.ModelSerializer):
     """Serializer for Alert Executions - Consolidated model tracking execution and retries"""
 
-    alert_instance_name = serializers.CharField(source='alert_instance.name', read_only=True)
+    alert_instance_name = serializers.CharField(
+        source="alert_instance.name", read_only=True
+    )
     execution_time = serializers.SerializerMethodField()
 
     class Meta:
         model = AlertExecution
         fields = [
-            'id', 'alert_instance', 'alert_instance_name', 'attempt_number', 'max_retries',
-            'frozen_spec', 'started_at', 'completed_at', 'status', 'result',
-            'result_data', 'result_metadata', 'execution_time_ms', 'rows_processed',
-            'data_sources_used', 'error_message', 'error_details', 'execution_time',
-            'created_at', 'updated_at'
+            "id",
+            "alert_instance",
+            "alert_instance_name",
+            "attempt_number",
+            "max_retries",
+            "frozen_spec",
+            "started_at",
+            "completed_at",
+            "status",
+            "result",
+            "result_data",
+            "result_metadata",
+            "execution_time_ms",
+            "rows_processed",
+            "data_sources_used",
+            "error_message",
+            "error_details",
+            "execution_time",
+            "created_at",
+            "updated_at",
         ]
-        read_only_fields = ['id', 'started_at', 'created_at', 'updated_at', 'alert_instance_name', 'execution_time']
+        read_only_fields = [
+            "id",
+            "started_at",
+            "created_at",
+            "updated_at",
+            "alert_instance_name",
+            "execution_time",
+        ]
 
     def get_execution_time(self, obj):
         """Get execution time in seconds"""
@@ -51,8 +96,10 @@ class AlertExecutionSerializer(serializers.ModelSerializer):
 class AlertInstanceSerializer(serializers.ModelSerializer):
     """Serializer for AlertInstance model - User's subscription to a template or standalone alert"""
 
-    user_email = serializers.EmailField(source='user.email', read_only=True)
-    template_name = serializers.CharField(source='template.name', read_only=True, allow_null=True)
+    user_email = serializers.EmailField(source="user.email", read_only=True)
+    template_name = serializers.CharField(
+        source="template.name", read_only=True, allow_null=True
+    )
     spec = serializers.SerializerMethodField(read_only=True)
     chains = serializers.SerializerMethodField()
     trigger_mode = serializers.SerializerMethodField()
@@ -63,17 +110,48 @@ class AlertInstanceSerializer(serializers.ModelSerializer):
     class Meta:
         model = AlertInstance
         fields = [
-            'id', 'name', 'nl_description', 'spec', 'event_type', 'sub_event',
-            'sub_event_confidence', 'sub_event_proposed',
-            'template', 'template_version', 'template_name',
-            'trigger_type', 'trigger_config',
-            'template_params', 'alert_type', 'target_group', 'target_keys',
-            'target_group_name', 'target_group_type',
-            'version', 'enabled', 'user', 'user_email', 'author',
-            'chains', 'trigger_mode', 'priority', 'processing_status', 'processing_error',
-            'created_at', 'updated_at'
+            "id",
+            "name",
+            "nl_description",
+            "spec",
+            "event_type",
+            "sub_event",
+            "sub_event_confidence",
+            "sub_event_proposed",
+            "template",
+            "template_version",
+            "template_name",
+            "trigger_type",
+            "trigger_config",
+            "template_params",
+            "alert_type",
+            "target_group",
+            "target_keys",
+            "target_group_name",
+            "target_group_type",
+            "version",
+            "enabled",
+            "user",
+            "user_email",
+            "author",
+            "chains",
+            "trigger_mode",
+            "priority",
+            "processing_status",
+            "processing_error",
+            "created_at",
+            "updated_at",
         ]
-        read_only_fields = ['id', 'version', 'created_at', 'updated_at', 'user', 'spec', 'processing_status', 'processing_error']
+        read_only_fields = [
+            "id",
+            "version",
+            "created_at",
+            "updated_at",
+            "user",
+            "spec",
+            "processing_status",
+            "processing_error",
+        ]
 
     def get_spec(self, obj):
         """Get computed spec from template or standalone"""
@@ -93,15 +171,15 @@ class AlertInstanceSerializer(serializers.ModelSerializer):
 
     def get_target_group_name(self, obj):
         """Get target group name (if targeting a group)."""
-        if getattr(obj, 'target_group', None) is None:
+        if getattr(obj, "target_group", None) is None:
             return None
-        return getattr(obj.target_group, 'name', None)
+        return getattr(obj.target_group, "name", None)
 
     def get_target_group_type(self, obj):
         """Get target group type (if targeting a group)."""
-        if getattr(obj, 'target_group', None) is None:
+        if getattr(obj, "target_group", None) is None:
             return None
-        return getattr(obj.target_group, 'group_type', None)
+        return getattr(obj.target_group, "group_type", None)
 
     def validate(self, data):
         """
@@ -112,39 +190,48 @@ class AlertInstanceSerializer(serializers.ModelSerializer):
         - PATCH requests may update name/enabled without resending template/spec.
         - Targeting must use exactly one mechanism: target_group OR target_keys.
         """
-        instance = getattr(self, 'instance', None)
-        effective_alert_type = data.get('alert_type') or getattr(instance, 'alert_type', None) or 'wallet'
+        instance = getattr(self, "instance", None)
+        effective_alert_type = (
+            data.get("alert_type") or getattr(instance, "alert_type", None) or "wallet"
+        )
 
-        target_group = data.get('target_group', getattr(instance, 'target_group', None))
-        target_keys = data.get('target_keys', getattr(instance, 'target_keys', None))
+        target_group = data.get("target_group", getattr(instance, "target_group", None))
+        target_keys = data.get("target_keys", getattr(instance, "target_keys", None))
 
         if target_group and target_keys:
-            raise serializers.ValidationError({
-                'target_group': "Cannot set target_group when target_keys are provided",
-                'target_keys': "Cannot set target_keys when target_group is provided",
-            })
+            raise serializers.ValidationError(
+                {
+                    "target_group": "Cannot set target_group when target_keys are provided",
+                    "target_keys": "Cannot set target_keys when target_group is provided",
+                }
+            )
 
         if target_group is not None:
             from app.models.groups import ALERT_TYPE_TO_GROUP_TYPE
 
             valid_group_types = ALERT_TYPE_TO_GROUP_TYPE.get(effective_alert_type, [])
             if target_group and target_group.group_type not in valid_group_types:
-                raise serializers.ValidationError({
-                    'target_group': (
-                        f"Alert type '{effective_alert_type}' requires a target group of type {valid_group_types}, "
-                        f"got '{target_group.group_type}'"
-                    )
-                })
+                raise serializers.ValidationError(
+                    {
+                        "target_group": (
+                            f"Alert type '{effective_alert_type}' requires a target group of type {valid_group_types}, "
+                            f"got '{target_group.group_type}'"
+                        )
+                    }
+                )
 
-        if 'target_keys' in data and data.get('target_keys'):
+        if "target_keys" in data and data.get("target_keys"):
             from app.services.group_service import AlertValidationService
-            AlertValidationService.validate_targets(effective_alert_type, data['target_keys'])
+
+            AlertValidationService.validate_targets(
+                effective_alert_type, data["target_keys"]
+            )
 
         return data
 
     def create(self, validated_data):
         """Create a new alert instance"""
-        validated_data['user'] = self.context['request'].user
+        validated_data["user"] = self.context["request"].user
         alert_instance = super().create(validated_data)
 
         # Create initial change log entry
@@ -152,15 +239,15 @@ class AlertInstanceSerializer(serializers.ModelSerializer):
             alert_instance=alert_instance,
             from_version=None,
             to_version=1,
-            change_type='created',
-            changed_fields=['name', 'nl_description', 'enabled'],
+            change_type="created",
+            changed_fields=["name", "nl_description", "enabled"],
             old_values=None,
             new_values={
-                'name': alert_instance.name,
-                'nl_description': alert_instance.nl_description,
-                'enabled': alert_instance.enabled,
+                "name": alert_instance.name,
+                "nl_description": alert_instance.nl_description,
+                "enabled": alert_instance.enabled,
             },
-            changed_by=self.context['request'].user
+            changed_by=self.context["request"].user,
         )
 
         return alert_instance
@@ -169,9 +256,9 @@ class AlertInstanceSerializer(serializers.ModelSerializer):
         """Update an alert instance and increment version"""
         # Create change log entry
         old_values = {
-            'name': instance.name,
-            'nl_description': instance.nl_description,
-            'enabled': instance.enabled,
+            "name": instance.name,
+            "nl_description": instance.nl_description,
+            "enabled": instance.enabled,
         }
 
         # Update the instance
@@ -192,16 +279,16 @@ class AlertInstanceSerializer(serializers.ModelSerializer):
                 alert_instance=updated_instance,
                 from_version=instance.version,
                 to_version=instance.version + 1,
-                change_type='updated',
+                change_type="updated",
                 changed_fields=changed_fields,
                 old_values=old_values,
                 new_values=new_values,
-                changed_by=self.context['request'].user
+                changed_by=self.context["request"].user,
             )
 
             # Increment version
             updated_instance.version += 1
-            updated_instance.save(update_fields=['version'])
+            updated_instance.save(update_fields=["version"])
 
         return updated_instance
 
@@ -220,9 +307,13 @@ class AlertInstanceCreateRequestSerializer(serializers.Serializer):
     template_id = serializers.UUIDField()
     template_version = serializers.IntegerField(min_value=1)
 
-    name = serializers.CharField(max_length=255, required=False, allow_blank=True, allow_null=True)
+    name = serializers.CharField(
+        max_length=255, required=False, allow_blank=True, allow_null=True
+    )
     enabled = serializers.BooleanField(default=True, required=False)
-    trigger_type = serializers.ChoiceField(choices=["event_driven", "periodic", "one_time"])
+    trigger_type = serializers.ChoiceField(
+        choices=["event_driven", "periodic", "one_time"]
+    )
     trigger_config = serializers.DictField(required=False, default=dict)
     target_selector = serializers.DictField()
     variable_values = serializers.DictField(required=False, default=dict)
@@ -253,22 +344,30 @@ class AlertInstanceCreateRequestSerializer(serializers.Serializer):
         template_version = data.get("template_version")
 
         try:
-            template = AlertTemplate.objects.select_related("created_by").get(id=template_id)
+            template = AlertTemplate.objects.select_related("created_by").get(
+                id=template_id
+            )
         except AlertTemplate.DoesNotExist as exc:
-            raise serializers.ValidationError({"template_id": "Template not found"}) from exc
+            raise serializers.ValidationError(
+                {"template_id": "Template not found"}
+            ) from exc
 
         # Access control: private + marketplace + org-shared.
         if template.created_by_id != user.id and not template.is_public:
             if not template.is_verified:
-                raise serializers.ValidationError({"template_id": "Template not accessible"})
+                raise serializers.ValidationError(
+                    {"template_id": "Template not accessible"}
+                )
             try:
                 from organizations.models import TeamMember
 
-                org_ids = TeamMember.objects.filter(user=user, is_active=True).values_list(
-                    "team__organization_id", flat=True
-                )
+                org_ids = TeamMember.objects.filter(
+                    user=user, is_active=True
+                ).values_list("team__organization_id", flat=True)
                 if not org_ids:
-                    raise serializers.ValidationError({"template_id": "Template not accessible"})
+                    raise serializers.ValidationError(
+                        {"template_id": "Template not accessible"}
+                    )
 
                 shares_org = TeamMember.objects.filter(
                     user=template.created_by,
@@ -276,29 +375,45 @@ class AlertInstanceCreateRequestSerializer(serializers.Serializer):
                     team__organization_id__in=list(org_ids),
                 ).exists()
                 if not shares_org:
-                    raise serializers.ValidationError({"template_id": "Template not accessible"})
+                    raise serializers.ValidationError(
+                        {"template_id": "Template not accessible"}
+                    )
             except serializers.ValidationError:
                 raise
             except Exception as exc:
-                raise serializers.ValidationError({"template_id": "Template not accessible"}) from exc
+                raise serializers.ValidationError(
+                    {"template_id": "Template not accessible"}
+                ) from exc
 
         try:
-            tmpl_ver = AlertTemplateVersion.objects.get(template=template, template_version=int(template_version))
+            tmpl_ver = AlertTemplateVersion.objects.get(
+                template=template, template_version=int(template_version)
+            )
         except AlertTemplateVersion.DoesNotExist as exc:
-            raise serializers.ValidationError({"template_version": "Template version not found"}) from exc
+            raise serializers.ValidationError(
+                {"template_version": "Template version not found"}
+            ) from exc
 
-        template_spec = tmpl_ver.template_spec if isinstance(tmpl_ver.template_spec, dict) else {}
+        template_spec = (
+            tmpl_ver.template_spec if isinstance(tmpl_ver.template_spec, dict) else {}
+        )
 
         variable_values = data.get("variable_values") or {}
         try:
-            resolved_variables = validate_variable_values_against_template(template_spec, variable_values)
+            resolved_variables = validate_variable_values_against_template(
+                template_spec, variable_values
+            )
         except AlertTemplateSpecError as exc:
             raise serializers.ValidationError({"variable_values": str(exc)}) from exc
 
         raw_overrides = data.get("notification_overrides") or {}
         if raw_overrides:
             if not isinstance(raw_overrides, dict):
-                raise serializers.ValidationError({"notification_overrides": "notification_overrides must be an object"})
+                raise serializers.ValidationError(
+                    {
+                        "notification_overrides": "notification_overrides must be an object"
+                    }
+                )
             cleaned_overrides: dict[str, str] = {}
             for key in ("title_template", "body_template"):
                 if key not in raw_overrides:
@@ -307,7 +422,9 @@ class AlertInstanceCreateRequestSerializer(serializers.Serializer):
                 if value is None:
                     continue
                 if not isinstance(value, str):
-                    raise serializers.ValidationError({"notification_overrides": f"{key} must be a string"})
+                    raise serializers.ValidationError(
+                        {"notification_overrides": f"{key} must be a string"}
+                    )
                 trimmed = value.strip()
                 if trimmed:
                     cleaned_overrides[key] = trimmed
@@ -320,10 +437,14 @@ class AlertInstanceCreateRequestSerializer(serializers.Serializer):
 
         selector = data.get("target_selector")
         if not isinstance(selector, dict):
-            raise serializers.ValidationError({"target_selector": "target_selector must be an object"})
+            raise serializers.ValidationError(
+                {"target_selector": "target_selector must be an object"}
+            )
         mode = selector.get("mode")
         if mode not in {"keys", "group"}:
-            raise serializers.ValidationError({"target_selector": "mode must be 'keys' or 'group'"})
+            raise serializers.ValidationError(
+                {"target_selector": "mode must be 'keys' or 'group'"}
+            )
 
         target_keys = []
         target_group = None
@@ -331,10 +452,14 @@ class AlertInstanceCreateRequestSerializer(serializers.Serializer):
         if mode == "keys":
             # Enforce a single targeting mechanism: keys mode cannot include group_id.
             if selector.get("group_id"):
-                raise serializers.ValidationError({"target_selector": "group_id is not allowed when mode='keys'"})
+                raise serializers.ValidationError(
+                    {"target_selector": "group_id is not allowed when mode='keys'"}
+                )
             raw_keys = selector.get("keys")
             if not isinstance(raw_keys, list) or not raw_keys:
-                raise serializers.ValidationError({"target_selector": "keys must be a non-empty list"})
+                raise serializers.ValidationError(
+                    {"target_selector": "keys must be a non-empty list"}
+                )
 
             normalized = []
             for raw in raw_keys:
@@ -347,32 +472,44 @@ class AlertInstanceCreateRequestSerializer(serializers.Serializer):
                 elif alert_type == AlertType.NFT:
                     text = raw.strip()
                     if text.count(":") >= 3:
-                        normalized.append(normalize_network_subnet_address_token_id_key(text))
+                        normalized.append(
+                            normalize_network_subnet_address_token_id_key(text)
+                        )
                     else:
                         normalized.append(normalize_network_subnet_address_key(text))
                 else:
                     normalized.append(normalize_network_subnet_address_key(raw))
 
             if not normalized:
-                raise serializers.ValidationError({"target_selector": "keys must include at least one valid key"})
+                raise serializers.ValidationError(
+                    {"target_selector": "keys must include at least one valid key"}
+                )
             target_keys = normalized
 
         if mode == "group":
             # Enforce a single targeting mechanism: group mode cannot include keys.
             if selector.get("keys"):
-                raise serializers.ValidationError({"target_selector": "keys is not allowed when mode='group'"})
+                raise serializers.ValidationError(
+                    {"target_selector": "keys is not allowed when mode='group'"}
+                )
             group_id = selector.get("group_id")
             if not group_id:
-                raise serializers.ValidationError({"target_selector": "group_id is required when mode='group'"})
+                raise serializers.ValidationError(
+                    {"target_selector": "group_id is required when mode='group'"}
+                )
             try:
                 target_group = GenericGroup.objects.get(id=group_id, owner=user)
             except GenericGroup.DoesNotExist as exc:
-                raise serializers.ValidationError({"target_selector": "group_id not found"}) from exc
+                raise serializers.ValidationError(
+                    {"target_selector": "group_id not found"}
+                ) from exc
 
             valid_group_types = ALERT_TYPE_TO_GROUP_TYPE.get(alert_type, [])
             if target_group.group_type not in valid_group_types:
                 raise serializers.ValidationError(
-                    {"target_selector": f"Group type '{target_group.group_type}' is not valid for alert_type '{alert_type}'"}
+                    {
+                        "target_selector": f"Group type '{target_group.group_type}' is not valid for alert_type '{alert_type}'"
+                    }
                 )
 
         data["_resolved_variable_values"] = resolved_variables
@@ -388,19 +525,33 @@ class AlertInstanceCreateRequestSerializer(serializers.Serializer):
 class AlertInstanceListSerializer(serializers.ModelSerializer):
     """Lightweight serializer for alert instance lists"""
 
-    user_email = serializers.EmailField(source='user.email', read_only=True)
-    template_name = serializers.CharField(source='template.name', read_only=True, allow_null=True)
+    user_email = serializers.EmailField(source="user.email", read_only=True)
+    template_name = serializers.CharField(
+        source="template.name", read_only=True, allow_null=True
+    )
     chains = serializers.SerializerMethodField()
     trigger_mode = serializers.SerializerMethodField()
 
     class Meta:
         model = AlertInstance
         fields = [
-            'id', 'name', 'event_type', 'sub_event', 'version', 'enabled',
-            'user_email', 'template_name', 'template', 'template_version',
-            'trigger_type', 'trigger_config',
-            'chains', 'trigger_mode',
-            'processing_status', 'created_at', 'updated_at'
+            "id",
+            "name",
+            "event_type",
+            "sub_event",
+            "version",
+            "enabled",
+            "user_email",
+            "template_name",
+            "template",
+            "template_version",
+            "trigger_type",
+            "trigger_config",
+            "chains",
+            "trigger_mode",
+            "processing_status",
+            "created_at",
+            "updated_at",
         ]
 
     def get_chains(self, obj):
@@ -432,24 +583,43 @@ class NotificationChannelEndpointSerializer(serializers.ModelSerializer):
     class Meta:
         model = NotificationChannelEndpoint
         fields = [
-            'id', 'owner_type', 'owner_id', 'channel_type', 'label',
-            'config', 'enabled', 'verified', 'verified_at', 'routing_mode',
-            'priority_filters', 'created_at', 'updated_at'
+            "id",
+            "owner_type",
+            "owner_id",
+            "channel_type",
+            "label",
+            "config",
+            "enabled",
+            "verified",
+            "verified_at",
+            "routing_mode",
+            "priority_filters",
+            "created_at",
+            "updated_at",
         ]
-        read_only_fields = ['id', 'owner_type', 'owner_id', 'verified', 'verified_at', 'created_at', 'updated_at']
+        read_only_fields = [
+            "id",
+            "owner_type",
+            "owner_id",
+            "verified",
+            "verified_at",
+            "created_at",
+            "updated_at",
+        ]
 
     def create(self, validated_data):
         """Create endpoint with current user as owner and creator"""
-        request = self.context.get('request')
-        validated_data['owner_type'] = 'user'
-        validated_data['owner_id'] = request.user.id
-        validated_data['created_by'] = request.user
+        request = self.context.get("request")
+        validated_data["owner_type"] = "user"
+        validated_data["owner_id"] = request.user.id
+        validated_data["created_by"] = request.user
 
         # Auto-verify webhook and slack channels
-        if validated_data['channel_type'] in ['webhook', 'slack']:
-            validated_data['verified'] = True
+        if validated_data["channel_type"] in ["webhook", "slack"]:
+            validated_data["verified"] = True
             from django.utils import timezone
-            validated_data['verified_at'] = timezone.now()
+
+            validated_data["verified_at"] = timezone.now()
 
         return super().create(validated_data)
 
@@ -461,41 +631,52 @@ class TeamNotificationChannelEndpointSerializer(NotificationChannelEndpointSeria
 
     class Meta(NotificationChannelEndpointSerializer.Meta):
         fields = NotificationChannelEndpointSerializer.Meta.fields
-        read_only_fields = ['id', 'owner_type', 'verified', 'verified_at', 'created_at', 'updated_at']
+        read_only_fields = [
+            "id",
+            "owner_type",
+            "verified",
+            "verified_at",
+            "created_at",
+            "updated_at",
+        ]
 
     def create(self, validated_data):
         """Create endpoint with team as owner"""
-        request = self.context.get('request')
-        validated_data['owner_type'] = 'team'
-        validated_data['created_by'] = request.user
+        request = self.context.get("request")
+        validated_data["owner_type"] = "team"
+        validated_data["created_by"] = request.user
 
         # Auto-verify webhook and slack channels
-        if validated_data['channel_type'] in ['webhook', 'slack']:
-            validated_data['verified'] = True
+        if validated_data["channel_type"] in ["webhook", "slack"]:
+            validated_data["verified"] = True
             from django.utils import timezone
-            validated_data['verified_at'] = timezone.now()
+
+            validated_data["verified_at"] = timezone.now()
 
         return NotificationChannelEndpoint.objects.create(**validated_data)
 
     def to_representation(self, instance):
         """Mask sensitive config for non-admin users"""
         representation = super().to_representation(instance)
-        request = self.context.get('request')
+        request = self.context.get("request")
 
         # Check if user is admin/owner of the team
         from organizations.models import TeamMember, TeamMemberRole
+
         try:
-            member = TeamMember.objects.get(team_id=instance.owner_id, user=request.user)
+            member = TeamMember.objects.get(
+                team_id=instance.owner_id, user=request.user
+            )
             is_admin = member.role in [TeamMemberRole.OWNER, TeamMemberRole.ADMIN]
         except TeamMember.DoesNotExist:
             is_admin = False
 
         # Mask config for non-admins
-        if not is_admin and representation.get('config'):
+        if not is_admin and representation.get("config"):
             masked_config = {}
-            for key in representation['config'].keys():
-                masked_config[key] = '***'
-            representation['config'] = masked_config
+            for key in representation["config"].keys():
+                masked_config[key] = "***"
+            representation["config"] = masked_config
 
         return representation
 
@@ -505,23 +686,43 @@ class NotificationChannelVerificationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = NotificationChannelVerification
-        fields = ['id', 'verification_code', 'verification_type', 'expires_at', 'verified_at', 'created_at', 'attempts']
-        read_only_fields = ['id', 'verification_code', 'verified_at', 'created_at', 'attempts']
+        fields = [
+            "id",
+            "verification_code",
+            "verification_type",
+            "expires_at",
+            "verified_at",
+            "created_at",
+            "attempts",
+        ]
+        read_only_fields = [
+            "id",
+            "verification_code",
+            "verified_at",
+            "created_at",
+            "attempts",
+        ]
 
 
 class TeamMemberNotificationOverrideSerializer(serializers.ModelSerializer):
     """Serializer for TeamMemberNotificationOverride model"""
 
-    team_id = serializers.UUIDField(source='team.id', read_only=True)
-    member_id = serializers.UUIDField(source='member.id', read_only=True)
+    team_id = serializers.UUIDField(source="team.id", read_only=True)
+    member_id = serializers.UUIDField(source="member.id", read_only=True)
 
     class Meta:
         model = TeamMemberNotificationOverride
         fields = [
-            'id', 'team_id', 'member_id', 'team_notifications_enabled',
-            'disabled_endpoints', 'disabled_priorities', 'created_at', 'updated_at'
+            "id",
+            "team_id",
+            "member_id",
+            "team_notifications_enabled",
+            "disabled_endpoints",
+            "disabled_priorities",
+            "created_at",
+            "updated_at",
         ]
-        read_only_fields = ['id', 'team_id', 'member_id', 'created_at', 'updated_at']
+        read_only_fields = ["id", "team_id", "member_id", "created_at", "updated_at"]
 
 
 # ===================================================================
@@ -540,31 +741,30 @@ class PreviewConfigSerializer(serializers.Serializer):
     parameters = serializers.DictField(
         required=False,
         default=dict,
-        help_text="Template parameters to use for rendering spec (required for template preview)"
+        help_text="Template parameters to use for rendering spec (required for template preview)",
     )
 
     # Preview configuration
     time_range = serializers.ChoiceField(
-        choices=['1h', '24h', '7d', '30d'],
-        default='7d',
-        help_text="Time range for historical data query"
+        choices=["1h", "24h", "7d", "30d"],
+        default="7d",
+        help_text="Time range for historical data query",
     )
 
     limit = serializers.IntegerField(
         min_value=1,
         max_value=10000,
         default=1000,
-        help_text="Maximum number of rows to evaluate"
+        help_text="Maximum number of rows to evaluate",
     )
 
     include_near_misses = serializers.BooleanField(
         default=False,
-        help_text="Include transactions that nearly matched the condition"
+        help_text="Include transactions that nearly matched the condition",
     )
 
     explain_mode = serializers.BooleanField(
-        default=False,
-        help_text="Include detailed explanation of condition matching"
+        default=False, help_text="Include detailed explanation of condition matching"
     )
 
     # Optional filters
@@ -572,21 +772,23 @@ class PreviewConfigSerializer(serializers.Serializer):
         child=serializers.CharField(max_length=128),
         required=False,
         default=list,
-        help_text="Override target addresses for preview"
+        help_text="Override target addresses for preview",
     )
 
     chain = serializers.CharField(
         max_length=32,
         required=False,
         allow_blank=True,
-        help_text="Override chain filter for preview"
+        help_text="Override chain filter for preview",
     )
 
 
 class PreviewTriggerSerializer(serializers.Serializer):
     """Serializer for individual preview trigger/match results."""
 
-    timestamp = serializers.DateTimeField(help_text="When the condition would have triggered")
+    timestamp = serializers.DateTimeField(
+        help_text="When the condition would have triggered"
+    )
     data = serializers.DictField(help_text="Row data that matched the condition")
     matched_condition = serializers.CharField(help_text="Expression that matched")
 
@@ -600,8 +802,7 @@ class PreviewNearMissSerializer(serializers.Serializer):
         help_text="Percentage distance from threshold"
     )
     explanation = serializers.CharField(
-        required=False,
-        help_text="Human-readable explanation of the near-miss"
+        required=False, help_text="Human-readable explanation of the near-miss"
     )
 
 
@@ -610,9 +811,7 @@ class PreviewSummarySerializer(serializers.Serializer):
 
     total_events_evaluated = serializers.IntegerField()
     would_have_triggered = serializers.IntegerField()
-    trigger_rate = serializers.FloatField(
-        help_text="Ratio of triggers to total events"
-    )
+    trigger_rate = serializers.FloatField(help_text="Ratio of triggers to total events")
     estimated_daily_triggers = serializers.FloatField(
         help_text="Estimated triggers per day based on sample"
     )
@@ -646,38 +845,30 @@ class PreviewResultSerializer(serializers.Serializer):
 
     # Evaluation metadata
     evaluation_mode = serializers.ChoiceField(
-        choices=['per_row', 'aggregate', 'window', 'unknown'],
-        help_text="How the expression was evaluated"
+        choices=["per_row", "aggregate", "window", "unknown"],
+        help_text="How the expression was evaluated",
     )
     expression = serializers.CharField(
-        required=False,
-        help_text="The condition expression that was evaluated"
+        required=False, help_text="The condition expression that was evaluated"
     )
     data_source = serializers.CharField(
         required=False,
-        help_text="Data source used for preview (transactions, wallet_balances, etc.)"
+        help_text="Data source used for preview (transactions, wallet_balances, etc.)",
     )
-    time_range = serializers.CharField(
-        required=False,
-        help_text="Time range queried"
-    )
+    time_range = serializers.CharField(required=False, help_text="Time range queried")
 
     # Routing info
     requires_wasmcloud = serializers.BooleanField(
         default=False,
-        help_text="Whether evaluation required wasmCloud (aggregate/window functions)"
+        help_text="Whether evaluation required wasmCloud (aggregate/window functions)",
     )
     wasmcloud_reason = serializers.CharField(
-        required=False,
-        allow_blank=True,
-        help_text="Reason wasmCloud was required"
+        required=False, allow_blank=True, help_text="Reason wasmCloud was required"
     )
 
     # Error handling
     error = serializers.CharField(
-        required=False,
-        allow_blank=True,
-        help_text="Error message if preview failed"
+        required=False, allow_blank=True, help_text="Error message if preview failed"
     )
 
 
@@ -696,16 +887,14 @@ class InlineSuggestionSerializer(serializers.Serializer):
     field = serializers.CharField(help_text="The field this suggestion applies to")
     label = serializers.CharField(help_text="User-friendly label for this option")
     description = serializers.CharField(
-        required=False, allow_blank=True,
-        help_text="Explanation of this interpretation"
+        required=False, allow_blank=True, help_text="Explanation of this interpretation"
     )
     value = serializers.JSONField(help_text="The suggested value")
     selected = serializers.BooleanField(
         default=False, help_text="Whether this is the auto-selected default"
     )
     confidence = serializers.IntegerField(
-        min_value=0, max_value=100,
-        help_text="Confidence percentage (0-100)"
+        min_value=0, max_value=100, help_text="Confidence percentage (0-100)"
     )
 
 
@@ -720,21 +909,26 @@ class ClarificationQuestionSerializer(serializers.Serializer):
     question = serializers.CharField(help_text="User-friendly question text")
     type = serializers.ChoiceField(
         choices=[
-            'chain_ambiguity', 'threshold_missing', 'direction_ambiguous',
-            'address_missing', 'token_ambiguous', 'time_window_missing',
-            'event_type_ambiguous'
+            "chain_ambiguity",
+            "threshold_missing",
+            "direction_ambiguous",
+            "address_missing",
+            "token_ambiguous",
+            "time_window_missing",
+            "event_type_ambiguous",
         ],
-        help_text="Type of clarification needed"
+        help_text="Type of clarification needed",
     )
     priority = serializers.ChoiceField(
-        choices=['critical', 'high', 'medium', 'low'],
-        default='medium',
-        help_text="Priority level"
+        choices=["critical", "high", "medium", "low"],
+        default="medium",
+        help_text="Priority level",
     )
     options = InlineSuggestionSerializer(many=True, default=list)
     default = serializers.JSONField(
-        required=False, allow_null=True,
-        help_text="Default value if user doesn't respond"
+        required=False,
+        allow_null=True,
+        help_text="Default value if user doesn't respond",
     )
 
 
@@ -747,35 +941,34 @@ class ProgressiveRefinementSerializer(serializers.Serializer):
     """
 
     status = serializers.ChoiceField(
-        choices=['ready', 'needs_clarification'],
-        help_text="Current refinement status"
+        choices=["ready", "needs_clarification"], help_text="Current refinement status"
     )
     confidence = serializers.IntegerField(
-        min_value=0, max_value=100,
-        help_text="Overall confidence percentage"
+        min_value=0, max_value=100, help_text="Overall confidence percentage"
     )
     can_proceed = serializers.BooleanField(
         help_text="Whether pipeline can proceed with current state"
     )
     resolved_fields = serializers.DictField(
-        required=False, default=dict,
-        help_text="Fields that have been resolved with values"
+        required=False,
+        default=dict,
+        help_text="Fields that have been resolved with values",
     )
     auto_selected_defaults = serializers.DictField(
-        required=False, default=dict,
-        help_text="Defaults that were auto-selected based on confidence"
+        required=False,
+        default=dict,
+        help_text="Defaults that were auto-selected based on confidence",
     )
     inline_suggestions = InlineSuggestionSerializer(
-        many=True, default=list,
-        help_text="Inline suggestions for ambiguous fields"
+        many=True, default=list, help_text="Inline suggestions for ambiguous fields"
     )
     questions = ClarificationQuestionSerializer(
-        many=True, default=list,
-        help_text="Clarification questions (only if confidence < 0.5)"
+        many=True,
+        default=list,
+        help_text="Clarification questions (only if confidence < 0.5)",
     )
     critical_questions = ClarificationQuestionSerializer(
-        many=True, default=list,
-        help_text="Critical questions that block progress"
+        many=True, default=list, help_text="Critical questions that block progress"
     )
 
 
@@ -789,45 +982,39 @@ class NLPParseResponseSerializer(serializers.Serializer):
 
     success = serializers.BooleanField()
     status = serializers.ChoiceField(
-        choices=['complete', 'needs_clarification', 'error'],
-        default='complete',
-        help_text="Pipeline completion status"
+        choices=["complete", "needs_clarification", "error"],
+        default="complete",
+        help_text="Pipeline completion status",
     )
     request_id = serializers.UUIDField()
     execution_time_seconds = serializers.FloatField(required=False)
 
     # Template data (present when status='complete')
     template = serializers.DictField(
-        required=False, allow_null=True,
-        help_text="Generated template JSON"
+        required=False, allow_null=True, help_text="Generated template JSON"
     )
     template_id = serializers.CharField(
-        required=False, allow_null=True,
-        help_text="Generated template ID"
+        required=False, allow_null=True, help_text="Generated template ID"
     )
     template_name = serializers.CharField(
-        required=False, allow_null=True,
-        help_text="Human-readable template name"
+        required=False, allow_null=True, help_text="Human-readable template name"
     )
     variable_schema = serializers.DictField(
-        required=False, allow_null=True,
-        help_text="JSON schema for template variables"
+        required=False, allow_null=True, help_text="JSON schema for template variables"
     )
     similarity_hash = serializers.CharField(
-        required=False, allow_null=True,
-        help_text="Hash for similarity matching"
+        required=False, allow_null=True, help_text="Hash for similarity matching"
     )
 
     # Classification data
     classification = serializers.DictField(
         required=False,
-        help_text="Classification results (event_type, sub_event, confidence)"
+        help_text="Classification results (event_type, sub_event, confidence)",
     )
 
     # Entity data (present when status='needs_clarification')
     entities = serializers.DictField(
-        required=False,
-        help_text="Extracted entities (when paused for clarification)"
+        required=False, help_text="Extracted entities (when paused for clarification)"
     )
 
     # Pipeline metadata
@@ -836,17 +1023,15 @@ class NLPParseResponseSerializer(serializers.Serializer):
     # Progressive refinement data
     progressive_refinement = ProgressiveRefinementSerializer(
         required=False,
-        help_text="Progressive refinement state with suggestions and clarifications"
+        help_text="Progressive refinement state with suggestions and clarifications",
     )
 
     # Error handling
     error = serializers.CharField(
-        required=False, allow_null=True,
-        help_text="Error message if pipeline failed"
+        required=False, allow_null=True, help_text="Error message if pipeline failed"
     )
     failed_stage = serializers.CharField(
-        required=False, allow_null=True,
-        help_text="Stage where pipeline failed"
+        required=False, allow_null=True, help_text="Stage where pipeline failed"
     )
 
 
@@ -861,48 +1046,49 @@ class ClarificationSelectionSerializer(serializers.Serializer):
         help_text="Original request ID from the parse response"
     )
     selections = serializers.DictField(
-        help_text="Map of field_name -> selected_value",
-        child=serializers.JSONField()
+        help_text="Map of field_name -> selected_value", child=serializers.JSONField()
     )
     force_proceed = serializers.BooleanField(
         default=False,
-        help_text="Force pipeline to proceed even with unresolved clarifications"
+        help_text="Force pipeline to proceed even with unresolved clarifications",
     )
 
 
 class DefaultNetworkAlertSerializer(serializers.ModelSerializer):
     """Serializer for default network alerts (system fallback)."""
 
-    chain = serializers.CharField(source='chain.name', read_only=True)
-    chain_name = serializers.CharField(source='chain.display_name', read_only=True)
-    chain_symbol = serializers.CharField(source='chain.native_token', read_only=True)
-    alert_template = serializers.CharField(source='alert_template.id', read_only=True)
-    alert_template_name = serializers.CharField(source='alert_template.name', read_only=True)
+    chain = serializers.CharField(source="chain.name", read_only=True)
+    chain_name = serializers.CharField(source="chain.display_name", read_only=True)
+    chain_symbol = serializers.CharField(source="chain.native_token", read_only=True)
+    alert_template = serializers.CharField(source="alert_template.id", read_only=True)
+    alert_template_name = serializers.CharField(
+        source="alert_template.name", read_only=True
+    )
 
     class Meta:
         model = DefaultNetworkAlert
         fields = [
-            'id',
-            'chain',
-            'chain_name',
-            'chain_symbol',
-            'subnet',
-            'alert_template',
-            'alert_template_name',
-            'enabled',
-            'settings',
-            'created_at',
-            'updated_at',
+            "id",
+            "chain",
+            "chain_name",
+            "chain_symbol",
+            "subnet",
+            "alert_template",
+            "alert_template_name",
+            "enabled",
+            "settings",
+            "created_at",
+            "updated_at",
         ]
         read_only_fields = [
-            'id',
-            'chain',
-            'chain_name',
-            'chain_symbol',
-            'subnet',
-            'alert_template',
-            'alert_template_name',
-            'settings',
-            'created_at',
-            'updated_at',
+            "id",
+            "chain",
+            "chain_name",
+            "chain_symbol",
+            "subnet",
+            "alert_template",
+            "alert_template_name",
+            "settings",
+            "created_at",
+            "updated_at",
         ]

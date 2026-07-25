@@ -16,8 +16,17 @@ class TestNLPGenerateExamplesFromSeed(TestCase):
         # Minimal ProposedSpec envelope shape the command expects.
         proposed_ok = {
             "schema_version": "proposed_spec_v2",
-            "template": {"schema_version": "alert_template_v2", "trigger": {"evaluation_mode": "event_driven"}, "signals": {"principals": [], "factors": []}, "scope": {"networks": ["ETH:mainnet"]}, "notification": {}},
-            "compiled_executable": {"schema_version": "alert_executable_v1", "datasources": []},
+            "template": {
+                "schema_version": "alert_template_v2",
+                "trigger": {"evaluation_mode": "event_driven"},
+                "signals": {"principals": [], "factors": []},
+                "scope": {"networks": ["ETH:mainnet"]},
+                "notification": {},
+            },
+            "compiled_executable": {
+                "schema_version": "alert_executable_v1",
+                "datasources": [],
+            },
             "compile_report": {"errors": [], "selected_catalog_ids": []},
             "missing_info": [],
         }
@@ -33,8 +42,18 @@ class TestNLPGenerateExamplesFromSeed(TestCase):
             with patch(
                 "app.management.commands.nlp_generate_examples_from_seed.seed_prompt_cases",
                 return_value=[
-                    NLPEvalCase(case_id="a", nl_description="x", context={}, expected_no_catalog_ids=True),
-                    NLPEvalCase(case_id="b", nl_description="y", context={}, expected_no_catalog_ids=True),
+                    NLPEvalCase(
+                        case_id="a",
+                        nl_description="x",
+                        context={},
+                        expected_no_catalog_ids=True,
+                    ),
+                    NLPEvalCase(
+                        case_id="b",
+                        nl_description="y",
+                        context={},
+                        expected_no_catalog_ids=True,
+                    ),
                 ],
             ):
                 with patch(
@@ -45,10 +64,14 @@ class TestNLPGenerateExamplesFromSeed(TestCase):
                         "app.management.commands.nlp_generate_examples_from_seed.evaluate_compiler_output",
                         side_effect=[
                             type("R", (), {"ok": True, "errors": []})(),
-                            type("R", (), {"ok": False, "errors": ["compile failed"]})(),
+                            type(
+                                "R", (), {"ok": False, "errors": ["compile failed"]}
+                            )(),
                         ],
                     ):
-                        call_command("nlp_generate_examples_from_seed", "--out", str(out))
+                        call_command(
+                            "nlp_generate_examples_from_seed", "--out", str(out)
+                        )
 
             payload = json.loads(out.read_text(encoding="utf-8"))
             assert isinstance(payload, list)
@@ -58,8 +81,17 @@ class TestNLPGenerateExamplesFromSeed(TestCase):
     def test_writes_failing_when_flag_set(self):
         proposed = {
             "schema_version": "proposed_spec_v2",
-            "template": {"schema_version": "alert_template_v2", "trigger": {"evaluation_mode": "event_driven"}, "signals": {"principals": [], "factors": []}, "scope": {"networks": []}, "notification": {}},
-            "compiled_executable": {"schema_version": "alert_executable_v1", "datasources": []},
+            "template": {
+                "schema_version": "alert_template_v2",
+                "trigger": {"evaluation_mode": "event_driven"},
+                "signals": {"principals": [], "factors": []},
+                "scope": {"networks": []},
+                "notification": {},
+            },
+            "compiled_executable": {
+                "schema_version": "alert_executable_v1",
+                "datasources": [],
+            },
             "compile_report": {"errors": ["boom"], "selected_catalog_ids": []},
             "missing_info": [{"code": "network_required"}],
         }
@@ -68,7 +100,14 @@ class TestNLPGenerateExamplesFromSeed(TestCase):
             out = Path(tmp) / "examples.json"
             with patch(
                 "app.management.commands.nlp_generate_examples_from_seed.seed_prompt_cases",
-                return_value=[NLPEvalCase(case_id="a", nl_description="x", context={}, expected_no_catalog_ids=True)],
+                return_value=[
+                    NLPEvalCase(
+                        case_id="a",
+                        nl_description="x",
+                        context={},
+                        expected_no_catalog_ids=True,
+                    )
+                ],
             ):
                 with patch(
                     "app.management.commands.nlp_generate_examples_from_seed.compile_to_proposed_spec",
@@ -76,9 +115,16 @@ class TestNLPGenerateExamplesFromSeed(TestCase):
                 ):
                     with patch(
                         "app.management.commands.nlp_generate_examples_from_seed.evaluate_compiler_output",
-                        return_value=type("R", (), {"ok": False, "errors": ["compile failed"]})(),
+                        return_value=type(
+                            "R", (), {"ok": False, "errors": ["compile failed"]}
+                        )(),
                     ):
-                        call_command("nlp_generate_examples_from_seed", "--out", str(out), "--include-failing")
+                        call_command(
+                            "nlp_generate_examples_from_seed",
+                            "--out",
+                            str(out),
+                            "--include-failing",
+                        )
 
             payload = json.loads(out.read_text(encoding="utf-8"))
             assert len(payload) == 1

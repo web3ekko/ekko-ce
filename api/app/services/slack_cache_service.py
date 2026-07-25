@@ -35,11 +35,11 @@ class SlackCacheService:
         try:
             # Query all enabled Slack endpoints for the user
             slack_endpoints = NotificationChannelEndpoint.objects.filter(
-                owner_type='user',
+                owner_type="user",
                 owner_id=user_id,
-                channel_type='slack',
+                channel_type="slack",
                 enabled=True,
-                verified=True
+                verified=True,
             )
 
             if not slack_endpoints.exists():
@@ -53,20 +53,18 @@ class SlackCacheService:
 
             # Build cache data matching wasmCloud provider's SlackChannelConfig struct
             slack_config = {
-                'user_id': user_id,
-                'webhook_url': slack_endpoint.config.get('webhook_url'),
-                'channel_name': slack_endpoint.config.get('channel', '#alerts'),
-                'workspace_name': slack_endpoint.config.get('workspace_name', 'Ekko Workspace'),
-                'enabled': True
+                "user_id": user_id,
+                "webhook_url": slack_endpoint.config.get("webhook_url"),
+                "channel_name": slack_endpoint.config.get("channel", "#alerts"),
+                "workspace_name": slack_endpoint.config.get(
+                    "workspace_name", "Ekko Workspace"
+                ),
+                "enabled": True,
             }
 
             # Cache in Redis with key format: slack:config:{user_id}
             cache_key = f"slack:config:{user_id}"
-            self.cache.set(
-                cache_key,
-                json.dumps(slack_config),
-                timeout=self.CACHE_TTL
-            )
+            self.cache.set(cache_key, json.dumps(slack_config), timeout=self.CACHE_TTL)
 
             logger.info(f"Synced Slack config to Redis for user {user_id}")
             return True
@@ -128,15 +126,17 @@ class SlackCacheService:
             Number of users cached
         """
         from django.contrib.auth import get_user_model
+
         User = get_user_model()
 
         # Get users with Slack channels configured
-        user_ids = NotificationChannelEndpoint.objects.filter(
-            owner_type='user',
-            channel_type='slack',
-            enabled=True,
-            verified=True
-        ).values_list('owner_id', flat=True).distinct()[:limit]
+        user_ids = (
+            NotificationChannelEndpoint.objects.filter(
+                owner_type="user", channel_type="slack", enabled=True, verified=True
+            )
+            .values_list("owner_id", flat=True)
+            .distinct()[:limit]
+        )
 
         cached_count = 0
         for user_id in user_ids:
@@ -163,27 +163,21 @@ class SlackCacheService:
             if test_value == "ok":
                 # Count cached Slack configs
                 slack_count = NotificationChannelEndpoint.objects.filter(
-                    channel_type='slack',
-                    enabled=True,
-                    verified=True
+                    channel_type="slack", enabled=True, verified=True
                 ).count()
 
                 return {
-                    'status': 'healthy',
-                    'cache_accessible': True,
-                    'slack_channels_configured': slack_count
+                    "status": "healthy",
+                    "cache_accessible": True,
+                    "slack_channels_configured": slack_count,
                 }
             else:
                 return {
-                    'status': 'unhealthy',
-                    'cache_accessible': False,
-                    'error': 'Cache write/read test failed'
+                    "status": "unhealthy",
+                    "cache_accessible": False,
+                    "error": "Cache write/read test failed",
                 }
 
         except Exception as e:
             logger.error(f"Slack cache health check failed: {e}")
-            return {
-                'status': 'unhealthy',
-                'cache_accessible': False,
-                'error': str(e)
-            }
+            return {"status": "unhealthy", "cache_accessible": False, "error": str(e)}

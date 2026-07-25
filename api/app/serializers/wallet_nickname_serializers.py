@@ -26,22 +26,32 @@ class WalletNicknameSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data: dict[str, Any]) -> WalletNickname:
         request = self.context.get("request")
-        if not request or not getattr(request, "user", None) or not request.user.is_authenticated:
+        if (
+            not request
+            or not getattr(request, "user", None)
+            or not request.user.is_authenticated
+        ):
             raise serializers.ValidationError({"detail": "Authentication required"})
 
         instance = WalletNickname(user=request.user, **validated_data)
         try:
             instance.save()
         except DjangoValidationError as exc:
-            raise serializers.ValidationError(getattr(exc, "message_dict", {"detail": exc.messages}))
+            raise serializers.ValidationError(
+                getattr(exc, "message_dict", {"detail": exc.messages})
+            )
         return instance
 
-    def update(self, instance: WalletNickname, validated_data: dict[str, Any]) -> WalletNickname:
+    def update(
+        self, instance: WalletNickname, validated_data: dict[str, Any]
+    ) -> WalletNickname:
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
 
         try:
             instance.save()
         except DjangoValidationError as exc:
-            raise serializers.ValidationError(getattr(exc, "message_dict", {"detail": exc.messages}))
+            raise serializers.ValidationError(
+                getattr(exc, "message_dict", {"detail": exc.messages})
+            )
         return instance

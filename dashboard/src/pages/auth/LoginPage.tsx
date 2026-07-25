@@ -4,8 +4,8 @@
  * Email-only sign-in using verification codes.
  */
 
-import { useState, useEffect } from 'react'
-import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { useState, useEffect } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
   TextInput,
   Button,
@@ -16,160 +16,167 @@ import {
   Anchor,
   Group,
   PinInput,
-} from '@mantine/core'
-import { useForm } from '@mantine/form'
-import { notifications } from '@mantine/notifications'
+} from "@mantine/core";
+import { useForm } from "@mantine/form";
+import { notifications } from "@mantine/notifications";
 import {
   IconMail,
   IconAlertCircle,
   IconArrowLeft,
   IconRefresh,
   IconCheck,
-} from '@tabler/icons-react'
-import { authApiService } from '../../services/auth-api'
-import { useAuthStore } from '../../store/auth'
+} from "@tabler/icons-react";
+import { authApiService } from "../../services/auth-api";
+import { useAuthStore } from "../../store/auth";
 
-type EmailStep = 'enter-email' | 'verify-code'
+type EmailStep = "enter-email" | "verify-code";
 
 export function LoginPage() {
-  const [emailStep, setEmailStep] = useState<EmailStep>('enter-email')
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [email, setEmail] = useState('')
-  const [verificationCode, setVerificationCode] = useState('')
-  const [resendTimer, setResendTimer] = useState(0)
+  const [emailStep, setEmailStep] = useState<EmailStep>("enter-email");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [email, setEmail] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
+  const [resendTimer, setResendTimer] = useState(0);
 
-  const navigate = useNavigate()
-  const location = useLocation()
-  const from = location.state?.from?.pathname || '/dashboard'
+  const navigate = useNavigate();
+  const location = useLocation();
+  const from = location.state?.from?.pathname || "/dashboard";
 
-  const { setUser, setTokens } = useAuthStore()
+  const { setUser, setTokens } = useAuthStore();
 
   const form = useForm({
     initialValues: {
-      email: '',
+      email: "",
     },
     validate: {
       email: (value) => {
-        if (!value) return 'Email is required'
-        if (!/^\S+@\S+\.\S+$/.test(value)) return 'Invalid email format'
-        return null
+        if (!value) return "Email is required";
+        if (!/^\S+@\S+\.\S+$/.test(value)) return "Invalid email format";
+        return null;
       },
     },
-  })
+  });
 
   useEffect(() => {
     if (resendTimer > 0) {
-      const timer = setTimeout(() => setResendTimer(resendTimer - 1), 1000)
-      return () => clearTimeout(timer)
+      const timer = setTimeout(() => setResendTimer(resendTimer - 1), 1000);
+      return () => clearTimeout(timer);
     }
-  }, [resendTimer])
+  }, [resendTimer]);
 
   const handleEmailSubmit = async (values: { email: string }) => {
-    setIsLoading(true)
-    setError(null)
+    setIsLoading(true);
+    setError(null);
 
     try {
-      const accountCheck = await authApiService.checkAccountStatus(values.email)
+      const accountCheck = await authApiService.checkAccountStatus(
+        values.email,
+      );
       if (!accountCheck.exists) {
-        setError('No account found with this email. Please sign up first.')
-        setIsLoading(false)
-        return
+        setError("No account found with this email. Please sign up first.");
+        setIsLoading(false);
+        return;
       }
 
-      const response = await authApiService.sendSigninCode(values.email)
+      const response = await authApiService.sendSigninCode(values.email);
       if (response.success) {
-        setEmail(values.email)
-        setEmailStep('verify-code')
-        setResendTimer(60)
+        setEmail(values.email);
+        setEmailStep("verify-code");
+        setResendTimer(60);
 
         notifications.show({
-          title: 'Verification code sent!',
+          title: "Verification code sent!",
           message: `We've sent a 6-digit code to ${values.email}`,
-          color: 'green',
+          color: "green",
           icon: <IconMail size={16} />,
-        })
+        });
       }
     } catch (error: any) {
-      console.error('Send code error:', error)
-      setError(error.response?.data?.error || 'Failed to send verification code')
+      console.error("Send code error:", error);
+      setError(
+        error.response?.data?.error || "Failed to send verification code",
+      );
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleVerifyCode = async () => {
     if (verificationCode.length !== 6) {
-      setError('Please enter the complete 6-digit code')
-      return
+      setError("Please enter the complete 6-digit code");
+      return;
     }
 
-    setIsLoading(true)
-    setError(null)
+    setIsLoading(true);
+    setError(null);
 
     try {
-      const response = await authApiService.verifySigninCode(email, verificationCode)
+      const response = await authApiService.verifySigninCode(
+        email,
+        verificationCode,
+      );
 
       if (response.success && response.token) {
         if (response.user) {
-          setUser(response.user)
+          setUser(response.user);
         }
         setTokens({
           access: response.token,
           refresh: response.token,
-        })
+        });
 
         notifications.show({
-          title: 'Welcome back!',
-          message: 'Successfully signed in',
-          color: 'green',
+          title: "Welcome back!",
+          message: "Successfully signed in",
+          color: "green",
           icon: <IconCheck size={16} />,
-        })
+        });
 
-        navigate(from, { replace: true })
+        navigate(from, { replace: true });
       } else {
-        setError(response.message || 'Invalid code')
+        setError(response.message || "Invalid code");
       }
     } catch (error: any) {
-      console.error('Verify code error:', error)
-      setError(error.response?.data?.error || 'Invalid code')
+      console.error("Verify code error:", error);
+      setError(error.response?.data?.error || "Invalid code");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleResendCode = async () => {
-    if (resendTimer > 0) return
+    if (resendTimer > 0) return;
 
-    setIsLoading(true)
-    setError(null)
+    setIsLoading(true);
+    setError(null);
 
     try {
-      const response = await authApiService.resendCode(email, 'signin')
+      const response = await authApiService.resendCode(email, "signin");
       if (response.success) {
-        setResendTimer(60)
-        setVerificationCode('')
+        setResendTimer(60);
+        setVerificationCode("");
 
         notifications.show({
-          title: 'New code sent!',
-          message: 'Check your email for the new verification code',
-          color: 'green',
+          title: "New code sent!",
+          message: "Check your email for the new verification code",
+          color: "green",
           icon: <IconMail size={16} />,
-        })
+        });
       }
     } catch (error: any) {
-      console.error('Resend code error:', error)
-      setError(error.response?.data?.error || 'Failed to resend code')
+      console.error("Resend code error:", error);
+      setError(error.response?.data?.error || "Failed to resend code");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
-  if (emailStep === 'enter-email') {
+  if (emailStep === "enter-email") {
     return (
       <form onSubmit={form.onSubmit(handleEmailSubmit)}>
         <Stack gap="md">
-          <div style={{ textAlign: 'center' }}>
+          <div style={{ textAlign: "center" }}>
             <Title order={2}>Enter your email</Title>
             <Text c="dimmed" mt="sm">
               We'll send you a verification code
@@ -186,7 +193,7 @@ export function LoginPage() {
             label="Email address"
             placeholder="your@email.com"
             required
-            {...form.getInputProps('email')}
+            {...form.getInputProps("email")}
             leftSection={<IconMail size={16} />}
             autoFocus
           />
@@ -214,7 +221,7 @@ export function LoginPage() {
           </Group>
         </Stack>
       </form>
-    )
+    );
   }
 
   return (
@@ -224,16 +231,16 @@ export function LoginPage() {
           variant="subtle"
           leftSection={<IconArrowLeft size={16} />}
           onClick={() => {
-            setEmailStep('enter-email')
-            setVerificationCode('')
-            setError(null)
+            setEmailStep("enter-email");
+            setVerificationCode("");
+            setError(null);
           }}
         >
           Back
         </Button>
       </Group>
 
-      <div style={{ textAlign: 'center' }}>
+      <div style={{ textAlign: "center" }}>
         <Title order={2}>Enter verification code</Title>
         <Text c="dimmed" mt="sm">
           We sent a 6-digit code to <strong>{email}</strong>
@@ -254,9 +261,9 @@ export function LoginPage() {
         size="lg"
         styles={{
           input: {
-            textAlign: 'center',
-            fontFamily: 'monospace',
-            fontSize: '1.5rem',
+            textAlign: "center",
+            fontFamily: "monospace",
+            fontSize: "1.5rem",
           },
         }}
         autoFocus
@@ -284,9 +291,9 @@ export function LoginPage() {
           disabled={resendTimer > 0}
           fullWidth
         >
-          {resendTimer > 0 ? `Resend code in ${resendTimer}s` : 'Resend code'}
+          {resendTimer > 0 ? `Resend code in ${resendTimer}s` : "Resend code"}
         </Button>
       </Stack>
     </Stack>
-  )
+  );
 }

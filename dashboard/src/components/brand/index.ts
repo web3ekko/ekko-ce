@@ -5,6 +5,6 @@
  * brand colors, and visual identity elements.
  */
 
-export { EkkoLogo, type EkkoLogoProps } from './EkkoLogo';
-export { ChainLogo, type ChainLogoProps } from './ChainLogo';
-export { default } from './EkkoLogo';
+export { EkkoLogo, type EkkoLogoProps } from "./EkkoLogo";
+export { ChainLogo, type ChainLogoProps } from "./ChainLogo";
+export { default } from "./EkkoLogo";

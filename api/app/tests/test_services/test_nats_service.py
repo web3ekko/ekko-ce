@@ -33,7 +33,9 @@ class TestNATSServiceStubMode:
         service = NATSService(stub_mode=True)
         await service.connect()
 
-        success = await service.publish_alert_message("alerts.test.message", {"test": "data"})
+        success = await service.publish_alert_message(
+            "alerts.test.message", {"test": "data"}
+        )
         assert success is True
 
     async def test_subscribe_registers_callback_in_stub_mode(self):

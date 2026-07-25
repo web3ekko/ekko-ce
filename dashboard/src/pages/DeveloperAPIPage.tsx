@@ -1,10 +1,10 @@
 /**
  * Developer API Page
- * 
+ *
  * Comprehensive API management interface for developers
  */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState } from "react";
 import {
   Container,
   Title,
@@ -33,8 +33,8 @@ import {
   MultiSelect,
   Divider,
   Paper,
-  ScrollArea
-} from '@mantine/core'
+  ScrollArea,
+} from "@mantine/core";
 import {
   IconKey,
   IconPlus,
@@ -54,11 +54,11 @@ import {
   IconExternalLink,
   IconDownload,
   IconEye,
-  IconEyeOff
-} from '@tabler/icons-react'
-import { notifications } from '@mantine/notifications'
-import { useDisclosure } from '@mantine/hooks'
-import { useApiManagementStore } from '../store/api-management'
+  IconEyeOff,
+} from "@tabler/icons-react";
+import { notifications } from "@mantine/notifications";
+import { useDisclosure } from "@mantine/hooks";
+import { useApiManagementStore } from "../store/api-management";
 
 export function DeveloperAPIPage() {
   const {
@@ -84,41 +84,54 @@ export function DeveloperAPIPage() {
     setSelectedEndpoint,
     updateTestRequest,
     executeApiTest,
-    clearTestResponse
-  } = useApiManagementStore()
+    clearTestResponse,
+  } = useApiManagementStore();
 
-  const [createKeyOpened, { open: openCreateKey, close: closeCreateKey }] = useDisclosure(false)
-  const [createWebhookOpened, { open: openCreateWebhook, close: closeCreateWebhook }] = useDisclosure(false)
-  const [activeTab, setActiveTab] = useState<string | null>('overview')
+  const [createKeyOpened, { open: openCreateKey, close: closeCreateKey }] =
+    useDisclosure(false);
+  const [
+    createWebhookOpened,
+    { open: openCreateWebhook, close: closeCreateWebhook },
+  ] = useDisclosure(false);
+  const [activeTab, setActiveTab] = useState<string | null>("overview");
 
   // Load data on mount
   useEffect(() => {
-    loadApiKeys()
-    loadWebhooks()
-    loadUsage()
-    loadEndpoints()
-  }, [])
+    loadApiKeys();
+    loadWebhooks();
+    loadUsage();
+    loadEndpoints();
+  }, []);
 
   // Calculate overview stats
-  const totalApiCalls = usage.reduce((sum, day) => sum + day.requests, 0)
-  const totalErrors = usage.reduce((sum, day) => sum + day.errors, 0)
-  const errorRate = totalApiCalls > 0 ? (totalErrors / totalApiCalls) * 100 : 0
-  const activeWebhooks = webhooks.filter(w => w.status === 'connected').length
+  const totalApiCalls = usage.reduce((sum, day) => sum + day.requests, 0);
+  const totalErrors = usage.reduce((sum, day) => sum + day.errors, 0);
+  const errorRate = totalApiCalls > 0 ? (totalErrors / totalApiCalls) * 100 : 0;
+  const activeWebhooks = webhooks.filter(
+    (w) => w.status === "connected",
+  ).length;
 
   // Get trend for API calls (compare last 3 days vs previous 3 days)
-  const recentCalls = usage.slice(-3).reduce((sum, day) => sum + day.requests, 0)
-  const previousCalls = usage.slice(-6, -3).reduce((sum, day) => sum + day.requests, 0)
-  const callsTrend = previousCalls > 0 ? ((recentCalls - previousCalls) / previousCalls) * 100 : 0
+  const recentCalls = usage
+    .slice(-3)
+    .reduce((sum, day) => sum + day.requests, 0);
+  const previousCalls = usage
+    .slice(-6, -3)
+    .reduce((sum, day) => sum + day.requests, 0);
+  const callsTrend =
+    previousCalls > 0
+      ? ((recentCalls - previousCalls) / previousCalls) * 100
+      : 0;
 
   const handleCopyApiKey = (keyId: string) => {
-    navigator.clipboard.writeText(keyId)
+    navigator.clipboard.writeText(keyId);
     notifications.show({
-      title: 'Copied!',
-      message: 'API key copied to clipboard',
-      color: 'green',
-      icon: <IconCopy size={16} />
-    })
-  }
+      title: "Copied!",
+      message: "API key copied to clipboard",
+      color: "green",
+      icon: <IconCopy size={16} />,
+    });
+  };
 
   const handleCreateApiKey = async (formData: any) => {
     try {
@@ -130,73 +143,79 @@ export function DeveloperAPIPage() {
           requests_per_minute: formData.rate_limit_minute,
           requests_per_day: formData.rate_limit_day,
         },
-      })
+      });
 
-      await navigator.clipboard.writeText(rawKey)
+      await navigator.clipboard.writeText(rawKey);
 
       notifications.show({
-        title: 'API Key Created',
-        message: 'Your new API key has been copied to the clipboard.',
-        color: 'green',
-        icon: <IconCheck size={16} />
-      })
+        title: "API Key Created",
+        message: "Your new API key has been copied to the clipboard.",
+        color: "green",
+        icon: <IconCheck size={16} />,
+      });
 
-      closeCreateKey()
+      closeCreateKey();
     } catch (error) {
       notifications.show({
-        title: 'Error',
-        message: 'Failed to create API key',
-        color: 'red',
-        icon: <IconAlertCircle size={16} />
-      })
+        title: "Error",
+        message: "Failed to create API key",
+        color: "red",
+        icon: <IconAlertCircle size={16} />,
+      });
     }
-  }
+  };
 
   const handleDeleteApiKey = async (id: string) => {
     try {
-      await deleteApiKey(id)
+      await deleteApiKey(id);
       notifications.show({
-        title: 'API Key Deleted',
-        message: 'API key has been permanently deleted',
-        color: 'orange',
-        icon: <IconTrash size={16} />
-      })
+        title: "API Key Deleted",
+        message: "API key has been permanently deleted",
+        color: "orange",
+        icon: <IconTrash size={16} />,
+      });
     } catch (error) {
       notifications.show({
-        title: 'Error',
-        message: 'Failed to delete API key',
-        color: 'red'
-      })
+        title: "Error",
+        message: "Failed to delete API key",
+        color: "red",
+      });
     }
-  }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active': return 'green'
-      case 'expires_soon': return 'yellow'
-      case 'expired': return 'red'
-      case 'revoked': return 'gray'
-      default: return 'blue'
+      case "active":
+        return "green";
+      case "expires_soon":
+        return "yellow";
+      case "expired":
+        return "red";
+      case "revoked":
+        return "gray";
+      default:
+        return "blue";
     }
-  }
+  };
 
   const getWebhookStatusColor = (status: string) => {
     switch (status) {
-      case 'connected': return 'green'
-      case 'disconnected': return 'gray'
-      case 'error': return 'red'
-      default: return 'blue'
+      case "connected":
+        return "green";
+      case "disconnected":
+        return "gray";
+      case "error":
+        return "red";
+      default:
+        return "blue";
     }
-  }
+  };
 
   return (
     <Container size="xl" py="md">
       <Group justify="space-between" mb="xl">
         <Title order={1}>Developer API</Title>
-        <Button
-          leftSection={<IconPlus size={16} />}
-          onClick={openCreateKey}
-        >
+        <Button leftSection={<IconPlus size={16} />} onClick={openCreateKey}>
           Create API Key
         </Button>
       </Group>
@@ -229,19 +248,25 @@ export function DeveloperAPIPage() {
                 padding="md"
                 radius="md"
                 style={{
-                  background: '#FFFFFF',
-                  border: '1px solid #E6E9EE',
-                  borderLeft: '4px solid #2563EB',
+                  background: "#FFFFFF",
+                  border: "1px solid #E6E9EE",
+                  borderLeft: "4px solid #2563EB",
                 }}
               >
                 <Group gap="xs">
                   <IconKey size={20} color="#2563EB" />
                   <div>
-                    <Text size="sm" c="#475569">Active API Keys</Text>
-                    <Text size="xl" fw={700} c="#0F172A">{apiKeys.filter(k => k.status === 'active').length}</Text>
+                    <Text size="sm" c="#475569">
+                      Active API Keys
+                    </Text>
+                    <Text size="xl" fw={700} c="#0F172A">
+                      {apiKeys.filter((k) => k.status === "active").length}
+                    </Text>
                   </div>
                 </Group>
-                <Text size="xs" c="#64748B" mt="xs">1 key expires in 14 days</Text>
+                <Text size="xs" c="#64748B" mt="xs">
+                  1 key expires in 14 days
+                </Text>
               </Card>
             </Grid.Col>
 
@@ -250,16 +275,20 @@ export function DeveloperAPIPage() {
                 padding="md"
                 radius="md"
                 style={{
-                  background: '#FFFFFF',
-                  border: '1px solid #E6E9EE',
-                  borderLeft: '4px solid #10B981',
+                  background: "#FFFFFF",
+                  border: "1px solid #E6E9EE",
+                  borderLeft: "4px solid #10B981",
                 }}
               >
                 <Group gap="xs">
                   <IconCode size={20} color="#10B981" />
                   <div>
-                    <Text size="sm" c="#475569">API Calls (24h)</Text>
-                    <Text size="xl" fw={700} c="#0F172A">{totalApiCalls.toLocaleString()}</Text>
+                    <Text size="sm" c="#475569">
+                      API Calls (24h)
+                    </Text>
+                    <Text size="xl" fw={700} c="#0F172A">
+                      {totalApiCalls.toLocaleString()}
+                    </Text>
                   </div>
                 </Group>
                 <Group gap={4} mt="xs">
@@ -268,7 +297,7 @@ export function DeveloperAPIPage() {
                   ) : (
                     <IconTrendingDown size={12} color="#EF4444" />
                   )}
-                  <Text size="xs" c={callsTrend > 0 ? '#10B981' : '#EF4444'}>
+                  <Text size="xs" c={callsTrend > 0 ? "#10B981" : "#EF4444"}>
                     {Math.abs(callsTrend).toFixed(1)}% from yesterday
                   </Text>
                 </Group>
@@ -280,19 +309,25 @@ export function DeveloperAPIPage() {
                 padding="md"
                 radius="md"
                 style={{
-                  background: '#FFFFFF',
-                  border: '1px solid #E6E9EE',
-                  borderLeft: '4px solid #14B8A6',
+                  background: "#FFFFFF",
+                  border: "1px solid #E6E9EE",
+                  borderLeft: "4px solid #14B8A6",
                 }}
               >
                 <Group gap="xs">
                   <IconWebhook size={20} color="#14B8A6" />
                   <div>
-                    <Text size="sm" c="#475569">Webhooks</Text>
-                    <Text size="xl" fw={700} c="#0F172A">{activeWebhooks}</Text>
+                    <Text size="sm" c="#475569">
+                      Webhooks
+                    </Text>
+                    <Text size="xl" fw={700} c="#0F172A">
+                      {activeWebhooks}
+                    </Text>
                   </div>
                 </Group>
-                <Text size="xs" c="#64748B" mt="xs">All systems operational</Text>
+                <Text size="xs" c="#64748B" mt="xs">
+                  All systems operational
+                </Text>
               </Card>
             </Grid.Col>
 
@@ -301,21 +336,27 @@ export function DeveloperAPIPage() {
                 padding="md"
                 radius="md"
                 style={{
-                  background: '#FFFFFF',
-                  border: '1px solid #E6E9EE',
-                  borderLeft: '4px solid #F59E0B',
+                  background: "#FFFFFF",
+                  border: "1px solid #E6E9EE",
+                  borderLeft: "4px solid #F59E0B",
                 }}
               >
                 <Group gap="xs">
                   <IconAlertCircle size={20} color="#F59E0B" />
                   <div>
-                    <Text size="sm" c="#475569">Error Rate</Text>
-                    <Text size="xl" fw={700} c="#0F172A">{errorRate.toFixed(1)}%</Text>
+                    <Text size="sm" c="#475569">
+                      Error Rate
+                    </Text>
+                    <Text size="xl" fw={700} c="#0F172A">
+                      {errorRate.toFixed(1)}%
+                    </Text>
                   </div>
                 </Group>
                 <Group gap={4} mt="xs">
                   <IconTrendingDown size={12} color="#10B981" />
-                  <Text size="xs" c="#10B981">0.2% from last week</Text>
+                  <Text size="xs" c="#10B981">
+                    0.2% from last week
+                  </Text>
                 </Group>
               </Card>
             </Grid.Col>
@@ -323,7 +364,9 @@ export function DeveloperAPIPage() {
 
           {/* Quick Actions */}
           <Card withBorder mb="xl">
-            <Title order={3} mb="md">Quick Actions</Title>
+            <Title order={3} mb="md">
+              Quick Actions
+            </Title>
             <Group>
               <Button
                 variant="light"
@@ -342,7 +385,7 @@ export function DeveloperAPIPage() {
               <Button
                 variant="light"
                 leftSection={<IconCode size={16} />}
-                onClick={() => setActiveTab('tester')}
+                onClick={() => setActiveTab("tester")}
               >
                 Test API
               </Button>
@@ -360,19 +403,27 @@ export function DeveloperAPIPage() {
 
           {/* Recent Activity */}
           <Card withBorder>
-            <Title order={3} mb="md">Recent Activity</Title>
+            <Title order={3} mb="md">
+              Recent Activity
+            </Title>
             <Stack gap="sm">
               <Group justify="space-between">
                 <Text size="sm">Production Key used for wallet query</Text>
-                <Text size="xs" c="dimmed">2 minutes ago</Text>
+                <Text size="xs" c="dimmed">
+                  2 minutes ago
+                </Text>
               </Group>
               <Group justify="space-between">
                 <Text size="sm">Webhook delivery successful</Text>
-                <Text size="xs" c="dimmed">5 minutes ago</Text>
+                <Text size="xs" c="dimmed">
+                  5 minutes ago
+                </Text>
               </Group>
               <Group justify="space-between">
                 <Text size="sm">New API key created: Testing Key</Text>
-                <Text size="xs" c="dimmed">1 hour ago</Text>
+                <Text size="xs" c="dimmed">
+                  1 hour ago
+                </Text>
               </Group>
             </Stack>
           </Card>
@@ -418,12 +469,14 @@ export function DeveloperAPIPage() {
                     <Table.Td>
                       <div>
                         <Text fw={500}>{key.name}</Text>
-                        <Text size="xs" c="dimmed">{key.access_level} access</Text>
+                        <Text size="xs" c="dimmed">
+                          {key.access_level} access
+                        </Text>
                       </div>
                     </Table.Td>
                     <Table.Td>
                       <Group gap="xs">
-                          <Code>{key.key_prefix}</Code>
+                        <Code>{key.key_prefix}</Code>
                         <ActionIcon
                           variant="subtle"
                           size="sm"
@@ -442,8 +495,7 @@ export function DeveloperAPIPage() {
                       <Text size="sm">
                         {key.expires_at
                           ? new Date(key.expires_at).toLocaleDateString()
-                          : 'Never'
-                        }
+                          : "Never"}
                       </Text>
                     </Table.Td>
                     <Table.Td>
@@ -496,7 +548,9 @@ export function DeveloperAPIPage() {
           <Grid>
             <Grid.Col span={{ base: 12, lg: 6 }}>
               <Card withBorder>
-                <Title order={3} mb="md">API Tester</Title>
+                <Title order={3} mb="md">
+                  API Tester
+                </Title>
 
                 <Stack gap="md">
                   <Select
@@ -504,9 +558,9 @@ export function DeveloperAPIPage() {
                     placeholder="Select an endpoint to test"
                     value={selectedEndpoint}
                     onChange={setSelectedEndpoint}
-                    data={endpoints.map(endpoint => ({
+                    data={endpoints.map((endpoint) => ({
                       value: `${endpoint.method} ${endpoint.path}`,
-                      label: `${endpoint.method} ${endpoint.path}`
+                      label: `${endpoint.method} ${endpoint.path}`,
                     }))}
                   />
 
@@ -514,8 +568,10 @@ export function DeveloperAPIPage() {
                     <Select
                       label="Method"
                       value={testRequest.method}
-                      onChange={(value) => updateTestRequest({ method: value || 'GET' })}
-                      data={['GET', 'POST', 'PUT', 'DELETE', 'PATCH']}
+                      onChange={(value) =>
+                        updateTestRequest({ method: value || "GET" })
+                      }
+                      data={["GET", "POST", "PUT", "DELETE", "PATCH"]}
                     />
                   </Group>
 
@@ -531,8 +587,8 @@ export function DeveloperAPIPage() {
                     value={JSON.stringify(testRequest.headers, null, 2)}
                     onChange={(value) => {
                       try {
-                        const headers = JSON.parse(value)
-                        updateTestRequest({ headers })
+                        const headers = JSON.parse(value);
+                        updateTestRequest({ headers });
                       } catch (e) {
                         // Invalid JSON, ignore
                       }
@@ -541,7 +597,7 @@ export function DeveloperAPIPage() {
                     maxRows={6}
                   />
 
-                  {['POST', 'PUT', 'PATCH'].includes(testRequest.method) && (
+                  {["POST", "PUT", "PATCH"].includes(testRequest.method) && (
                     <JsonInput
                       label="Request Body"
                       value={testRequest.body}
@@ -560,10 +616,7 @@ export function DeveloperAPIPage() {
                     >
                       Send Request
                     </Button>
-                    <Button
-                      variant="light"
-                      onClick={clearTestResponse}
-                    >
+                    <Button variant="light" onClick={clearTestResponse}>
                       Clear
                     </Button>
                   </Group>
@@ -573,27 +626,31 @@ export function DeveloperAPIPage() {
 
             <Grid.Col span={{ base: 12, lg: 6 }}>
               <Card withBorder>
-                <Title order={3} mb="md">Response</Title>
+                <Title order={3} mb="md">
+                  Response
+                </Title>
 
                 {testResponse ? (
                   <Stack gap="md">
                     {testResponse.status && (
                       <Group>
                         <Badge
-                          color={testResponse.status < 400 ? 'green' : 'red'}
+                          color={testResponse.status < 400 ? "green" : "red"}
                           variant="light"
                         >
                           {testResponse.status}
                         </Badge>
                         <Text size="sm" c="dimmed">
-                          {testResponse.status < 400 ? 'Success' : 'Error'}
+                          {testResponse.status < 400 ? "Success" : "Error"}
                         </Text>
                       </Group>
                     )}
 
                     {testResponse.headers && (
                       <div>
-                        <Text size="sm" fw={500} mb="xs">Headers:</Text>
+                        <Text size="sm" fw={500} mb="xs">
+                          Headers:
+                        </Text>
                         <Code block>
                           {JSON.stringify(testResponse.headers, null, 2)}
                         </Code>
@@ -601,13 +658,14 @@ export function DeveloperAPIPage() {
                     )}
 
                     <div>
-                      <Text size="sm" fw={500} mb="xs">Response Body:</Text>
+                      <Text size="sm" fw={500} mb="xs">
+                        Response Body:
+                      </Text>
                       <ScrollArea.Autosize mah={400}>
                         <Code block>
                           {testResponse.error
                             ? testResponse.error
-                            : JSON.stringify(testResponse.body, null, 2)
-                          }
+                            : JSON.stringify(testResponse.body, null, 2)}
                         </Code>
                       </ScrollArea.Autosize>
                     </div>
@@ -706,7 +764,9 @@ export function DeveloperAPIPage() {
                               <Menu.Item leftSection={<IconEdit size={14} />}>
                                 Edit
                               </Menu.Item>
-                              <Menu.Item leftSection={<IconSettings size={14} />}>
+                              <Menu.Item
+                                leftSection={<IconSettings size={14} />}
+                              >
                                 Configure
                               </Menu.Item>
                               <Menu.Divider />
@@ -729,37 +789,50 @@ export function DeveloperAPIPage() {
 
             <Grid.Col span={{ base: 12, lg: 4 }}>
               <Card withBorder>
-                <Title order={4} mb="md">Webhook Status</Title>
+                <Title order={4} mb="md">
+                  Webhook Status
+                </Title>
 
                 <Stack gap="md">
                   <Group justify="space-between">
                     <Text size="sm">Webhook Status:</Text>
                     <Group gap="xs">
                       <Indicator color="green" size={8} />
-                      <Text size="sm" c="green">Connected</Text>
+                      <Text size="sm" c="green">
+                        Connected
+                      </Text>
                     </Group>
                   </Group>
 
                   <Text size="xs" c="dimmed">
-                    Receiving real-time notifications at: https://myapp.com/webhooks/ekko
+                    Receiving real-time notifications at:
+                    https://myapp.com/webhooks/ekko
                   </Text>
 
                   <Divider />
 
                   <div>
-                    <Text size="sm" fw={500} mb="xs">Recent Deliveries</Text>
+                    <Text size="sm" fw={500} mb="xs">
+                      Recent Deliveries
+                    </Text>
                     <Stack gap="xs">
                       <Group justify="space-between">
                         <Text size="xs">alert.triggered</Text>
-                        <Text size="xs" c="dimmed">2 min ago</Text>
+                        <Text size="xs" c="dimmed">
+                          2 min ago
+                        </Text>
                       </Group>
                       <Group justify="space-between">
                         <Text size="xs">transaction.detected</Text>
-                        <Text size="xs" c="dimmed">5 min ago</Text>
+                        <Text size="xs" c="dimmed">
+                          5 min ago
+                        </Text>
                       </Group>
                       <Group justify="space-between">
                         <Text size="xs">alert.resolved</Text>
-                        <Text size="xs" c="dimmed">12 min ago</Text>
+                        <Text size="xs" c="dimmed">
+                          12 min ago
+                        </Text>
                       </Group>
                     </Stack>
                   </div>
@@ -771,24 +844,34 @@ export function DeveloperAPIPage() {
               </Card>
 
               <Card withBorder mt="md">
-                <Title order={4} mb="md">Available Events</Title>
+                <Title order={4} mb="md">
+                  Available Events
+                </Title>
 
                 <Stack gap="xs">
                   <Group justify="space-between">
                     <Text size="sm">alert.triggered</Text>
-                    <Badge size="xs" variant="light">Active</Badge>
+                    <Badge size="xs" variant="light">
+                      Active
+                    </Badge>
                   </Group>
                   <Group justify="space-between">
                     <Text size="sm">alert.resolved</Text>
-                    <Badge size="xs" variant="light">Active</Badge>
+                    <Badge size="xs" variant="light">
+                      Active
+                    </Badge>
                   </Group>
                   <Group justify="space-between">
                     <Text size="sm">transaction.detected</Text>
-                    <Badge size="xs" variant="light">Active</Badge>
+                    <Badge size="xs" variant="light">
+                      Active
+                    </Badge>
                   </Group>
                   <Group justify="space-between">
                     <Text size="sm">wallet.balance_changed</Text>
-                    <Badge size="xs" variant="light" color="gray">Inactive</Badge>
+                    <Badge size="xs" variant="light" color="gray">
+                      Inactive
+                    </Badge>
                   </Group>
                 </Stack>
               </Card>
@@ -800,27 +883,36 @@ export function DeveloperAPIPage() {
           <Grid>
             <Grid.Col span={{ base: 12, lg: 8 }}>
               <Card withBorder>
-                <Title order={3} mb="md">API Documentation</Title>
+                <Title order={3} mb="md">
+                  API Documentation
+                </Title>
 
                 <Stack gap="lg">
                   <div>
-                    <Title order={4} mb="md">Getting Started</Title>
+                    <Title order={4} mb="md">
+                      Getting Started
+                    </Title>
                     <Text mb="md">
-                      The Ekko API provides programmatic access to your wallet monitoring,
-                      alert management, and transaction data. All API requests require authentication
-                      using an API key.
+                      The Ekko API provides programmatic access to your wallet
+                      monitoring, alert management, and transaction data. All
+                      API requests require authentication using an API key.
                     </Text>
 
                     <Paper withBorder p="md" bg="gray.0">
-                      <Text size="sm" fw={500} mb="xs">Base URL</Text>
+                      <Text size="sm" fw={500} mb="xs">
+                        Base URL
+                      </Text>
                       <Code>https://api.ekko.com/v1</Code>
                     </Paper>
                   </div>
 
                   <div>
-                    <Title order={4} mb="md">Authentication</Title>
+                    <Title order={4} mb="md">
+                      Authentication
+                    </Title>
                     <Text mb="md">
-                      Include your API key in the Authorization header of every request:
+                      Include your API key in the Authorization header of every
+                      request:
                     </Text>
 
                     <Code block>
@@ -830,13 +922,19 @@ export function DeveloperAPIPage() {
                   </div>
 
                   <div>
-                    <Title order={4} mb="md">Endpoints</Title>
+                    <Title order={4} mb="md">
+                      Endpoints
+                    </Title>
                     <Stack gap="md">
                       {endpoints.map((endpoint, index) => (
                         <Paper key={index} withBorder p="md">
                           <Group justify="space-between" mb="sm">
                             <Group gap="sm">
-                              <Badge color={endpoint.method === 'GET' ? 'blue' : 'green'}>
+                              <Badge
+                                color={
+                                  endpoint.method === "GET" ? "blue" : "green"
+                                }
+                              >
                                 {endpoint.method}
                               </Badge>
                               <Code>{endpoint.path}</Code>
@@ -845,55 +943,78 @@ export function DeveloperAPIPage() {
                               size="xs"
                               variant="light"
                               onClick={() => {
-                                setSelectedEndpoint(`${endpoint.method} ${endpoint.path}`)
-                                setActiveTab('tester')
+                                setSelectedEndpoint(
+                                  `${endpoint.method} ${endpoint.path}`,
+                                );
+                                setActiveTab("tester");
                               }}
                             >
                               Try it
                             </Button>
                           </Group>
 
-                          <Text size="sm" mb="md">{endpoint.description}</Text>
+                          <Text size="sm" mb="md">
+                            {endpoint.description}
+                          </Text>
 
-                          {endpoint.parameters && endpoint.parameters.length > 0 && (
-                            <div>
-                              <Text size="sm" fw={500} mb="xs">Parameters:</Text>
-                              <Table>
-                                <Table.Thead>
-                                  <Table.Tr>
-                                    <Table.Th>Name</Table.Th>
-                                    <Table.Th>Type</Table.Th>
-                                    <Table.Th>Required</Table.Th>
-                                    <Table.Th>Description</Table.Th>
-                                  </Table.Tr>
-                                </Table.Thead>
-                                <Table.Tbody>
-                                  {endpoint.parameters.map((param, paramIndex) => (
-                                    <Table.Tr key={paramIndex}>
-                                      <Table.Td><Code>{param.name}</Code></Table.Td>
-                                      <Table.Td>{param.type}</Table.Td>
-                                      <Table.Td>
-                                        <Badge
-                                          size="xs"
-                                          color={param.required ? 'red' : 'gray'}
-                                          variant="light"
-                                        >
-                                          {param.required ? 'Required' : 'Optional'}
-                                        </Badge>
-                                      </Table.Td>
-                                      <Table.Td>{param.description}</Table.Td>
+                          {endpoint.parameters &&
+                            endpoint.parameters.length > 0 && (
+                              <div>
+                                <Text size="sm" fw={500} mb="xs">
+                                  Parameters:
+                                </Text>
+                                <Table>
+                                  <Table.Thead>
+                                    <Table.Tr>
+                                      <Table.Th>Name</Table.Th>
+                                      <Table.Th>Type</Table.Th>
+                                      <Table.Th>Required</Table.Th>
+                                      <Table.Th>Description</Table.Th>
                                     </Table.Tr>
-                                  ))}
-                                </Table.Tbody>
-                              </Table>
-                            </div>
-                          )}
+                                  </Table.Thead>
+                                  <Table.Tbody>
+                                    {endpoint.parameters.map(
+                                      (param, paramIndex) => (
+                                        <Table.Tr key={paramIndex}>
+                                          <Table.Td>
+                                            <Code>{param.name}</Code>
+                                          </Table.Td>
+                                          <Table.Td>{param.type}</Table.Td>
+                                          <Table.Td>
+                                            <Badge
+                                              size="xs"
+                                              color={
+                                                param.required ? "red" : "gray"
+                                              }
+                                              variant="light"
+                                            >
+                                              {param.required
+                                                ? "Required"
+                                                : "Optional"}
+                                            </Badge>
+                                          </Table.Td>
+                                          <Table.Td>
+                                            {param.description}
+                                          </Table.Td>
+                                        </Table.Tr>
+                                      ),
+                                    )}
+                                  </Table.Tbody>
+                                </Table>
+                              </div>
+                            )}
 
                           {endpoint.example_request && (
                             <div>
-                              <Text size="sm" fw={500} mb="xs">Example Request:</Text>
+                              <Text size="sm" fw={500} mb="xs">
+                                Example Request:
+                              </Text>
                               <Code block>
-                                {JSON.stringify(endpoint.example_request, null, 2)}
+                                {JSON.stringify(
+                                  endpoint.example_request,
+                                  null,
+                                  2,
+                                )}
                               </Code>
                             </div>
                           )}
@@ -903,9 +1024,12 @@ export function DeveloperAPIPage() {
                   </div>
 
                   <div>
-                    <Title order={4} mb="md">Rate Limits</Title>
+                    <Title order={4} mb="md">
+                      Rate Limits
+                    </Title>
                     <Text mb="md">
-                      API requests are rate limited based on your API key configuration:
+                      API requests are rate limited based on your API key
+                      configuration:
                     </Text>
 
                     <Table>
@@ -937,9 +1061,12 @@ export function DeveloperAPIPage() {
                   </div>
 
                   <div>
-                    <Title order={4} mb="md">Error Handling</Title>
+                    <Title order={4} mb="md">
+                      Error Handling
+                    </Title>
                     <Text mb="md">
-                      The API uses conventional HTTP response codes to indicate success or failure:
+                      The API uses conventional HTTP response codes to indicate
+                      success or failure:
                     </Text>
 
                     <Stack gap="sm">
@@ -971,7 +1098,9 @@ export function DeveloperAPIPage() {
 
             <Grid.Col span={{ base: 12, lg: 4 }}>
               <Card withBorder>
-                <Title order={4} mb="md">Quick Links</Title>
+                <Title order={4} mb="md">
+                  Quick Links
+                </Title>
 
                 <Stack gap="sm">
                   <Button
@@ -986,7 +1115,7 @@ export function DeveloperAPIPage() {
                     variant="light"
                     leftSection={<IconCode size={16} />}
                     fullWidth
-                    onClick={() => setActiveTab('tester')}
+                    onClick={() => setActiveTab("tester")}
                   >
                     API Tester
                   </Button>
@@ -1005,30 +1134,42 @@ export function DeveloperAPIPage() {
               </Card>
 
               <Card withBorder mt="md">
-                <Title order={4} mb="md">SDKs & Libraries</Title>
+                <Title order={4} mb="md">
+                  SDKs & Libraries
+                </Title>
 
                 <Stack gap="sm">
                   <Group justify="space-between">
                     <Text size="sm">JavaScript/Node.js</Text>
-                    <Button size="xs" variant="light">Install</Button>
+                    <Button size="xs" variant="light">
+                      Install
+                    </Button>
                   </Group>
                   <Group justify="space-between">
                     <Text size="sm">Python</Text>
-                    <Button size="xs" variant="light">Install</Button>
+                    <Button size="xs" variant="light">
+                      Install
+                    </Button>
                   </Group>
                   <Group justify="space-between">
                     <Text size="sm">Go</Text>
-                    <Button size="xs" variant="light">Install</Button>
+                    <Button size="xs" variant="light">
+                      Install
+                    </Button>
                   </Group>
                   <Group justify="space-between">
                     <Text size="sm">PHP</Text>
-                    <Button size="xs" variant="light">Install</Button>
+                    <Button size="xs" variant="light">
+                      Install
+                    </Button>
                   </Group>
                 </Stack>
               </Card>
 
               <Card withBorder mt="md">
-                <Title order={4} mb="md">Support</Title>
+                <Title order={4} mb="md">
+                  Support
+                </Title>
 
                 <Stack gap="sm">
                   <Text size="sm" c="dimmed">
@@ -1086,35 +1227,35 @@ export function DeveloperAPIPage() {
         opened={createWebhookOpened}
         onClose={closeCreateWebhook}
         onSubmit={async (data: any) => {
-          await createWebhook(data)
-          closeCreateWebhook()
+          await createWebhook(data);
+          closeCreateWebhook();
         }}
       />
     </Container>
-  )
+  );
 }
 
 // Create API Key Modal Component
 function CreateApiKeyModal({ opened, onClose, onSubmit }: any) {
   const [formData, setFormData] = useState({
-    name: '',
-    access_level: 'read_only',
-    expires_at: '',
+    name: "",
+    access_level: "read_only",
+    expires_at: "",
     rate_limit_minute: 100,
-    rate_limit_day: 10000
-  })
+    rate_limit_day: 10000,
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    onSubmit(formData)
+    e.preventDefault();
+    onSubmit(formData);
     setFormData({
-      name: '',
-      access_level: 'read_only',
-      expires_at: '',
+      name: "",
+      access_level: "read_only",
+      expires_at: "",
       rate_limit_minute: 100,
-      rate_limit_day: 10000
-    })
-  }
+      rate_limit_day: 10000,
+    });
+  };
 
   return (
     <Modal opened={opened} onClose={onClose} title="Create API Key" size="md">
@@ -1131,11 +1272,13 @@ function CreateApiKeyModal({ opened, onClose, onSubmit }: any) {
           <Select
             label="Access Level"
             value={formData.access_level}
-            onChange={(value) => setFormData({ ...formData, access_level: value || 'read_only' })}
+            onChange={(value) =>
+              setFormData({ ...formData, access_level: value || "read_only" })
+            }
             data={[
-              { value: 'read_only', label: 'Read Only' },
-              { value: 'limited', label: 'Limited Access' },
-              { value: 'full', label: 'Full Access' }
+              { value: "read_only", label: "Read Only" },
+              { value: "limited", label: "Limited Access" },
+              { value: "full", label: "Full Access" },
             ]}
           />
 
@@ -1143,13 +1286,17 @@ function CreateApiKeyModal({ opened, onClose, onSubmit }: any) {
             label="Expires At (Optional)"
             type="date"
             value={formData.expires_at}
-            onChange={(e) => setFormData({ ...formData, expires_at: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, expires_at: e.target.value })
+            }
           />
 
           <NumberInput
             label="Rate Limit (per minute)"
             value={formData.rate_limit_minute}
-            onChange={(value) => setFormData({ ...formData, rate_limit_minute: Number(value) })}
+            onChange={(value) =>
+              setFormData({ ...formData, rate_limit_minute: Number(value) })
+            }
             min={1}
             max={10000}
           />
@@ -1157,7 +1304,9 @@ function CreateApiKeyModal({ opened, onClose, onSubmit }: any) {
           <NumberInput
             label="Rate Limit (per day)"
             value={formData.rate_limit_day}
-            onChange={(value) => setFormData({ ...formData, rate_limit_day: Number(value) })}
+            onChange={(value) =>
+              setFormData({ ...formData, rate_limit_day: Number(value) })
+            }
             min={1}
             max={1000000}
           />
@@ -1166,43 +1315,41 @@ function CreateApiKeyModal({ opened, onClose, onSubmit }: any) {
             <Button variant="subtle" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit">
-              Create API Key
-            </Button>
+            <Button type="submit">Create API Key</Button>
           </Group>
         </Stack>
       </form>
     </Modal>
-  )
+  );
 }
 
 // Create Webhook Modal Component
 function CreateWebhookModal({ opened, onClose, onSubmit }: any) {
   const [formData, setFormData] = useState<{
-    name: string
-    url: string
-    events: string[]
-    secret: string
+    name: string;
+    url: string;
+    events: string[];
+    secret: string;
   }>({
-    name: '',
-    url: '',
+    name: "",
+    url: "",
     events: [],
-    secret: ''
-  })
+    secret: "",
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     onSubmit({
       ...formData,
-      status: 'connected'
-    })
+      status: "connected",
+    });
     setFormData({
-      name: '',
-      url: '',
+      name: "",
+      url: "",
       events: [],
-      secret: ''
-    })
-  }
+      secret: "",
+    });
+  };
 
   return (
     <Modal opened={opened} onClose={onClose} title="Create Webhook" size="md">
@@ -1230,10 +1377,13 @@ function CreateWebhookModal({ opened, onClose, onSubmit }: any) {
             value={formData.events}
             onChange={(value) => setFormData({ ...formData, events: value })}
             data={[
-              { value: 'alert.triggered', label: 'Alert Triggered' },
-              { value: 'alert.resolved', label: 'Alert Resolved' },
-              { value: 'transaction.detected', label: 'Transaction Detected' },
-              { value: 'wallet.balance_changed', label: 'Wallet Balance Changed' }
+              { value: "alert.triggered", label: "Alert Triggered" },
+              { value: "alert.resolved", label: "Alert Resolved" },
+              { value: "transaction.detected", label: "Transaction Detected" },
+              {
+                value: "wallet.balance_changed",
+                label: "Wallet Balance Changed",
+              },
             ]}
           />
 
@@ -1241,19 +1391,19 @@ function CreateWebhookModal({ opened, onClose, onSubmit }: any) {
             label="Secret (Optional)"
             placeholder="Webhook signing secret"
             value={formData.secret}
-            onChange={(e) => setFormData({ ...formData, secret: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, secret: e.target.value })
+            }
           />
 
           <Group justify="flex-end" mt="md">
             <Button variant="subtle" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit">
-              Create Webhook
-            </Button>
+            <Button type="submit">Create Webhook</Button>
           </Group>
         </Stack>
       </form>
     </Modal>
-  )
+  );
 }

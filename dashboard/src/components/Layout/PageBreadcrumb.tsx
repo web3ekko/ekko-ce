@@ -5,91 +5,94 @@
  * Each segment is clickable for easy navigation back through the hierarchy.
  */
 
-import { Breadcrumbs, Anchor, Text } from '@mantine/core'
-import { useLocation, useNavigate } from 'react-router-dom'
-import { IconChevronRight, IconHome } from '@tabler/icons-react'
+import { Breadcrumbs, Anchor, Text } from "@mantine/core";
+import { useLocation, useNavigate } from "react-router-dom";
+import { IconChevronRight, IconHome } from "@tabler/icons-react";
 
 interface BreadcrumbItem {
-  label: string
-  path: string
+  label: string;
+  path: string;
 }
 
 // Human-readable labels for path segments
 const pathLabels: Record<string, string> = {
-  dashboard: 'Dashboard',
-  alerts: 'Alerts',
-  wallets: 'Wallets',
-  groups: 'Groups',
-  analytics: 'Analytics',
-  settings: 'Settings',
-  profile: 'Profile',
-  team: 'Team',
-  api: 'Developer API',
-  webhooks: 'Webhooks',
-  marketplace: 'Marketplace',
-  help: 'Help',
-  security: 'Security',
-  billing: 'Billing',
-  notifications: 'Notifications',
-}
+  dashboard: "Dashboard",
+  alerts: "Alerts",
+  wallets: "Wallets",
+  groups: "Groups",
+  analytics: "Analytics",
+  settings: "Settings",
+  profile: "Profile",
+  team: "Team",
+  api: "Developer API",
+  webhooks: "Webhooks",
+  marketplace: "Marketplace",
+  help: "Help",
+  security: "Security",
+  billing: "Billing",
+  notifications: "Notifications",
+};
 
 // Get human-readable label for a path segment
 function getLabel(segment: string): string {
   // Check for predefined labels
   if (pathLabels[segment]) {
-    return pathLabels[segment]
+    return pathLabels[segment];
   }
 
   // If it looks like an ID (UUID or numeric), return "Details"
   if (/^[0-9a-f-]{36}$/i.test(segment) || /^\d+$/.test(segment)) {
-    return 'Details'
+    return "Details";
   }
 
   // Otherwise, capitalize and replace hyphens/underscores with spaces
   return segment
     .split(/[-_]/)
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
 }
 
 interface PageBreadcrumbProps {
   /** Custom breadcrumb items to override auto-generation */
-  items?: BreadcrumbItem[]
+  items?: BreadcrumbItem[];
   /** Whether to show the home icon at the start */
-  showHome?: boolean
+  showHome?: boolean;
   /** Override the current page label (useful for dynamic pages) */
-  currentPageLabel?: string
+  currentPageLabel?: string;
 }
 
 export function PageBreadcrumb({
   items,
   showHome = true,
-  currentPageLabel
+  currentPageLabel,
 }: PageBreadcrumbProps) {
-  const location = useLocation()
-  const navigate = useNavigate()
+  const location = useLocation();
+  const navigate = useNavigate();
 
   // Generate breadcrumb items from current path if not provided
-  const breadcrumbItems: BreadcrumbItem[] = items || (() => {
-    const segments = location.pathname.split('/').filter(Boolean)
-    const crumbs: BreadcrumbItem[] = []
-    let currentPath = ''
+  const breadcrumbItems: BreadcrumbItem[] =
+    items ||
+    (() => {
+      const segments = location.pathname.split("/").filter(Boolean);
+      const crumbs: BreadcrumbItem[] = [];
+      let currentPath = "";
 
-    segments.forEach((segment, index) => {
-      currentPath += `/${segment}`
-      const isLast = index === segments.length - 1
+      segments.forEach((segment, index) => {
+        currentPath += `/${segment}`;
+        const isLast = index === segments.length - 1;
 
-      crumbs.push({
-        label: isLast && currentPageLabel ? currentPageLabel : getLabel(segment),
-        path: currentPath,
-      })
-    })
+        crumbs.push({
+          label:
+            isLast && currentPageLabel ? currentPageLabel : getLabel(segment),
+          path: currentPath,
+        });
+      });
 
-    return crumbs
-  })()
+      return crumbs;
+    })();
 
   if (breadcrumbItems.length <= 1) {
-    return null // Don't show breadcrumbs for root-level pages
+    return null; // Don't show breadcrumbs for root-level pages
   }
 
   return (
@@ -98,7 +101,7 @@ export function PageBreadcrumb({
       mb="md"
       styles={{
         root: {
-          flexWrap: 'wrap',
+          flexWrap: "wrap",
         },
         separator: {
           marginLeft: 6,
@@ -108,13 +111,13 @@ export function PageBreadcrumb({
     >
       {showHome && (
         <Anchor
-          onClick={() => navigate('/dashboard')}
+          onClick={() => navigate("/dashboard")}
           c="#64748B"
           size="sm"
           style={{
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
             gap: 4,
           }}
         >
@@ -122,14 +125,14 @@ export function PageBreadcrumb({
         </Anchor>
       )}
       {breadcrumbItems.slice(showHome ? 1 : 0).map((item, index, arr) => {
-        const isLast = index === arr.length - 1
+        const isLast = index === arr.length - 1;
 
         if (isLast) {
           return (
             <Text key={item.path} size="sm" fw={500} c="#0F172A">
               {item.label}
             </Text>
-          )
+          );
         }
 
         return (
@@ -138,12 +141,12 @@ export function PageBreadcrumb({
             onClick={() => navigate(item.path)}
             c="#64748B"
             size="sm"
-            style={{ cursor: 'pointer' }}
+            style={{ cursor: "pointer" }}
           >
             {item.label}
           </Anchor>
-        )
+        );
       })}
     </Breadcrumbs>
-  )
+  );
 }

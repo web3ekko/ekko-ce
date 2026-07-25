@@ -4,7 +4,7 @@
  * Displays a list of sample events that would have triggered the alert
  */
 
-import { useState } from 'react'
+import { useState } from "react";
 import {
   Stack,
   Card,
@@ -19,7 +19,7 @@ import {
   Tooltip,
   CopyButton,
   ActionIcon,
-} from '@mantine/core'
+} from "@mantine/core";
 import {
   IconChevronDown,
   IconChevronUp,
@@ -28,54 +28,61 @@ import {
   IconCheck,
   IconClock,
   IconAlertCircle,
-} from '@tabler/icons-react'
-import { motion, AnimatePresence } from 'framer-motion'
-import type { SampleTrigger, NearMiss } from '../../../services/alerts-api'
+} from "@tabler/icons-react";
+import { motion, AnimatePresence } from "framer-motion";
+import type { SampleTrigger, NearMiss } from "../../../services/alerts-api";
 
 interface SampleTriggersListProps {
-  triggers: SampleTrigger[]
-  nearMisses?: NearMiss[]
-  maxVisible?: number
+  triggers: SampleTrigger[];
+  nearMisses?: NearMiss[];
+  maxVisible?: number;
 }
 
 interface TriggerItemProps {
-  trigger: SampleTrigger
-  index: number
-  isNearMiss?: boolean
-  thresholdDistance?: number
-  explanation?: string
+  trigger: SampleTrigger;
+  index: number;
+  isNearMiss?: boolean;
+  thresholdDistance?: number;
+  explanation?: string;
 }
 
 function formatTimestamp(timestamp: string): string {
-  const date = new Date(timestamp)
-  return date.toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  const date = new Date(timestamp);
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function formatValue(value: unknown): string {
-  if (typeof value === 'number') {
+  if (typeof value === "number") {
     if (Math.abs(value) >= 1000000) {
-      return `${(value / 1000000).toFixed(2)}M`
+      return `${(value / 1000000).toFixed(2)}M`;
     }
     if (Math.abs(value) >= 1000) {
-      return `${(value / 1000).toFixed(2)}K`
+      return `${(value / 1000).toFixed(2)}K`;
     }
-    return value.toLocaleString(undefined, { maximumFractionDigits: 2 })
+    return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
   }
-  if (typeof value === 'string' && value.startsWith('0x')) {
-    return `${value.slice(0, 10)}...${value.slice(-8)}`
+  if (typeof value === "string" && value.startsWith("0x")) {
+    return `${value.slice(0, 10)}...${value.slice(-8)}`;
   }
-  return String(value)
+  return String(value);
 }
 
-function TriggerItem({ trigger, index, isNearMiss, thresholdDistance, explanation }: TriggerItemProps) {
-  const [expanded, setExpanded] = useState(false)
+function TriggerItem({
+  trigger,
+  index,
+  isNearMiss,
+  thresholdDistance,
+  explanation,
+}: TriggerItemProps) {
+  const [expanded, setExpanded] = useState(false);
 
-  const primaryValue = trigger.data?.value_usd ?? trigger.data?.value ?? trigger.data?.amount
+  const primaryValue =
+    trigger.data?.value_usd ?? trigger.data?.value ?? trigger.data?.amount;
 
   return (
     <motion.div
@@ -89,10 +96,10 @@ function TriggerItem({ trigger, index, isNearMiss, thresholdDistance, explanatio
         withBorder
         style={{
           borderColor: isNearMiss
-            ? 'var(--mantine-color-yellow-4)'
-            : 'var(--mantine-color-default-border)',
+            ? "var(--mantine-color-yellow-4)"
+            : "var(--mantine-color-default-border)",
           backgroundColor: isNearMiss
-            ? 'var(--mantine-color-yellow-0)'
+            ? "var(--mantine-color-yellow-0)"
             : undefined,
         }}
       >
@@ -101,15 +108,30 @@ function TriggerItem({ trigger, index, isNearMiss, thresholdDistance, explanatio
             <Group gap="sm" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
               {isNearMiss ? (
                 <Tooltip label="Near miss - almost triggered">
-                  <IconAlertCircle size={16} style={{ color: 'var(--mantine-color-yellow-6)', flexShrink: 0 }} />
+                  <IconAlertCircle
+                    size={16}
+                    style={{
+                      color: "var(--mantine-color-yellow-6)",
+                      flexShrink: 0,
+                    }}
+                  />
                 </Tooltip>
               ) : (
-                <IconBell size={16} style={{ color: 'var(--mantine-color-green-6)', flexShrink: 0 }} />
+                <IconBell
+                  size={16}
+                  style={{
+                    color: "var(--mantine-color-green-6)",
+                    flexShrink: 0,
+                  }}
+                />
               )}
 
               <Stack gap={2} style={{ flex: 1, minWidth: 0 }}>
                 <Group gap="xs" wrap="nowrap">
-                  <IconClock size={12} style={{ opacity: 0.5, flexShrink: 0 }} />
+                  <IconClock
+                    size={12}
+                    style={{ opacity: 0.5, flexShrink: 0 }}
+                  />
                   <Text size="xs" c="dimmed">
                     {formatTimestamp(trigger.timestamp)}
                   </Text>
@@ -141,7 +163,11 @@ function TriggerItem({ trigger, index, isNearMiss, thresholdDistance, explanatio
                 size="sm"
                 onClick={() => setExpanded(!expanded)}
               >
-                {expanded ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />}
+                {expanded ? (
+                  <IconChevronUp size={14} />
+                ) : (
+                  <IconChevronDown size={14} />
+                )}
               </ActionIcon>
             </Group>
           </Group>
@@ -151,7 +177,7 @@ function TriggerItem({ trigger, index, isNearMiss, thresholdDistance, explanatio
               {trigger.matched_condition && (
                 <Box>
                   <Text size="xs" c="dimmed" mb={4}>
-                    {isNearMiss ? 'Condition' : 'Matched Condition'}:
+                    {isNearMiss ? "Condition" : "Matched Condition"}:
                   </Text>
                   <Code size="xs">{trigger.matched_condition}</Code>
                 </Box>
@@ -165,12 +191,18 @@ function TriggerItem({ trigger, index, isNearMiss, thresholdDistance, explanatio
 
               <Box>
                 <Group justify="space-between" mb={4}>
-                  <Text size="xs" c="dimmed">Event Data:</Text>
+                  <Text size="xs" c="dimmed">
+                    Event Data:
+                  </Text>
                   <CopyButton value={JSON.stringify(trigger.data, null, 2)}>
                     {({ copied, copy }) => (
-                      <Tooltip label={copied ? 'Copied!' : 'Copy JSON'}>
+                      <Tooltip label={copied ? "Copied!" : "Copy JSON"}>
                         <ActionIcon variant="subtle" size="xs" onClick={copy}>
-                          {copied ? <IconCheck size={12} /> : <IconCopy size={12} />}
+                          {copied ? (
+                            <IconCheck size={12} />
+                          ) : (
+                            <IconCopy size={12} />
+                          )}
                         </ActionIcon>
                       </Tooltip>
                     )}
@@ -187,7 +219,7 @@ function TriggerItem({ trigger, index, isNearMiss, thresholdDistance, explanatio
         </Stack>
       </Card>
     </motion.div>
-  )
+  );
 }
 
 export function SampleTriggersList({
@@ -195,10 +227,10 @@ export function SampleTriggersList({
   nearMisses = [],
   maxVisible = 5,
 }: SampleTriggersListProps) {
-  const [showAll, setShowAll] = useState(false)
+  const [showAll, setShowAll] = useState(false);
 
-  const visibleTriggers = showAll ? triggers : triggers.slice(0, maxVisible)
-  const hasMore = triggers.length > maxVisible
+  const visibleTriggers = showAll ? triggers : triggers.slice(0, maxVisible);
+  const hasMore = triggers.length > maxVisible;
 
   if (triggers.length === 0 && nearMisses.length === 0) {
     return (
@@ -207,11 +239,11 @@ export function SampleTriggersList({
           <IconBell size={32} style={{ opacity: 0.3 }} />
           <Text c="dimmed" ta="center">
             No events would have triggered this alert
-            {nearMisses.length === 0 && ' (and no near misses detected)'}
+            {nearMisses.length === 0 && " (and no near misses detected)"}
           </Text>
         </Stack>
       </Card>
-    )
+    );
   }
 
   return (
@@ -226,10 +258,16 @@ export function SampleTriggersList({
               <Button
                 variant="subtle"
                 size="xs"
-                rightSection={showAll ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />}
+                rightSection={
+                  showAll ? (
+                    <IconChevronUp size={14} />
+                  ) : (
+                    <IconChevronDown size={14} />
+                  )
+                }
                 onClick={() => setShowAll(!showAll)}
               >
-                {showAll ? 'Show Less' : `Show All (${triggers.length})`}
+                {showAll ? "Show Less" : `Show All (${triggers.length})`}
               </Button>
             )}
           </Group>
@@ -268,7 +306,7 @@ export function SampleTriggersList({
                 trigger={{
                   timestamp: miss.timestamp,
                   data: miss.data,
-                  matched_condition: '',
+                  matched_condition: "",
                 }}
                 index={index}
                 isNearMiss
@@ -280,7 +318,7 @@ export function SampleTriggersList({
         </>
       )}
     </Stack>
-  )
+  );
 }
 
-export default SampleTriggersList
+export default SampleTriggersList;

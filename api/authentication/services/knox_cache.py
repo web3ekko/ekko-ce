@@ -34,7 +34,7 @@ class KnoxTokenCacheService:
 
     def __init__(self):
         """Initialize Redis connection."""
-        redis_url = settings.CACHES['default']['LOCATION']
+        redis_url = settings.CACHES["default"]["LOCATION"]
         self.redis_client = redis.from_url(redis_url, decode_responses=True)
 
     def cache_token(self, token: str, user_id: str, expiry: datetime) -> bool:
@@ -75,13 +75,11 @@ class KnoxTokenCacheService:
                 return False
 
             # Store in Redis with TTL
-            self.redis_client.setex(
-                redis_key,
-                ttl_seconds,
-                json.dumps(token_data)
-            )
+            self.redis_client.setex(redis_key, ttl_seconds, json.dumps(token_data))
 
-            logger.info(f"Cached Knox token {token_key} for user {user_id} (TTL: {ttl_seconds}s)")
+            logger.info(
+                f"Cached Knox token {token_key} for user {user_id} (TTL: {ttl_seconds}s)"
+            )
             return True
 
         except Exception as e:
@@ -195,7 +193,9 @@ class KnoxTokenCacheService:
         valid_tokens = AuthToken.objects.filter(expiry__gt=now)
 
         logger.info(f"Found {valid_tokens.count()} valid Knox tokens in database")
-        logger.info("Note: Cache warming only works for tokens where original is available")
+        logger.info(
+            "Note: Cache warming only works for tokens where original is available"
+        )
         logger.info("New tokens will be cached automatically on creation")
 
         return stats

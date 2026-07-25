@@ -52,12 +52,22 @@ def _minimal_alert_template_v2() -> dict:
         "derivations": [],
         "trigger": {
             "evaluation_mode": "periodic",
-            "condition_ast": {"op": "lt", "left": "balance_latest", "right": "{{threshold}}"},
+            "condition_ast": {
+                "op": "lt",
+                "left": "balance_latest",
+                "right": "{{threshold}}",
+            },
             "cron_cadence_seconds": 300,
-            "dedupe": {"cooldown_seconds": 300, "key_template": "{{instance_id}}:{{target.key}}"},
+            "dedupe": {
+                "cooldown_seconds": 300,
+                "key_template": "{{instance_id}}:{{target.key}}",
+            },
             "pruning_hints": {"evm": {"tx_type": "any"}},
         },
-        "notification": {"title_template": "Balance alert: {{target.short}}", "body_template": "Balance: {{balance_latest}}"},
+        "notification": {
+            "title_template": "Balance alert: {{target.short}}",
+            "body_template": "Balance: {{balance_latest}}",
+        },
         "fallbacks": [],
         "assumptions": [],
     }
@@ -74,7 +84,12 @@ def _proposed_spec_v2(job_id: str) -> dict:
         "pipeline_version": "v1",
         "template": template,
         "compiled_executable": {},
-        "compile_report": {"registry_snapshot": {}, "selected_catalog_ids": [], "fallbacks_used": [], "errors": []},
+        "compile_report": {
+            "registry_snapshot": {},
+            "selected_catalog_ids": [],
+            "fallbacks_used": [],
+            "errors": [],
+        },
         "required_user_inputs": {
             "targets_required": True,
             "target_kind": "wallet",
@@ -82,7 +97,10 @@ def _proposed_spec_v2(job_id: str) -> dict:
             "suggested_defaults": {"threshold": 0.5},
             "supported_trigger_types": ["periodic"],
         },
-        "human_preview": {"summary": "Alert when balance drops below threshold", "segments": []},
+        "human_preview": {
+            "summary": "Alert when balance drops below threshold",
+            "segments": [],
+        },
         "fingerprint_candidate": fingerprint,
         "warnings": [],
     }
@@ -96,7 +114,9 @@ def _proposed_spec_v2(job_id: str) -> dict:
 )
 class TestNLPParseSaveCreateFlow(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(email="test@example.com", password="testpass123")
+        self.user = User.objects.create_user(
+            email="test@example.com", password="testpass123"
+        )
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)
 
@@ -138,14 +158,18 @@ class TestNLPParseSaveCreateFlow(TestCase):
         cache_key = f"nlp:proposed_spec:{self.user.id}:{job_id}"
         cache.set(cache_key, _proposed_spec_v2(job_id), timeout=3600)
 
-        first = self.client.post("/api/alert-templates/", {"job_id": job_id}, format="json")
+        first = self.client.post(
+            "/api/alert-templates/", {"job_id": job_id}, format="json"
+        )
         assert first.status_code == status.HTTP_201_CREATED
         first_payload = first.json()
         assert first_payload["success"] is True
         assert AlertTemplate.objects.count() == 1
         assert AlertTemplateVersion.objects.count() == 1
 
-        second = self.client.post("/api/alert-templates/", {"job_id": job_id}, format="json")
+        second = self.client.post(
+            "/api/alert-templates/", {"job_id": job_id}, format="json"
+        )
         assert second.status_code == status.HTTP_200_OK
         second_payload = second.json()
         assert second_payload["template_id"] == first_payload["template_id"]
@@ -153,7 +177,9 @@ class TestNLPParseSaveCreateFlow(TestCase):
         assert AlertTemplateVersion.objects.count() == 1
 
     def test_save_template_detects_marketplace_duplicate(self):
-        other = User.objects.create_user(email="other@example.com", password="testpass123")
+        other = User.objects.create_user(
+            email="other@example.com", password="testpass123"
+        )
 
         template_spec = _minimal_alert_template_v2()
         fp = compute_template_fingerprint(template_spec)
@@ -182,7 +208,9 @@ class TestNLPParseSaveCreateFlow(TestCase):
         cache_key = f"nlp:proposed_spec:{self.user.id}:{job_id}"
         cache.set(cache_key, _proposed_spec_v2(job_id), timeout=3600)
 
-        response = self.client.post("/api/alert-templates/", {"job_id": job_id}, format="json")
+        response = self.client.post(
+            "/api/alert-templates/", {"job_id": job_id}, format="json"
+        )
         assert response.status_code == status.HTTP_409_CONFLICT
         body = response.json()
         assert body["code"] == "marketplace_template_exists"
@@ -193,7 +221,9 @@ class TestNLPParseSaveCreateFlow(TestCase):
         cache_key = f"nlp:proposed_spec:{self.user.id}:{job_id}"
         cache.set(cache_key, _proposed_spec_v2(job_id), timeout=3600)
 
-        saved = self.client.post("/api/alert-templates/", {"job_id": job_id}, format="json")
+        saved = self.client.post(
+            "/api/alert-templates/", {"job_id": job_id}, format="json"
+        )
         assert saved.status_code == status.HTTP_201_CREATED
         saved_payload = saved.json()
 
@@ -208,8 +238,15 @@ class TestNLPParseSaveCreateFlow(TestCase):
                 "name": "Customer wallets: balance drop",
                 "enabled": True,
                 "trigger_type": "periodic",
-                "trigger_config": {"cron": "*/5 * * * *", "timezone": "UTC", "data_lag_secs": 120},
-                "target_selector": {"mode": "keys", "keys": ["ETH:mainnet:0x742d35cc6634c0532925a3b8d4c9db96c4b4d8b"]},
+                "trigger_config": {
+                    "cron": "*/5 * * * *",
+                    "timezone": "UTC",
+                    "data_lag_secs": 120,
+                },
+                "target_selector": {
+                    "mode": "keys",
+                    "keys": ["ETH:mainnet:0x742d35cc6634c0532925a3b8d4c9db96c4b4d8b"],
+                },
                 "variable_values": {"threshold": 0.5},
             },
             format="json",
@@ -219,4 +256,3 @@ class TestNLPParseSaveCreateFlow(TestCase):
         instance = AlertInstance.objects.first()
         assert str(instance.template_id) == template_id
         assert int(instance.template_version) == int(template_version)
-

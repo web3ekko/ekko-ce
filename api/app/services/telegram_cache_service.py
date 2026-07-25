@@ -48,17 +48,19 @@ class TelegramCacheService:
         try:
             # Get enabled and verified Telegram endpoints for this user
             telegram_endpoints = NotificationChannelEndpoint.objects.filter(
-                owner_type='user',
+                owner_type="user",
                 owner_id=user_id,
-                channel_type='telegram',
+                channel_type="telegram",
                 enabled=True,
-                verified=True
+                verified=True,
             )
 
             if not telegram_endpoints.exists():
                 # No active Telegram endpoints - clear cache
                 self._clear_telegram_cache(user_id)
-                logger.info(f"No active Telegram endpoints for user {user_id}, cache cleared")
+                logger.info(
+                    f"No active Telegram endpoints for user {user_id}, cache cleared"
+                )
                 return True
 
             # Use the first enabled endpoint (multi-endpoint support can be added later)
@@ -66,16 +68,18 @@ class TelegramCacheService:
 
             # Build Telegram config
             telegram_config = {
-                'user_id': user_id,
-                'bot_token': telegram_endpoint.config.get('bot_token'),
-                'chat_id': telegram_endpoint.config.get('chat_id'),
-                'username': telegram_endpoint.config.get('username'),
-                'enabled': True
+                "user_id": user_id,
+                "bot_token": telegram_endpoint.config.get("bot_token"),
+                "chat_id": telegram_endpoint.config.get("chat_id"),
+                "username": telegram_endpoint.config.get("username"),
+                "enabled": True,
             }
 
             # Store in Redis
             cache_key = f"telegram:config:{user_id}"
-            self.cache.set(cache_key, json.dumps(telegram_config), timeout=self.CACHE_TTL)
+            self.cache.set(
+                cache_key, json.dumps(telegram_config), timeout=self.CACHE_TTL
+            )
 
             logger.info(f"Synced Telegram config to Redis for user {user_id}")
             return True
@@ -123,7 +127,7 @@ class TelegramCacheService:
             bool: True if Telegram is enabled and configured
         """
         config = self.get_telegram_config(user_id)
-        return config is not None and config.get('enabled', False)
+        return config is not None and config.get("enabled", False)
 
     def get_delivery_stats(self, user_id: str) -> Dict[str, int]:
         """
@@ -143,13 +147,13 @@ class TelegramCacheService:
             failure_count = self.cache.get(failure_key, 0)
 
             return {
-                'success_count': int(success_count),
-                'failure_count': int(failure_count)
+                "success_count": int(success_count),
+                "failure_count": int(failure_count),
             }
 
         except Exception as e:
             logger.error(f"Failed to get delivery stats for user {user_id}: {str(e)}")
-            return {'success_count': 0, 'failure_count': 0}
+            return {"success_count": 0, "failure_count": 0}
 
     def store_verification_code(self, user_id: str, chat_id: str, code: str) -> bool:
         """
@@ -168,7 +172,9 @@ class TelegramCacheService:
             # 15 minute expiry for verification codes
             self.cache.set(cache_key, code, timeout=900)
 
-            logger.info(f"Stored verification code for user {user_id}, chat_id {chat_id}")
+            logger.info(
+                f"Stored verification code for user {user_id}, chat_id {chat_id}"
+            )
             return True
 
         except Exception as e:
@@ -209,7 +215,9 @@ class TelegramCacheService:
             cache_key = f"telegram:verification:{user_id}:{chat_id}"
             self.cache.delete(cache_key)
 
-            logger.info(f"Deleted verification code for user {user_id}, chat_id {chat_id}")
+            logger.info(
+                f"Deleted verification code for user {user_id}, chat_id {chat_id}"
+            )
             return True
 
         except Exception as e:

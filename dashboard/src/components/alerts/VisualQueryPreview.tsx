@@ -1,54 +1,63 @@
 /**
  * Visual Query Preview Component
- * 
+ *
  * Executive-friendly visual representation of the alert query
  */
 
-import { Card, Stack, Group, Text, Box, Badge, ThemeIcon, Divider } from '@mantine/core'
-import { 
-  IconEye, 
-  IconClock, 
-  IconMapPin, 
-  IconFilter, 
+import {
+  Card,
+  Stack,
+  Group,
+  Text,
+  Box,
+  Badge,
+  ThemeIcon,
+  Divider,
+} from "@mantine/core";
+import {
+  IconEye,
+  IconClock,
+  IconMapPin,
+  IconFilter,
   IconBell,
   IconCheck,
-} from '@tabler/icons-react'
-import { motion } from 'framer-motion'
-import type { VisualQuery } from './CreateAlertOptimized'
+} from "@tabler/icons-react";
+import { motion } from "framer-motion";
+import type { VisualQuery } from "./CreateAlertOptimized";
 
 interface VisualQueryPreviewProps {
-  visualQuery: VisualQuery
+  visualQuery: VisualQuery;
 }
 
 export function VisualQueryPreview({ visualQuery }: VisualQueryPreviewProps) {
-  const { when, where, condition, action } = visualQuery
+  const { when, where, condition, action } = visualQuery;
 
   const sections = [
     {
       icon: <IconClock size={16} />,
-      label: 'When',
+      label: "When",
       value: when,
-      color: 'blue',
+      color: "blue",
     },
     {
       icon: <IconMapPin size={16} />,
-      label: 'Where',
+      label: "Where",
       value: where,
-      color: 'cyan',
+      color: "cyan",
     },
     {
       icon: <IconFilter size={16} />,
-      label: 'Condition',
+      label: "Condition",
       value: condition,
-      color: 'orange',
+      color: "orange",
     },
     {
       icon: <IconBell size={16} />,
-      label: 'Action',
+      label: "Action",
       value: action,
-      color: 'green',
+      color: "green",
     },
-  ]
+  ];
 
   return (
     <motion.div
@@ -63,9 +72,16 @@ export function VisualQueryPreview({ visualQuery }: VisualQueryPreviewProps) {
               <ThemeIcon size="sm" radius="xl" variant="light" color="blue">
                 <IconEye size={16} />
               </ThemeIcon>
-              <Text size="sm" fw={600}>Live Preview</Text>
+              <Text size="sm" fw={600}>
+                Live Preview
+              </Text>
             </Group>
-            <Badge size="sm" variant="light" color="green" leftSection={<IconCheck size={12} />}>
+            <Badge
+              size="sm"
+              variant="light"
+              color="green"
+              leftSection={<IconCheck size={12} />}
+            >
               Ready to activate
             </Badge>
           </Group>
@@ -73,16 +89,22 @@ export function VisualQueryPreview({ visualQuery }: VisualQueryPreviewProps) {
           <Box
             p="md"
             style={{
-              backgroundColor: 'var(--mantine-color-gray-0)',
+              backgroundColor: "var(--mantine-color-gray-0)",
               borderRadius: 8,
-              border: '1px dashed var(--mantine-color-gray-3)',
+              border: "1px dashed var(--mantine-color-gray-3)",
             }}
           >
             <Stack spacing="xs">
-              <Text size="xs" c="dimmed" fw={500} tt="uppercase" style={{ letterSpacing: 1 }}>
+              <Text
+                size="xs"
+                c="dimmed"
+                fw={500}
+                tt="uppercase"
+                style={{ letterSpacing: 1 }}
+              >
                 Your Alert Will:
               </Text>
-              
+
               <Stack spacing="lg">
                 {sections.map((section, index) => (
                   <motion.div
@@ -91,7 +113,7 @@ export function VisualQueryPreview({ visualQuery }: VisualQueryPreviewProps) {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.1 }}
                   >
-                    <Group gap="md" style={{ flexWrap: 'nowrap' }}>
+                    <Group gap="md" style={{ flexWrap: "nowrap" }}>
                       <ThemeIcon
                         size="md"
                         radius="xl"
@@ -110,9 +132,9 @@ export function VisualQueryPreview({ visualQuery }: VisualQueryPreviewProps) {
                       </Box>
                     </Group>
                     {index < sections.length - 1 && (
-                      <Divider 
-                        mt="md" 
-                        variant="dashed" 
+                      <Divider
+                        mt="md"
+                        variant="dashed"
                         style={{ marginLeft: 44 }}
                       />
                     )}
@@ -126,20 +148,23 @@ export function VisualQueryPreview({ visualQuery }: VisualQueryPreviewProps) {
           <Box
             p="sm"
             style={{
-              backgroundColor: 'var(--mantine-color-blue-0)',
+              backgroundColor: "var(--mantine-color-blue-0)",
               borderRadius: 6,
-              border: '1px solid var(--mantine-color-blue-2)',
+              border: "1px solid var(--mantine-color-blue-2)",
             }}
           >
             <Group spacing="xs">
-              <IconCheck size={16} style={{ color: 'var(--mantine-color-blue-6)' }} />
+              <IconCheck
+                size={16}
+                style={{ color: "var(--mantine-color-blue-6)" }}
+              />
               <Text size="sm" c="blue" fw={500}>
                 Alert Summary
               </Text>
             </Group>
             <Text size="sm" mt="xs">
-              Monitor {when.toLowerCase()} {where.toLowerCase()} when {condition.toLowerCase()}, 
-              then send {action.toLowerCase()}.
+              Monitor {when.toLowerCase()} {where.toLowerCase()} when{" "}
+              {condition.toLowerCase()}, then send {action.toLowerCase()}.
             </Text>
           </Box>
 
@@ -155,5 +180,5 @@ export function VisualQueryPreview({ visualQuery }: VisualQueryPreviewProps) {
         </Stack>
       </Card>
     </motion.div>
-  )
+  );
 }

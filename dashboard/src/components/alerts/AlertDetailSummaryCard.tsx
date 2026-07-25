@@ -1,42 +1,51 @@
-import { Badge, Card, Group, Paper, SimpleGrid, Stack, Switch, Text } from '@mantine/core'
+import {
+  Badge,
+  Card,
+  Group,
+  Paper,
+  SimpleGrid,
+  Stack,
+  Switch,
+  Text,
+} from "@mantine/core";
 
 type SummaryItem = {
-  label: string
-  value: string
-  badgeColor?: string
-}
+  label: string;
+  value: string;
+  badgeColor?: string;
+};
 
 interface AlertDetailSummaryCardProps {
-  eventType: string
-  subEvent: string
-  alertType: string
-  targetSummary: string
-  processingStatus: string
-  enabled: boolean
-  isSaving: boolean
-  createdAt?: string
-  updatedAt?: string
-  onToggle: (nextEnabled: boolean) => void
+  eventType: string;
+  subEvent: string;
+  alertType: string;
+  targetSummary: string;
+  processingStatus: string;
+  enabled: boolean;
+  isSaving: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  onToggle: (nextEnabled: boolean) => void;
 }
 
 const formatDateTime = (value?: string): string => {
-  if (!value) return '—'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(date)
-}
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
+};
 
 const getProcessingColor = (status: string) => {
-  if (status === 'failed') return 'red'
-  if (status === 'completed') return 'green'
-  return 'gray'
-}
+  if (status === "failed") return "red";
+  if (status === "completed") return "green";
+  return "gray";
+};
 
 export function AlertDetailSummaryCard({
   eventType,
@@ -51,19 +60,23 @@ export function AlertDetailSummaryCard({
   onToggle,
 }: AlertDetailSummaryCardProps) {
   const items: SummaryItem[] = [
-    { label: 'Event', value: eventType || '—', badgeColor: 'blue' },
-    { label: 'Sub-event', value: subEvent || '—', badgeColor: 'gray' },
-    { label: 'Alert Type', value: alertType || '—', badgeColor: 'gray' },
-    { label: 'Target', value: targetSummary || '—' },
-    { label: 'Processing', value: processingStatus || '—', badgeColor: getProcessingColor(processingStatus) },
-  ]
+    { label: "Event", value: eventType || "—", badgeColor: "blue" },
+    { label: "Sub-event", value: subEvent || "—", badgeColor: "gray" },
+    { label: "Alert Type", value: alertType || "—", badgeColor: "gray" },
+    { label: "Target", value: targetSummary || "—" },
+    {
+      label: "Processing",
+      value: processingStatus || "—",
+      badgeColor: getProcessingColor(processingStatus),
+    },
+  ];
 
   if (createdAt) {
-    items.push({ label: 'Created', value: formatDateTime(createdAt) })
+    items.push({ label: "Created", value: formatDateTime(createdAt) });
   }
 
   if (updatedAt) {
-    items.push({ label: 'Updated', value: formatDateTime(updatedAt) })
+    items.push({ label: "Updated", value: formatDateTime(updatedAt) });
   }
 
   return (
@@ -73,8 +86,8 @@ export function AlertDetailSummaryCard({
           <Text fw={700} c="#0F172A">
             Summary
           </Text>
-          <Badge color={enabled ? 'green' : 'gray'} variant="light">
-            {enabled ? 'Enabled' : 'Disabled'}
+          <Badge color={enabled ? "green" : "gray"} variant="light">
+            {enabled ? "Enabled" : "Disabled"}
           </Badge>
         </Group>
         <Group gap="xs" wrap="wrap">
@@ -97,7 +110,7 @@ export function AlertDetailSummaryCard({
             withBorder
             radius="md"
             p="sm"
-            style={{ backgroundColor: 'var(--surface-subtle)' }}
+            style={{ backgroundColor: "var(--surface-subtle)" }}
           >
             <Stack gap={6}>
               <Text size="xs" c="dimmed">
@@ -117,7 +130,7 @@ export function AlertDetailSummaryCard({
         ))}
       </SimpleGrid>
     </Card>
-  )
+  );
 }
 
-export default AlertDetailSummaryCard
+export default AlertDetailSummaryCard;

@@ -42,7 +42,8 @@ class BlockchainSyncService:
         """
         if cls._redis_client is None:
             import redis
-            redis_url = getattr(settings, 'REDIS_URL', 'redis://localhost:6379')
+
+            redis_url = getattr(settings, "REDIS_URL", "redis://localhost:6379")
             cls._redis_client = redis.from_url(redis_url, decode_responses=True)
         return cls._redis_client
 
@@ -91,9 +92,7 @@ class BlockchainSyncService:
             return True
 
         except Exception as e:
-            logger.error(
-                f"Failed to sync BlockchainNode {node.chain_id} to Redis: {e}"
-            )
+            logger.error(f"Failed to sync BlockchainNode {node.chain_id} to Redis: {e}")
             return False
 
     @classmethod

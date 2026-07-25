@@ -2,8 +2,14 @@
  * Working Dashboard App - Clean Foundation
  */
 
-import React from 'react'
-import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom'
+import React from "react";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Link,
+  useLocation,
+} from "react-router-dom";
 import {
   MantineProvider,
   AppShell,
@@ -14,70 +20,70 @@ import {
   Card,
   Group,
   Badge,
-  Container
-} from '@mantine/core'
-import { notifications, Notifications } from '@mantine/notifications'
-import { 
-  IconHome, 
-  IconBell, 
-  IconUser, 
+  Container,
+} from "@mantine/core";
+import { notifications, Notifications } from "@mantine/notifications";
+import {
+  IconHome,
+  IconBell,
+  IconUser,
   IconDashboard,
-  IconCheck 
-} from '@tabler/icons-react'
+  IconCheck,
+} from "@tabler/icons-react";
 
 // Import Mantine styles
-import '@mantine/core/styles.css'
-import '@mantine/notifications/styles.css'
+import "@mantine/core/styles.css";
+import "@mantine/notifications/styles.css";
 
-console.log('App-working.tsx loading...')
+console.log("App-working.tsx loading...");
 
 function Navigation() {
-  const location = useLocation()
-  
+  const location = useLocation();
+
   const navItems = [
-    { path: '/', label: 'Home', icon: IconHome },
-    { path: '/dashboard', label: 'Dashboard', icon: IconDashboard },
-    { path: '/alerts', label: 'Alerts', icon: IconBell },
-    { path: '/profile', label: 'Profile', icon: IconUser },
-  ]
-  
+    { path: "/", label: "Home", icon: IconHome },
+    { path: "/dashboard", label: "Dashboard", icon: IconDashboard },
+    { path: "/alerts", label: "Alerts", icon: IconBell },
+    { path: "/profile", label: "Profile", icon: IconUser },
+  ];
+
   return (
     <Stack gap="xs" p="md">
       {navItems.map((item) => {
-        const Icon = item.icon
+        const Icon = item.icon;
         return (
           <Button
             key={item.path}
             component={Link}
             to={item.path}
-            variant={location.pathname === item.path ? 'filled' : 'subtle'}
+            variant={location.pathname === item.path ? "filled" : "subtle"}
             leftSection={<Icon size={16} />}
             justify="flex-start"
             fullWidth
           >
             {item.label}
           </Button>
-        )
+        );
       })}
     </Stack>
-  )
+  );
 }
 
 function HomePage() {
   const showNotification = () => {
     notifications.show({
-      title: 'Welcome!',
-      message: 'Dashboard is working perfectly!',
-      color: 'blue',
+      title: "Welcome!",
+      message: "Dashboard is working perfectly!",
+      color: "blue",
       icon: <IconCheck size={16} />,
-    })
-  }
-  
+    });
+  };
+
   return (
     <Stack gap="md">
       <Title order={2}>🏠 Welcome to Ekko Dashboard</Title>
       <Text>Your blockchain monitoring dashboard is ready!</Text>
-      
+
       <Card shadow="sm" padding="lg" radius="md" withBorder>
         <Stack gap="md">
           <Title order={3}>System Status</Title>
@@ -87,8 +93,8 @@ function HomePage() {
             <Badge color="green">Router ✅</Badge>
             <Badge color="green">Icons ✅</Badge>
           </Group>
-          <Button 
-            onClick={showNotification} 
+          <Button
+            onClick={showNotification}
             leftSection={<IconCheck size={16} />}
             variant="light"
           >
@@ -97,7 +103,7 @@ function HomePage() {
         </Stack>
       </Card>
     </Stack>
-  )
+  );
 }
 
 function DashboardPage() {
@@ -105,31 +111,55 @@ function DashboardPage() {
     <Stack gap="md">
       <Title order={2}>📊 Dashboard</Title>
       <Text>Main dashboard with blockchain monitoring overview.</Text>
-      
+
       <Group gap="md">
-        <Card shadow="sm" padding="lg" radius="md" withBorder style={{ flex: 1 }}>
+        <Card
+          shadow="sm"
+          padding="lg"
+          radius="md"
+          withBorder
+          style={{ flex: 1 }}
+        >
           <Stack gap="xs">
             <Text fw={500}>Active Alerts</Text>
-            <Title order={1} c="blue">12</Title>
+            <Title order={1} c="blue">
+              12
+            </Title>
           </Stack>
         </Card>
-        
-        <Card shadow="sm" padding="lg" radius="md" withBorder style={{ flex: 1 }}>
+
+        <Card
+          shadow="sm"
+          padding="lg"
+          radius="md"
+          withBorder
+          style={{ flex: 1 }}
+        >
           <Stack gap="xs">
             <Text fw={500}>Transactions</Text>
-            <Title order={1} c="green">1,234</Title>
+            <Title order={1} c="green">
+              1,234
+            </Title>
           </Stack>
         </Card>
-        
-        <Card shadow="sm" padding="lg" radius="md" withBorder style={{ flex: 1 }}>
+
+        <Card
+          shadow="sm"
+          padding="lg"
+          radius="md"
+          withBorder
+          style={{ flex: 1 }}
+        >
           <Stack gap="xs">
             <Text fw={500}>Networks</Text>
-            <Title order={1} c="purple">5</Title>
+            <Title order={1} c="purple">
+              5
+            </Title>
           </Stack>
         </Card>
       </Group>
     </Stack>
-  )
+  );
 }
 
 function AlertsPage() {
@@ -137,7 +167,7 @@ function AlertsPage() {
     <Stack gap="md">
       <Title order={2}>🚨 Alert Management</Title>
       <Text>Manage your blockchain monitoring alerts.</Text>
-      
+
       <Card shadow="sm" padding="lg" radius="md" withBorder>
         <Stack gap="md">
           <Group justify="space-between">
@@ -150,7 +180,7 @@ function AlertsPage() {
         </Stack>
       </Card>
     </Stack>
-  )
+  );
 }
 
 function ProfilePage() {
@@ -158,7 +188,7 @@ function ProfilePage() {
     <Stack gap="md">
       <Title order={2}>👤 User Profile</Title>
       <Text>Manage your account settings and preferences.</Text>
-      
+
       <Card shadow="sm" padding="lg" radius="md" withBorder>
         <Stack gap="md">
           <Title order={3}>Account Information</Title>
@@ -168,13 +198,13 @@ function ProfilePage() {
         </Stack>
       </Card>
     </Stack>
-  )
+  );
 }
 
 function AppContent() {
   return (
     <AppShell
-      navbar={{ width: 250, breakpoint: 'sm' }}
+      navbar={{ width: 250, breakpoint: "sm" }}
       header={{ height: 60 }}
       padding="md"
     >
@@ -200,12 +230,12 @@ function AppContent() {
         </Container>
       </AppShell.Main>
     </AppShell>
-  )
+  );
 }
 
 function App() {
-  console.log('Working App component rendering...')
-  
+  console.log("Working App component rendering...");
+
   return (
     <MantineProvider>
       <Notifications />
@@ -213,9 +243,9 @@ function App() {
         <AppContent />
       </BrowserRouter>
     </MantineProvider>
-  )
+  );
 }
 
-console.log('App-working.tsx loaded successfully!')
+console.log("App-working.tsx loaded successfully!");
 
-export default App
+export default App;

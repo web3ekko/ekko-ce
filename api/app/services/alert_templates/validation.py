@@ -21,18 +21,26 @@ _VAR_TYPES = {
 def _validate_variable_value(var: Dict[str, Any], value: Any) -> None:
     var_id = str(var.get("id") or "").strip()
     var_type = str(var.get("type") or "string").strip().lower()
-    validation = var.get("validation") if isinstance(var.get("validation"), dict) else {}
+    validation = (
+        var.get("validation") if isinstance(var.get("validation"), dict) else {}
+    )
 
     if var_type not in _VAR_TYPES:
-        raise AlertTemplateSpecError(f"Unsupported variable type '{var_type}' for {var_id}")
+        raise AlertTemplateSpecError(
+            f"Unsupported variable type '{var_type}' for {var_id}"
+        )
 
     if var_type == "integer":
         if isinstance(value, bool) or not isinstance(value, int):
             raise AlertTemplateSpecError(f"Variable '{var_id}' must be an integer")
         if "min" in validation and value < validation["min"]:
-            raise AlertTemplateSpecError(f"Variable '{var_id}' must be >= {validation['min']}")
+            raise AlertTemplateSpecError(
+                f"Variable '{var_id}' must be >= {validation['min']}"
+            )
         if "max" in validation and value > validation["max"]:
-            raise AlertTemplateSpecError(f"Variable '{var_id}' must be <= {validation['max']}")
+            raise AlertTemplateSpecError(
+                f"Variable '{var_id}' must be <= {validation['max']}"
+            )
         return
 
     if var_type == "decimal":
@@ -40,9 +48,13 @@ def _validate_variable_value(var: Dict[str, Any], value: Any) -> None:
             raise AlertTemplateSpecError(f"Variable '{var_id}' must be a number")
         numeric = float(value)
         if "min" in validation and numeric < float(validation["min"]):
-            raise AlertTemplateSpecError(f"Variable '{var_id}' must be >= {validation['min']}")
+            raise AlertTemplateSpecError(
+                f"Variable '{var_id}' must be >= {validation['min']}"
+            )
         if "max" in validation and numeric > float(validation["max"]):
-            raise AlertTemplateSpecError(f"Variable '{var_id}' must be <= {validation['max']}")
+            raise AlertTemplateSpecError(
+                f"Variable '{var_id}' must be <= {validation['max']}"
+            )
         return
 
     if var_type == "boolean":
@@ -52,10 +64,14 @@ def _validate_variable_value(var: Dict[str, Any], value: Any) -> None:
 
     if var_type == "enum":
         if not isinstance(value, str) or not value.strip():
-            raise AlertTemplateSpecError(f"Variable '{var_id}' must be a non-empty string")
+            raise AlertTemplateSpecError(
+                f"Variable '{var_id}' must be a non-empty string"
+            )
         options = validation.get("options") if isinstance(validation, dict) else None
         if isinstance(options, list) and options and value not in options:
-            raise AlertTemplateSpecError(f"Variable '{var_id}' must be one of: {options}")
+            raise AlertTemplateSpecError(
+                f"Variable '{var_id}' must be one of: {options}"
+            )
         return
 
     if var_type == "enum_multi":
@@ -65,12 +81,16 @@ def _validate_variable_value(var: Dict[str, Any], value: Any) -> None:
         if isinstance(options, list) and options:
             invalid = [v for v in value if v not in options]
             if invalid:
-                raise AlertTemplateSpecError(f"Variable '{var_id}' contains invalid values: {invalid}")
+                raise AlertTemplateSpecError(
+                    f"Variable '{var_id}' contains invalid values: {invalid}"
+                )
         return
 
     if var_type == "duration":
         if not isinstance(value, str) or not value.strip():
-            raise AlertTemplateSpecError(f"Variable '{var_id}' must be a non-empty duration string")
+            raise AlertTemplateSpecError(
+                f"Variable '{var_id}' must be a non-empty duration string"
+            )
         return
 
     # string
@@ -78,7 +98,9 @@ def _validate_variable_value(var: Dict[str, Any], value: Any) -> None:
         raise AlertTemplateSpecError(f"Variable '{var_id}' must be a string")
 
 
-def validate_variable_values_against_template(template_spec: Dict[str, Any], variable_values: Dict[str, Any]) -> Dict[str, Any]:
+def validate_variable_values_against_template(
+    template_spec: Dict[str, Any], variable_values: Dict[str, Any]
+) -> Dict[str, Any]:
     """
     Validate instance variable_values against AlertTemplate.variables and return resolved values.
 

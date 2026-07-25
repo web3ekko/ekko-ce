@@ -74,7 +74,10 @@ class DatasourceCatalogEntry:
         return {
             "catalog_id": self.catalog_id,
             "description": self.description,
-            "params": [{"name": p.name, "type": p.type, "required": p.required} for p in self.params],
+            "params": [
+                {"name": p.name, "type": p.type, "required": p.required}
+                for p in self.params
+            ],
             "result_schema": self.result_schema.as_dict(),
         }
 
@@ -90,7 +93,10 @@ class DatasourceCatalogEntry:
             "description": self.description,
             "routing": self.routing.as_dict(),
             "sql": self.sql.as_dict() if self.sql else None,
-            "params": [{"name": p.name, "type": p.type, "required": p.required} for p in self.params],
+            "params": [
+                {"name": p.name, "type": p.type, "required": p.required}
+                for p in self.params
+            ],
             "result_schema": self.result_schema.as_dict(),
             "cache_policy": dict(self.cache_policy),
             "timeouts": dict(self.timeouts),
@@ -121,7 +127,9 @@ def list_catalog_entries() -> List[DatasourceCatalogEntry]:
                 param_order=["target_keys", "as_of"],
             ),
             params=[
-                DatasourceParam(name="target_keys", type="target_keys_csv", required=True),
+                DatasourceParam(
+                    name="target_keys", type="target_keys_csv", required=True
+                ),
                 DatasourceParam(name="as_of", type="timestamp", required=True),
             ],
             result_schema=DatasourceResultSchema(
@@ -150,7 +158,9 @@ def list_catalog_entries() -> List[DatasourceCatalogEntry]:
                 param_order=["target_keys", "as_of", "window_duration"],
             ),
             params=[
-                DatasourceParam(name="target_keys", type="target_keys_csv", required=True),
+                DatasourceParam(
+                    name="target_keys", type="target_keys_csv", required=True
+                ),
                 DatasourceParam(name="as_of", type="timestamp", required=True),
                 DatasourceParam(name="window_duration", type="duration", required=True),
             ],
@@ -204,7 +214,9 @@ def list_catalog_entries() -> List[DatasourceCatalogEntry]:
                 param_order=["target_keys", "chain_id", "subnet", "as_of", "as_of"],
             ),
             params=[
-                DatasourceParam(name="target_keys", type="target_keys_csv", required=True),
+                DatasourceParam(
+                    name="target_keys", type="target_keys_csv", required=True
+                ),
                 DatasourceParam(name="chain_id", type="integer", required=True),
                 DatasourceParam(name="subnet", type="string", required=True),
                 DatasourceParam(name="as_of", type="timestamp", required=True),

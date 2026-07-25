@@ -15,7 +15,9 @@ def _compile(template: dict) -> dict:
     snapshot = get_registry_snapshot()
     return compile_template_to_executable(
         template,
-        ctx=CompileContext(template_id=template_id, template_version=1, registry_snapshot=snapshot),
+        ctx=CompileContext(
+            template_id=template_id, template_version=1, registry_snapshot=snapshot
+        ),
     )
 
 
@@ -39,9 +41,16 @@ def test_compile_allows_tx_only_template_without_datasources() -> None:
         "derivations": [],
         "trigger": {
             "evaluation_mode": "event_driven",
-            "condition_ast": {"op": "gt", "left": "$.tx.value_native", "right": "{{threshold}}"},
+            "condition_ast": {
+                "op": "gt",
+                "left": "$.tx.value_native",
+                "right": "{{threshold}}",
+            },
             "cron_cadence_seconds": 0,
-            "dedupe": {"cooldown_seconds": 60, "key_template": "{{instance_id}}:{{target.key}}"},
+            "dedupe": {
+                "cooldown_seconds": 60,
+                "key_template": "{{instance_id}}:{{target.key}}",
+            },
             "pruning_hints": {"evm": {"tx_type": "native_transfer"}},
         },
         "notification": {
@@ -79,18 +88,31 @@ def test_compile_maps_derivation_names_into_condition() -> None:
         "derivations": [
             {
                 "name": "tx_value_wei",
-                "expr_ast": {"op": "coalesce", "values": ["$.tx.value_wei", "$.tx.value"]},
+                "expr_ast": {
+                    "op": "coalesce",
+                    "values": ["$.tx.value_wei", "$.tx.value"],
+                },
                 "output_unit": "WEI",
             }
         ],
         "trigger": {
             "evaluation_mode": "event_driven",
-            "condition_ast": {"op": "gte", "left": "tx_value_wei", "right": "{{threshold_wei}}"},
+            "condition_ast": {
+                "op": "gte",
+                "left": "tx_value_wei",
+                "right": "{{threshold_wei}}",
+            },
             "cron_cadence_seconds": 0,
-            "dedupe": {"cooldown_seconds": 60, "key_template": "{{instance_id}}:{{target.key}}"},
+            "dedupe": {
+                "cooldown_seconds": 60,
+                "key_template": "{{instance_id}}:{{target.key}}",
+            },
             "pruning_hints": {"evm": {"tx_type": "native_transfer"}},
         },
-        "notification": {"title_template": "Incoming transfer", "body_template": "wei={{tx_value_wei}}"},
+        "notification": {
+            "title_template": "Incoming transfer",
+            "body_template": "wei={{tx_value_wei}}",
+        },
         "fallbacks": [],
         "assumptions": [],
         "fingerprint": "sha256:" + "1" * 64,
@@ -109,17 +131,33 @@ def test_compile_rejects_unresolved_signal_shorthand() -> None:
         "description": "References a signal without selecting a datasource",
         "target_kind": "wallet",
         "scope": {"networks": ["ETH:mainnet"], "instrument_constraints": []},
-        "variables": [{"id": "threshold", "type": "decimal", "label": "Threshold", "required": True}],
+        "variables": [
+            {
+                "id": "threshold",
+                "type": "decimal",
+                "label": "Threshold",
+                "required": True,
+            }
+        ],
         "signals": {
             "principals": [],
-            "factors": [{"name": "balance_latest", "unit": "WEI", "update_sources": []}],
+            "factors": [
+                {"name": "balance_latest", "unit": "WEI", "update_sources": []}
+            ],
         },
         "derivations": [],
         "trigger": {
             "evaluation_mode": "periodic",
-            "condition_ast": {"op": "lt", "left": "balance_latest", "right": "{{threshold}}"},
+            "condition_ast": {
+                "op": "lt",
+                "left": "balance_latest",
+                "right": "{{threshold}}",
+            },
             "cron_cadence_seconds": 60,
-            "dedupe": {"cooldown_seconds": 60, "key_template": "{{instance_id}}:{{target.key}}"},
+            "dedupe": {
+                "cooldown_seconds": 60,
+                "key_template": "{{instance_id}}:{{target.key}}",
+            },
             "pruning_hints": {"evm": {"tx_type": "any"}},
         },
         "notification": {"title_template": "t", "body_template": "b"},
@@ -147,9 +185,16 @@ def test_compile_can_recover_catalog_id_from_text_when_signals_missing() -> None
         "derivations": [],
         "trigger": {
             "evaluation_mode": "hybrid",
-            "condition_ast": {"op": "gt", "left": "$.signals.balance_latest_signal.balance_latest", "right": 0},
+            "condition_ast": {
+                "op": "gt",
+                "left": "$.signals.balance_latest_signal.balance_latest",
+                "right": 0,
+            },
             "cron_cadence_seconds": 0,
-            "dedupe": {"cooldown_seconds": 0, "key_template": "{{instance_id}}:{{target.key}}"},
+            "dedupe": {
+                "cooldown_seconds": 0,
+                "key_template": "{{instance_id}}:{{target.key}}",
+            },
             "pruning_hints": {"evm": {"tx_type": "any"}},
         },
         "notification": {"title_template": "t", "body_template": "b"},
@@ -161,7 +206,10 @@ def test_compile_can_recover_catalog_id_from_text_when_signals_missing() -> None
     exe = _compile(tpl)
     assert exe["datasources"]
     assert exe["datasources"][0]["catalog_id"] == "ducklake.wallet_balance_latest"
-    assert exe["conditions"]["all"][0]["left"] == "$.datasources.ds_ducklake_wallet_balance_latest.balance_latest"
+    assert (
+        exe["conditions"]["all"][0]["left"]
+        == "$.datasources.ds_ducklake_wallet_balance_latest.balance_latest"
+    )
 
 
 def test_compile_can_infer_catalog_id_from_signals_ref_when_signals_missing() -> None:
@@ -176,9 +224,16 @@ def test_compile_can_infer_catalog_id_from_signals_ref_when_signals_missing() ->
         "derivations": [],
         "trigger": {
             "evaluation_mode": "hybrid",
-            "condition_ast": {"op": "gt", "left": {"ref": "signals.tx_count_24h.tx_count_24h"}, "right": 0},
+            "condition_ast": {
+                "op": "gt",
+                "left": {"ref": "signals.tx_count_24h.tx_count_24h"},
+                "right": 0,
+            },
             "cron_cadence_seconds": 0,
-            "dedupe": {"cooldown_seconds": 0, "key_template": "{{instance_id}}:{{target.key}}"},
+            "dedupe": {
+                "cooldown_seconds": 0,
+                "key_template": "{{instance_id}}:{{target.key}}",
+            },
             "pruning_hints": {"evm": {"tx_type": "any"}},
         },
         "notification": {"title_template": "t", "body_template": "b"},
@@ -190,4 +245,7 @@ def test_compile_can_infer_catalog_id_from_signals_ref_when_signals_missing() ->
     exe = _compile(tpl)
     catalog_ids = {d.get("catalog_id") for d in exe.get("datasources") or []}
     assert "ducklake.address_transactions_count_24h" in catalog_ids
-    assert exe["conditions"]["all"][0]["left"] == "$.datasources.ds_ducklake_address_transactions_count_24h.tx_count_24h"
+    assert (
+        exe["conditions"]["all"][0]["left"]
+        == "$.datasources.ds_ducklake_address_transactions_count_24h.tx_count_24h"
+    )

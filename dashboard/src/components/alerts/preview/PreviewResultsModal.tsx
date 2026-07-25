@@ -17,7 +17,7 @@ import {
   Loader,
   Center,
   Box,
-} from '@mantine/core'
+} from "@mantine/core";
 import {
   IconChartBar,
   IconBell,
@@ -26,20 +26,20 @@ import {
   IconCheck,
   IconX,
   IconInfoCircle,
-} from '@tabler/icons-react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { PreviewSummaryCard } from './PreviewSummaryCard'
-import { SampleTriggersList } from './SampleTriggersList'
-import type { PreviewResult } from '../../../services/alerts-api'
+} from "@tabler/icons-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { PreviewSummaryCard } from "./PreviewSummaryCard";
+import { SampleTriggersList } from "./SampleTriggersList";
+import type { PreviewResult } from "../../../services/alerts-api";
 
 interface PreviewResultsModalProps {
-  opened: boolean
-  onClose: () => void
-  result: PreviewResult | null
-  isLoading?: boolean
-  onAdjustThreshold?: () => void
-  onCreate?: () => void
-  timeRange?: string
+  opened: boolean;
+  onClose: () => void;
+  result: PreviewResult | null;
+  isLoading?: boolean;
+  onAdjustThreshold?: () => void;
+  onCreate?: () => void;
+  timeRange?: string;
 }
 
 export function PreviewResultsModal({
@@ -51,8 +51,9 @@ export function PreviewResultsModal({
   onCreate,
   timeRange,
 }: PreviewResultsModalProps) {
-  const hasNearMisses = result?.near_misses && result.near_misses.length > 0
-  const hasTriggers = result?.sample_triggers && result.sample_triggers.length > 0
+  const hasNearMisses = result?.near_misses && result.near_misses.length > 0;
+  const hasTriggers =
+    result?.sample_triggers && result.sample_triggers.length > 0;
 
   return (
     <Modal
@@ -83,7 +84,9 @@ export function PreviewResultsModal({
             <Center py="xl">
               <Stack align="center" gap="md">
                 <Loader size="lg" />
-                <Text c="dimmed">Evaluating alert against historical data...</Text>
+                <Text c="dimmed">
+                  Evaluating alert against historical data...
+                </Text>
               </Stack>
             </Center>
           </motion.div>
@@ -116,7 +119,8 @@ export function PreviewResultsModal({
                   variant="light"
                 >
                   <Text size="sm">
-                    This alert uses advanced expressions that require wasmCloud evaluation.
+                    This alert uses advanced expressions that require wasmCloud
+                    evaluation.
                   </Text>
                   {result.wasmcloud_reason && (
                     <Text size="xs" c="dimmed" mt="xs">
@@ -146,7 +150,11 @@ export function PreviewResultsModal({
                     </Badge>
                   </Group>
                   {result.expression && (
-                    <Text size="xs" c="dimmed" style={{ fontFamily: 'monospace' }}>
+                    <Text
+                      size="xs"
+                      c="dimmed"
+                      style={{ fontFamily: "monospace" }}
+                    >
                       Expression: {result.expression}
                     </Text>
                   )}
@@ -221,15 +229,23 @@ export function PreviewResultsModal({
                     variant="light"
                   >
                     <Text size="sm">
-                      No events in the{' '}
-                      {timeRange || result.time_range || 'selected time range'} would have
-                      triggered this alert. Consider adjusting your threshold or conditions.
+                      No events in the{" "}
+                      {timeRange || result.time_range || "selected time range"}{" "}
+                      would have triggered this alert. Consider adjusting your
+                      threshold or conditions.
                     </Text>
                   </Alert>
                 )}
 
               {/* Action Buttons */}
-              <Group justify="flex-end" mt="md" pt="md" style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}>
+              <Group
+                justify="flex-end"
+                mt="md"
+                pt="md"
+                style={{
+                  borderTop: "1px solid var(--mantine-color-default-border)",
+                }}
+              >
                 <Button variant="subtle" onClick={onClose}>
                   Close
                 </Button>
@@ -267,7 +283,7 @@ export function PreviewResultsModal({
         )}
       </AnimatePresence>
     </Modal>
-  )
+  );
 }
 
-export default PreviewResultsModal
+export default PreviewResultsModal;

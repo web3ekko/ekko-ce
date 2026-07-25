@@ -5,7 +5,10 @@ import uuid
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
-from app.services.datasource_catalog import get_catalog_entry, list_compiler_catalog_entries
+from app.services.datasource_catalog import (
+    get_catalog_entry,
+    list_compiler_catalog_entries,
+)
 
 
 class AlertTemplateCompileError(RuntimeError):
@@ -34,7 +37,9 @@ def _chain_ids_from_networks(networks: list[str]) -> list[int]:
 
 
 def _collect_signal_names(template: Dict[str, Any]) -> set[str]:
-    signals = template.get("signals") if isinstance(template.get("signals"), dict) else {}
+    signals = (
+        template.get("signals") if isinstance(template.get("signals"), dict) else {}
+    )
     names: set[str] = set()
     for bucket in ("principals", "factors"):
         items = signals.get(bucket)
@@ -46,7 +51,11 @@ def _collect_signal_names(template: Dict[str, Any]) -> set[str]:
             name = item.get("name")
             if isinstance(name, str) and name.strip():
                 names.add(name.strip())
-    for deriv in template.get("derivations") if isinstance(template.get("derivations"), list) else []:
+    for deriv in (
+        template.get("derivations")
+        if isinstance(template.get("derivations"), list)
+        else []
+    ):
         if not isinstance(deriv, dict):
             continue
         name = deriv.get("name")
@@ -76,7 +85,9 @@ def _default_binding_for_param(param_name: str) -> str:
         return "$.partition.subnet"
     if name == "chain_id":
         return "$.partition.chain_id"
-    raise AlertTemplateCompileError(f"Missing binding rule for datasource param {param_name!r}")
+    raise AlertTemplateCompileError(
+        f"Missing binding rule for datasource param {param_name!r}"
+    )
 
 
 def _collect_catalog_ids(template: Dict[str, Any]) -> list[str]:
@@ -87,7 +98,9 @@ def _collect_catalog_ids(template: Dict[str, Any]) -> list[str]:
     """
 
     catalog_ids: list[str] = []
-    signals = template.get("signals") if isinstance(template.get("signals"), dict) else {}
+    signals = (
+        template.get("signals") if isinstance(template.get("signals"), dict) else {}
+    )
     for bucket in ("principals", "factors"):
         items = signals.get(bucket)
         if not isinstance(items, list):
@@ -102,7 +115,11 @@ def _collect_catalog_ids(template: Dict[str, Any]) -> list[str]:
                 if not isinstance(src, dict):
                     continue
                 ref = src.get("ref")
-                if isinstance(ref, str) and ref.strip() and ref.strip() not in catalog_ids:
+                if (
+                    isinstance(ref, str)
+                    and ref.strip()
+                    and ref.strip() not in catalog_ids
+                ):
                     catalog_ids.append(ref.strip())
     return catalog_ids
 
@@ -186,7 +203,12 @@ def _infer_catalog_ids_from_expr(template: Dict[str, Any]) -> list[str]:
         if not cleaned:
             return
         # Match "signals.<id>.<col>" or "$.signals.<id>.<col>" and take the column suffix.
-        if cleaned.startswith("$.signals.") or cleaned.startswith("$.signal.") or cleaned.startswith("signals.") or cleaned.startswith("signal."):
+        if (
+            cleaned.startswith("$.signals.")
+            or cleaned.startswith("$.signal.")
+            or cleaned.startswith("signals.")
+            or cleaned.startswith("signal.")
+        ):
             col = cleaned.split(".")[-1].strip()
             if col in topics:
                 required_cols.add(col)
@@ -227,7 +249,9 @@ def _infer_catalog_ids_from_expr(template: Dict[str, Any]) -> list[str]:
             return
         return
 
-    trigger = template.get("trigger") if isinstance(template.get("trigger"), dict) else {}
+    trigger = (
+        template.get("trigger") if isinstance(template.get("trigger"), dict) else {}
+    )
     walk(trigger.get("condition_ast"))
 
     if not required_cols:
@@ -301,7 +325,11 @@ def _normalize_operand(value: Any, signal_ref_map: dict[str, str]) -> Any:
         # Keep variable placeholders and explicit JSONPath refs.
         if text.startswith("{{") and text.endswith("}}"):
             return text
-        if text.startswith("$.datasources.") or text.startswith("$.enrichment.") or text.startswith("$.tx."):
+        if (
+            text.startswith("$.datasources.")
+            or text.startswith("$.enrichment.")
+            or text.startswith("$.tx.")
+        ):
             return text
         # Legacy/LLM alias: "$.signals.<signal_id>.<column>" -> datasource column ref.
         if text.startswith("$.signals.") or text.startswith("$.signal."):
@@ -348,7 +376,9 @@ def _normalize_operand(value: Any, signal_ref_map: dict[str, str]) -> Any:
     return value
 
 
-def _normalize_expr(expr: Dict[str, Any], signal_ref_map: dict[str, str]) -> Dict[str, Any]:
+def _normalize_expr(
+    expr: Dict[str, Any], signal_ref_map: dict[str, str]
+) -> Dict[str, Any]:
     op = expr.get("op")
     if not isinstance(op, str) or not op.strip():
         raise AlertTemplateCompileError("Expression op must be a non-empty string")
@@ -360,7 +390,9 @@ def _normalize_expr(expr: Dict[str, Any], signal_ref_map: dict[str, str]) -> Dic
     if "values" in expr:
         values = expr.get("values")
         if isinstance(values, list):
-            normalized["values"] = [_normalize_operand(v, signal_ref_map) for v in values]
+            normalized["values"] = [
+                _normalize_operand(v, signal_ref_map) for v in values
+            ]
         else:
             normalized["values"] = values
     return normalized
@@ -394,7 +426,11 @@ def _find_suspicious_string_operands(expr: Any) -> list[str]:
         if _NUMERIC_LITERAL_RE.match(text):
             return True
         # Allow string literals only when compared directly against explicit JSONPath.
-        if op in {"eq", "neq"} and isinstance(sibling, str) and sibling.strip().startswith("$."):
+        if (
+            op in {"eq", "neq"}
+            and isinstance(sibling, str)
+            and sibling.strip().startswith("$.")
+        ):
             return True
         return False
 
@@ -525,7 +561,9 @@ def compile_template_to_executable(
     for catalog_id in catalog_ids:
         entry = get_catalog_entry(catalog_id)
         if entry is None or not entry.enabled:
-            raise AlertTemplateCompileError(f"Unknown or disabled catalog_id: {catalog_id!r}")
+            raise AlertTemplateCompileError(
+                f"Unknown or disabled catalog_id: {catalog_id!r}"
+            )
 
         ds_id = _datasource_id_for_catalog_id(catalog_id)
         bindings: dict[str, Any] = {}
@@ -548,7 +586,11 @@ def compile_template_to_executable(
     signal_ref_map = _build_signal_ref_map(catalog_ids=catalog_ids)
 
     enrichments: list[dict[str, Any]] = []
-    for deriv in template.get("derivations") if isinstance(template.get("derivations"), list) else []:
+    for deriv in (
+        template.get("derivations")
+        if isinstance(template.get("derivations"), list)
+        else []
+    ):
         if not isinstance(deriv, dict):
             continue
         name = deriv.get("name")
@@ -580,10 +622,14 @@ def compile_template_to_executable(
             if name and name not in signal_ref_map:
                 signal_ref_map[name] = out
 
-    trigger = template.get("trigger") if isinstance(template.get("trigger"), dict) else {}
+    trigger = (
+        template.get("trigger") if isinstance(template.get("trigger"), dict) else {}
+    )
     condition_ast = trigger.get("condition_ast")
     if not isinstance(condition_ast, dict):
-        raise AlertTemplateCompileError("trigger.condition_ast must be an expression object")
+        raise AlertTemplateCompileError(
+            "trigger.condition_ast must be an expression object"
+        )
     compiled_condition = _normalize_expr(condition_ast, signal_ref_map)
 
     suspicious: list[str] = []
@@ -598,7 +644,11 @@ def compile_template_to_executable(
         )
 
     # Compile pruning hints to an EVM-style pruning block (scheduler stage-1).
-    pruning = trigger.get("pruning_hints") if isinstance(trigger.get("pruning_hints"), dict) else {}
+    pruning = (
+        trigger.get("pruning_hints")
+        if isinstance(trigger.get("pruning_hints"), dict)
+        else {}
+    )
     evm_hints = pruning.get("evm") if isinstance(pruning.get("evm"), dict) else {}
     method_selectors = evm_hints.get("method_selector_any_of")
     topic0s = evm_hints.get("event_topic0_any_of")
@@ -609,9 +659,15 @@ def compile_template_to_executable(
             "chain_ids": _chain_ids_from_networks(networks),
             "tx_type": str(evm_hints.get("tx_type") or "any"),
             "from": {"any_of": [], "labels": [], "not": []},
-            "to": {"any_of": [a for a in (addrs or []) if isinstance(a, str)], "labels": [], "not": []},
+            "to": {
+                "any_of": [a for a in (addrs or []) if isinstance(a, str)],
+                "labels": [],
+                "not": [],
+            },
             "method": {
-                "selector_any_of": [s for s in (method_selectors or []) if isinstance(s, str)],
+                "selector_any_of": [
+                    s for s in (method_selectors or []) if isinstance(s, str)
+                ],
                 "name_any_of": [],
                 "required": bool(method_selectors),
             },
@@ -624,10 +680,16 @@ def compile_template_to_executable(
     }
 
     # Variables are largely a passthrough; the compiler validates at save time elsewhere.
-    variables = template.get("variables") if isinstance(template.get("variables"), list) else []
+    variables = (
+        template.get("variables") if isinstance(template.get("variables"), list) else []
+    )
     variables = [v for v in variables if isinstance(v, dict)]
 
-    notification = template.get("notification") if isinstance(template.get("notification"), dict) else {}
+    notification = (
+        template.get("notification")
+        if isinstance(template.get("notification"), dict)
+        else {}
+    )
     notification_template = {
         "title": str(notification.get("title_template") or "").strip(),
         "body": str(notification.get("body_template") or "").strip(),
@@ -635,7 +697,9 @@ def compile_template_to_executable(
 
     dedupe = trigger.get("dedupe") if isinstance(trigger.get("dedupe"), dict) else {}
     cooldown_seconds = int(dedupe.get("cooldown_seconds") or 0)
-    cooldown_key_template = str(dedupe.get("key_template") or "{{instance_id}}:{{target.key}}").strip()
+    cooldown_key_template = str(
+        dedupe.get("key_template") or "{{instance_id}}:{{target.key}}"
+    ).strip()
 
     known_names = _collect_signal_names(template)
     # Derivations are materialized to `$.enrichment.<name>`, so include those names too.
@@ -648,8 +712,12 @@ def compile_template_to_executable(
     # selected datasource column), fail fast with a deterministic error.
     unresolved: list[str] = []
     for enr in enrichments:
-        unresolved.extend(_find_unresolved_signal_refs(enr.get("expr"), known_names=known_names))
-    unresolved.extend(_find_unresolved_signal_refs(compiled_condition, known_names=known_names))
+        unresolved.extend(
+            _find_unresolved_signal_refs(enr.get("expr"), known_names=known_names)
+        )
+    unresolved.extend(
+        _find_unresolved_signal_refs(compiled_condition, known_names=known_names)
+    )
     if unresolved:
         first = unresolved[0]
         raise AlertTemplateCompileError(

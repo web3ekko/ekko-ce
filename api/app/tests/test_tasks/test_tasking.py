@@ -13,6 +13,7 @@ class TestTasking(SimpleTestCase):
                 }
             }
         ):
+
             @task(queue_name="nlp")
             def sample_task() -> None:
                 return None

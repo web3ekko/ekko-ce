@@ -32,8 +32,7 @@ class ProviderStatusService:
     def __init__(self):
         """Initialize Redis connection using Django cache settings."""
         self.redis_client = redis.from_url(
-            settings.CACHES['default']['LOCATION'],
-            decode_responses=True
+            settings.CACHES["default"]["LOCATION"], decode_responses=True
         )
 
     def list_providers(self) -> List[Tuple[str, str]]:

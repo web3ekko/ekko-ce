@@ -3,7 +3,6 @@ import django.db.models.deletion
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("app", "0014_add_alerttemplate_ir_v1_spec"),
     ]
@@ -26,4 +25,3 @@ class Migration(migrations.Migration):
             ),
         ),
     ]
-

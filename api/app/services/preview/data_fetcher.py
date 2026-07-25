@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 class TimeRange(Enum):
     """Supported time ranges for preview queries."""
+
     HOUR_1 = "1h"
     HOURS_24 = "24h"
     DAYS_7 = "7d"
@@ -46,13 +47,16 @@ class TimeRange(Enum):
             "30d": cls.DAYS_30,
         }
         if value not in mapping:
-            raise ValueError(f"Invalid time range: {value}. Valid options: {list(mapping.keys())}")
+            raise ValueError(
+                f"Invalid time range: {value}. Valid options: {list(mapping.keys())}"
+            )
         return mapping[value]
 
 
 @dataclass
 class PreviewDataResult:
     """Result from preview data fetch."""
+
     rows: List[Dict[str, Any]]
     total_rows: int
     time_range: TimeRange
@@ -66,6 +70,7 @@ class PreviewDataResult:
 @dataclass
 class PreviewDataRequest:
     """Request configuration for preview data fetch."""
+
     alert_type: str  # wallet, network, token
     chain: str
     network: str = "mainnet"
@@ -125,7 +130,9 @@ class PreviewDataFetcher:
             timeout: Query timeout in seconds
             default_limit: Default row limit for queries
         """
-        self.nats_url = nats_url or getattr(settings, "NATS_URL", "nats://localhost:4222")
+        self.nats_url = nats_url or getattr(
+            settings, "NATS_URL", "nats://localhost:4222"
+        )
         self.timeout = timeout
         self.default_limit = default_limit
         self._nc = None
@@ -230,7 +237,9 @@ class PreviewDataFetcher:
 
         # Add token address filters
         if request.token_addresses:
-            token_addrs_str = ", ".join(f"'{addr.lower()}'" for addr in request.token_addresses)
+            token_addrs_str = ", ".join(
+                f"'{addr.lower()}'" for addr in request.token_addresses
+            )
             conditions.append(f"token_address IN ({token_addrs_str})")
 
         where_clause = " AND ".join(conditions)
@@ -335,6 +344,7 @@ class PreviewDataFetcher:
             PreviewDataResult with transaction data
         """
         import time
+
         start = time.time()
 
         end_time = datetime.utcnow()
@@ -384,6 +394,7 @@ class PreviewDataFetcher:
             PreviewDataResult with balance data
         """
         import time
+
         start = time.time()
 
         end_time = datetime.utcnow()

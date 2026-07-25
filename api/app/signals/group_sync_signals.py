@@ -16,7 +16,7 @@ from django.dispatch import receiver
 logger = logging.getLogger(__name__)
 
 
-@receiver(post_save, sender='app.GenericGroup')
+@receiver(post_save, sender="app.GenericGroup")
 def sync_group_to_redis_on_save(sender, instance, created, **kwargs):
     """
     Sync GenericGroup to Redis when created or updated.
@@ -41,7 +41,9 @@ def sync_group_to_redis_on_save(sender, instance, created, **kwargs):
         ):
             from app.services.notification_cache import NotificationCacheManager
 
-            NotificationCacheManager().cache_accounts_wallet_labels(str(instance.owner_id))
+            NotificationCacheManager().cache_accounts_wallet_labels(
+                str(instance.owner_id)
+            )
 
         # Propagate AlertGroup membership changes to subscriptions
         if instance.group_type == GroupType.ALERT:
@@ -55,12 +57,10 @@ def sync_group_to_redis_on_save(sender, instance, created, **kwargs):
 
     except Exception as e:
         # Signal handlers should NOT raise exceptions that break model operations
-        logger.error(
-            f"Error syncing GenericGroup {instance.id} to Redis: {e}"
-        )
+        logger.error(f"Error syncing GenericGroup {instance.id} to Redis: {e}")
 
 
-@receiver(post_delete, sender='app.GenericGroup')
+@receiver(post_delete, sender="app.GenericGroup")
 def remove_group_from_redis_on_delete(sender, instance, **kwargs):
     """
     Remove GenericGroup from Redis when deleted.
@@ -86,19 +86,17 @@ def remove_group_from_redis_on_delete(sender, instance, **kwargs):
         ):
             from app.services.notification_cache import NotificationCacheManager
 
-            NotificationCacheManager().invalidate_accounts_wallet_labels(str(instance.owner_id))
+            NotificationCacheManager().invalidate_accounts_wallet_labels(
+                str(instance.owner_id)
+            )
 
-        logger.info(
-            f"Removed GenericGroup {instance.id} ({instance.name}) from Redis"
-        )
+        logger.info(f"Removed GenericGroup {instance.id} ({instance.name}) from Redis")
 
     except Exception as e:
-        logger.error(
-            f"Error removing GenericGroup {instance.id} from Redis: {e}"
-        )
+        logger.error(f"Error removing GenericGroup {instance.id} from Redis: {e}")
 
 
-@receiver(pre_delete, sender='app.GenericGroup')
+@receiver(pre_delete, sender="app.GenericGroup")
 def disable_alerts_targeting_deleted_group(sender, instance, **kwargs):
     """
     Disable alerts that target a group being deleted.
@@ -123,7 +121,7 @@ def disable_alerts_targeting_deleted_group(sender, instance, **kwargs):
         for alert_instance in AlertInstance.objects.filter(target_group=instance):
             alert_instance.enabled = False
             alert_instance.target_group = None
-            alert_instance.save(update_fields=['enabled', 'target_group', 'updated_at'])
+            alert_instance.save(update_fields=["enabled", "target_group", "updated_at"])
 
     except Exception as e:
         logger.error(
@@ -131,7 +129,7 @@ def disable_alerts_targeting_deleted_group(sender, instance, **kwargs):
         )
 
 
-@receiver(post_save, sender='app.GroupSubscription')
+@receiver(post_save, sender="app.GroupSubscription")
 def sync_subscription_to_redis_on_save(sender, instance, created, **kwargs):
     """
     Sync GroupSubscription to Redis when created or updated.
@@ -163,12 +161,10 @@ def sync_subscription_to_redis_on_save(sender, instance, created, **kwargs):
         )
 
     except Exception as e:
-        logger.error(
-            f"Error syncing GroupSubscription {instance.id} to Redis: {e}"
-        )
+        logger.error(f"Error syncing GroupSubscription {instance.id} to Redis: {e}")
 
 
-@receiver(pre_delete, sender='app.GroupSubscription')
+@receiver(pre_delete, sender="app.GroupSubscription")
 def disable_subscription_alerts_on_delete(sender, instance, **kwargs):
     """
     Disable subscription-managed alerts before deleting a GroupSubscription.
@@ -178,9 +174,11 @@ def disable_subscription_alerts_on_delete(sender, instance, **kwargs):
     try:
         from app.models.alerts import AlertInstance
 
-        for alert_instance in AlertInstance.objects.filter(source_subscription=instance, enabled=True):
+        for alert_instance in AlertInstance.objects.filter(
+            source_subscription=instance, enabled=True
+        ):
             alert_instance.enabled = False
-            alert_instance.save(update_fields=['enabled', 'updated_at'])
+            alert_instance.save(update_fields=["enabled", "updated_at"])
 
     except Exception as e:
         logger.error(

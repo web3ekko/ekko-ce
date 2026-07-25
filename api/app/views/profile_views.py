@@ -19,10 +19,14 @@ from django.utils import timezone
 from knox.models import AuthToken
 
 from ..serializers.profile_serializers import (
-    ProfileSerializer, ProfileUpdateSerializer, PreferencesSerializer,
-    ConnectedServiceSerializer, SessionSerializer,
-    ExportRequestSerializer, ExportResponseSerializer,
-    DeleteAccountSerializer
+    ProfileSerializer,
+    ProfileUpdateSerializer,
+    PreferencesSerializer,
+    ConnectedServiceSerializer,
+    SessionSerializer,
+    ExportRequestSerializer,
+    ExportResponseSerializer,
+    DeleteAccountSerializer,
 )
 from authentication.models import UserDevice
 
@@ -45,9 +49,7 @@ class ProfileView(APIView):
     def patch(self, request):
         """Update the authenticated user's profile"""
         serializer = ProfileUpdateSerializer(
-            request.user,
-            data=request.data,
-            partial=True
+            request.user, data=request.data, partial=True
         )
         if serializer.is_valid():
             serializer.save()
@@ -68,11 +70,11 @@ class PreferencesView(APIView):
         """Get user preferences"""
         user = request.user
         preferences = {
-            'preferred_auth_method': user.preferred_auth_method,
-            'notification_preferences': {},  # TODO: Load from notification settings
-            'theme': 'system',  # TODO: Store in user profile or separate table
-            'timezone': 'UTC',
-            'language': 'en',
+            "preferred_auth_method": user.preferred_auth_method,
+            "notification_preferences": {},  # TODO: Load from notification settings
+            "theme": "system",  # TODO: Store in user profile or separate table
+            "timezone": "UTC",
+            "language": "en",
         }
         serializer = PreferencesSerializer(preferences)
         return Response(serializer.data)
@@ -85,16 +87,18 @@ class PreferencesView(APIView):
             data = serializer.validated_data
 
             # Update auth method if provided
-            if 'preferred_auth_method' in data:
-                user.preferred_auth_method = data['preferred_auth_method']
-                user.save(update_fields=['preferred_auth_method'])
+            if "preferred_auth_method" in data:
+                user.preferred_auth_method = data["preferred_auth_method"]
+                user.save(update_fields=["preferred_auth_method"])
 
             # TODO: Store other preferences (theme, timezone, language)
 
-            return Response({
-                'message': 'Preferences updated successfully',
-                'preferences': serializer.data
-            })
+            return Response(
+                {
+                    "message": "Preferences updated successfully",
+                    "preferences": serializer.data,
+                }
+            )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -110,17 +114,15 @@ class AvatarView(APIView):
         """Upload a new avatar"""
         # TODO: Implement avatar upload with proper storage
         # For now, return a placeholder response
-        return Response({
-            'message': 'Avatar upload not yet implemented',
-            'avatar_url': None
-        }, status=status.HTTP_501_NOT_IMPLEMENTED)
+        return Response(
+            {"message": "Avatar upload not yet implemented", "avatar_url": None},
+            status=status.HTTP_501_NOT_IMPLEMENTED,
+        )
 
     def delete(self, request):
         """Remove user avatar"""
         # TODO: Implement avatar deletion
-        return Response({
-            'message': 'Avatar removed successfully'
-        })
+        return Response({"message": "Avatar removed successfully"})
 
 
 class ConnectedServicesView(APIView):
@@ -138,25 +140,29 @@ class ConnectedServicesView(APIView):
         # Get devices from UserDevice model
         devices = UserDevice.objects.filter(user=user, is_active=True)
         for device in devices:
-            services.append({
-                'id': device.id,
-                'service_type': 'device',
-                'name': device.device_name,
-                'connected_at': device.created_at,
-                'last_used': device.last_used,
-                'is_active': device.is_active,
-            })
+            services.append(
+                {
+                    "id": device.id,
+                    "service_type": "device",
+                    "name": device.device_name,
+                    "connected_at": device.created_at,
+                    "last_used": device.last_used,
+                    "is_active": device.is_active,
+                }
+            )
 
         # Check for Firebase connection
         if user.firebase_uid:
-            services.append({
-                'id': str(uuid.uuid4()),  # Placeholder
-                'service_type': 'firebase',
-                'name': 'Firebase Authentication',
-                'connected_at': user.created_at,
-                'last_used': user.updated_at,
-                'is_active': True,
-            })
+            services.append(
+                {
+                    "id": str(uuid.uuid4()),  # Placeholder
+                    "service_type": "firebase",
+                    "name": "Firebase Authentication",
+                    "connected_at": user.created_at,
+                    "last_used": user.updated_at,
+                    "is_active": True,
+                }
+            )
 
         serializer = ConnectedServiceSerializer(services, many=True)
         return Response(serializer.data)
@@ -177,12 +183,11 @@ class ConnectedServiceDetailView(APIView):
         try:
             device = UserDevice.objects.get(id=service_id, user=user)
             device.is_active = False
-            device.save(update_fields=['is_active'])
-            return Response({'message': 'Service disconnected successfully'})
+            device.save(update_fields=["is_active"])
+            return Response({"message": "Service disconnected successfully"})
         except UserDevice.DoesNotExist:
             return Response(
-                {'error': 'Service not found'},
-                status=status.HTTP_404_NOT_FOUND
+                {"error": "Service not found"}, status=status.HTTP_404_NOT_FOUND
             )
 
 
@@ -208,15 +213,19 @@ class SessionsView(APIView):
             if token.expiry and token.expiry < timezone.now():
                 continue
 
-            sessions.append({
-                'id': token.digest[:16],  # Use first 16 chars of digest as ID
-                'device_info': 'Unknown Device',  # Knox doesn't store device info by default
-                'ip_address': '0.0.0.0',  # Would need to store this separately
-                'created_at': token.created,
-                'last_used': token.created,  # Knox doesn't track last used
-                'expires_at': token.expiry,
-                'is_current': current_token and token.digest == current_token.digest if hasattr(current_token, 'digest') else False,
-            })
+            sessions.append(
+                {
+                    "id": token.digest[:16],  # Use first 16 chars of digest as ID
+                    "device_info": "Unknown Device",  # Knox doesn't store device info by default
+                    "ip_address": "0.0.0.0",  # Would need to store this separately
+                    "created_at": token.created,
+                    "last_used": token.created,  # Knox doesn't track last used
+                    "expires_at": token.expiry,
+                    "is_current": current_token and token.digest == current_token.digest
+                    if hasattr(current_token, "digest")
+                    else False,
+                }
+            )
 
         serializer = SessionSerializer(sessions, many=True)
         return Response(serializer.data)
@@ -235,16 +244,12 @@ class SessionDetailView(APIView):
 
         # Find token by digest prefix
         try:
-            token = AuthToken.objects.get(
-                user=user,
-                digest__startswith=session_id
-            )
+            token = AuthToken.objects.get(user=user, digest__startswith=session_id)
             token.delete()
-            return Response({'message': 'Session revoked successfully'})
+            return Response({"message": "Session revoked successfully"})
         except AuthToken.DoesNotExist:
             return Response(
-                {'error': 'Session not found'},
-                status=status.HTTP_404_NOT_FOUND
+                {"error": "Session not found"}, status=status.HTTP_404_NOT_FOUND
             )
 
 
@@ -266,16 +271,18 @@ class RevokeAllSessionsView(APIView):
 
         for token in tokens:
             # Skip current token if we can identify it
-            if current_token and hasattr(current_token, 'digest'):
+            if current_token and hasattr(current_token, "digest"):
                 if token.digest == current_token.digest:
                     continue
             token.delete()
             revoked_count += 1
 
-        return Response({
-            'message': f'Revoked {revoked_count} session(s)',
-            'revoked_count': revoked_count
-        })
+        return Response(
+            {
+                "message": f"Revoked {revoked_count} session(s)",
+                "revoked_count": revoked_count,
+            }
+        )
 
 
 class ExportDataView(APIView):
@@ -293,11 +300,11 @@ class ExportDataView(APIView):
             # For now, return a placeholder response
             export_id = uuid.uuid4()
             response_data = {
-                'export_id': export_id,
-                'status': 'pending',
-                'download_url': None,
-                'expires_at': timezone.now() + timezone.timedelta(days=7),
-                'message': 'Data export has been queued. You will receive an email when it is ready.'
+                "export_id": export_id,
+                "status": "pending",
+                "download_url": None,
+                "expires_at": timezone.now() + timezone.timedelta(days=7),
+                "message": "Data export has been queued. You will receive an email when it is ready.",
             }
             response_serializer = ExportResponseSerializer(response_data)
             return Response(response_serializer.data, status=status.HTTP_202_ACCEPTED)
@@ -320,12 +327,10 @@ class DeleteAccountView(APIView):
             # Soft delete or hard delete depending on requirements
             # For now, we'll deactivate the account
             user.is_active = False
-            user.save(update_fields=['is_active'])
+            user.save(update_fields=["is_active"])
 
             # Delete all auth tokens
             AuthToken.objects.filter(user=user).delete()
 
-            return Response({
-                'message': 'Account has been deleted successfully'
-            })
+            return Response({"message": "Account has been deleted successfully"})
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

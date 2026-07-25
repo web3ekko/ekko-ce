@@ -12,7 +12,6 @@ def _check_constraint_kwargs(condition):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("app", "0016_alertinstance_disabled_by_subscription"),
     ]

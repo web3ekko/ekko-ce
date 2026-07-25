@@ -13,8 +13,8 @@ def migrate_user_notification_settings_to_endpoints(apps, schema_editor):
     For each user with notification settings, create individual NotificationChannelEndpoint
     records for each enabled channel in their old settings.
     """
-    UserNotificationSettings = apps.get_model('app', 'UserNotificationSettings')
-    NotificationChannelEndpoint = apps.get_model('app', 'NotificationChannelEndpoint')
+    UserNotificationSettings = apps.get_model("app", "UserNotificationSettings")
+    NotificationChannelEndpoint = apps.get_model("app", "NotificationChannelEndpoint")
 
     migrated_count = 0
     skipped_count = 0
@@ -24,16 +24,16 @@ def migrate_user_notification_settings_to_endpoints(apps, schema_editor):
 
         for channel_type, channel_config in channels.items():
             # Only migrate enabled channels
-            if not channel_config.get('enabled', False):
+            if not channel_config.get("enabled", False):
                 skipped_count += 1
                 continue
 
             # Skip websocket channel (handled separately)
-            if channel_type == 'websocket':
+            if channel_type == "websocket":
                 continue
 
             # Extract config
-            config = channel_config.get('config', {})
+            config = channel_config.get("config", {})
             if not config:
                 logger.warning(
                     f"Skipping {channel_type} for user {user_settings.user_id}: empty config"
@@ -44,14 +44,14 @@ def migrate_user_notification_settings_to_endpoints(apps, schema_editor):
             # Create endpoint with auto-generated label
             try:
                 NotificationChannelEndpoint.objects.create(
-                    owner_type='user',
+                    owner_type="user",
                     owner_id=user_settings.user_id,
                     channel_type=channel_type,
                     label=f"Default {channel_type.title()}",  # Auto-generated label
                     config=config,
-                    enabled=channel_config.get('enabled', True),
-                    verified=channel_config.get('verified', False),
-                    routing_mode='all_enabled',  # Default to all_enabled
+                    enabled=channel_config.get("enabled", True),
+                    verified=channel_config.get("verified", False),
+                    routing_mode="all_enabled",  # Default to all_enabled
                     priority_filters=[],  # Empty priority filters for backward compatibility
                     created_by_id=user_settings.user_id,
                 )
@@ -76,9 +76,11 @@ def reverse_migration(apps, schema_editor):
 
     WARNING: This will delete all endpoint data. Use with caution.
     """
-    NotificationChannelEndpoint = apps.get_model('app', 'NotificationChannelEndpoint')
+    NotificationChannelEndpoint = apps.get_model("app", "NotificationChannelEndpoint")
 
-    deleted_count = NotificationChannelEndpoint.objects.filter(owner_type='user').delete()[0]
+    deleted_count = NotificationChannelEndpoint.objects.filter(
+        owner_type="user"
+    ).delete()[0]
     logger.info(f"Reverse migration: deleted {deleted_count} user endpoints")
 
 

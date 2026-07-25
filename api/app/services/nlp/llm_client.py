@@ -27,6 +27,7 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
+
 def _requires_api_key_for_model(model: str) -> bool:
     # Ekko historically named the settings GEMINI_*, but we route through LiteLLM.
     # Only hard-require an API key for Gemini models; local backends (e.g. ollama)
@@ -163,7 +164,9 @@ class LLMClient:
 
         # Estimate cost (Gemini pricing approximate)
         if record.total_tokens > 0:
-            record.cost = (record.prompt_tokens * 0.000001) + (record.completion_tokens * 0.000002)
+            record.cost = (record.prompt_tokens * 0.000001) + (
+                record.completion_tokens * 0.000002
+            )
 
         with self._history_lock:
             self._history.append(record)
@@ -256,13 +259,19 @@ class LLMClient:
                     raw_response=response,
                     usage={
                         "prompt_tokens": _coerce_int(
-                            _get_usage_value(getattr(response, "usage", {}), "prompt_tokens")
+                            _get_usage_value(
+                                getattr(response, "usage", {}), "prompt_tokens"
+                            )
                         ),
                         "completion_tokens": _coerce_int(
-                            _get_usage_value(getattr(response, "usage", {}), "completion_tokens")
+                            _get_usage_value(
+                                getattr(response, "usage", {}), "completion_tokens"
+                            )
                         ),
                         "total_tokens": _coerce_int(
-                            _get_usage_value(getattr(response, "usage", {}), "total_tokens")
+                            _get_usage_value(
+                                getattr(response, "usage", {}), "total_tokens"
+                            )
                         ),
                     },
                     cached=False,
@@ -276,11 +285,13 @@ class LLMClient:
                     extra={"attempt": attempt + 1, "max_retries": self.max_retries},
                 )
                 if attempt < self.max_retries - 1:
-                    time.sleep(2 ** attempt)  # Exponential backoff
+                    time.sleep(2**attempt)  # Exponential backoff
 
         # All retries failed
         duration_ms = (time.time() - start_time) * 1000
-        self._record_call(None, cached=False, duration_ms=duration_ms, error=str(last_error))
+        self._record_call(
+            None, cached=False, duration_ms=duration_ms, error=str(last_error)
+        )
         raise last_error
 
     def generate_json(
@@ -347,8 +358,7 @@ class LLMClient:
         """
         # Build chain-of-thought prompt
         fields_spec = "\n".join(
-            f'  "{name}": {desc}'
-            for name, desc in output_fields.items()
+            f'  "{name}": {desc}' for name, desc in output_fields.items()
         )
 
         cot_prompt = f"""{task}
@@ -420,7 +430,8 @@ Return ONLY valid JSON, no additional text."""
             non_cached = [r for r in self._history if not r.cached and r.success]
             avg_duration = (
                 sum(r.duration_ms for r in non_cached) / len(non_cached)
-                if non_cached else 0.0
+                if non_cached
+                else 0.0
             )
 
             return {
@@ -525,11 +536,13 @@ def format_cot_prompt(
             prompt_parts.append(f"Output: {ex['output']}")
         prompt_parts.append("\n")
 
-    prompt_parts.extend([
-        f"Input:\n{context}\n",
-        "Think through this step by step, then provide your answer.",
-        f"\n{output_format}",
-    ])
+    prompt_parts.extend(
+        [
+            f"Input:\n{context}\n",
+            "Think through this step by step, then provide your answer.",
+            f"\n{output_format}",
+        ]
+    )
 
     return "\n".join(prompt_parts)
 

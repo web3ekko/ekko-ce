@@ -2,4 +2,4 @@
 from .group_service import GroupService, AlertValidationService
 from .provider_status import ProviderStatusService
 
-__all__ = ['GroupService', 'AlertValidationService', 'ProviderStatusService']
+__all__ = ["GroupService", "AlertValidationService", "ProviderStatusService"]

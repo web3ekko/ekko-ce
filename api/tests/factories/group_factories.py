@@ -23,9 +23,9 @@ class GenericGroupFactory(factory.django.DjangoModelFactory):
 
     name = factory.Sequence(lambda n: f"Test Group {n}")
     description = factory.Faker("sentence")
-    group_type = factory.Iterator([
-        GroupType.WALLET, GroupType.ALERT, GroupType.NETWORK, GroupType.TOKEN
-    ])
+    group_type = factory.Iterator(
+        [GroupType.WALLET, GroupType.ALERT, GroupType.NETWORK, GroupType.TOKEN]
+    )
     owner = factory.SubFactory(UserFactory)
     settings = factory.LazyAttribute(
         lambda o: {"alert_type": "wallet"} if o.group_type == GroupType.ALERT else {}
@@ -68,18 +68,20 @@ class GroupWithMembersFactory(GenericGroupFactory):
 
     @classmethod
     def _create(cls, model_class, *args, **kwargs):
-        member_count = kwargs.pop('member_count_to_add', 3)
+        member_count = kwargs.pop("member_count_to_add", 3)
         group = super()._create(model_class, *args, **kwargs)
 
         # Add sample members
         for i in range(member_count):
-            member_key = f"ETH:mainnet:0x{''.join([fake.random_letter() for _ in range(40)])}"
+            member_key = (
+                f"ETH:mainnet:0x{''.join([fake.random_letter() for _ in range(40)])}"
+            )
             group.add_member_local(
                 member_key=member_key,
                 added_by=str(group.owner.id),
                 label=f"Wallet {i}",
                 tags=["test"],
-                metadata={}
+                metadata={},
             )
 
         return group
@@ -108,15 +110,13 @@ class GroupSubscriptionFactory(factory.django.DjangoModelFactory):
 
 # Utility functions
 
+
 def create_group_with_members(owner=None, group_type=GroupType.WALLET, member_count=5):
     """Create a group with the specified number of members."""
     if owner is None:
         owner = UserFactory()
 
-    group = GenericGroupFactory(
-        owner=owner,
-        group_type=group_type
-    )
+    group = GenericGroupFactory(owner=owner, group_type=group_type)
 
     for i in range(member_count):
         member_key = f"ETH:mainnet:0x{fake.sha256()[:40]}"
@@ -125,7 +125,7 @@ def create_group_with_members(owner=None, group_type=GroupType.WALLET, member_co
             added_by=str(owner.id),
             label=f"Wallet {i}",
             tags=["test", f"batch-{i % 2}"],
-            metadata={"index": i}
+            metadata={"index": i},
         )
 
     return group
@@ -142,9 +142,7 @@ def create_subscription_chain(owner=None, target_group_count=3):
     for _ in range(target_group_count):
         target_group = WalletGroupFactory(owner=owner)
         subscription = GroupSubscriptionFactory(
-            alert_group=alert_group,
-            target_group=target_group,
-            owner=owner
+            alert_group=alert_group, target_group=target_group, owner=owner
         )
         subscriptions.append(subscription)
 

@@ -9,7 +9,10 @@ from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 from django.conf import settings
 
-from app.services.nlp.compiler import ProposedSpecCompilationError, compile_to_proposed_spec
+from app.services.nlp.compiler import (
+    ProposedSpecCompilationError,
+    compile_to_proposed_spec,
+)
 from app.services.nlp.eval.evaluator import evaluate_compiler_output
 from app.services.nlp.eval.seed_prompts import seed_prompt_cases
 from app.services.nlp.pipelines import PLAN_PIPELINE_ID
@@ -54,11 +57,19 @@ class Command(BaseCommand):
                     "case_id": c.case_id,
                     "nl_description": c.nl_description,
                     "context": dict(c.context),
-                    "expected_catalog_ids_any_of": list(c.expected_catalog_ids_any_of or []),
+                    "expected_catalog_ids_any_of": list(
+                        c.expected_catalog_ids_any_of or []
+                    ),
                     "expected_no_catalog_ids": bool(c.expected_no_catalog_ids),
-                    "expected_trigger_modes_any_of": list(c.expected_trigger_modes_any_of or []),
-                    "expected_missing_info_codes_any_of": list(c.expected_missing_info_codes_any_of or []),
-                    "expected_variable_ids_all": list(c.expected_variable_ids_all or []),
+                    "expected_trigger_modes_any_of": list(
+                        c.expected_trigger_modes_any_of or []
+                    ),
+                    "expected_missing_info_codes_any_of": list(
+                        c.expected_missing_info_codes_any_of or []
+                    ),
+                    "expected_variable_ids_all": list(
+                        c.expected_variable_ids_all or []
+                    ),
                 }
                 for c in seed_prompt_cases()
             ]
@@ -100,19 +111,41 @@ class Command(BaseCommand):
             case_id = str(case.get("case_id") or "").strip() or str(uuid.uuid4())
             nl_description = str(case.get("nl_description") or "").strip()
             if not nl_description:
-                results.append({"case_id": case_id, "ok": False, "errors": ["missing nl_description"]})
+                results.append(
+                    {
+                        "case_id": case_id,
+                        "ok": False,
+                        "errors": ["missing nl_description"],
+                    }
+                )
                 continue
 
-            context = case.get("context") if isinstance(case.get("context"), dict) else {}
+            context = (
+                case.get("context") if isinstance(case.get("context"), dict) else {}
+            )
             expected_any_of = case.get("expected_catalog_ids_any_of")
-            expected_any_of = expected_any_of if isinstance(expected_any_of, list) else []
+            expected_any_of = (
+                expected_any_of if isinstance(expected_any_of, list) else []
+            )
             expected_no_catalog_ids = bool(case.get("expected_no_catalog_ids"))
             expected_trigger_modes = case.get("expected_trigger_modes_any_of")
-            expected_trigger_modes = expected_trigger_modes if isinstance(expected_trigger_modes, list) else []
+            expected_trigger_modes = (
+                expected_trigger_modes
+                if isinstance(expected_trigger_modes, list)
+                else []
+            )
             expected_missing_codes = case.get("expected_missing_info_codes_any_of")
-            expected_missing_codes = expected_missing_codes if isinstance(expected_missing_codes, list) else []
+            expected_missing_codes = (
+                expected_missing_codes
+                if isinstance(expected_missing_codes, list)
+                else []
+            )
             expected_variable_ids_all = case.get("expected_variable_ids_all")
-            expected_variable_ids_all = expected_variable_ids_all if isinstance(expected_variable_ids_all, list) else []
+            expected_variable_ids_all = (
+                expected_variable_ids_all
+                if isinstance(expected_variable_ids_all, list)
+                else []
+            )
 
             job_id = str(uuid.uuid4())
             try:
@@ -151,14 +184,34 @@ class Command(BaseCommand):
             missing = proposed.get("missing_info")
             if isinstance(missing, list):
                 for item in missing:
-                    if isinstance(item, dict) and isinstance(item.get("code"), str) and item.get("code").strip():
+                    if (
+                        isinstance(item, dict)
+                        and isinstance(item.get("code"), str)
+                        and item.get("code").strip()
+                    ):
                         missing_codes.append(item.get("code").strip())
 
-            compile_report = proposed.get("compile_report") if isinstance(proposed.get("compile_report"), dict) else {}
-            compile_errors = compile_report.get("errors") if isinstance(compile_report.get("errors"), list) else []
+            compile_report = (
+                proposed.get("compile_report")
+                if isinstance(proposed.get("compile_report"), dict)
+                else {}
+            )
+            compile_errors = (
+                compile_report.get("errors")
+                if isinstance(compile_report.get("errors"), list)
+                else []
+            )
 
-            template = proposed.get("template") if isinstance(proposed.get("template"), dict) else {}
-            trigger = template.get("trigger") if isinstance(template.get("trigger"), dict) else {}
+            template = (
+                proposed.get("template")
+                if isinstance(proposed.get("template"), dict)
+                else {}
+            )
+            trigger = (
+                template.get("trigger")
+                if isinstance(template.get("trigger"), dict)
+                else {}
+            )
 
             results.append(
                 {
@@ -175,8 +228,14 @@ class Command(BaseCommand):
             if eval_result.ok:
                 passed += 1
 
-            status = self.style.SUCCESS("PASS") if eval_result.ok else self.style.ERROR("FAIL")
-            self.stdout.write(f"[{status}] {case_id} -> {eval_result.selected_catalog_ids}")
+            status = (
+                self.style.SUCCESS("PASS")
+                if eval_result.ok
+                else self.style.ERROR("FAIL")
+            )
+            self.stdout.write(
+                f"[{status}] {case_id} -> {eval_result.selected_catalog_ids}"
+            )
             if eval_result.errors:
                 for err in eval_result.errors:
                     self.stdout.write(f"  - {err}")
@@ -190,5 +249,7 @@ class Command(BaseCommand):
             "failed": len(results) - passed,
             "results": results,
         }
-        out_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        out_path.write_text(
+            json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
         self.stdout.write(self.style.SUCCESS(f"Wrote report to {out_path}"))

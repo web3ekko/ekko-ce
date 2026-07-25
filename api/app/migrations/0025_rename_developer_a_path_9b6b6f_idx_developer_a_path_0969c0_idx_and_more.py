@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("app", "0024_cleanup_alert_templates_table_v2"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
@@ -210,7 +209,9 @@ class Migration(migrations.Migration):
             state_operations=[
                 migrations.AddIndex(
                     model_name="alerttemplate",
-                    index=models.Index(fields=["created_by"], name="at2_created_by_idx"),
+                    index=models.Index(
+                        fields=["created_by"], name="at2_created_by_idx"
+                    ),
                 ),
             ],
         ),
@@ -232,7 +233,9 @@ class Migration(migrations.Migration):
             state_operations=[
                 migrations.AddIndex(
                     model_name="alerttemplate",
-                    index=models.Index(fields=["fingerprint"], name="at2_fingerprint_idx"),
+                    index=models.Index(
+                        fields=["fingerprint"], name="at2_fingerprint_idx"
+                    ),
                 ),
             ],
         ),
@@ -243,7 +246,8 @@ class Migration(migrations.Migration):
                 migrations.AddIndex(
                     model_name="alerttemplateversion",
                     index=models.Index(
-                        fields=["template", "template_version"], name="atv_template_ver_idx"
+                        fields=["template", "template_version"],
+                        name="atv_template_ver_idx",
                     ),
                 ),
             ],

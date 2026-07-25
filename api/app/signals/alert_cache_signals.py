@@ -28,7 +28,11 @@ def sync_alert_cache_on_save(sender, instance, created, **kwargs):
 
         manager = AlertCacheManager()
         alert_id = str(instance.id)
-        user_id = str(instance.user_id) if getattr(instance, "user_id", None) is not None else None
+        user_id = (
+            str(instance.user_id)
+            if getattr(instance, "user_id", None) is not None
+            else None
+        )
 
         if not getattr(instance, "enabled", False):
             manager.remove_alert_from_redis(alert_id)
@@ -42,7 +46,9 @@ def sync_alert_cache_on_save(sender, instance, created, **kwargs):
         manager.sync_alert_to_redis(instance)
         GroupService().sync_alert_targets_to_redis(instance)
     except Exception as exc:
-        logger.error("Error syncing alert cache for AlertInstance %s: %s", instance.id, exc)
+        logger.error(
+            "Error syncing alert cache for AlertInstance %s: %s", instance.id, exc
+        )
 
 
 @receiver(post_delete, sender="app.AlertInstance")
@@ -53,8 +59,14 @@ def remove_alert_cache_on_delete(sender, instance, **kwargs):
         from app.services.group_service import GroupService
 
         alert_id = str(instance.id)
-        user_id = str(instance.user_id) if getattr(instance, "user_id", None) is not None else None
+        user_id = (
+            str(instance.user_id)
+            if getattr(instance, "user_id", None) is not None
+            else None
+        )
         AlertCacheManager().remove_alert_from_redis(alert_id)
         GroupService.remove_alert_targets_from_redis(alert_id, user_id=user_id)
     except Exception as exc:
-        logger.error("Error removing alert cache for AlertInstance %s: %s", instance.id, exc)
+        logger.error(
+            "Error removing alert cache for AlertInstance %s: %s", instance.id, exc
+        )

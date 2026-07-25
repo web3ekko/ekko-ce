@@ -33,4 +33,3 @@ class TestNLPSeedPrompts(TestCase):
                 continue
             for cid in case.expected_catalog_ids_any_of:
                 assert cid in allowlisted
-

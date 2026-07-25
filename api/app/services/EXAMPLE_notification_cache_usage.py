@@ -14,6 +14,7 @@ from app.services.notification_cache import NotificationCacheManager
 # Example 1: Alert Subscription Index Management
 # ===================================================================
 
+
 def example_alert_subscription_index():
     """
     Manage which users are subscribed to which alert templates.
@@ -49,6 +50,7 @@ def example_alert_subscription_index():
 # Example 2: Wallet Nicknames Cache (Cache-Aside Pattern)
 # ===================================================================
 
+
 def example_wallet_nicknames():
     """
     Cache user's custom wallet names for personalized notifications.
@@ -82,6 +84,7 @@ def example_wallet_nicknames():
 # Example 3: User Notification Settings Cache (Cache-Aside Pattern)
 # ===================================================================
 
+
 def example_user_notification_settings():
     """
     Cache user notification preferences and channel configurations.
@@ -110,8 +113,8 @@ def example_user_notification_settings():
 
     # Check specific channel settings
     if settings:
-        websocket_enabled = settings.get('websocket_enabled', False)
-        channels = settings.get('channels', {})
+        websocket_enabled = settings.get("websocket_enabled", False)
+        channels = settings.get("channels", {})
         print(f"WebSocket enabled: {websocket_enabled}")
         print(f"Configured channels: {list(channels.keys())}")
 
@@ -125,6 +128,7 @@ def example_user_notification_settings():
 # ===================================================================
 # Example 4: Cache Warming for Performance Optimization
 # ===================================================================
+
 
 def example_cache_warming():
     """
@@ -140,6 +144,7 @@ def example_cache_warming():
 # ===================================================================
 # Example 5: Health Check and Diagnostics
 # ===================================================================
+
 
 def example_health_check():
     """
@@ -160,6 +165,7 @@ def example_health_check():
 # Example 6: Real-World Notification Flow Integration
 # ===================================================================
 
+
 def example_personalized_notification_flow():
     """
     Complete example: Using all three cache types in a notification flow.
@@ -178,7 +184,7 @@ def example_personalized_notification_flow():
         # Get user's notification settings
         settings = cache_manager.get_user_settings(user_id)
 
-        if not settings or not settings.get('notifications_enabled'):
+        if not settings or not settings.get("notifications_enabled"):
             print(f"Skipping user {user_id}: notifications disabled")
             continue
 
@@ -191,11 +197,13 @@ def example_personalized_notification_flow():
 
         # Build personalized message
         hash_key = f"{wallet_address.lower()}:{chain_id}"
-        display_name = nicknames.get(hash_key, f"{wallet_address[:6]}...{wallet_address[-4:]}")
+        display_name = nicknames.get(
+            hash_key, f"{wallet_address[:6]}...{wallet_address[-4:]}"
+        )
 
         # Determine notification channels based on priority
         priority = "high"  # From alert
-        channels = settings.get('priority_routing', {}).get(priority, ['websocket'])
+        channels = settings.get("priority_routing", {}).get(priority, ["websocket"])
 
         print(f"User {user_id}: Send to channels {channels}")
         print(f"  Message: Whale movement detected for {display_name}")
@@ -206,6 +214,7 @@ def example_personalized_notification_flow():
 # ===================================================================
 # Example 7: Error Handling and Graceful Degradation
 # ===================================================================
+
 
 def example_error_handling():
     """

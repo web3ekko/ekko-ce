@@ -15,6 +15,7 @@ class AlertJobConfigSerializer(serializers.ModelSerializer):
 
     Includes only the fields needed for job creation decision-making.
     """
+
     id = serializers.UUIDField(read_only=True)
     name = serializers.CharField(read_only=True)
     trigger_type = serializers.CharField(read_only=True)
@@ -30,23 +31,25 @@ class AlertJobConfigSerializer(serializers.ModelSerializer):
     class Meta:
         model = AlertInstance
         fields = [
-            'id',
-            'name',
-            'trigger_type',
-            'trigger_config',
-            'template_id',
-            'template_params',
-            'alert_type',
-            'target_keys',
-            'spec',
-            'job_creation_count',
-            'last_job_created_at',
+            "id",
+            "name",
+            "trigger_type",
+            "trigger_config",
+            "template_id",
+            "template_params",
+            "alert_type",
+            "target_keys",
+            "spec",
+            "job_creation_count",
+            "last_job_created_at",
         ]
 
     def get_spec(self, obj):
         """Return execution spec (AlertTemplateIR v1) without pre-rendering placeholders."""
         template = getattr(obj, "template", None)
-        template_spec = getattr(template, "spec", None) if template is not None else None
+        template_spec = (
+            getattr(template, "spec", None) if template is not None else None
+        )
         if isinstance(template_spec, dict) and template_spec:
             return template_spec
 
@@ -65,6 +68,7 @@ class RecordJobCreationSerializer(serializers.Serializer):
     Used by actors and Alert Scheduler Provider to increment job_creation_count
     and update last_job_created_at.
     """
+
     alert_id = serializers.UUIDField(required=True)
     created_at = serializers.DateTimeField(required=True)
 
@@ -80,7 +84,10 @@ class RecordJobCreationSerializer(serializers.Serializer):
         """Validate that created_at is not too far in the future"""
         # Allow up to 10 minutes in the future to account for clock skew between systems
         from datetime import timedelta
+
         max_future = timezone.now() + timedelta(minutes=10)
         if value > max_future:
-            raise serializers.ValidationError("created_at cannot be more than 10 minutes in the future")
+            raise serializers.ValidationError(
+                "created_at cannot be more than 10 minutes in the future"
+            )
         return value

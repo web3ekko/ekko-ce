@@ -30,43 +30,43 @@ class MockPipeline:
         self._results = []
 
     def get(self, key):
-        self.commands.append(('get', key))
+        self.commands.append(("get", key))
         return self
 
     def set(self, key, value):
-        self.commands.append(('set', key, value))
+        self.commands.append(("set", key, value))
         return self
 
     def hset(self, key, mapping=None):
-        self.commands.append(('hset', key, mapping))
+        self.commands.append(("hset", key, mapping))
         return self
 
     def expire(self, key, ttl):
-        self.commands.append(('expire', key, ttl))
+        self.commands.append(("expire", key, ttl))
         return self
 
     def sadd(self, key, *values):
-        self.commands.append(('sadd', key, values))
+        self.commands.append(("sadd", key, values))
         return self
 
     def srem(self, key, *values):
-        self.commands.append(('srem', key, values))
+        self.commands.append(("srem", key, values))
         return self
 
     def zadd(self, key, mapping):
-        self.commands.append(('zadd', key, mapping))
+        self.commands.append(("zadd", key, mapping))
         return self
 
     def zrem(self, key, *values):
-        self.commands.append(('zrem', key, values))
+        self.commands.append(("zrem", key, values))
         return self
 
     def delete(self, key):
-        self.commands.append(('delete', key))
+        self.commands.append(("delete", key))
         return self
 
     def hgetall(self, key):
-        self.commands.append(('hgetall', key))
+        self.commands.append(("hgetall", key))
         return self
 
     def execute(self):
@@ -88,7 +88,7 @@ class MockAlertInstance:
     def __init__(
         self,
         id=None,
-        trigger_type='event_driven',
+        trigger_type="event_driven",
         trigger_config=None,
         spec=None,
         user_id=None,
@@ -97,8 +97,8 @@ class MockAlertInstance:
         created_at=None,
         last_job_created_at=None,
         job_creation_count=0,
-        name='Test Alert',
-        alert_type='wallet',
+        name="Test Alert",
+        alert_type="wallet",
         target_keys=None,
     ):
         self.id = id or uuid4()
@@ -116,7 +116,20 @@ class MockAlertInstance:
         self.target_keys = target_keys or []
         self.template_params = {}
         self.template_id = uuid4()
-        self.template = type("T", (), {"spec": {"version": "v1", "name": "t", "description": "d", "trigger": {"chain_id": 1}, "conditions": {"all": [], "any": [], "not": []}, "action": {"cooldown_secs": 0}}})()
+        self.template = type(
+            "T",
+            (),
+            {
+                "spec": {
+                    "version": "v1",
+                    "name": "t",
+                    "description": "d",
+                    "trigger": {"chain_id": 1},
+                    "conditions": {"all": [], "any": [], "not": []},
+                    "action": {"cooldown_secs": 0},
+                }
+            },
+        )()
 
     def get_effective_targets(self):
         return self.target_keys
@@ -131,10 +144,10 @@ class TestAlertCacheManager:
         manager.redis_client = MagicMock()
 
         alert = MockAlertInstance(
-            alert_type='wallet',
+            alert_type="wallet",
             target_keys=[
-                'ETH:mainnet:0xaddr1',
-                'POLYGON:mainnet:0xAddr2',  # Mixed case should be lowered in index key
+                "ETH:mainnet:0xaddr1",
+                "POLYGON:mainnet:0xAddr2",  # Mixed case should be lowered in index key
             ],
         )
 
@@ -145,8 +158,8 @@ class TestAlertCacheManager:
         )
 
         assert len(keys) == 2
-        assert 'alerts:address:ETH:mainnet:0xaddr1' in keys
-        assert 'alerts:address:MATIC:mainnet:0xaddr2' in keys
+        assert "alerts:address:ETH:mainnet:0xaddr1" in keys
+        assert "alerts:address:MATIC:mainnet:0xaddr2" in keys
 
     def test_collect_index_keys_with_contracts(self):
         """Test collecting index keys from explicit target keys (contract/token alerts)."""
@@ -154,8 +167,8 @@ class TestAlertCacheManager:
         manager.redis_client = MagicMock()
 
         alert = MockAlertInstance(
-            alert_type='token',
-            target_keys=['ETH:mainnet:0xcontract1'],
+            alert_type="token",
+            target_keys=["ETH:mainnet:0xcontract1"],
         )
 
         keys = manager._collect_index_keys(
@@ -165,7 +178,7 @@ class TestAlertCacheManager:
         )
 
         assert len(keys) == 1
-        assert 'alerts:contract:ETH:mainnet:0xcontract1' in keys
+        assert "alerts:contract:ETH:mainnet:0xcontract1" in keys
 
     def test_collect_index_keys_empty(self):
         """Test collecting index keys when no targets and no legacy scope."""
@@ -191,13 +204,13 @@ class TestAlertCacheManager:
 
         result = manager._parse_json_index('["id1", "id2", "id3"]')
 
-        assert result == ['id1', 'id2', 'id3']
+        assert result == ["id1", "id2", "id3"]
 
     def test_parse_json_index_empty_string(self):
         """Test parsing empty string"""
         manager = AlertCacheManager.__new__(AlertCacheManager)
 
-        result = manager._parse_json_index('')
+        result = manager._parse_json_index("")
 
         assert result == []
 
@@ -213,7 +226,7 @@ class TestAlertCacheManager:
         """Test parsing invalid JSON"""
         manager = AlertCacheManager.__new__(AlertCacheManager)
 
-        result = manager._parse_json_index('not json')
+        result = manager._parse_json_index("not json")
 
         assert result == []
 
@@ -223,7 +236,7 @@ class TestAlertCacheManager:
 
         result = manager._parse_json_index('"single_id"')
 
-        assert result == ['single_id']
+        assert result == ["single_id"]
 
     def test_sync_alert_to_redis_uses_pipelines(self):
         """Test that sync_alert_to_redis uses pipelined operations"""
@@ -261,10 +274,10 @@ class TestAlertCacheManager:
             __exit__=lambda s, *args: None,
         )
 
-        alert = MockAlertInstance(target_keys=['ETH:mainnet:0xabc'])
+        alert = MockAlertInstance(target_keys=["ETH:mainnet:0xabc"])
 
         # Patch logger to suppress output
-        with patch('app.services.alert_cache.logger'):
+        with patch("app.services.alert_cache.logger"):
             manager.sync_alert_to_redis(alert)
 
         # Should have called pipeline() at least twice (GET phase and SET phase)
@@ -275,14 +288,14 @@ class TestAlertCacheManager:
         manager = AlertCacheManager.__new__(AlertCacheManager)
 
         alert = MockAlertInstance(
-            trigger_type='periodic',
-            trigger_config={'interval_hours': 24},
+            trigger_type="periodic",
+            trigger_config={"interval_hours": 24},
             enabled=True,
             version=3,
             job_creation_count=42,
-            name='Daily Summary',
-            alert_type='wallet',
-            target_keys=['ETH:mainnet:0xabc'],
+            name="Daily Summary",
+            alert_type="wallet",
+            target_keys=["ETH:mainnet:0xabc"],
         )
 
         result = manager._serialize_alert_for_redis(
@@ -291,17 +304,17 @@ class TestAlertCacheManager:
             expanded_targets=alert.get_effective_targets(),
         )
 
-        assert result['trigger_type'] == 'periodic'
-        assert result['enabled'] == '1'
-        assert result['version'] == '3'
-        assert result['job_creation_count'] == '42'
-        assert result['name'] == 'Daily Summary'
-        assert result['alert_type'] == 'wallet'
-        assert json.loads(result['target_keys']) == ['ETH:mainnet:0xabc']
-        assert result['template_id'] != ""
-        assert 'trigger_config' in result
-        assert 'spec' in result
-        assert json.loads(result['trigger_config']) == {'interval_hours': 24}
+        assert result["trigger_type"] == "periodic"
+        assert result["enabled"] == "1"
+        assert result["version"] == "3"
+        assert result["job_creation_count"] == "42"
+        assert result["name"] == "Daily Summary"
+        assert result["alert_type"] == "wallet"
+        assert json.loads(result["target_keys"]) == ["ETH:mainnet:0xabc"]
+        assert result["template_id"] != ""
+        assert "trigger_config" in result
+        assert "spec" in result
+        assert json.loads(result["trigger_config"]) == {"interval_hours": 24}
 
     def test_serialize_alert_disabled(self):
         """Test serialization of disabled alert"""
@@ -315,37 +328,37 @@ class TestAlertCacheManager:
             expanded_targets=alert.get_effective_targets(),
         )
 
-        assert result['enabled'] == '0'
+        assert result["enabled"] == "0"
 
     def test_extract_chain_events_event_driven(self):
         """Test chain event extraction for event-driven alerts"""
         manager = AlertCacheManager.__new__(AlertCacheManager)
 
         alert = MockAlertInstance(
-            trigger_type='event_driven',
-            trigger_config={'event_types': ['transfer', 'swap']},
+            trigger_type="event_driven",
+            trigger_config={"event_types": ["transfer", "swap"]},
             target_keys=[
-                'ETH:mainnet:0xaddr1',
-                'POLYGON:mainnet:0xaddr2',
+                "ETH:mainnet:0xaddr1",
+                "POLYGON:mainnet:0xaddr2",
             ],
         )
 
         chain_events = manager._extract_chain_events(alert)
 
         assert len(chain_events) == 4
-        assert ('ETH:mainnet', 'transfer') in chain_events
-        assert ('ETH:mainnet', 'swap') in chain_events
-        assert ('MATIC:mainnet', 'transfer') in chain_events
-        assert ('MATIC:mainnet', 'swap') in chain_events
+        assert ("ETH:mainnet", "transfer") in chain_events
+        assert ("ETH:mainnet", "swap") in chain_events
+        assert ("MATIC:mainnet", "transfer") in chain_events
+        assert ("MATIC:mainnet", "swap") in chain_events
 
     def test_extract_chain_events_periodic(self):
         """Test chain event extraction for periodic alerts (should be empty)"""
         manager = AlertCacheManager.__new__(AlertCacheManager)
 
         alert = MockAlertInstance(
-            trigger_type='periodic',
-            trigger_config={'interval_hours': 24},
-            target_keys=['ETH:mainnet:0xaddr1'],
+            trigger_type="periodic",
+            trigger_config={"interval_hours": 24},
+            target_keys=["ETH:mainnet:0xaddr1"],
         )
 
         chain_events = manager._extract_chain_events(alert)
@@ -361,10 +374,10 @@ class TestBatchOperations:
         manager = AlertCacheManager.__new__(AlertCacheManager)
         manager.redis_client = MagicMock()
 
-        with patch('app.services.alert_cache.logger'):
+        with patch("app.services.alert_cache.logger"):
             result = manager._sync_batch_to_redis([])
 
-        assert result == {'synced': 0, 'failed': 0}
+        assert result == {"synced": 0, "failed": 0}
 
     def test_sync_batch_aggregates_index_keys(self):
         """Test that batch sync aggregates index keys across alerts"""
@@ -375,13 +388,13 @@ class TestBatchOperations:
         # Create two alerts monitoring the same address
         alert1 = MockAlertInstance(
             id=uuid4(),
-            alert_type='wallet',
-            target_keys=['ETH:mainnet:0xshared'],
+            alert_type="wallet",
+            target_keys=["ETH:mainnet:0xshared"],
         )
         alert2 = MockAlertInstance(
             id=uuid4(),
-            alert_type='wallet',
-            target_keys=['ETH:mainnet:0xshared'],
+            alert_type="wallet",
+            target_keys=["ETH:mainnet:0xshared"],
         )
 
         # Track pipeline operations
@@ -406,11 +419,11 @@ class TestBatchOperations:
             __exit__=lambda s, *args: None,
         )
 
-        with patch('app.services.alert_cache.logger'):
+        with patch("app.services.alert_cache.logger"):
             result = manager._sync_batch_to_redis([alert1, alert2])
 
-        assert result['synced'] == 2
-        assert result['failed'] == 0
+        assert result["synced"] == 2
+        assert result["failed"] == 0
 
         # Verify only one GET was done for the shared key
         # (both alerts share alerts:address:ETH:mainnet:0xshared)
@@ -428,7 +441,7 @@ class TestMigration:
         # Mock SCAN to return empty results
         mock_redis.scan.return_value = (0, [])
 
-        with patch('app.services.alert_cache.logger'):
+        with patch("app.services.alert_cache.logger"):
             manager.migrate_sets_to_json()
 
         # Should use scan, not keys
@@ -443,14 +456,14 @@ class TestMigration:
 
         # Mock SCAN to return results in multiple iterations
         mock_redis.scan.side_effect = [
-            (100, ['alerts:address:ETH:mainnet:0x1']),  # First call
-            (0, ['alerts:address:ETH:mainnet:0x2']),  # Second call (cursor 0 = done)
+            (100, ["alerts:address:ETH:mainnet:0x1"]),  # First call
+            (0, ["alerts:address:ETH:mainnet:0x2"]),  # Second call (cursor 0 = done)
             (0, []),  # For contract pattern
         ]
-        mock_redis.type.return_value = 'string'
+        mock_redis.type.return_value = "string"
         mock_redis.get.return_value = '["alert1"]'
 
-        with patch('app.services.alert_cache.logger'):
+        with patch("app.services.alert_cache.logger"):
             result = manager.migrate_sets_to_json()
 
         # Should have made 3 scan calls (2 for addresses pattern, 1 for contracts)
@@ -463,25 +476,25 @@ class TestMigration:
         manager.redis_client = mock_redis
 
         mock_redis.scan.side_effect = [
-            (0, ['alerts:address:ETH:mainnet:0x1']),
+            (0, ["alerts:address:ETH:mainnet:0x1"]),
             (0, []),
         ]
-        mock_redis.type.return_value = 'set'
-        mock_redis.smembers.return_value = {'alert1', 'alert2'}
+        mock_redis.type.return_value = "set"
+        mock_redis.smembers.return_value = {"alert1", "alert2"}
 
-        with patch('app.services.alert_cache.logger'):
+        with patch("app.services.alert_cache.logger"):
             result = manager.migrate_sets_to_json()
 
         # Should delete the SET
-        mock_redis.delete.assert_called_with('alerts:address:ETH:mainnet:0x1')
+        mock_redis.delete.assert_called_with("alerts:address:ETH:mainnet:0x1")
 
         # Should write JSON array with TTL
         mock_redis.set.assert_called()
         mock_redis.expire.assert_called_with(
-            'alerts:address:ETH:mainnet:0x1', INDEX_KEY_TTL
+            "alerts:address:ETH:mainnet:0x1", INDEX_KEY_TTL
         )
 
-        assert result['migrated'] == 1
+        assert result["migrated"] == 1
 
 
 class TestCacheStats:
@@ -496,17 +509,17 @@ class TestCacheStats:
         mock_redis.scard.return_value = 100
         mock_redis.zcard.side_effect = [50, 10]  # periodic, onetime
         mock_redis.scan.side_effect = [
-            (0, ['addr1', 'addr2', 'addr3']),  # address keys
-            (0, ['contract1']),  # contract keys
+            (0, ["addr1", "addr2", "addr3"]),  # address keys
+            (0, ["contract1"]),  # contract keys
         ]
 
         stats = manager.get_cache_stats()
 
-        assert stats['active_alerts'] == 100
-        assert stats['periodic_scheduled'] == 50
-        assert stats['onetime_scheduled'] == 10
-        assert stats['address_indexes'] == 3
-        assert stats['contract_indexes'] == 1
+        assert stats["active_alerts"] == 100
+        assert stats["periodic_scheduled"] == 50
+        assert stats["onetime_scheduled"] == 10
+        assert stats["address_indexes"] == 3
+        assert stats["contract_indexes"] == 1
 
 
 class TestTTLs:
@@ -528,7 +541,7 @@ class TestBatchRemoveFromIndexes:
         manager.redis_client = MagicMock()
 
         # Should return without error
-        manager._batch_remove_from_indexes([], 'alert1')
+        manager._batch_remove_from_indexes([], "alert1")
 
         manager.redis_client.pipeline.assert_not_called()
 
@@ -559,10 +572,8 @@ class TestBatchRemoveFromIndexes:
             __exit__=lambda s, *args: None,
         )
 
-        manager._batch_remove_from_indexes(
-            ['alerts:address:ETH:mainnet:0x1'], 'alert1'
-        )
+        manager._batch_remove_from_indexes(["alerts:address:ETH:mainnet:0x1"], "alert1")
 
         # Should have issued a delete since index becomes empty
-        delete_cmd = [cmd for cmd in set_pipe.commands if cmd[0] == 'delete']
+        delete_cmd = [cmd for cmd in set_pipe.commands if cmd[0] == "delete"]
         assert len(delete_cmd) == 1

@@ -8,15 +8,25 @@ pytestmark = pytest.mark.django_db
 
 
 class TestAccountsBulkAddWallets:
-    def test_bulk_add_creates_accounts_and_returns_partial_errors(self, api_client, user):
+    def test_bulk_add_creates_accounts_and_returns_partial_errors(
+        self, api_client, user
+    ):
         api_client.force_authenticate(user=user)
 
         resp = api_client.post(
             "/api/groups/accounts/add_wallets/",
             data={
                 "wallets": [
-                    {"member_key": "eth:mainnet:0xAbC", "label": "", "owner_verified": True},
-                    {"member_key": "ETH:mainnet:0xdef", "label": "Ops", "owner_verified": False},
+                    {
+                        "member_key": "eth:mainnet:0xAbC",
+                        "label": "",
+                        "owner_verified": True,
+                    },
+                    {
+                        "member_key": "ETH:mainnet:0xdef",
+                        "label": "Ops",
+                        "owner_verified": False,
+                    },
                     {"member_key": "not-a-wallet-key", "label": "Bad"},
                 ]
             },
@@ -37,12 +47,21 @@ class TestAccountsBulkAddWallets:
             settings__system_key=SYSTEM_GROUP_ACCOUNTS,
         )
 
-        assert accounts.member_data["members"]["ETH:mainnet:0xabc"]["metadata"]["owner_verified"] is True
+        assert (
+            accounts.member_data["members"]["ETH:mainnet:0xabc"]["metadata"][
+                "owner_verified"
+            ]
+            is True
+        )
         assert accounts.member_data["members"]["ETH:mainnet:0xdef"]["label"] == "Ops"
 
         assert Blockchain.objects.filter(symbol="ETH").exists()
-        assert Wallet.objects.filter(blockchain__symbol="ETH", subnet="mainnet", address="0xabc").exists()
-        assert Wallet.objects.filter(blockchain__symbol="ETH", subnet="mainnet", address="0xdef").exists()
+        assert Wallet.objects.filter(
+            blockchain__symbol="ETH", subnet="mainnet", address="0xabc"
+        ).exists()
+        assert Wallet.objects.filter(
+            blockchain__symbol="ETH", subnet="mainnet", address="0xdef"
+        ).exists()
 
     def test_bulk_add_reports_existing_members(self, api_client, user):
         api_client.force_authenticate(user=user)

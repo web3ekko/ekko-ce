@@ -14,9 +14,11 @@ class TestNLPPipelineRegistryFallback(TestCase):
         mock_qs = MagicMock()
         mock_qs.get.side_effect = OperationalError("no such table: app_nlppipeline")
 
-        with patch("app.services.nlp.pipelines.NLPPipeline.objects.select_related", return_value=mock_qs):
+        with patch(
+            "app.services.nlp.pipelines.NLPPipeline.objects.select_related",
+            return_value=mock_qs,
+        ):
             cfg = get_pipeline_config(PLAN_PIPELINE_ID)
 
         assert cfg.pipeline_id == PLAN_PIPELINE_ID
         assert cfg.version == "v1"
-
