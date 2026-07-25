@@ -10,7 +10,7 @@ Open-source, real-time blockchain monitoring and alerting built for Avalanche te
 
 Create alerts in natural language, evaluate them in a low-latency event pipeline, and deliver notifications fast across multiple channels.
 
-[Run locally](#quick-start) | [View screenshots](#screenshots) | [Use full hosted version](https://app.ekko.zone)
+[Run locally](#quick-start) | [Tutorials & Guides](docs/tutorials/README.md) | [View screenshots](#screenshots) | [Use full hosted version](https://app.ekko.zone)
 ## Why Teams Choose Ekko CE
 
 - **Natural-language alerts**: define monitoring logic in plain English.
@@ -124,6 +124,15 @@ docker compose down
 # full reset (includes volumes)
 docker compose down -v
 ```
+
+## Tutorials & Guides
+
+Explore step-by-step guides in the [`docs/tutorials/`](docs/tutorials/README.md) directory:
+
+1. 🚀 [Quickstart: Natural Language Alerts & Webhooks](docs/tutorials/01-quickstart-natural-language-alerts.md)
+2. 🔺 [Monitoring Avalanche Subnets (L1s) & Custom Chains](docs/tutorials/02-monitoring-avalanche-subnets.md)
+3. 📋 [Building Custom Alert Templates & Parameter Schemas](docs/tutorials/03-creating-alert-templates.md)
+4. 🦀 [Extending Ekko: Writing a Custom wasmCloud Actor in Rust](docs/tutorials/04-writing-wasmcloud-actors.md)
 
 ## Copy/Paste Demo Prompts
 
