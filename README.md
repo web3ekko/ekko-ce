@@ -94,6 +94,8 @@ For the full, knowledge-backed managed experience, sign up at **https://app.ekko
 cp .env.example .env
 ```
 
+> **LLM Provider Setup:** Natural language alert parsing routes via LiteLLM. Set `GEMINI_API_KEY` in `.env` for Gemini models (`gemini/gemini-3.0-flash`), or specify a local model with `GEMINI_MODEL=ollama/llama3.1` (no API key required).
+
 ### 2) Start everything
 
 ```bash

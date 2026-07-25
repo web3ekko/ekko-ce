@@ -20,7 +20,11 @@ In this tutorial, you will learn how to start Ekko CE, create a real-time blockc
    cp .env.example .env
    ```
 
-2. Start the full service stack:
+2. Configure LLM API Keys (for natural language parsing):
+   - Set `GEMINI_API_KEY=your_key` in `.env` to use Google Gemini (`gemini/gemini-3.0-flash`).
+   - Alternatively, for local offline execution, set `GEMINI_MODEL=ollama/llama3.1` (no API key required).
+
+3. Start the full service stack:
 
    ```bash
    docker compose up --build -d
