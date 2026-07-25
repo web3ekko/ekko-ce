@@ -201,5 +201,5 @@ docker compose exec api python manage.py migrate
 
 ## License
 
-Distributed under the MIT License. See [LICENSE](file:///Users/abrahamalaka/Projects/ekko-ce/LICENSE) for details.
+Distributed under the MIT License. See [LICENSE](./LICENSE) for details.
 
