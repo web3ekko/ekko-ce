@@ -2,7 +2,7 @@
 
 [![Docker Compose Ready](https://img.shields.io/badge/docker--compose-ready-2496ED?logo=docker&logoColor=white)](https://github.com/web3ekko/ekko-ce)
 [![Avalanche First](https://img.shields.io/badge/avalanche-first-E84142?logo=avax&logoColor=white)](https://github.com/web3ekko/ekko-ce)
-[![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/u9SFHyn46)
+[![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/msCh4Ue8P3)
 [![Natural Language Alerts](https://img.shields.io/badge/alerts-natural%20language-2563EB)](https://github.com/web3ekko/ekko-ce)
 [![Runtime](https://img.shields.io/badge/runtime-wasmCloud%20%2B%20NATS-0F172A)](https://github.com/web3ekko/ekko-ce)
 [![Stack](https://img.shields.io/badge/stack-Django%20%7C%20React%20%7C%20PostgreSQL%20%7C%20Redis%20%7C%20MinIO-334155)](https://github.com/web3ekko/ekko-ce)
@@ -220,7 +220,7 @@ docker compose exec api python manage.py migrate
 
 ## Community & Support
 
-- **Discord Community:** Join our [Discord Server](https://discord.gg/u9SFHyn46) for support, discussions, and updates.
+- **Discord Community:** Join our [Discord Server](https://discord.gg/msCh4Ue8P3) for support, discussions, and updates.
 - **Hosted Version:** Sign up for the managed platform at [app.ekko.zone](https://app.ekko.zone).
 
 ## License

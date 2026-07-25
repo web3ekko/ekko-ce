@@ -288,7 +288,7 @@ export function HelpPage() {
                       </Button>
                       <Button
                         component="a"
-                        href="https://discord.gg/u9SFHyn46"
+                        href="https://discord.gg/msCh4Ue8P3"
                         target="_blank"
                         rel="noopener noreferrer"
                         variant="default"
