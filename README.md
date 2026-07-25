@@ -119,9 +119,11 @@ docker compose exec api python manage.py createsuperuser
 
 To interact directly with protected REST API endpoints (`/api/alert-templates/`, `/api/alerts/`, etc.) via cURL or custom integrations:
 
-```bash
-docker compose exec api python manage.py shell -c "from authentication.models import User; from knox.models import AuthToken; user, _ = User.objects.get_or_create(email='dev@ekko.dev', defaults={'username': 'devuser'}); _, token = AuthToken.objects.create(user); print('AUTH_TOKEN:', token)"
-```
+- **Via User Interface:** Create an account at `http://localhost:3000`, open **Settings** -> **Developer API Keys**, and generate an API key directly from the UI.
+- **Via CLI Command:** Generate a Knox Auth Token for testing using the container shell:
+  ```bash
+  docker compose exec api python manage.py shell -c "from authentication.models import User; from knox.models import AuthToken; user, _ = User.objects.get_or_create(email='dev@ekko.dev', defaults={'username': 'devuser'}); _, token = AuthToken.objects.create(user); print('AUTH_TOKEN:', token)"
+  ```
 
 Test an authenticated request using the header:
 

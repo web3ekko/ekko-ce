@@ -51,11 +51,13 @@ You will be greeted by the Ekko CE Dashboard home page.
 
 Ekko CE enforces Knox Token authentication for protected REST API endpoints.
 
-### Option A: Dashboard Login
-Log in or sign up on `http://localhost:3000` using WebAuthn/Passkeys or Email OTP fallback.
+### Option A: Via User Interface (Dashboard)
+1. Register/Log in at `http://localhost:3000`.
+2. Navigate to **Settings** -> **Developer API Keys**.
+3. Click **Generate New API Key** to copy your token for REST API requests.
 
-### Option B: Generating Tokens for cURL / API Testing
-Run the following command to generate a Knox API token for testing:
+### Option B: Via Container CLI (Testing)
+Run the following command to generate a Knox API token directly for testing:
 
 ```bash
 docker compose exec api python manage.py shell -c "from authentication.models import User; from knox.models import AuthToken; user, _ = User.objects.get_or_create(email='dev@ekko.dev', defaults={'username': 'devuser'}); _, token = AuthToken.objects.create(user); print('AUTH_TOKEN:', token)"
