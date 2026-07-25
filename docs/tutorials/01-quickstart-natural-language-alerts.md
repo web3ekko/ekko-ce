@@ -47,7 +47,29 @@ You will be greeted by the Ekko CE Dashboard home page.
 
 ---
 
-## Step 3: Create an Alert Using Natural Language
+## Step 3: Authenticate & Generate API Tokens
+
+Ekko CE enforces Knox Token authentication for protected REST API endpoints.
+
+### Option A: Dashboard Login
+Log in or sign up on `http://localhost:3000` using WebAuthn/Passkeys or Email OTP fallback.
+
+### Option B: Generating Tokens for cURL / API Testing
+Run the following command to generate a Knox API token for testing:
+
+```bash
+docker compose exec api python manage.py shell -c "from authentication.models import User; from knox.models import AuthToken; user, _ = User.objects.get_or_create(email='dev@ekko.dev', defaults={'username': 'devuser'}); _, token = AuthToken.objects.create(user); print('AUTH_TOKEN:', token)"
+```
+
+Verify token authentication with a GET request:
+
+```bash
+curl -H "Authorization: Token <YOUR_AUTH_TOKEN>" http://localhost:8000/api/alert-templates/
+```
+
+---
+
+## Step 4: Create an Alert Using Natural Language
 
 1. On the dashboard homepage, navigate to **Create Alert**.
 2. In the natural language input prompt, enter your monitoring intent in plain English:

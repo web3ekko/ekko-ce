@@ -115,7 +115,21 @@ docker compose up --build
 docker compose exec api python manage.py createsuperuser
 ```
 
-### 5) Stop or reset
+### 5) Generating API Auth Tokens
+
+To interact directly with protected REST API endpoints (`/api/alert-templates/`, `/api/alerts/`, etc.) via cURL or custom integrations:
+
+```bash
+docker compose exec api python manage.py shell -c "from authentication.models import User; from knox.models import AuthToken; user, _ = User.objects.get_or_create(email='dev@ekko.dev', defaults={'username': 'devuser'}); _, token = AuthToken.objects.create(user); print('AUTH_TOKEN:', token)"
+```
+
+Test an authenticated request using the header:
+
+```bash
+curl -H "Authorization: Token <YOUR_AUTH_TOKEN>" http://localhost:8000/api/alert-templates/
+```
+
+### 6) Stop or reset
 
 ```bash
 # stop
