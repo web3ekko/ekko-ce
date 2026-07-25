@@ -140,8 +140,8 @@ class TestWalletModel:
         wallet_data = WalletFactory.build()
 
         # Timestamps exist but may be None for build() - only set on save/create
-        assert hasattr(wallet_data, 'created_at')
-        assert hasattr(wallet_data, 'updated_at')
+        assert hasattr(wallet_data, "created_at")
+        assert hasattr(wallet_data, "updated_at")
 
 
 @pytest.mark.unit
@@ -264,8 +264,8 @@ class TestDaoModel:
         assert dao_data.description is not None
         assert dao_data.recommended in [True, False]
         # Timestamps exist but may be None for build() - only set on save/create
-        assert hasattr(dao_data, 'created_at')
-        assert hasattr(dao_data, 'updated_at')
+        assert hasattr(dao_data, "created_at")
+        assert hasattr(dao_data, "updated_at")
 
     def test_dao_recommendation_status(self):
         """Test DAO recommendation status"""
@@ -308,9 +308,7 @@ class TestBlockchainModelRelationships:
         # Create multiple wallets for the same blockchain
         wallets = []
         for i in range(3):
-            wallet_data = WalletFactory.build(
-                blockchain=blockchain, name=f"Wallet {i}"
-            )
+            wallet_data = WalletFactory.build(blockchain=blockchain, name=f"Wallet {i}")
             wallets.append(wallet_data)
 
         # All wallets should belong to the same blockchain

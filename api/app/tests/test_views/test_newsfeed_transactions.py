@@ -14,7 +14,10 @@ def test_newsfeed_transactions_uses_safe_alias():
     user = SimpleNamespace(is_authenticated=True, id="user-1", pk="user-1")
     force_authenticate(request, user=user)
 
-    with patch("app.views.analytics_views._get_user_monitored_addresses", return_value=["ETH:mainnet:0xabc"]):
+    with patch(
+        "app.views.analytics_views._get_user_monitored_addresses",
+        return_value=["ETH:mainnet:0xabc"],
+    ):
         with patch("app.views.analytics_views.DuckLakeClient") as client_factory:
             client = client_factory.return_value
             client.query_rows = AsyncMock(
@@ -24,7 +27,9 @@ def test_newsfeed_transactions_uses_safe_alias():
                 ]
             )
             client.close = AsyncMock()
-            with patch("rest_framework.views.APIView.check_throttles", return_value=None):
+            with patch(
+                "rest_framework.views.APIView.check_throttles", return_value=None
+            ):
                 response = newsfeed_transactions(request)
 
     assert response.status_code == 200
@@ -39,7 +44,10 @@ def test_newsfeed_transactions_returns_empty_when_ducklake_unavailable():
     user = SimpleNamespace(is_authenticated=True, id="user-1", pk="user-1")
     force_authenticate(request, user=user)
 
-    with patch("app.views.analytics_views._get_user_monitored_addresses", return_value=["ETH:mainnet:0xabc"]):
+    with patch(
+        "app.views.analytics_views._get_user_monitored_addresses",
+        return_value=["ETH:mainnet:0xabc"],
+    ):
         with patch("app.views.analytics_views.DuckLakeClient") as client_factory:
             client = client_factory.return_value
             client.query_rows = AsyncMock(
@@ -48,7 +56,9 @@ def test_newsfeed_transactions_returns_empty_when_ducklake_unavailable():
                 )
             )
             client.close = AsyncMock()
-            with patch("rest_framework.views.APIView.check_throttles", return_value=None):
+            with patch(
+                "rest_framework.views.APIView.check_throttles", return_value=None
+            ):
                 response = newsfeed_transactions(request)
 
     assert response.status_code == 200

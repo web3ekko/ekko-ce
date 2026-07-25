@@ -1,7 +1,8 @@
 /* Animation keyframes for dashboard components */
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
@@ -62,7 +63,9 @@
 
 /* Hover effects for cards */
 .hover-lift {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .hover-lift:hover {
@@ -75,7 +78,7 @@
   .responsive-text-lg {
     font-size: 1.25rem !important;
   }
-  
+
   .responsive-text-xl {
     font-size: 1.5rem !important;
   }

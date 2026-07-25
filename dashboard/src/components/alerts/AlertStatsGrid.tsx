@@ -1,19 +1,12 @@
 /**
  * Alert Statistics Grid Component
- * 
+ *
  * Displays key alert metrics in a responsive grid layout
  * matching the Wallet page's stats card design
  */
 
-import React from 'react'
-import {
-  Grid,
-  Paper,
-  Group,
-  Text,
-  ThemeIcon,
-  Stack,
-} from '@mantine/core'
+import React from "react";
+import { Grid, Paper, Group, Text, ThemeIcon, Stack } from "@mantine/core";
 import {
   IconBell,
   IconActivityHeartbeat,
@@ -21,76 +14,79 @@ import {
   IconNetwork,
   IconTrendingUp,
   IconTrendingDown,
-} from '@tabler/icons-react'
+} from "@tabler/icons-react";
 
 interface AlertStats {
-  activeAlerts: number
-  triggeredToday: number
-  alertTemplates: number
-  networksMonitored: number
+  activeAlerts: number;
+  triggeredToday: number;
+  alertTemplates: number;
+  networksMonitored: number;
   change24h?: {
-    value: number
-    isPositive: boolean
-  }
+    value: number;
+    isPositive: boolean;
+  };
 }
 
 interface AlertStatsGridProps {
-  stats?: AlertStats
-  isLoading?: boolean
+  stats?: AlertStats;
+  isLoading?: boolean;
 }
 
-export function AlertStatsGrid({ stats, isLoading = false }: AlertStatsGridProps) {
+export function AlertStatsGrid({
+  stats,
+  isLoading = false,
+}: AlertStatsGridProps) {
   // Default stats if not provided
   const defaultStats: AlertStats = {
     activeAlerts: 0,
     triggeredToday: 0,
     alertTemplates: 0,
     networksMonitored: 0,
-  }
+  };
 
-  const currentStats = stats || defaultStats
+  const currentStats = stats || defaultStats;
 
   const formatNumber = (num: number) => {
     if (num >= 1000000) {
-      return `${(num / 1000000).toFixed(1)}M`
+      return `${(num / 1000000).toFixed(1)}M`;
     }
     if (num >= 1000) {
-      return `${(num / 1000).toFixed(1)}K`
+      return `${(num / 1000).toFixed(1)}K`;
     }
-    return num.toString()
-  }
+    return num.toString();
+  };
 
   const statCards = [
     {
-      title: 'Active Alerts',
+      title: "Active Alerts",
       value: currentStats.activeAlerts,
       icon: IconBell,
-      color: 'blue',
-      description: 'Currently monitoring',
+      color: "blue",
+      description: "Currently monitoring",
     },
     {
-      title: 'Triggered Today',
+      title: "Triggered Today",
       value: currentStats.triggeredToday,
       icon: IconActivityHeartbeat,
-      color: 'green',
-      description: 'Last 24 hours',
+      color: "green",
+      description: "Last 24 hours",
       change: currentStats.change24h,
     },
     {
-      title: 'Alert Templates',
+      title: "Alert Templates",
       value: currentStats.alertTemplates,
       icon: IconTemplate,
-      color: 'teal',
-      description: 'Available templates',
+      color: "teal",
+      description: "Available templates",
     },
     {
-      title: 'Networks',
+      title: "Networks",
       value: currentStats.networksMonitored,
       icon: IconNetwork,
-      color: 'orange',
-      description: 'Active networks',
+      color: "orange",
+      description: "Active networks",
     },
-  ]
+  ];
 
   return (
     <Grid>
@@ -121,16 +117,23 @@ export function AlertStatsGrid({ stats, isLoading = false }: AlertStatsGridProps
                 {stat.change && (
                   <Group gap={4}>
                     {stat.change.isPositive ? (
-                      <IconTrendingUp size={14} color="var(--mantine-color-teal-6)" />
+                      <IconTrendingUp
+                        size={14}
+                        color="var(--mantine-color-teal-6)"
+                      />
                     ) : (
-                      <IconTrendingDown size={14} color="var(--mantine-color-red-6)" />
+                      <IconTrendingDown
+                        size={14}
+                        color="var(--mantine-color-red-6)"
+                      />
                     )}
                     <Text
                       size="xs"
-                      c={stat.change.isPositive ? 'teal' : 'red'}
+                      c={stat.change.isPositive ? "teal" : "red"}
                       fw={500}
                     >
-                      {stat.change.isPositive ? '+' : ''}{stat.change.value}%
+                      {stat.change.isPositive ? "+" : ""}
+                      {stat.change.value}%
                     </Text>
                   </Group>
                 )}
@@ -143,5 +146,5 @@ export function AlertStatsGrid({ stats, isLoading = false }: AlertStatsGridProps
         </Grid.Col>
       ))}
     </Grid>
-  )
+  );
 }

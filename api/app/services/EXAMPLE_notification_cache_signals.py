@@ -16,6 +16,7 @@ from app.services.notification_cache import NotificationCacheManager
 # Example 1: Auto-invalidate wallet nicknames cache on save/delete
 # ===================================================================
 
+
 @receiver(post_save, sender=WalletNickname)
 def invalidate_wallet_nickname_cache_on_save(sender, instance, **kwargs):
     """
@@ -39,6 +40,7 @@ def invalidate_wallet_nickname_cache_on_delete(sender, instance, **kwargs):
 # ===================================================================
 # Example 2: Auto-invalidate user settings cache on save/delete
 # ===================================================================
+
 
 @receiver(post_save, sender=UserNotificationSettings)
 def invalidate_user_settings_cache_on_save(sender, instance, **kwargs):
@@ -66,6 +68,7 @@ def invalidate_user_settings_cache_on_delete(sender, instance, **kwargs):
 # ===================================================================
 
 from django.contrib.auth.signals import user_logged_in
+
 
 @receiver(user_logged_in)
 def warm_cache_on_login(sender, request, user, **kwargs):

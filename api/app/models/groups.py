@@ -44,14 +44,21 @@ class GroupType(models.TextChoices):
     2. Define member key format in GroupService
     3. Implement type-specific validation if needed
     """
-    WALLET = 'wallet', 'Wallet Group'
-    ALERT = 'alert', 'Alert Group'
-    USER = 'user', 'User Group'
-    NETWORK = 'network', 'Network Group'      # For network alerts
-    PROTOCOL = 'protocol', 'Protocol Group'   # For application protocols (e.g. Aave, Uniswap) scoped to a network
-    TOKEN = 'token', 'Token Group'            # For token alerts
-    CONTRACT = 'contract', 'Contract Group'   # For contract alerts -  a group can be tied to an entity
-    NFT = 'nft', 'NFT Collection Group'       # for contract alerts that are also nfts
+
+    WALLET = "wallet", "Wallet Group"
+    ALERT = "alert", "Alert Group"
+    USER = "user", "User Group"
+    NETWORK = "network", "Network Group"  # For network alerts
+    PROTOCOL = (
+        "protocol",
+        "Protocol Group",
+    )  # For application protocols (e.g. Aave, Uniswap) scoped to a network
+    TOKEN = "token", "Token Group"  # For token alerts
+    CONTRACT = (
+        "contract",
+        "Contract Group",
+    )  # For contract alerts -  a group can be tied to an entity
+    NFT = "nft", "NFT Collection Group"  # for contract alerts that are also nfts
 
 
 class AlertType(models.TextChoices):
@@ -66,12 +73,13 @@ class AlertType(models.TextChoices):
     - contract: Contract addresses, Contract Groups
     - nft: NFT collections, NFT Groups
     """
-    WALLET = 'wallet', 'Wallet Alert'
-    NETWORK = 'network', 'Network Alert'
-    PROTOCOL = 'protocol', 'Protocol Alert'
-    TOKEN = 'token', 'Token Alert'
-    CONTRACT = 'contract', 'Contract Alert'
-    NFT = 'nft', 'NFT Alert'
+
+    WALLET = "wallet", "Wallet Alert"
+    NETWORK = "network", "Network Alert"
+    PROTOCOL = "protocol", "Protocol Alert"
+    TOKEN = "token", "Token Alert"
+    CONTRACT = "contract", "Contract Alert"
+    NFT = "nft", "NFT Alert"
 
 
 # Mapping: alert_type → valid group_type(s)
@@ -190,7 +198,11 @@ def normalize_network_subnet_protocol_key(raw_key: str) -> str:
     if len(parts) != 3:
         return key
 
-    network, subnet, protocol = parts[0].upper(), parts[1].lower(), parts[2].strip().lower()
+    network, subnet, protocol = (
+        parts[0].upper(),
+        parts[1].lower(),
+        parts[2].strip().lower(),
+    )
     if not network or not subnet or not protocol:
         return key
 
@@ -231,27 +243,25 @@ class GenericGroup(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     group_type = models.CharField(max_length=20, choices=GroupType.choices)
     name = models.CharField(max_length=255)
-    description = models.TextField(blank=True, default='')
+    description = models.TextField(blank=True, default="")
 
     # Ownership
     owner = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name='owned_groups'
+        User, on_delete=models.CASCADE, related_name="owned_groups"
     )
 
     # Settings per group type (notifications, filters, etc.)
     settings = models.JSONField(
         default=dict,
         blank=True,
-        help_text="Group-specific settings: {'is_default': true, 'network_filter': 'mainnet'}"
+        help_text="Group-specific settings: {'is_default': true, 'network_filter': 'mainnet'}",
     )
 
     # Member storage - JSONB with member keys
     member_data = models.JSONField(
         default=dict,
         blank=True,
-        help_text='Format: {"members": {"key1": {metadata}, "key2": {metadata}}}'
+        help_text='Format: {"members": {"key1": {metadata}, "key2": {metadata}}}',
     )
 
     # Denormalized count for quick access (kept in sync by service layer)
@@ -262,14 +272,14 @@ class GenericGroup(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'generic_groups'
-        verbose_name = 'Generic Group'
-        verbose_name_plural = 'Generic Groups'
+        db_table = "generic_groups"
+        verbose_name = "Generic Group"
+        verbose_name_plural = "Generic Groups"
         indexes = [
-            models.Index(fields=['group_type', 'owner']),
-            models.Index(fields=['owner', 'created_at']),
-            models.Index(fields=['group_type', 'created_at']),
-            GinIndex(fields=['member_data'], name='generic_group_member_gin'),
+            models.Index(fields=["group_type", "owner"]),
+            models.Index(fields=["owner", "created_at"]),
+            models.Index(fields=["group_type", "created_at"]),
+            GinIndex(fields=["member_data"], name="generic_group_member_gin"),
         ]
 
     def __str__(self):
@@ -279,7 +289,7 @@ class GenericGroup(models.Model):
     # Settings Validation
     # -------------------------------------------------------------------------
 
-    VALID_VISIBILITY_VALUES = {'private', 'public'}
+    VALID_VISIBILITY_VALUES = {"private", "public"}
 
     def validate_settings(self):
         """
@@ -299,44 +309,50 @@ class GenericGroup(models.Model):
 
         # AlertGroup: settings.alert_type is REQUIRED
         if self.group_type == GroupType.ALERT:
-            alert_type = self.settings.get('alert_type')
+            alert_type = self.settings.get("alert_type")
             if not alert_type:
-                raise ValidationError({
-                    'settings': "AlertGroups require 'alert_type' in settings "
-                               f"(one of: {', '.join(at.value for at in AlertType)})"
-                })
+                raise ValidationError(
+                    {
+                        "settings": "AlertGroups require 'alert_type' in settings "
+                        f"(one of: {', '.join(at.value for at in AlertType)})"
+                    }
+                )
             if alert_type not in [at.value for at in AlertType]:
-                raise ValidationError({
-                    'settings': f"Invalid alert_type '{alert_type}'. "
-                               f"Must be one of: {', '.join(at.value for at in AlertType)}"
-                })
+                raise ValidationError(
+                    {
+                        "settings": f"Invalid alert_type '{alert_type}'. "
+                        f"Must be one of: {', '.join(at.value for at in AlertType)}"
+                    }
+                )
 
         # WalletGroup: validate visibility if provided
         # Visibility: allowed on ALL group types (public ⇒ subscribable/discoverable).
         # Accounts group is always private.
-        if self.settings.get('system_key') == SYSTEM_GROUP_ACCOUNTS:
-            self.settings['visibility'] = 'private'
+        if self.settings.get("system_key") == SYSTEM_GROUP_ACCOUNTS:
+            self.settings["visibility"] = "private"
 
-        visibility = self.settings.get('visibility')
+        visibility = self.settings.get("visibility")
         if visibility and visibility not in self.VALID_VISIBILITY_VALUES:
-            raise ValidationError({
-                'settings': f"Invalid visibility '{visibility}'. "
-                           f"Must be one of: {', '.join(self.VALID_VISIBILITY_VALUES)}"
-            })
+            raise ValidationError(
+                {
+                    "settings": f"Invalid visibility '{visibility}'. "
+                    f"Must be one of: {', '.join(self.VALID_VISIBILITY_VALUES)}"
+                }
+            )
 
     def get_alert_type(self) -> Optional[str]:
         """Get the alert_type from settings (for AlertGroups only)."""
         if self.group_type == GroupType.ALERT:
-            return self.settings.get('alert_type')
+            return self.settings.get("alert_type")
         return None
 
     def get_visibility(self) -> str:
         """Get visibility setting (defaults to 'private')."""
-        return self.settings.get('visibility', 'private')
+        return self.settings.get("visibility", "private")
 
     def is_public(self) -> bool:
         """Check if group is publicly visible."""
-        return self.get_visibility() == 'public'
+        return self.get_visibility() == "public"
 
     def allows_subscriptions(self) -> bool:
         """Public groups are subscribable."""
@@ -355,30 +371,34 @@ class GenericGroup(models.Model):
         if self.group_type != GroupType.ALERT:
             return  # Only validate for AlertGroups
 
-        alert_type = self.settings.get('alert_type')
+        alert_type = self.settings.get("alert_type")
         if not alert_type:
-            raise ValidationError({'settings': "AlertGroup missing required 'alert_type' in settings"})
+            raise ValidationError(
+                {"settings": "AlertGroup missing required 'alert_type' in settings"}
+            )
 
         # Import here to avoid circular imports.
         from .alert_templates import AlertTemplate
 
         invalid_members = []
 
-        existing_members = (self.member_data or {}).get('members', {}) or {}
+        existing_members = (self.member_data or {}).get("members", {}) or {}
         existing_template_ids = {
-            str(k).split(':', 1)[1].strip().lower()
+            str(k).split(":", 1)[1].strip().lower()
             for k in existing_members.keys()
-            if str(k).lower().startswith('template:')
+            if str(k).lower().startswith("template:")
         }
 
         incoming_template_ids: Set[str] = set()
         for key in member_keys:
-            if not str(key).lower().startswith('template:'):
-                invalid_members.append((key, f"Must be in format 'template:{{uuid}}', got '{key}'"))
+            if not str(key).lower().startswith("template:"):
+                invalid_members.append(
+                    (key, f"Must be in format 'template:{{uuid}}', got '{key}'")
+                )
                 continue
-            template_id = str(key).split(':', 1)[1].strip()
+            template_id = str(key).split(":", 1)[1].strip()
             if not template_id:
-                invalid_members.append((key, 'Template id cannot be empty'))
+                invalid_members.append((key, "Template id cannot be empty"))
                 continue
             incoming_template_ids.add(template_id.lower())
 
@@ -387,15 +407,17 @@ class GenericGroup(models.Model):
         templates_by_id = {str(t.id).lower(): t for t in templates}
 
         for key in member_keys:
-            if not str(key).lower().startswith('template:'):
+            if not str(key).lower().startswith("template:"):
                 continue
-            template_id = str(key).split(':', 1)[1].strip().lower()
+            template_id = str(key).split(":", 1)[1].strip().lower()
             template = templates_by_id.get(template_id)
             if not template:
-                invalid_members.append((key, 'AlertTemplate not found'))
+                invalid_members.append((key, "AlertTemplate not found"))
                 continue
 
-            template_kind = str(getattr(template, 'target_kind', '') or '').strip().lower()
+            template_kind = (
+                str(getattr(template, "target_kind", "") or "").strip().lower()
+            )
             if template_kind != str(alert_type).strip().lower():
                 invalid_members.append(
                     (
@@ -413,11 +435,23 @@ class GenericGroup(models.Model):
 
             for template in templates_by_id.values():
                 try:
-                    template_types.add(str(template.get_template_type() or "").strip().lower())
+                    template_types.add(
+                        str(template.get_template_type() or "").strip().lower()
+                    )
                 except Exception:
-                    template_types.add(str(getattr(template, "target_kind", "wallet") or "wallet").strip().lower())
+                    template_types.add(
+                        str(getattr(template, "target_kind", "wallet") or "wallet")
+                        .strip()
+                        .lower()
+                    )
 
-                targeting = {n.lower() for n in getattr(template, "get_targeting_variable_names", lambda: [])() or []}
+                targeting = {
+                    n.lower()
+                    for n in getattr(
+                        template, "get_targeting_variable_names", lambda: []
+                    )()
+                    or []
+                }
                 required: set[str] = set()
                 for var in getattr(template, "get_spec_variables", lambda: [])() or []:
                     if not isinstance(var, dict):
@@ -433,20 +467,25 @@ class GenericGroup(models.Model):
                 required_sets.add(frozenset(sorted(required)))
 
             if len(template_types) > 1:
-                invalid_members.append((
-                    "template_type",
-                    f"AlertGroup templates must share the same template_type, got: {sorted(t for t in template_types if t)}",
-                ))
+                invalid_members.append(
+                    (
+                        "template_type",
+                        f"AlertGroup templates must share the same template_type, got: {sorted(t for t in template_types if t)}",
+                    )
+                )
 
             if len(required_sets) > 1:
-                invalid_members.append((
-                    "variables",
-                    "AlertGroup templates must share the same required (non-targeting) variable set",
-                ))
+                invalid_members.append(
+                    (
+                        "variables",
+                        "AlertGroup templates must share the same required (non-targeting) variable set",
+                    )
+                )
 
         if invalid_members:
             error_messages = [f"{key}: {error}" for key, error in invalid_members]
-            raise ValidationError({'members': error_messages})
+            raise ValidationError({"members": error_messages})
+
     def clean(self):
         """Validate the model before saving."""
         super().clean()
@@ -458,12 +497,12 @@ class GenericGroup(models.Model):
 
         # Ensure member_data has correct structure
         if not self.member_data:
-            self.member_data = {'members': {}}
-        elif 'members' not in self.member_data:
-            self.member_data['members'] = {}
+            self.member_data = {"members": {}}
+        elif "members" not in self.member_data:
+            self.member_data["members"] = {}
 
         # Keep member_count in sync
-        self.member_count = len(self.member_data.get('members', {}))
+        self.member_count = len(self.member_data.get("members", {}))
 
         super().save(*args, **kwargs)
 
@@ -473,7 +512,7 @@ class GenericGroup(models.Model):
 
     def get_member_keys(self) -> List[str]:
         """Get list of all member keys in this group."""
-        return list(self.member_data.get('members', {}).keys())
+        return list(self.member_data.get("members", {}).keys())
 
     def normalize_member_key(self, member_key: str) -> str:
         """
@@ -512,12 +551,12 @@ class GenericGroup(models.Model):
     def has_member(self, member_key: str) -> bool:
         """Check if member exists in group (PostgreSQL-only, no Redis)."""
         normalized_key = self.normalize_member_key(member_key)
-        return normalized_key in self.member_data.get('members', {})
+        return normalized_key in self.member_data.get("members", {})
 
     def get_member_metadata(self, member_key: str) -> Optional[Dict]:
         """Get metadata for a specific member."""
         normalized_key = self.normalize_member_key(member_key)
-        return self.member_data.get('members', {}).get(normalized_key)
+        return self.member_data.get("members", {}).get(normalized_key)
 
     def add_member_local(
         self,
@@ -525,7 +564,7 @@ class GenericGroup(models.Model):
         added_by: Optional[str] = None,
         label: Optional[str] = None,
         tags: Optional[List[str]] = None,
-        metadata: Optional[Dict] = None
+        metadata: Optional[Dict] = None,
     ) -> bool:
         """
         Add a member to the group (PostgreSQL only, no Redis sync).
@@ -534,29 +573,32 @@ class GenericGroup(models.Model):
         Returns:
             True if member was added, False if already exists
         """
-        members = self.member_data.get('members', {})
+        members = self.member_data.get("members", {})
         normalized_key = self.normalize_member_key(member_key)
         if normalized_key in members:
             return False
 
         effective_metadata = metadata or {}
-        if self.group_type == GroupType.WALLET and self.settings.get("system_key") == SYSTEM_GROUP_ACCOUNTS:
+        if (
+            self.group_type == GroupType.WALLET
+            and self.settings.get("system_key") == SYSTEM_GROUP_ACCOUNTS
+        ):
             effective_metadata = {
                 "owner_verified": bool(effective_metadata.get("owner_verified", False)),
                 **effective_metadata,
             }
 
         members[normalized_key] = {
-            'added_at': timezone.now().isoformat(),
-            'added_by': added_by or '',
-            'label': label or '',
-            'tags': tags or [],
-            'metadata': effective_metadata
+            "added_at": timezone.now().isoformat(),
+            "added_by": added_by or "",
+            "label": label or "",
+            "tags": tags or [],
+            "metadata": effective_metadata,
         }
 
-        self.member_data['members'] = members
+        self.member_data["members"] = members
         self.member_count = len(members)
-        self.save(update_fields=['member_data', 'member_count', 'updated_at'])
+        self.save(update_fields=["member_data", "member_count", "updated_at"])
         return True
 
     def remove_member_local(self, member_key: str) -> bool:
@@ -567,15 +609,15 @@ class GenericGroup(models.Model):
         Returns:
             True if member was removed, False if not found
         """
-        members = self.member_data.get('members', {})
+        members = self.member_data.get("members", {})
         normalized_key = self.normalize_member_key(member_key)
         if normalized_key not in members:
             return False
 
         del members[normalized_key]
-        self.member_data['members'] = members
+        self.member_data["members"] = members
         self.member_count = len(members)
-        self.save(update_fields=['member_data', 'member_count', 'updated_at'])
+        self.save(update_fields=["member_data", "member_count", "updated_at"])
         return True
 
     # -------------------------------------------------------------------------
@@ -583,7 +625,7 @@ class GenericGroup(models.Model):
     # -------------------------------------------------------------------------
 
     @classmethod
-    def create_accounts_group(cls, user: User) -> 'GenericGroup':
+    def create_accounts_group(cls, user: User) -> "GenericGroup":
         """
         Create the Accounts group for a user.
 
@@ -592,16 +634,16 @@ class GenericGroup(models.Model):
         """
         return cls.objects.create(
             group_type=GroupType.WALLET,
-            name='Accounts',
-            description='Wallets you own (accounts)',
+            name="Accounts",
+            description="Wallets you own (accounts)",
             owner=user,
-            settings={'system_key': SYSTEM_GROUP_ACCOUNTS, 'visibility': 'private'},
-            member_data={'members': {}},
+            settings={"system_key": SYSTEM_GROUP_ACCOUNTS, "visibility": "private"},
+            member_data={"members": {}},
             member_count=0,
         )
 
     @classmethod
-    def get_or_create_accounts_group(cls, user: User) -> 'GenericGroup':
+    def get_or_create_accounts_group(cls, user: User) -> "GenericGroup":
         """Get user's Accounts group, creating if needed."""
         existing = cls.objects.filter(
             owner=user,
@@ -620,10 +662,10 @@ class GenericGroup(models.Model):
         if legacy:
             legacy.settings = {
                 **(legacy.settings or {}),
-                'system_key': SYSTEM_GROUP_ACCOUNTS,
-                'visibility': (legacy.settings or {}).get('visibility', 'private'),
+                "system_key": SYSTEM_GROUP_ACCOUNTS,
+                "visibility": (legacy.settings or {}).get("visibility", "private"),
             }
-            legacy.save(update_fields=['settings', 'updated_at'])
+            legacy.save(update_fields=["settings", "updated_at"])
             return legacy
 
         return cls.create_accounts_group(user)
@@ -654,8 +696,8 @@ class GroupSubscription(models.Model):
     alert_group = models.ForeignKey(
         GenericGroup,
         on_delete=models.CASCADE,
-        related_name='alert_subscriptions',
-        limit_choices_to={'group_type': GroupType.ALERT}
+        related_name="alert_subscriptions",
+        limit_choices_to={"group_type": GroupType.ALERT},
     )
 
     # Target group (wallets, networks, tokens, etc.) OR a single target key (wallet/network/token/etc.)
@@ -665,27 +707,25 @@ class GroupSubscription(models.Model):
         null=True,
         blank=True,
         on_delete=models.CASCADE,
-        related_name='subscribed_to_alerts'
+        related_name="subscribed_to_alerts",
     )
     target_key = models.CharField(
         max_length=255,
         null=True,
         blank=True,
-        help_text="Optional single target key (e.g., 'ETH:mainnet:0x123...') when not targeting a group"
+        help_text="Optional single target key (e.g., 'ETH:mainnet:0x123...') when not targeting a group",
     )
 
     # User who created the subscription
     owner = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name='group_subscriptions'
+        User, on_delete=models.CASCADE, related_name="group_subscriptions"
     )
 
     # Override settings for this subscription
     settings = models.JSONField(
         default=dict,
         blank=True,
-        help_text="Override settings for alerts in this subscription"
+        help_text="Override settings for alerts in this subscription",
     )
 
     # Status
@@ -696,41 +736,51 @@ class GroupSubscription(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'group_subscriptions'
-        verbose_name = 'Group Subscription'
-        verbose_name_plural = 'Group Subscriptions'
+        db_table = "group_subscriptions"
+        verbose_name = "Group Subscription"
+        verbose_name_plural = "Group Subscriptions"
         constraints = [
             _build_check_constraint(
                 (
-                    (models.Q(target_group__isnull=False) & models.Q(target_key__isnull=True)) |
-                    (models.Q(target_group__isnull=True) & models.Q(target_key__isnull=False))
+                    (
+                        models.Q(target_group__isnull=False)
+                        & models.Q(target_key__isnull=True)
+                    )
+                    | (
+                        models.Q(target_group__isnull=True)
+                        & models.Q(target_key__isnull=False)
+                    )
                 ),
-                'groupsubscription_exactly_one_target',
+                "groupsubscription_exactly_one_target",
             ),
             _build_check_constraint(
                 models.Q(target_key__isnull=True) | ~models.Q(target_key=""),
-                'groupsubscription_target_key_not_blank',
+                "groupsubscription_target_key_not_blank",
             ),
             models.UniqueConstraint(
-                fields=['owner', 'alert_group', 'target_group'],
+                fields=["owner", "alert_group", "target_group"],
                 condition=models.Q(target_group__isnull=False),
-                name='unique_groupsubscription_owner_alert_group_target_group',
+                name="unique_groupsubscription_owner_alert_group_target_group",
             ),
             models.UniqueConstraint(
-                fields=['owner', 'alert_group', 'target_key'],
+                fields=["owner", "alert_group", "target_key"],
                 condition=models.Q(target_key__isnull=False),
-                name='unique_groupsubscription_owner_alert_group_target_key',
+                name="unique_groupsubscription_owner_alert_group_target_key",
             ),
         ]
         indexes = [
-            models.Index(fields=['alert_group', 'is_active']),
-            models.Index(fields=['target_group', 'is_active']),
-            models.Index(fields=['owner', 'is_active']),
-            models.Index(fields=['created_at']),
+            models.Index(fields=["alert_group", "is_active"]),
+            models.Index(fields=["target_group", "is_active"]),
+            models.Index(fields=["owner", "is_active"]),
+            models.Index(fields=["created_at"]),
         ]
 
     def __str__(self):
-        target = self.target_group.name if self.target_group else (self.target_key or "<missing target>")
+        target = (
+            self.target_group.name
+            if self.target_group
+            else (self.target_key or "<missing target>")
+        )
         return f"{self.alert_group.name} → {target}"
 
     def clean(self):
@@ -742,23 +792,27 @@ class GroupSubscription(models.Model):
 
         # Alert group must be of type ALERT
         if self.alert_group and self.alert_group.group_type != GroupType.ALERT:
-            raise ValidationError({
-                'alert_group': f"Alert group must be of type '{GroupType.ALERT}', "
-                               f"got '{self.alert_group.group_type}'"
-            })
+            raise ValidationError(
+                {
+                    "alert_group": f"Alert group must be of type '{GroupType.ALERT}', "
+                    f"got '{self.alert_group.group_type}'"
+                }
+            )
 
         if bool(self.target_group) == bool(self.target_key):
-            raise ValidationError({
-                'target_group': "Provide exactly one of target_group or target_key",
-                'target_key': "Provide exactly one of target_group or target_key",
-            })
+            raise ValidationError(
+                {
+                    "target_group": "Provide exactly one of target_group or target_key",
+                    "target_key": "Provide exactly one of target_group or target_key",
+                }
+            )
 
         # Target group cannot be the same as alert group
         if self.alert_group_id and self.target_group_id:
             if self.alert_group_id == self.target_group_id:
-                raise ValidationError({
-                    'target_group': "Target group cannot be the same as alert group"
-                })
+                raise ValidationError(
+                    {"target_group": "Target group cannot be the same as alert group"}
+                )
 
         # AlertGroup.settings.alert_type must match target_group.group_type
         # This enforces homogeneous alert group bindings:
@@ -770,35 +824,49 @@ class GroupSubscription(models.Model):
             from app.models.alert_templates import AlertTemplate
 
             alert_type_setting = self.alert_group.get_alert_type()
-            template_ids = GroupService._extract_template_ids_from_alert_group(self.alert_group)
+            template_ids = GroupService._extract_template_ids_from_alert_group(
+                self.alert_group
+            )
 
             derived_target_type: Optional[str] = None
             if template_ids:
                 templates = AlertTemplate.objects.filter(id__in=template_ids)
                 derived_types = {t.get_target_alert_type() for t in templates}
                 if len(derived_types) != 1:
-                    raise ValidationError({
-                        'alert_group': "AlertGroup templates must share the same target type"
-                    })
+                    raise ValidationError(
+                        {
+                            "alert_group": "AlertGroup templates must share the same target type"
+                        }
+                    )
                 derived_target_type = next(iter(derived_types))
 
-            effective_alert_type = derived_target_type or alert_type_setting or AlertType.WALLET
+            effective_alert_type = (
+                derived_target_type or alert_type_setting or AlertType.WALLET
+            )
 
-            if alert_type_setting and derived_target_type and alert_type_setting != derived_target_type:
-                raise ValidationError({
-                    'alert_group': (
-                        f"AlertGroup alert_type '{alert_type_setting}' does not match "
-                        f"derived template target type '{derived_target_type}'"
-                    )
-                })
+            if (
+                alert_type_setting
+                and derived_target_type
+                and alert_type_setting != derived_target_type
+            ):
+                raise ValidationError(
+                    {
+                        "alert_group": (
+                            f"AlertGroup alert_type '{alert_type_setting}' does not match "
+                            f"derived template target type '{derived_target_type}'"
+                        )
+                    }
+                )
 
             valid_group_types = ALERT_TYPE_TO_GROUP_TYPE.get(effective_alert_type, [])
             if self.target_group.group_type not in valid_group_types:
-                raise ValidationError({
-                    'target_group': f"AlertGroup with alert_type='{effective_alert_type}' can only "
-                                   f"be applied to groups of type {valid_group_types}, "
-                                   f"got '{self.target_group.group_type}'"
-                })
+                raise ValidationError(
+                    {
+                        "target_group": f"AlertGroup with alert_type='{effective_alert_type}' can only "
+                        f"be applied to groups of type {valid_group_types}, "
+                        f"got '{self.target_group.group_type}'"
+                    }
+                )
 
         if self.alert_group and self.target_key:
             from app.services.group_service import AlertValidationService
@@ -807,27 +875,39 @@ class GroupSubscription(models.Model):
             from app.models.alert_templates import AlertTemplate
 
             alert_type_setting = self.alert_group.get_alert_type()
-            template_ids = GroupService._extract_template_ids_from_alert_group(self.alert_group)
+            template_ids = GroupService._extract_template_ids_from_alert_group(
+                self.alert_group
+            )
 
             derived_target_type: Optional[str] = None
             if template_ids:
                 templates = AlertTemplate.objects.filter(id__in=template_ids)
                 derived_types = {t.get_target_alert_type() for t in templates}
                 if len(derived_types) != 1:
-                    raise ValidationError({
-                        'alert_group': "AlertGroup templates must share the same target type"
-                    })
+                    raise ValidationError(
+                        {
+                            "alert_group": "AlertGroup templates must share the same target type"
+                        }
+                    )
                 derived_target_type = next(iter(derived_types))
 
-            effective_alert_type = derived_target_type or alert_type_setting or AlertType.WALLET
+            effective_alert_type = (
+                derived_target_type or alert_type_setting or AlertType.WALLET
+            )
 
-            if alert_type_setting and derived_target_type and alert_type_setting != derived_target_type:
-                raise ValidationError({
-                    'alert_group': (
-                        f"AlertGroup alert_type '{alert_type_setting}' does not match "
-                        f"derived template target type '{derived_target_type}'"
-                    )
-                })
+            if (
+                alert_type_setting
+                and derived_target_type
+                and alert_type_setting != derived_target_type
+            ):
+                raise ValidationError(
+                    {
+                        "alert_group": (
+                            f"AlertGroup alert_type '{alert_type_setting}' does not match "
+                            f"derived template target type '{derived_target_type}'"
+                        )
+                    }
+                )
 
             if effective_alert_type == AlertType.NETWORK:
                 normalized_key = normalize_network_subnet_key(self.target_key)
@@ -842,7 +922,9 @@ class GroupSubscription(models.Model):
             else:
                 normalized_key = normalize_network_subnet_address_key(self.target_key)
 
-            AlertValidationService.validate_targets(effective_alert_type, [normalized_key])
+            AlertValidationService.validate_targets(
+                effective_alert_type, [normalized_key]
+            )
             self.target_key = normalized_key
 
     def save(self, *args, **kwargs):
@@ -877,9 +959,13 @@ class NotificationRoutingChoice(models.TextChoices):
     """
     User choice for how notifications are routed in provider-managed groups.
     """
-    CALLBACK_ONLY = 'callback_only', 'Callback Only'      # Provider webhook only
-    USER_CHANNELS = 'user_channels', 'User Channels'      # User's notification settings only
-    BOTH = 'both', 'Both'                                  # Both callback AND user channels
+
+    CALLBACK_ONLY = "callback_only", "Callback Only"  # Provider webhook only
+    USER_CHANNELS = (
+        "user_channels",
+        "User Channels",
+    )  # User's notification settings only
+    BOTH = "both", "Both"  # Both callback AND user channels
 
 
 class UserWalletGroup(models.Model):
@@ -929,52 +1015,51 @@ class UserWalletGroup(models.Model):
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='provider_wallet_groups',
-        help_text="The end-user whose wallets are managed in this group"
+        related_name="provider_wallet_groups",
+        help_text="The end-user whose wallets are managed in this group",
     )
 
     # The provider's WalletGroup
     wallet_group = models.ForeignKey(
         GenericGroup,
         on_delete=models.CASCADE,
-        related_name='user_wallet_memberships',
-        limit_choices_to={'group_type': GroupType.WALLET},
-        help_text="The provider's WalletGroup containing these wallets"
+        related_name="user_wallet_memberships",
+        limit_choices_to={"group_type": GroupType.WALLET},
+        help_text="The provider's WalletGroup containing these wallets",
     )
 
     # Provider who manages this relationship (ONLY provider can modify wallet_keys)
     provider = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='managed_user_wallet_groups',
-        help_text="The provider/developer who manages this user's wallets"
+        related_name="managed_user_wallet_groups",
+        help_text="The provider/developer who manages this user's wallets",
     )
 
     # Callback for this user's notifications (uses existing NotificationChannelEndpoint)
     # String reference to avoid circular import - model is in notifications.py
     callback = models.ForeignKey(
-        'NotificationChannelEndpoint',
+        "NotificationChannelEndpoint",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='user_wallet_groups',
-        limit_choices_to={'channel_type': 'webhook'},
-        help_text="Provider's webhook endpoint for this user's notifications"
+        related_name="user_wallet_groups",
+        limit_choices_to={"channel_type": "webhook"},
+        help_text="Provider's webhook endpoint for this user's notifications",
     )
 
     # User's wallets in this group - MANAGED BY PROVIDER ONLY
     wallet_keys = models.JSONField(
         default=list,
         blank=True,
-        help_text='''User's wallet keys managed by the provider.
+        help_text="""User's wallet keys managed by the provider.
         Format: ["ETH:mainnet:0x123...", "SOL:mainnet:ABC..."]
-        IMPORTANT: Only the provider can modify this field.'''
+        IMPORTANT: Only the provider can modify this field.""",
     )
 
     # Auto-subscription settings
     auto_subscribe_alerts = models.BooleanField(
-        default=True,
-        help_text="Automatically subscribe user to alerts on this group"
+        default=True, help_text="Automatically subscribe user to alerts on this group"
     )
 
     # USER CHOICE: How to route notifications
@@ -982,20 +1067,20 @@ class UserWalletGroup(models.Model):
         max_length=20,
         choices=NotificationRoutingChoice.choices,
         default=NotificationRoutingChoice.CALLBACK_ONLY,
-        help_text="How notifications are delivered: callback only, user channels, or both"
+        help_text="How notifications are delivered: callback only, user channels, or both",
     )
 
     # PRIVACY: Private by default, provider grants edit access
     access_control = models.JSONField(
         default=dict,
         blank=True,
-        help_text='''Access control for who can edit this UserWalletGroup.
+        help_text="""Access control for who can edit this UserWalletGroup.
         {
             "editors": {
                 "users": ["user-uuid-1", "user-uuid-2"],
                 "api_keys": ["api-key-id-1"]
             }
-        }'''
+        }""",
     )
 
     # Status
@@ -1006,19 +1091,21 @@ class UserWalletGroup(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'user_wallet_groups'
-        verbose_name = 'User Wallet Group'
-        verbose_name_plural = 'User Wallet Groups'
-        unique_together = ['user', 'wallet_group']
+        db_table = "user_wallet_groups"
+        verbose_name = "User Wallet Group"
+        verbose_name_plural = "User Wallet Groups"
+        unique_together = ["user", "wallet_group"]
         indexes = [
-            models.Index(fields=['user', 'is_active']),
-            models.Index(fields=['wallet_group', 'is_active']),
-            models.Index(fields=['provider', 'is_active']),
-            models.Index(fields=['created_at']),
+            models.Index(fields=["user", "is_active"]),
+            models.Index(fields=["wallet_group", "is_active"]),
+            models.Index(fields=["provider", "is_active"]),
+            models.Index(fields=["created_at"]),
         ]
 
     def __str__(self):
-        return f"{self.user.email} in {self.wallet_group.name} (by {self.provider.email})"
+        return (
+            f"{self.user.email} in {self.wallet_group.name} (by {self.provider.email})"
+        )
 
     def clean(self):
         """Validate the model."""
@@ -1026,31 +1113,35 @@ class UserWalletGroup(models.Model):
 
         # Ensure wallet_group is of type WALLET
         if self.wallet_group and self.wallet_group.group_type != GroupType.WALLET:
-            raise ValidationError({
-                'wallet_group': f"wallet_group must be of type '{GroupType.WALLET}', "
-                               f"got '{self.wallet_group.group_type}'"
-            })
+            raise ValidationError(
+                {
+                    "wallet_group": f"wallet_group must be of type '{GroupType.WALLET}', "
+                    f"got '{self.wallet_group.group_type}'"
+                }
+            )
 
         # Validate wallet_keys format
         if self.wallet_keys:
             if not isinstance(self.wallet_keys, list):
-                raise ValidationError({
-                    'wallet_keys': "wallet_keys must be a list of strings"
-                })
+                raise ValidationError(
+                    {"wallet_keys": "wallet_keys must be a list of strings"}
+                )
 
             for i, key in enumerate(self.wallet_keys):
                 if not isinstance(key, str):
-                    raise ValidationError({
-                        'wallet_keys': f"wallet_keys[{i}] must be a string"
-                    })
+                    raise ValidationError(
+                        {"wallet_keys": f"wallet_keys[{i}] must be a string"}
+                    )
 
                 # Validate key format: {network}:{subnet}:{address}
-                parts = key.split(':')
+                parts = key.split(":")
                 if len(parts) < 3:
-                    raise ValidationError({
-                        'wallet_keys': f"Key '{key}' must be in format 'network:subnet:address' "
-                                       f"(e.g., 'ETH:mainnet:0x123...')"
-                    })
+                    raise ValidationError(
+                        {
+                            "wallet_keys": f"Key '{key}' must be in format 'network:subnet:address' "
+                            f"(e.g., 'ETH:mainnet:0x123...')"
+                        }
+                    )
 
     def save(self, *args, **kwargs):
         self.full_clean()
@@ -1076,17 +1167,19 @@ class UserWalletGroup(models.Model):
         if user and user.id == self.provider_id:
             return True
 
-        editors = self.access_control.get('editors', {})
+        editors = self.access_control.get("editors", {})
 
-        if user and str(user.id) in editors.get('users', []):
+        if user and str(user.id) in editors.get("users", []):
             return True
 
-        if api_key_id and api_key_id in editors.get('api_keys', []):
+        if api_key_id and api_key_id in editors.get("api_keys", []):
             return True
 
         return False
 
-    def grant_edit_access(self, user_id: Optional[str] = None, api_key_id: Optional[str] = None) -> bool:
+    def grant_edit_access(
+        self, user_id: Optional[str] = None, api_key_id: Optional[str] = None
+    ) -> bool:
         """
         Grant edit access to a user or API key.
 
@@ -1098,31 +1191,33 @@ class UserWalletGroup(models.Model):
             True if access was granted, False if already had access
         """
         if not self.access_control:
-            self.access_control = {'editors': {'users': [], 'api_keys': []}}
+            self.access_control = {"editors": {"users": [], "api_keys": []}}
 
-        if 'editors' not in self.access_control:
-            self.access_control['editors'] = {'users': [], 'api_keys': []}
+        if "editors" not in self.access_control:
+            self.access_control["editors"] = {"users": [], "api_keys": []}
 
         changed = False
 
         if user_id:
-            users = self.access_control['editors'].setdefault('users', [])
+            users = self.access_control["editors"].setdefault("users", [])
             if user_id not in users:
                 users.append(user_id)
                 changed = True
 
         if api_key_id:
-            api_keys = self.access_control['editors'].setdefault('api_keys', [])
+            api_keys = self.access_control["editors"].setdefault("api_keys", [])
             if api_key_id not in api_keys:
                 api_keys.append(api_key_id)
                 changed = True
 
         if changed:
-            self.save(update_fields=['access_control', 'updated_at'])
+            self.save(update_fields=["access_control", "updated_at"])
 
         return changed
 
-    def revoke_edit_access(self, user_id: Optional[str] = None, api_key_id: Optional[str] = None) -> bool:
+    def revoke_edit_access(
+        self, user_id: Optional[str] = None, api_key_id: Optional[str] = None
+    ) -> bool:
         """
         Revoke edit access from a user or API key.
 
@@ -1133,25 +1228,25 @@ class UserWalletGroup(models.Model):
         Returns:
             True if access was revoked, False if didn't have access
         """
-        if not self.access_control or 'editors' not in self.access_control:
+        if not self.access_control or "editors" not in self.access_control:
             return False
 
         changed = False
 
         if user_id:
-            users = self.access_control['editors'].get('users', [])
+            users = self.access_control["editors"].get("users", [])
             if user_id in users:
                 users.remove(user_id)
                 changed = True
 
         if api_key_id:
-            api_keys = self.access_control['editors'].get('api_keys', [])
+            api_keys = self.access_control["editors"].get("api_keys", [])
             if api_key_id in api_keys:
                 api_keys.remove(api_key_id)
                 changed = True
 
         if changed:
-            self.save(update_fields=['access_control', 'updated_at'])
+            self.save(update_fields=["access_control", "updated_at"])
 
         return changed
 
@@ -1176,7 +1271,7 @@ class UserWalletGroup(models.Model):
             return False
 
         self.wallet_keys.append(wallet_key)
-        self.save(update_fields=['wallet_keys', 'updated_at'])
+        self.save(update_fields=["wallet_keys", "updated_at"])
         return True
 
     def remove_wallet(self, wallet_key: str) -> bool:
@@ -1193,5 +1288,5 @@ class UserWalletGroup(models.Model):
             return False
 
         self.wallet_keys.remove(wallet_key)
-        self.save(update_fields=['wallet_keys', 'updated_at'])
+        self.save(update_fields=["wallet_keys", "updated_at"])
         return True

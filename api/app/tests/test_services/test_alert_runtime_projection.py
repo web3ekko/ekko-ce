@@ -120,21 +120,38 @@ def test_project_instance_keys_mode_updates_target_instance_sets(redis_mock):
 
     redis_mock.get.side_effect = redis_get_side_effect
 
-    with patch("app.services.alert_runtime_projection._redis_client", return_value=redis_mock):
+    with patch(
+        "app.services.alert_runtime_projection._redis_client", return_value=redis_mock
+    ):
         proj = AlertRuntimeProjection()
         proj.project_instance(instance)
 
     pipeline: MockPipeline = redis_mock.pipeline.return_value
-    assert ("sadd", f"{EVENT_IDX_TARGET_INSTANCES_PREFIX}ETH:mainnet:0xabc", [instance_id]) in pipeline.commands
-    assert ("sadd", f"{EVENT_IDX_TARGET_INSTANCES_PREFIX}ETH:mainnet:0xdef", [instance_id]) in pipeline.commands
+    assert (
+        "sadd",
+        f"{EVENT_IDX_TARGET_INSTANCES_PREFIX}ETH:mainnet:0xabc",
+        [instance_id],
+    ) in pipeline.commands
+    assert (
+        "sadd",
+        f"{EVENT_IDX_TARGET_INSTANCES_PREFIX}ETH:mainnet:0xdef",
+        [instance_id],
+    ) in pipeline.commands
 
-    set_cmd = next(cmd for cmd in pipeline.commands if cmd[0] == "set" and cmd[1] == f"{INSTANCE_KEY_PREFIX}{instance_id}")
+    set_cmd = next(
+        cmd
+        for cmd in pipeline.commands
+        if cmd[0] == "set" and cmd[1] == f"{INSTANCE_KEY_PREFIX}{instance_id}"
+    )
     snapshot = json.loads(set_cmd[2])
     assert snapshot["template_id"] == template_id
     assert snapshot["template_version"] == template_version
     assert snapshot["alert_name"] == "Alert Name"
     assert snapshot["target_selector"]["mode"] == "keys"
-    assert snapshot["target_selector"]["keys"] == ["ETH:mainnet:0xabc", "ETH:mainnet:0xdef"]
+    assert snapshot["target_selector"]["keys"] == [
+        "ETH:mainnet:0xabc",
+        "ETH:mainnet:0xdef",
+    ]
     assert snapshot["notification_template"] == executable_spec["notification_template"]
 
 
@@ -144,7 +161,11 @@ def test_project_instance_group_mode_updates_group_instance_set(redis_mock):
     group_id = str(uuid4())
     template_version = 1
 
-    executable_spec = {"schema_version": "alert_executable_v1", "notification_template": {"title": "t", "body": "b"}, "action": {}}
+    executable_spec = {
+        "schema_version": "alert_executable_v1",
+        "notification_template": {"title": "t", "body": "b"},
+        "action": {},
+    }
     instance = _make_instance(
         instance_id=instance_id,
         enabled=True,
@@ -163,12 +184,18 @@ def test_project_instance_group_mode_updates_group_instance_set(redis_mock):
 
     redis_mock.get.side_effect = redis_get_side_effect
 
-    with patch("app.services.alert_runtime_projection._redis_client", return_value=redis_mock):
+    with patch(
+        "app.services.alert_runtime_projection._redis_client", return_value=redis_mock
+    ):
         proj = AlertRuntimeProjection()
         proj.project_instance(instance)
 
     pipeline: MockPipeline = redis_mock.pipeline.return_value
-    assert ("sadd", f"{EVENT_IDX_GROUP_INSTANCES_PREFIX}{group_id}", [instance_id]) in pipeline.commands
+    assert (
+        "sadd",
+        f"{EVENT_IDX_GROUP_INSTANCES_PREFIX}{group_id}",
+        [instance_id],
+    ) in pipeline.commands
 
 
 def test_project_instance_normalizes_notification_template(redis_mock):
@@ -176,7 +203,11 @@ def test_project_instance_normalizes_notification_template(redis_mock):
     instance_id = str(uuid4())
     template_version = 1
 
-    executable_spec = {"schema_version": "alert_executable_v1", "notification_template": {"title": "", "body": ""}, "action": {}}
+    executable_spec = {
+        "schema_version": "alert_executable_v1",
+        "notification_template": {"title": "", "body": ""},
+        "action": {},
+    }
     instance = _make_instance(
         instance_id=instance_id,
         enabled=True,
@@ -197,15 +228,27 @@ def test_project_instance_normalizes_notification_template(redis_mock):
 
     redis_mock.get.side_effect = redis_get_side_effect
 
-    with patch("app.services.alert_runtime_projection._redis_client", return_value=redis_mock):
+    with patch(
+        "app.services.alert_runtime_projection._redis_client", return_value=redis_mock
+    ):
         proj = AlertRuntimeProjection()
         proj.project_instance(instance)
 
     pipeline: MockPipeline = redis_mock.pipeline.return_value
-    set_cmd = next(cmd for cmd in pipeline.commands if cmd[0] == "set" and cmd[1] == f"{INSTANCE_KEY_PREFIX}{instance_id}")
+    set_cmd = next(
+        cmd
+        for cmd in pipeline.commands
+        if cmd[0] == "set" and cmd[1] == f"{INSTANCE_KEY_PREFIX}{instance_id}"
+    )
     snapshot = json.loads(set_cmd[2])
-    assert snapshot["notification_template"]["title"] == "Alert triggered: {{target.short}}"
-    assert snapshot["notification_template"]["body"] == "Condition met for {{target.short}}."
+    assert (
+        snapshot["notification_template"]["title"]
+        == "Alert triggered: {{target.short}}"
+    )
+    assert (
+        snapshot["notification_template"]["body"]
+        == "Condition met for {{target.short}}."
+    )
 
 
 def test_project_instance_applies_notification_overrides(redis_mock):
@@ -242,12 +285,18 @@ def test_project_instance_applies_notification_overrides(redis_mock):
 
     redis_mock.get.side_effect = redis_get_side_effect
 
-    with patch("app.services.alert_runtime_projection._redis_client", return_value=redis_mock):
+    with patch(
+        "app.services.alert_runtime_projection._redis_client", return_value=redis_mock
+    ):
         proj = AlertRuntimeProjection()
         proj.project_instance(instance)
 
     pipeline: MockPipeline = redis_mock.pipeline.return_value
-    set_cmd = next(cmd for cmd in pipeline.commands if cmd[0] == "set" and cmd[1] == f"{INSTANCE_KEY_PREFIX}{instance_id}")
+    set_cmd = next(
+        cmd
+        for cmd in pipeline.commands
+        if cmd[0] == "set" and cmd[1] == f"{INSTANCE_KEY_PREFIX}{instance_id}"
+    )
     snapshot = json.loads(set_cmd[2])
     assert snapshot["notification_template"]["title"] == "Custom title"
     assert snapshot["notification_template"]["body"] == "Custom body"

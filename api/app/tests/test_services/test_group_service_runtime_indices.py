@@ -83,7 +83,10 @@ def test_rebuild_group_cache_updates_alert_runtime_indices(redis_mock):
 
     with (
         patch("app.services.group_service.redis.from_url", return_value=redis_mock),
-        patch("app.services.group_service.settings.CACHES", {"default": {"LOCATION": "redis://test"}}),
+        patch(
+            "app.services.group_service.settings.CACHES",
+            {"default": {"LOCATION": "redis://test"}},
+        ),
         patch("app.models.groups.GenericGroup.objects.get", return_value=group),
     ):
         service = GroupService()
@@ -92,24 +95,39 @@ def test_rebuild_group_cache_updates_alert_runtime_indices(redis_mock):
     pipeline: MockPipeline = redis_mock.pipeline.return_value
 
     assert ("srem", f"member:{removed}:groups", [str(group_id)]) in pipeline.commands
-    assert ("srem", f"{ALERT_RUNTIME_TARGET_GROUPS_PREFIX}{removed}", [str(group_id)]) in pipeline.commands
+    assert (
+        "srem",
+        f"{ALERT_RUNTIME_TARGET_GROUPS_PREFIX}{removed}",
+        [str(group_id)],
+    ) in pipeline.commands
 
     assert ("sadd", f"member:{kept}:groups", [str(group_id)]) in pipeline.commands
-    assert ("sadd", f"{ALERT_RUNTIME_TARGET_GROUPS_PREFIX}{kept}", [str(group_id)]) in pipeline.commands
+    assert (
+        "sadd",
+        f"{ALERT_RUNTIME_TARGET_GROUPS_PREFIX}{kept}",
+        [str(group_id)],
+    ) in pipeline.commands
 
     assert ("delete", existing_partition_key) in pipeline.commands
     assert ("delete", _partitions_index_key(group_id)) in pipeline.commands
 
     partition_cmd = ("sadd", _partition_set_key(group_id, "ETH", "mainnet"), [kept])
-    assert partition_cmd in pipeline.commands or (
-        "sadd",
-        _partition_set_key(group_id, "ETH", "mainnet"),
-        [added],
-    ) in pipeline.commands
+    assert (
+        partition_cmd in pipeline.commands
+        or (
+            "sadd",
+            _partition_set_key(group_id, "ETH", "mainnet"),
+            [added],
+        )
+        in pipeline.commands
+    )
 
     index_set_cmd = next(
         cmd
         for cmd in pipeline.commands
         if cmd[0] == "sadd" and cmd[1] == _partitions_index_key(group_id)
     )
-    assert existing_partition_key in index_set_cmd[2] or _partition_set_key(group_id, "ETH", "mainnet") in index_set_cmd[2]
+    assert (
+        existing_partition_key in index_set_cmd[2]
+        or _partition_set_key(group_id, "ETH", "mainnet") in index_set_cmd[2]
+    )

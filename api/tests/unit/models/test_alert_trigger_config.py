@@ -23,18 +23,18 @@ class TestAlertInstanceTriggerConfiguration:
     def test_default_trigger_type_is_event_driven(self):
         """Test that trigger_type defaults to event_driven"""
         alert = AlertInstanceFactory()
-        assert alert.trigger_type == 'event_driven'
+        assert alert.trigger_type == "event_driven"
 
     def test_trigger_type_choices(self):
         """Test all valid trigger_type values"""
         event_driven = EventDrivenAlertInstanceFactory()
-        assert event_driven.trigger_type == 'event_driven'
+        assert event_driven.trigger_type == "event_driven"
 
         one_time = OneTimeAlertInstanceFactory()
-        assert one_time.trigger_type == 'one_time'
+        assert one_time.trigger_type == "one_time"
 
         periodic = PeriodicAlertInstanceFactory()
-        assert periodic.trigger_type == 'periodic'
+        assert periodic.trigger_type == "periodic"
 
     def test_trigger_config_defaults_to_empty_dict(self):
         """Test that trigger_config defaults to empty dict"""
@@ -48,23 +48,26 @@ class TestAlertInstanceTriggerConfiguration:
         """Test event_driven trigger configuration structure"""
         alert = EventDrivenAlertInstanceFactory()
 
-        assert 'chains' in alert.trigger_config
-        assert 'event_types' in alert.trigger_config
-        assert isinstance(alert.trigger_config['chains'], list)
-        assert isinstance(alert.trigger_config['event_types'], list)
+        assert "chains" in alert.trigger_config
+        assert "event_types" in alert.trigger_config
+        assert isinstance(alert.trigger_config["chains"], list)
+        assert isinstance(alert.trigger_config["event_types"], list)
 
     def test_one_time_trigger_config(self):
         """Test one_time trigger configuration structure"""
         alert = OneTimeAlertInstanceFactory()
 
-        assert 'reset_allowed' in alert.trigger_config
-        assert isinstance(alert.trigger_config['reset_allowed'], bool)
+        assert "reset_allowed" in alert.trigger_config
+        assert isinstance(alert.trigger_config["reset_allowed"], bool)
 
     def test_periodic_trigger_config(self):
         """Test periodic trigger configuration structure"""
         alert = PeriodicAlertInstanceFactory()
 
-        assert 'interval_seconds' in alert.trigger_config or 'schedule' in alert.trigger_config
+        assert (
+            "interval_seconds" in alert.trigger_config
+            or "schedule" in alert.trigger_config
+        )
 
     def test_job_creation_count_defaults_to_zero(self):
         """Test that job_creation_count defaults to 0"""
@@ -100,8 +103,7 @@ class TestAlertInstanceTriggerConfiguration:
     def test_job_tracking_workflow(self):
         """Test complete job tracking workflow"""
         alert = PeriodicAlertInstanceFactory(
-            job_creation_count=0,
-            last_job_created_at=None
+            job_creation_count=0, last_job_created_at=None
         )
 
         # Simulate first job creation
@@ -137,10 +139,10 @@ class TestAlertInstanceQueryingByTriggerType:
         PeriodicAlertInstanceFactory(enabled=True)
 
         from app.models.alerts import AlertInstance
+
         latest_alerts = AlertInstance.get_latest_versions()
         event_driven_alerts = [
-            a for a in latest_alerts
-            if a.enabled and a.trigger_type == 'event_driven'
+            a for a in latest_alerts if a.enabled and a.trigger_type == "event_driven"
         ]
 
         assert len(event_driven_alerts) >= 2
@@ -156,10 +158,10 @@ class TestAlertInstanceQueryingByTriggerType:
         OneTimeAlertInstanceFactory(enabled=True)
 
         from app.models.alerts import AlertInstance
+
         latest_alerts = AlertInstance.get_latest_versions()
         periodic_alerts = [
-            a for a in latest_alerts
-            if a.enabled and a.trigger_type == 'periodic'
+            a for a in latest_alerts if a.enabled and a.trigger_type == "periodic"
         ]
 
         assert len(periodic_alerts) >= 2
@@ -175,10 +177,10 @@ class TestAlertInstanceQueryingByTriggerType:
         PeriodicAlertInstanceFactory(enabled=True)
 
         from app.models.alerts import AlertInstance
+
         latest_alerts = AlertInstance.get_latest_versions()
         one_time_alerts = [
-            a for a in latest_alerts
-            if a.enabled and a.trigger_type == 'one_time'
+            a for a in latest_alerts if a.enabled and a.trigger_type == "one_time"
         ]
 
         assert len(one_time_alerts) >= 2
@@ -193,6 +195,7 @@ class TestAlertInstanceQueryingByTriggerType:
         OneTimeAlertInstanceFactory(enabled=False)
 
         from app.models.alerts import AlertInstance
+
         latest_alerts = AlertInstance.get_latest_versions()
         enabled_alerts = [a for a in latest_alerts if a.enabled]
 
@@ -211,12 +214,10 @@ class TestTriggerConfigIndex:
 
         # Check model Meta indexes
         indexes = AlertInstance._meta.indexes
-        index_fields = [
-            tuple(idx.fields) for idx in indexes
-        ]
+        index_fields = [tuple(idx.fields) for idx in indexes]
 
         # Should have index on trigger_type and enabled
-        assert ('trigger_type', 'enabled') in index_fields
+        assert ("trigger_type", "enabled") in index_fields
 
     def test_query_performance_with_index(self):
         """Test that queries use the index (basic check)"""
@@ -234,8 +235,7 @@ class TestTriggerConfigIndex:
         with CaptureQueriesContext(connection) as queries:
             latest_alerts = AlertInstance.get_latest_versions()
             periodic_alerts = [
-                a for a in latest_alerts
-                if a.enabled and a.trigger_type == 'periodic'
+                a for a in latest_alerts if a.enabled and a.trigger_type == "periodic"
             ]
             # Force evaluation
             len(periodic_alerts)
@@ -252,25 +252,25 @@ class TestFactoryVariants:
         """Test EventDrivenAlertInstanceFactory produces correct configuration"""
         alert = EventDrivenAlertInstanceFactory()
 
-        assert alert.trigger_type == 'event_driven'
-        assert 'chains' in alert.trigger_config
-        assert 'event_types' in alert.trigger_config
-        assert len(alert.trigger_config['chains']) > 0
-        assert len(alert.trigger_config['event_types']) > 0
+        assert alert.trigger_type == "event_driven"
+        assert "chains" in alert.trigger_config
+        assert "event_types" in alert.trigger_config
+        assert len(alert.trigger_config["chains"]) > 0
+        assert len(alert.trigger_config["event_types"]) > 0
 
     def test_one_time_factory_creates_correct_config(self):
         """Test OneTimeAlertInstanceFactory produces correct configuration"""
         alert = OneTimeAlertInstanceFactory()
 
-        assert alert.trigger_type == 'one_time'
-        assert 'reset_allowed' in alert.trigger_config
+        assert alert.trigger_type == "one_time"
+        assert "reset_allowed" in alert.trigger_config
 
     def test_periodic_factory_creates_correct_config(self):
         """Test PeriodicAlertInstanceFactory produces correct configuration"""
         alert = PeriodicAlertInstanceFactory()
 
-        assert alert.trigger_type == 'periodic'
+        assert alert.trigger_type == "periodic"
         # Should have at least one of interval_seconds or schedule
-        has_interval = 'interval_seconds' in alert.trigger_config
-        has_schedule = 'schedule' in alert.trigger_config
+        has_interval = "interval_seconds" in alert.trigger_config
+        has_schedule = "schedule" in alert.trigger_config
         assert has_interval or has_schedule

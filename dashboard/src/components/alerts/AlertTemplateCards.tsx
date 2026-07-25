@@ -14,7 +14,7 @@ import {
   Badge,
   Center,
   ThemeIcon,
-} from '@mantine/core'
+} from "@mantine/core";
 import {
   IconTemplate,
   IconWallet,
@@ -23,29 +23,38 @@ import {
   IconActivity,
   IconNetwork,
   IconCertificate,
-} from '@tabler/icons-react'
-import type { AlertTemplateSummary } from '../../services/alerts-api'
+} from "@tabler/icons-react";
+import type { AlertTemplateSummary } from "../../services/alerts-api";
 
 interface AlertTemplateCardsProps {
-  templates: AlertTemplateSummary[]
-  isLoading?: boolean
-  onUseTemplate?: (template: AlertTemplateSummary) => void
-  onViewTemplate?: (template: AlertTemplateSummary) => void
+  templates: AlertTemplateSummary[];
+  isLoading?: boolean;
+  onUseTemplate?: (template: AlertTemplateSummary) => void;
+  onViewTemplate?: (template: AlertTemplateSummary) => void;
 }
 
-const TEMPLATE_META: Record<string, { label: string; icon: typeof IconTemplate; color: string }> = {
-  wallet: { label: 'Wallet', icon: IconWallet, color: 'blue' },
-  token: { label: 'Token', icon: IconCoins, color: 'teal' },
-  contract: { label: 'Contract', icon: IconShieldCheck, color: 'orange' },
-  protocol: { label: 'Protocol', icon: IconNetwork, color: 'grape' },
-  network: { label: 'Network', icon: IconNetwork, color: 'green' },
-  anomaly: { label: 'Anomaly', icon: IconActivity, color: 'red' },
-}
+const TEMPLATE_META: Record<
+  string,
+  { label: string; icon: typeof IconTemplate; color: string }
+> = {
+  wallet: { label: "Wallet", icon: IconWallet, color: "blue" },
+  token: { label: "Token", icon: IconCoins, color: "teal" },
+  contract: { label: "Contract", icon: IconShieldCheck, color: "orange" },
+  protocol: { label: "Protocol", icon: IconNetwork, color: "grape" },
+  network: { label: "Network", icon: IconNetwork, color: "green" },
+  anomaly: { label: "Anomaly", icon: IconActivity, color: "red" },
+};
 
 const getTemplateMeta = (template: AlertTemplateSummary) => {
-  const key = (template.target_kind || '').toLowerCase()
-  return TEMPLATE_META[key] || { label: 'Template', icon: IconTemplate, color: 'gray' }
-}
+  const key = (template.target_kind || "").toLowerCase();
+  return (
+    TEMPLATE_META[key] || {
+      label: "Template",
+      icon: IconTemplate,
+      color: "gray",
+    }
+  );
+};
 
 export function AlertTemplateCards({
   templates,
@@ -62,7 +71,7 @@ export function AlertTemplateCards({
           </Text>
         </Stack>
       </Center>
-    )
+    );
   }
 
   if (templates.length === 0) {
@@ -77,14 +86,14 @@ export function AlertTemplateCards({
           </Text>
         </Stack>
       </Center>
-    )
+    );
   }
 
   return (
     <Grid>
       {templates.map((template) => {
-        const meta = getTemplateMeta(template)
-        const MetaIcon = meta.icon
+        const meta = getTemplateMeta(template);
+        const MetaIcon = meta.icon;
         return (
           <Grid.Col key={template.id} span={{ base: 12, sm: 6, md: 4 }}>
             <Card
@@ -93,16 +102,21 @@ export function AlertTemplateCards({
               radius="md"
               withBorder
               style={{
-                cursor: onViewTemplate ? 'pointer' : 'default',
-                height: '100%',
-                transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                cursor: onViewTemplate ? "pointer" : "default",
+                height: "100%",
+                transition: "transform 0.2s ease, box-shadow 0.2s ease",
               }}
               onClick={() => onViewTemplate?.(template)}
             >
               <Stack gap="sm" h="100%">
                 <Group justify="space-between" align="flex-start">
                   <Group gap="xs">
-                    <ThemeIcon size="lg" radius="md" variant="light" color={meta.color}>
+                    <ThemeIcon
+                      size="lg"
+                      radius="md"
+                      variant="light"
+                      color={meta.color}
+                    >
                       <MetaIcon size={20} />
                     </ThemeIcon>
                     <div>
@@ -116,7 +130,12 @@ export function AlertTemplateCards({
                   </Group>
                   <Group gap={4}>
                     {template.is_verified && (
-                      <Badge size="xs" color="blue" variant="light" leftSection={<IconCertificate size={12} />}>
+                      <Badge
+                        size="xs"
+                        color="blue"
+                        variant="light"
+                        leftSection={<IconCertificate size={12} />}
+                      >
                         Verified
                       </Badge>
                     )}
@@ -129,7 +148,7 @@ export function AlertTemplateCards({
                 </Group>
 
                 <Text size="sm" c="dimmed" lineClamp={3}>
-                  {template.description || 'No description provided.'}
+                  {template.description || "No description provided."}
                 </Text>
 
                 <Group gap="xs">
@@ -154,8 +173,8 @@ export function AlertTemplateCards({
                       size="xs"
                       variant="light"
                       onClick={(event) => {
-                        event.stopPropagation()
-                        onViewTemplate(template)
+                        event.stopPropagation();
+                        onViewTemplate(template);
                       }}
                     >
                       View details
@@ -165,8 +184,8 @@ export function AlertTemplateCards({
                     <Button
                       size="xs"
                       onClick={(event) => {
-                        event.stopPropagation()
-                        onUseTemplate(template)
+                        event.stopPropagation();
+                        onUseTemplate(template);
                       }}
                     >
                       Use template
@@ -176,8 +195,8 @@ export function AlertTemplateCards({
               </Stack>
             </Card>
           </Grid.Col>
-        )
+        );
       })}
     </Grid>
-  )
+  );
 }

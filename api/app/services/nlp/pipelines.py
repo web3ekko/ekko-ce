@@ -39,7 +39,9 @@ def _normalize_examples(examples: Any) -> List[Dict[str, Any]]:
             continue
         if output_json is None:
             continue
-        context = example.get("context") if isinstance(example.get("context"), dict) else {}
+        context = (
+            example.get("context") if isinstance(example.get("context"), dict) else {}
+        )
         cleaned.append(
             {
                 "nl_description": nl_description.strip(),
@@ -67,7 +69,9 @@ def get_pipeline_config(pipeline_id: str) -> PipelineConfig:
                 user_prompt_context="",
                 examples=[],
             )
-        raise PipelineConfigError(f"NLP pipeline {pipeline_id!r} is not configured") from exc
+        raise PipelineConfigError(
+            f"NLP pipeline {pipeline_id!r} is not configured"
+        ) from exc
 
     version: NLPPipelineVersion | None = pipeline.active_version
     if version is None:

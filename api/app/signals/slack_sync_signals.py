@@ -25,7 +25,7 @@ def sync_slack_config_on_save(sender, instance, **kwargs):
     - Slack channel enabled/disabled
     - Slack channel verified
     """
-    if instance.channel_type == 'slack':
+    if instance.channel_type == "slack":
         cache_service = SlackCacheService()
         cache_service.sync_slack_config_to_redis(str(instance.owner_id))
         logger.info(
@@ -41,7 +41,7 @@ def sync_slack_config_on_delete(sender, instance, **kwargs):
 
     This clears the cache if it was the last Slack channel for the user.
     """
-    if instance.channel_type == 'slack':
+    if instance.channel_type == "slack":
         cache_service = SlackCacheService()
         cache_service.sync_slack_config_to_redis(str(instance.owner_id))
         logger.info(

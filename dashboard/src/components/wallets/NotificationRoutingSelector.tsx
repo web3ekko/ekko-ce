@@ -5,15 +5,19 @@
  * Options: callback_only, user_channels, or both.
  */
 
-import { Radio, Stack, Text, Group, Badge, ThemeIcon } from '@mantine/core'
-import { IconWebhook, IconBell, IconArrowsLeftRight } from '@tabler/icons-react'
-import type { NotificationRoutingChoice } from '../../services/groups-api'
+import { Radio, Stack, Text, Group, Badge, ThemeIcon } from "@mantine/core";
+import {
+  IconWebhook,
+  IconBell,
+  IconArrowsLeftRight,
+} from "@tabler/icons-react";
+import type { NotificationRoutingChoice } from "../../services/groups-api";
 
 interface NotificationRoutingSelectorProps {
-  value: NotificationRoutingChoice
-  onChange: (value: NotificationRoutingChoice) => void
-  callbackUrl?: string
-  disabled?: boolean
+  value: NotificationRoutingChoice;
+  onChange: (value: NotificationRoutingChoice) => void;
+  callbackUrl?: string;
+  disabled?: boolean;
 }
 
 export function NotificationRoutingSelector({
@@ -38,20 +42,27 @@ export function NotificationRoutingSelector({
               <ThemeIcon size="sm" variant="light" color="teal">
                 <IconWebhook size={14} />
               </ThemeIcon>
-              <Text size="sm" fw={500}>Provider Webhook Only</Text>
+              <Text size="sm" fw={500}>
+                Provider Webhook Only
+              </Text>
             </Group>
           }
           description={
             callbackUrl ? (
               <Text size="xs" c="dimmed">
-                Sends to: <Badge size="xs" variant="light">{callbackUrl}</Badge>
+                Sends to:{" "}
+                <Badge size="xs" variant="light">
+                  {callbackUrl}
+                </Badge>
               </Text>
             ) : (
-              <Text size="xs" c="dimmed">Provider receives all notifications via webhook</Text>
+              <Text size="xs" c="dimmed">
+                Provider receives all notifications via webhook
+              </Text>
             )
           }
           styles={{
-            body: { alignItems: 'flex-start' },
+            body: { alignItems: "flex-start" },
             description: { marginTop: 4 },
           }}
         />
@@ -64,7 +75,9 @@ export function NotificationRoutingSelector({
               <ThemeIcon size="sm" variant="light" color="blue">
                 <IconBell size={14} />
               </ThemeIcon>
-              <Text size="sm" fw={500}>My Notification Channels Only</Text>
+              <Text size="sm" fw={500}>
+                My Notification Channels Only
+              </Text>
             </Group>
           }
           description={
@@ -73,7 +86,7 @@ export function NotificationRoutingSelector({
             </Text>
           }
           styles={{
-            body: { alignItems: 'flex-start' },
+            body: { alignItems: "flex-start" },
             description: { marginTop: 4 },
           }}
         />
@@ -86,7 +99,9 @@ export function NotificationRoutingSelector({
               <ThemeIcon size="sm" variant="light" color="teal">
                 <IconArrowsLeftRight size={14} />
               </ThemeIcon>
-              <Text size="sm" fw={500}>Both</Text>
+              <Text size="sm" fw={500}>
+                Both
+              </Text>
             </Group>
           }
           description={
@@ -95,11 +110,11 @@ export function NotificationRoutingSelector({
             </Text>
           }
           styles={{
-            body: { alignItems: 'flex-start' },
+            body: { alignItems: "flex-start" },
             description: { marginTop: 4 },
           }}
         />
       </Stack>
     </Radio.Group>
-  )
+  );
 }

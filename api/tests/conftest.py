@@ -12,6 +12,7 @@ import pytest
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "ekko_api.settings.test")
 
 from django.contrib.auth import get_user_model
+
 # Import Django modules
 from django.test import Client
 from rest_framework.test import APIClient
@@ -255,15 +256,17 @@ def transactional_db(db):
     yield
 
 
-@pytest.fixture(autouse=True, scope='function')
+@pytest.fixture(autouse=True, scope="function")
 def reset_factory_sequences():
     """
     Reset factory Faker seed before each test to ensure unique data generation.
     This prevents factory collisions when using --reuse-db.
     """
     from faker import Faker
+
     fake = Faker()
     # Reseed with current time to ensure uniqueness across test runs
     import time
+
     fake.seed_instance(int(time.time() * 1000000))
     yield

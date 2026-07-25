@@ -5,15 +5,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('app', '0006_add_trigger_config_to_alertinstance'),
+        ("app", "0006_add_trigger_config_to_alertinstance"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='alerttemplate',
-            name='validation_schema',
+            model_name="alerttemplate",
+            name="validation_schema",
             field=models.JSONField(
                 blank=True,
                 default=dict,
@@ -40,7 +39,7 @@ class Migration(migrations.Migration):
                     "default": null
                 }
             ]
-        }"""
+        }""",
             ),
         ),
     ]

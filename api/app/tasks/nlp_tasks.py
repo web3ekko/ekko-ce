@@ -23,6 +23,7 @@ from app.services.nlp.pipelines import DEFAULT_PIPELINE_ID
 
 logger = logging.getLogger(__name__)
 
+
 def _truncate_raw_response(text: str, max_chars: int) -> str:
     if max_chars <= 0:
         return ""
@@ -62,7 +63,9 @@ def _persist_raw_llm_response(
     )
 
 
-def publish_progress(user_id: str, event_type: str, job_id: str, payload: Dict[str, Any]) -> bool:
+def publish_progress(
+    user_id: str, event_type: str, job_id: str, payload: Dict[str, Any]
+) -> bool:
     """
     Publish progress event to NATS ws.events.
 
@@ -112,12 +115,20 @@ def parse_nl_description(
 
     try:
         if not is_nlp_configured():
-            publish_progress(user_id, "nlp.error", job_id, {
-                "client_request_id": client_request_id,
-                "code": "nlp_not_configured",
-                "message": "NLP service not configured",
-                "suggestions": ["Try again later", "Contact support if this persists"],
-            })
+            publish_progress(
+                user_id,
+                "nlp.error",
+                job_id,
+                {
+                    "client_request_id": client_request_id,
+                    "code": "nlp_not_configured",
+                    "message": "NLP service not configured",
+                    "suggestions": [
+                        "Try again later",
+                        "Contact support if this persists",
+                    ],
+                },
+            )
             raise ValueError("NLP service not configured")
 
         selected_pipeline_id = pipeline_id or DEFAULT_PIPELINE_ID
@@ -125,7 +136,10 @@ def parse_nl_description(
 
         def progress_cb(stage: str, progress: int, message: str) -> None:
             # Avoid spamming; emit only when stage/progress changes.
-            if last_progress.get("stage") == stage and last_progress.get("progress") == progress:
+            if (
+                last_progress.get("stage") == stage
+                and last_progress.get("progress") == progress
+            ):
                 return
             last_progress["stage"] = stage
             last_progress["progress"] = progress
@@ -154,10 +168,15 @@ def parse_nl_description(
         cache_key = f"nlp:proposed_spec:{user_id}:{job_id}"
         cache.set(cache_key, proposed_spec, timeout=ttl_secs)
 
-        publish_progress(user_id, "nlp.complete", job_id, {
-            "client_request_id": client_request_id,
-            "result": proposed_spec,
-        })
+        publish_progress(
+            user_id,
+            "nlp.complete",
+            job_id,
+            {
+                "client_request_id": client_request_id,
+                "result": proposed_spec,
+            },
+        )
 
         logger.info(f"NLP parse completed: job_id={job_id}, user_id={user_id}")
         return proposed_spec
@@ -170,7 +189,9 @@ def parse_nl_description(
             raw_response=e.raw_response,
         )
         if e.raw_response:
-            max_log_chars = int(getattr(settings, "NLP_RAW_RESPONSE_LOG_MAX_CHARS", 2000))
+            max_log_chars = int(
+                getattr(settings, "NLP_RAW_RESPONSE_LOG_MAX_CHARS", 2000)
+            )
             logger.error(
                 "NLP parse failed: job_id=%s, error=%s, raw_response=%s",
                 job_id,
@@ -179,19 +200,35 @@ def parse_nl_description(
             )
         else:
             logger.error(f"NLP parse failed: job_id={job_id}, error={e}")
-        publish_progress(user_id, "nlp.error", job_id, {
-            "client_request_id": client_request_id,
-            "code": "compile_failed",
-            "message": str(e),
-            "suggestions": ["Try rephrasing the request", "Specify a network (ETH/AVAX)"],
-        })
+        publish_progress(
+            user_id,
+            "nlp.error",
+            job_id,
+            {
+                "client_request_id": client_request_id,
+                "code": "compile_failed",
+                "message": str(e),
+                "suggestions": [
+                    "Try rephrasing the request",
+                    "Specify a network (ETH/AVAX)",
+                ],
+            },
+        )
         raise
     except Exception as e:
         logger.error(f"NLP parse failed: job_id={job_id}, error={e}")
-        publish_progress(user_id, "nlp.error", job_id, {
-            "client_request_id": client_request_id,
-            "code": "compile_failed",
-            "message": str(e),
-            "suggestions": ["Try rephrasing the request", "Specify a network (ETH/AVAX)"],
-        })
+        publish_progress(
+            user_id,
+            "nlp.error",
+            job_id,
+            {
+                "client_request_id": client_request_id,
+                "code": "compile_failed",
+                "message": str(e),
+                "suggestions": [
+                    "Try rephrasing the request",
+                    "Specify a network (ETH/AVAX)",
+                ],
+            },
+        )
         raise

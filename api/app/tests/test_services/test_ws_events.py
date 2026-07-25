@@ -240,8 +240,8 @@ class TestPublishWsEvent:
 class TestPublishWsEventSync:
     """Test synchronous ws.events publishing via publish_ws_event_sync()"""
 
-    @patch('app.services.nats_service.NATSService')
-    @patch('app.services.nats_service._check_ws_event_rate_limit')
+    @patch("app.services.nats_service.NATSService")
+    @patch("app.services.nats_service._check_ws_event_rate_limit")
     def test_publish_ws_event_sync_success(self, mock_rate_limit, mock_service_class):
         """Test sync publishing returns True on success"""
         mock_rate_limit.return_value = True
@@ -267,8 +267,8 @@ class TestPublishWsEventSync:
             job_id="job-456",
         )
 
-    @patch('app.services.nats_service.NATSService')
-    @patch('app.services.nats_service._check_ws_event_rate_limit')
+    @patch("app.services.nats_service.NATSService")
+    @patch("app.services.nats_service._check_ws_event_rate_limit")
     def test_publish_ws_event_sync_returns_false_on_failure(
         self, mock_rate_limit, mock_service_class
     ):
@@ -289,8 +289,8 @@ class TestPublishWsEventSync:
 
         assert result is False
 
-    @patch('app.services.nats_service.NATSService')
-    @patch('app.services.nats_service._check_ws_event_rate_limit')
+    @patch("app.services.nats_service.NATSService")
+    @patch("app.services.nats_service._check_ws_event_rate_limit")
     def test_publish_ws_event_sync_handles_exception(
         self, mock_rate_limit, mock_service_class
     ):
@@ -372,7 +372,7 @@ class TestWsEventsRateLimiting:
         assert _check_ws_event_rate_limit(user_a) is False
         assert _check_ws_event_rate_limit(user_b) is True
 
-    @patch('app.services.nats_service._check_ws_event_rate_limit')
+    @patch("app.services.nats_service._check_ws_event_rate_limit")
     def test_rate_limited_event_returns_false(self, mock_rate_limit):
         """Test publish_ws_event_sync returns False when rate limited"""
         mock_rate_limit.return_value = False
@@ -385,7 +385,7 @@ class TestWsEventsRateLimiting:
 
         assert result is False
 
-    @patch('app.services.nats_service.NATSService')
+    @patch("app.services.nats_service.NATSService")
     def test_error_events_bypass_rate_limit(self, mock_service_class):
         """Test nlp.error events bypass rate limiting"""
         from django.core.cache import cache
@@ -410,7 +410,7 @@ class TestWsEventsRateLimiting:
         assert result is True
         mock_service.publish_ws_event.assert_called_once()
 
-    @patch('app.services.nats_service.NATSService')
+    @patch("app.services.nats_service.NATSService")
     def test_non_error_events_blocked_by_rate_limit(self, mock_service_class):
         """Test non-error events are blocked by rate limit"""
         from django.core.cache import cache

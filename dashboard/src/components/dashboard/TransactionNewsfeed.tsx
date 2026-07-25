@@ -6,7 +6,7 @@
  * associated with addresses from the user's wallet alerts.
  */
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from "react";
 import {
   Text,
   Group,
@@ -22,7 +22,7 @@ import {
   Tooltip,
   Anchor,
   SegmentedControl,
-} from '@mantine/core'
+} from "@mantine/core";
 import {
   IconArrowUp,
   IconArrowDown,
@@ -31,140 +31,142 @@ import {
   IconExternalLink,
   IconWallet,
   IconArrowsExchange,
-} from '@tabler/icons-react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { ExecutiveCard } from '../ui/ExecutiveCard'
-import { newsfeedApiService } from '../../services/newsfeed-api'
-import { ChainLogo } from '../brand/ChainLogo'
+} from "@tabler/icons-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ExecutiveCard } from "../ui/ExecutiveCard";
+import { newsfeedApiService } from "../../services/newsfeed-api";
+import { ChainLogo } from "../brand/ChainLogo";
 import type {
   NewsfeedTransaction,
   NewsfeedResponse,
   TransactionDirection,
-} from '../../types/newsfeed'
+} from "../../types/newsfeed";
 import {
   getChainMetadata,
   getExplorerTxUrl,
   getTransactionDirection,
   formatTransactionValue,
   truncateAddress,
-} from '../../types/newsfeed'
+} from "../../types/newsfeed";
 
 // Time range filter options
-type TimeRange = '1h' | '24h' | '7d' | 'all'
+type TimeRange = "1h" | "24h" | "7d" | "all";
 
 const TIME_RANGE_HOURS: Record<TimeRange, number | null> = {
-  '1h': 1,
-  '24h': 24,
-  '7d': 168,
+  "1h": 1,
+  "24h": 24,
+  "7d": 168,
   all: null,
-}
+};
 
 export function TransactionNewsfeed() {
-  const [transactions, setTransactions] = useState<NewsfeedTransaction[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [isAutoRefresh, setIsAutoRefresh] = useState(true)
-  const [timeRange, setTimeRange] = useState<TimeRange>('24h')
-  const [totalCount, setTotalCount] = useState(0)
-  const [monitoredCount, setMonitoredCount] = useState(0)
-  const [activeChains, setActiveChains] = useState<string[]>([])
+  const [transactions, setTransactions] = useState<NewsfeedTransaction[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isAutoRefresh, setIsAutoRefresh] = useState(true);
+  const [timeRange, setTimeRange] = useState<TimeRange>("24h");
+  const [totalCount, setTotalCount] = useState(0);
+  const [monitoredCount, setMonitoredCount] = useState(0);
+  const [activeChains, setActiveChains] = useState<string[]>([]);
 
   // Fetch transactions from API
   const fetchTransactions = useCallback(async () => {
     try {
-      setError(null)
-      const hours = TIME_RANGE_HOURS[timeRange]
+      setError(null);
+      const hours = TIME_RANGE_HOURS[timeRange];
 
-      let response: NewsfeedResponse
+      let response: NewsfeedResponse;
       if (hours) {
-        response = await newsfeedApiService.getRecentTransactions(hours, { limit: 50 })
+        response = await newsfeedApiService.getRecentTransactions(hours, {
+          limit: 50,
+        });
       } else {
-        response = await newsfeedApiService.getTransactions({ limit: 50 })
+        response = await newsfeedApiService.getTransactions({ limit: 50 });
       }
 
-      setTransactions(response.transactions)
-      setTotalCount(response.total)
-      setMonitoredCount(response.monitored_addresses)
-      setActiveChains(response.chains)
+      setTransactions(response.transactions);
+      setTotalCount(response.total);
+      setMonitoredCount(response.monitored_addresses);
+      setActiveChains(response.chains);
     } catch (err: any) {
-      console.error('Failed to fetch transaction newsfeed:', err)
-      setError(err.message || 'Failed to load transactions')
+      console.error("Failed to fetch transaction newsfeed:", err);
+      setError(err.message || "Failed to load transactions");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }, [timeRange])
+  }, [timeRange]);
 
   // Initial fetch
   useEffect(() => {
-    fetchTransactions()
-  }, [fetchTransactions])
+    fetchTransactions();
+  }, [fetchTransactions]);
 
   // Auto-refresh every 30 seconds
   useEffect(() => {
-    if (!isAutoRefresh) return
+    if (!isAutoRefresh) return;
 
     const interval = setInterval(() => {
-      fetchTransactions()
-    }, 30000)
+      fetchTransactions();
+    }, 30000);
 
-    return () => clearInterval(interval)
-  }, [isAutoRefresh, fetchTransactions])
+    return () => clearInterval(interval);
+  }, [isAutoRefresh, fetchTransactions]);
 
   // Get direction icon and color
   const getDirectionInfo = (direction: TransactionDirection) => {
     switch (direction) {
-      case 'sent':
+      case "sent":
         return {
           icon: <IconArrowUp size={16} />,
-          color: 'orange',
-          label: 'Sent',
-        }
-      case 'received':
+          color: "orange",
+          label: "Sent",
+        };
+      case "received":
         return {
           icon: <IconArrowDown size={16} />,
-          color: 'green',
-          label: 'Received',
-        }
-      case 'contract':
+          color: "green",
+          label: "Received",
+        };
+      case "contract":
         return {
           icon: <IconCode size={16} />,
-          color: 'teal',
-          label: 'Contract',
-        }
+          color: "teal",
+          label: "Contract",
+        };
     }
-  }
+  };
 
   // Format timestamp for display
   const formatTime = (timestamp: string) => {
-    const date = new Date(timestamp)
-    const now = new Date()
-    const diff = now.getTime() - date.getTime()
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
 
-    if (diff < 60 * 1000) return 'Just now'
-    if (diff < 60 * 60 * 1000) return `${Math.floor(diff / 60000)}m ago`
-    if (diff < 24 * 60 * 60 * 1000) return `${Math.floor(diff / 3600000)}h ago`
-    return date.toLocaleDateString()
-  }
+    if (diff < 60 * 1000) return "Just now";
+    if (diff < 60 * 60 * 1000) return `${Math.floor(diff / 60000)}m ago`;
+    if (diff < 24 * 60 * 60 * 1000) return `${Math.floor(diff / 3600000)}h ago`;
+    return date.toLocaleDateString();
+  };
 
   // Get summary text for transaction
   const getSummary = (tx: NewsfeedTransaction): string => {
-    if (tx.decoded_summary) return tx.decoded_summary
-    if (tx.decoded_function_name) return `Called ${tx.decoded_function_name}()`
+    if (tx.decoded_summary) return tx.decoded_summary;
+    if (tx.decoded_function_name) return `Called ${tx.decoded_function_name}()`;
 
-    const direction = getTransactionDirection(tx)
-    if (direction === 'sent') {
-      return `Sent to ${truncateAddress(tx.to_address || '', 6)}`
+    const direction = getTransactionDirection(tx);
+    if (direction === "sent") {
+      return `Sent to ${truncateAddress(tx.to_address || "", 6)}`;
     }
-    if (direction === 'received') {
-      return `Received from ${truncateAddress(tx.from_address, 6)}`
+    if (direction === "received") {
+      return `Received from ${truncateAddress(tx.from_address, 6)}`;
     }
-    return tx.transaction_type || 'Transaction'
-  }
+    return tx.transaction_type || "Transaction";
+  };
 
   return (
     <ExecutiveCard
       size="default"
-      style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
+      style={{ height: "100%", display: "flex", flexDirection: "column" }}
     >
       {/* Header */}
       <Group justify="space-between" mb="md">
@@ -186,23 +188,23 @@ export function TransactionNewsfeed() {
             value={timeRange}
             onChange={(value) => setTimeRange(value as TimeRange)}
             data={[
-              { label: '1h', value: '1h' },
-              { label: '24h', value: '24h' },
-              { label: '7d', value: '7d' },
-              { label: 'All', value: 'all' },
+              { label: "1h", value: "1h" },
+              { label: "24h", value: "24h" },
+              { label: "7d", value: "7d" },
+              { label: "All", value: "all" },
             ]}
           />
           <ActionIcon
             variant="subtle"
             size="sm"
-            color={isAutoRefresh ? 'blue' : 'gray'}
+            color={isAutoRefresh ? "blue" : "gray"}
             onClick={() => setIsAutoRefresh(!isAutoRefresh)}
-            title={isAutoRefresh ? 'Live updates on' : 'Live updates off'}
+            title={isAutoRefresh ? "Live updates on" : "Live updates off"}
           >
             <IconRefresh
               size={16}
               style={{
-                animation: isAutoRefresh ? 'spin 4s linear infinite' : 'none',
+                animation: isAutoRefresh ? "spin 4s linear infinite" : "none",
               }}
             />
           </ActionIcon>
@@ -218,7 +220,10 @@ export function TransactionNewsfeed() {
         ) : error ? (
           <Center h={300}>
             <Stack align="center" gap="md">
-              <Box p="xl" style={{ background: '#FEF2F2', borderRadius: '50%' }}>
+              <Box
+                p="xl"
+                style={{ background: "#FEF2F2", borderRadius: "50%" }}
+              >
                 <IconArrowsExchange size={32} color="#DC2626" />
               </Box>
               <Text size="lg" fw={600} c="#0F172A">
@@ -231,8 +236,8 @@ export function TransactionNewsfeed() {
                 variant="light"
                 color="blue"
                 onClick={() => {
-                  setIsLoading(true)
-                  fetchTransactions()
+                  setIsLoading(true);
+                  fetchTransactions();
                 }}
               >
                 <IconRefresh size={16} />
@@ -242,15 +247,18 @@ export function TransactionNewsfeed() {
         ) : transactions.length === 0 ? (
           <Center h={300}>
             <Stack align="center" gap="md">
-              <Box p="xl" style={{ background: '#F1F5F9', borderRadius: '50%' }}>
+              <Box
+                p="xl"
+                style={{ background: "#F1F5F9", borderRadius: "50%" }}
+              >
                 <IconWallet size={32} color="#64748B" />
               </Box>
               <Text size="lg" fw={600} c="#0F172A">
                 No transactions yet
               </Text>
               <Text size="sm" c="dimmed" ta="center" maw={300}>
-                Transactions from your monitored wallets will appear here. Create
-                a wallet alert to start tracking.
+                Transactions from your monitored wallets will appear here.
+                Create a wallet alert to start tracking.
               </Text>
             </Stack>
           </Center>
@@ -258,10 +266,13 @@ export function TransactionNewsfeed() {
           <Stack gap="sm">
             <AnimatePresence initial={false}>
               {transactions.map((tx, index) => {
-                const direction = getTransactionDirection(tx)
-                const directionInfo = getDirectionInfo(direction)
-                const chainMeta = getChainMetadata(tx.chain_id)
-                const explorerUrl = getExplorerTxUrl(tx.chain_id, tx.transaction_hash)
+                const direction = getTransactionDirection(tx);
+                const directionInfo = getDirectionInfo(direction);
+                const chainMeta = getChainMetadata(tx.chain_id);
+                const explorerUrl = getExplorerTxUrl(
+                  tx.chain_id,
+                  tx.transaction_hash,
+                );
 
                 return (
                   <motion.div
@@ -275,15 +286,15 @@ export function TransactionNewsfeed() {
                       p="sm"
                       withBorder
                       style={{
-                        borderColor: '#E6E9EE',
-                        backgroundColor: '#FFFFFF',
-                        transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                        borderColor: "#E6E9EE",
+                        backgroundColor: "#FFFFFF",
+                        transition: "transform 0.2s ease, box-shadow 0.2s ease",
                       }}
                       styles={{
                         root: {
-                          '&:hover': {
-                            transform: 'translateY(-1px)',
-                            boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+                          "&:hover": {
+                            transform: "translateY(-1px)",
+                            boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
                           },
                         },
                       }}
@@ -309,11 +320,15 @@ export function TransactionNewsfeed() {
                               <Badge
                                 size="xs"
                                 variant="dot"
-                                style={{
-                                  borderColor: chainMeta.color,
-                                  '--badge-dot-color': chainMeta.color,
-                                } as React.CSSProperties}
-                                leftSection={<ChainLogo chain={chainMeta.icon} size="xs" />}
+                                style={
+                                  {
+                                    borderColor: chainMeta.color,
+                                    "--badge-dot-color": chainMeta.color,
+                                  } as React.CSSProperties
+                                }
+                                leftSection={
+                                  <ChainLogo chain={chainMeta.icon} size="xs" />
+                                }
                               >
                                 {chainMeta.shortName}
                               </Badge>
@@ -321,7 +336,10 @@ export function TransactionNewsfeed() {
                               {/* Value if available */}
                               {(tx.amount_usd || tx.value) && (
                                 <Text size="sm" fw={600} c="#0F172A">
-                                  {formatTransactionValue(tx.value, tx.amount_usd)}
+                                  {formatTransactionValue(
+                                    tx.value,
+                                    tx.amount_usd,
+                                  )}
                                 </Text>
                               )}
                             </Group>
@@ -341,7 +359,10 @@ export function TransactionNewsfeed() {
                                     rel="noopener noreferrer"
                                     style={{ lineHeight: 1 }}
                                   >
-                                    <IconExternalLink size={14} color="#64748B" />
+                                    <IconExternalLink
+                                      size={14}
+                                      color="#64748B"
+                                    />
                                   </Anchor>
                                 </Tooltip>
                               )}
@@ -356,22 +377,22 @@ export function TransactionNewsfeed() {
                           {/* Addresses */}
                           <Group gap="xs" mt={4}>
                             <Text size="xs" c="dimmed">
-                              {tx.is_sender ? 'To:' : 'From:'}{' '}
+                              {tx.is_sender ? "To:" : "From:"}{" "}
                               <Text component="span" ff="monospace" size="xs">
                                 {truncateAddress(
                                   tx.is_sender
-                                    ? tx.to_address || ''
+                                    ? tx.to_address || ""
                                     : tx.from_address,
-                                  6
+                                  6,
                                 )}
                               </Text>
                             </Text>
 
                             {/* Transaction type badge */}
                             {tx.transaction_subtype &&
-                              tx.transaction_subtype !== 'unknown' && (
+                              tx.transaction_subtype !== "unknown" && (
                                 <Badge size="xs" variant="outline" color="gray">
-                                  {tx.transaction_subtype.replace(/_/g, ' ')}
+                                  {tx.transaction_subtype.replace(/_/g, " ")}
                                 </Badge>
                               )}
                           </Group>
@@ -379,7 +400,7 @@ export function TransactionNewsfeed() {
                       </Group>
                     </Card>
                   </motion.div>
-                )
+                );
               })}
             </AnimatePresence>
 
@@ -397,19 +418,25 @@ export function TransactionNewsfeed() {
 
       {/* Footer stats */}
       {!isLoading && !error && transactions.length > 0 && (
-        <Group justify="space-between" mt="md" pt="sm" style={{ borderTop: '1px solid #E6E9EE' }}>
+        <Group
+          justify="space-between"
+          mt="md"
+          pt="sm"
+          style={{ borderTop: "1px solid #E6E9EE" }}
+        >
           <Text size="xs" c="dimmed">
-            {activeChains.length} chain{activeChains.length !== 1 ? 's' : ''} active
+            {activeChains.length} chain{activeChains.length !== 1 ? "s" : ""}{" "}
+            active
           </Text>
           <Badge
             size="xs"
-            variant={isAutoRefresh ? 'dot' : 'outline'}
-            color={isAutoRefresh ? 'green' : 'gray'}
+            variant={isAutoRefresh ? "dot" : "outline"}
+            color={isAutoRefresh ? "green" : "gray"}
           >
-            {isAutoRefresh ? 'Live' : 'Paused'}
+            {isAutoRefresh ? "Live" : "Paused"}
           </Badge>
         </Group>
       )}
     </ExecutiveCard>
-  )
+  );
 }

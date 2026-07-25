@@ -4,7 +4,7 @@
  * Form for adding a wallet to the user's Accounts group.
  */
 
-import { useState } from 'react'
+import { useState } from "react";
 import {
   Stack,
   TextInput,
@@ -13,32 +13,32 @@ import {
   Group,
   Text,
   Alert,
-} from '@mantine/core'
+} from "@mantine/core";
 import {
   IconWallet,
   IconCurrencyBitcoin,
   IconAlertCircle,
   IconCheck,
-} from '@tabler/icons-react'
-import type { AccountsAddWalletRequest } from '../../services/groups-api'
+} from "@tabler/icons-react";
+import type { AccountsAddWalletRequest } from "../../services/groups-api";
 
 interface AddWalletFormProps {
-  onSubmit: (data: AccountsAddWalletRequest) => void
-  onCancel: () => void
-  isLoading?: boolean
+  onSubmit: (data: AccountsAddWalletRequest) => void;
+  onCancel: () => void;
+  isLoading?: boolean;
 }
 
 const networkOptions = [
-  { value: 'ETH', label: 'Ethereum (ETH)' },
-  { value: 'BTC', label: 'Bitcoin (BTC)' },
-  { value: 'SOL', label: 'Solana (SOL)' },
-  { value: 'POLYGON', label: 'Polygon (POLYGON)' },
-  { value: 'ARBITRUM', label: 'Arbitrum (ARBITRUM)' },
-  { value: 'OPTIMISM', label: 'Optimism (OPTIMISM)' },
-  { value: 'AVAX', label: 'Avalanche (AVAX)' },
-  { value: 'BASE', label: 'Base (BASE)' },
-  { value: 'BSC', label: 'BNB Chain (BSC)' },
-]
+  { value: "ETH", label: "Ethereum (ETH)" },
+  { value: "BTC", label: "Bitcoin (BTC)" },
+  { value: "SOL", label: "Solana (SOL)" },
+  { value: "POLYGON", label: "Polygon (POLYGON)" },
+  { value: "ARBITRUM", label: "Arbitrum (ARBITRUM)" },
+  { value: "OPTIMISM", label: "Optimism (OPTIMISM)" },
+  { value: "AVAX", label: "Avalanche (AVAX)" },
+  { value: "BASE", label: "Base (BASE)" },
+  { value: "BSC", label: "BNB Chain (BSC)" },
+];
 
 // Simple address validation patterns
 const addressPatterns: Record<string, RegExp> = {
@@ -50,69 +50,73 @@ const addressPatterns: Record<string, RegExp> = {
   BASE: /^0x[a-fA-F0-9]{40}$/,
   BSC: /^0x[a-fA-F0-9]{40}$/,
   BTC: /^(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,59}$/,
-}
+};
 
-export function AddWalletForm({ onSubmit, onCancel, isLoading }: AddWalletFormProps) {
-  const [label, setLabel] = useState('')
-  const [subnet, setSubnet] = useState('mainnet')
-  const [address, setAddress] = useState('')
-  const [network, setNetwork] = useState<string | null>('ETH')
-  const [error, setError] = useState<string | null>(null)
-  const [addressValid, setAddressValid] = useState<boolean | null>(null)
+export function AddWalletForm({
+  onSubmit,
+  onCancel,
+  isLoading,
+}: AddWalletFormProps) {
+  const [label, setLabel] = useState("");
+  const [subnet, setSubnet] = useState("mainnet");
+  const [address, setAddress] = useState("");
+  const [network, setNetwork] = useState<string | null>("ETH");
+  const [error, setError] = useState<string | null>(null);
+  const [addressValid, setAddressValid] = useState<boolean | null>(null);
 
   const validateAddress = (addr: string, networkSymbol: string): boolean => {
-    const pattern = addressPatterns[networkSymbol]
-    if (!pattern) return addr.trim().length > 0
-    return pattern.test(addr.trim())
-  }
+    const pattern = addressPatterns[networkSymbol];
+    if (!pattern) return addr.trim().length > 0;
+    return pattern.test(addr.trim());
+  };
 
   const handleAddressChange = (value: string) => {
-    setAddress(value)
-    setError(null)
+    setAddress(value);
+    setError(null);
 
     if (value.length > 0 && network) {
-      setAddressValid(validateAddress(value, network))
+      setAddressValid(validateAddress(value, network));
     } else {
-      setAddressValid(null)
+      setAddressValid(null);
     }
-  }
+  };
 
   const handleNetworkChange = (value: string | null) => {
-    setNetwork(value)
-    setError(null)
+    setNetwork(value);
+    setError(null);
 
     // Re-validate address when network changes
     if (address.length > 0 && value) {
-      setAddressValid(validateAddress(address, value))
+      setAddressValid(validateAddress(address, value));
     }
-  }
+  };
 
   const handleSubmit = () => {
     // Validation
     if (!address.trim()) {
-      setError('Wallet address is required')
-      return
+      setError("Wallet address is required");
+      return;
     }
 
     if (!network) {
-      setError('Please select a network')
-      return
+      setError("Please select a network");
+      return;
     }
 
     if (!subnet.trim()) {
-      setError('Subnet is required')
-      return
+      setError("Subnet is required");
+      return;
     }
 
     if (!validateAddress(address, network)) {
-      setError(`Invalid ${network} address format`)
-      return
+      setError(`Invalid ${network} address format`);
+      return;
     }
 
-    const memberKey = `${network.toUpperCase()}:${subnet.trim().toLowerCase()}:${address.trim()}`
+    const memberKey = `${network.toUpperCase()}:${subnet.trim().toLowerCase()}:${address.trim()}`;
 
-    onSubmit({ member_key: memberKey, label: label.trim() || undefined })
-  }
+    onSubmit({ member_key: memberKey, label: label.trim() || undefined });
+  };
 
   return (
     <Stack gap="md">
@@ -143,7 +147,7 @@ export function AddWalletForm({ onSubmit, onCancel, isLoading }: AddWalletFormPr
 
       <TextInput
         label="Wallet Address"
-        placeholder={network === 'BTC' ? 'bc1... or 1... or 3...' : '0x...'}
+        placeholder={network === "BTC" ? "bc1... or 1... or 3..." : "0x..."}
         value={address}
         onChange={(e) => handleAddressChange(e.target.value)}
         leftSection={<IconWallet size={16} />}
@@ -154,10 +158,10 @@ export function AddWalletForm({ onSubmit, onCancel, isLoading }: AddWalletFormPr
             <IconAlertCircle size={16} color="red" />
           ) : null
         }
-        error={addressValid === false ? 'Invalid address format' : undefined}
+        error={addressValid === false ? "Invalid address format" : undefined}
         required
         styles={{
-          input: { fontFamily: 'monospace', fontSize: 13 },
+          input: { fontFamily: "monospace", fontSize: 13 },
         }}
       />
 
@@ -181,11 +185,11 @@ export function AddWalletForm({ onSubmit, onCancel, isLoading }: AddWalletFormPr
           onClick={handleSubmit}
           loading={isLoading}
           disabled={!address || !network || !subnet}
-          style={{ backgroundColor: '#2563EB' }}
+          style={{ backgroundColor: "#2563EB" }}
         >
           Add Wallet
         </Button>
       </Group>
     </Stack>
-  )
+  );
 }

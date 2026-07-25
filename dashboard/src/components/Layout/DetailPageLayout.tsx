@@ -5,40 +5,33 @@
  * Provides consistent header, back button, breadcrumbs, and layout structure.
  */
 
-import { ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
-import {
-  Container,
-  Title,
-  Text,
-  Button,
-  Group,
-  Stack,
-} from '@mantine/core'
-import { IconArrowLeft } from '@tabler/icons-react'
-import { PageBreadcrumb } from './PageBreadcrumb'
+import { ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
+import { Container, Title, Text, Button, Group, Stack } from "@mantine/core";
+import { IconArrowLeft } from "@tabler/icons-react";
+import { PageBreadcrumb } from "./PageBreadcrumb";
 
 interface DetailPageLayoutProps {
   /** Page title displayed prominently */
-  title: string
+  title: string;
   /** Optional subtitle/description */
-  subtitle?: string
+  subtitle?: string;
   /** Optional badge or indicator to show next to the title */
-  titleBadge?: ReactNode
+  titleBadge?: ReactNode;
   /** Action buttons to display in the top-right */
-  actions?: ReactNode
+  actions?: ReactNode;
   /** Path to navigate to when back button is clicked, or -1 for browser back */
-  backPath?: string | number
+  backPath?: string | number;
   /** Label for the back button */
-  backLabel?: string
+  backLabel?: string;
   /** Override the current page label in breadcrumbs */
-  breadcrumbLabel?: string
+  breadcrumbLabel?: string;
   /** Whether to show breadcrumbs */
-  showBreadcrumbs?: boolean
+  showBreadcrumbs?: boolean;
   /** Page content */
-  children: ReactNode
+  children: ReactNode;
   /** Whether to use fluid container (full width) */
-  fluid?: boolean
+  fluid?: boolean;
 }
 
 export function DetailPageLayout({
@@ -47,21 +40,21 @@ export function DetailPageLayout({
   titleBadge,
   actions,
   backPath = -1,
-  backLabel = 'Back',
+  backLabel = "Back",
   breadcrumbLabel,
   showBreadcrumbs = true,
   children,
   fluid = true,
 }: DetailPageLayoutProps) {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
 
   const handleBack = () => {
-    if (typeof backPath === 'number') {
-      navigate(backPath)
+    if (typeof backPath === "number") {
+      navigate(backPath);
     } else {
-      navigate(backPath)
+      navigate(backPath);
     }
-  }
+  };
 
   return (
     <Container fluid={fluid}>
@@ -80,9 +73,9 @@ export function DetailPageLayout({
         styles={{
           root: {
             paddingLeft: 0,
-            '&:hover': {
-              backgroundColor: 'transparent',
-              color: '#0F172A',
+            "&:hover": {
+              backgroundColor: "transparent",
+              color: "#0F172A",
             },
           },
         }}
@@ -112,5 +105,5 @@ export function DetailPageLayout({
       {/* Page Content */}
       {children}
     </Container>
-  )
+  );
 }

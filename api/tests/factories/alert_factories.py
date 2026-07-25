@@ -65,9 +65,16 @@ def _minimal_template_v2_spec(
         "derivations": [],
         "trigger": {
             "evaluation_mode": "periodic",
-            "condition_ast": {"op": "gt", "left": "balance_latest", "right": "{{threshold}}"},
+            "condition_ast": {
+                "op": "gt",
+                "left": "balance_latest",
+                "right": "{{threshold}}",
+            },
             "cron_cadence_seconds": 300,
-            "dedupe": {"cooldown_seconds": 300, "key_template": "{{instance_id}}:{{target.key}}"},
+            "dedupe": {
+                "cooldown_seconds": 300,
+                "key_template": "{{instance_id}}:{{target.key}}",
+            },
             "pruning_hints": {"evm": {"tx_type": "any"}},
         },
         "notification": {
@@ -98,7 +105,11 @@ def _minimal_executable_v1(
             "fingerprint": fingerprint,
             "version": int(template_version),
         },
-        "registry_snapshot": {"kind": "datasource_catalog", "version": "v1", "hash": registry_snapshot_hash},
+        "registry_snapshot": {
+            "kind": "datasource_catalog",
+            "version": "v1",
+            "hash": registry_snapshot_hash,
+        },
         "target_kind": target_kind,
         "variables": variables,
         "trigger_pruning": {
@@ -242,7 +253,9 @@ class AlertTemplateFactory(factory.django.DjangoModelFactory):
 
         spec = dict(latest.template_spec or {})
         spec["target_kind"] = kind
-        metadata = spec.get("metadata") if isinstance(spec.get("metadata"), dict) else {}
+        metadata = (
+            spec.get("metadata") if isinstance(spec.get("metadata"), dict) else {}
+        )
         metadata["target_kind_source"] = "alert_type"
         spec["metadata"] = metadata
         spec["spec_hash"] = _sha256_hex()
@@ -272,7 +285,9 @@ class AlertTemplateFactory(factory.django.DjangoModelFactory):
             return
 
         spec = dict(latest.template_spec or {})
-        metadata = spec.get("metadata") if isinstance(spec.get("metadata"), dict) else {}
+        metadata = (
+            spec.get("metadata") if isinstance(spec.get("metadata"), dict) else {}
+        )
         metadata["event_type"] = str(extracted)
 
         # If the caller didn't explicitly set alert_type, let event_type drive target_kind.
@@ -325,7 +340,11 @@ class AlertInstanceFactory(factory.django.DjangoModelFactory):
 
     # Template-based alert (default)
     template = factory.SubFactory(AlertTemplateFactory)
-    template_version = factory.LazyAttribute(lambda o: int(o.template.versions.order_by("-template_version").first().template_version))
+    template_version = factory.LazyAttribute(
+        lambda o: int(
+            o.template.versions.order_by("-template_version").first().template_version
+        )
+    )
     template_params = factory.LazyAttribute(lambda _o: {"threshold": 100.0})
     _standalone_spec = None
 
@@ -338,7 +357,10 @@ class AlertInstanceFactory(factory.django.DjangoModelFactory):
     trigger_type = "event_driven"
     trigger_config = factory.LazyAttribute(
         lambda o: {
-            "event_driven": {"chains": ["ethereum"], "event_types": ["transfer", "swap"]},
+            "event_driven": {
+                "chains": ["ethereum"],
+                "event_types": ["transfer", "swap"],
+            },
             "one_time": {"reset_allowed": True},
             "periodic": {"interval_seconds": 300, "schedule": "*/5 * * * *"},
         }.get(o.trigger_type, {})
@@ -347,9 +369,13 @@ class AlertInstanceFactory(factory.django.DjangoModelFactory):
     job_creation_count = 0
 
     # Targeting (defaults to explicit keys)
-    alert_type = factory.LazyAttribute(lambda o: str(getattr(o.template, "target_kind", "wallet") or "wallet"))
+    alert_type = factory.LazyAttribute(
+        lambda o: str(getattr(o.template, "target_kind", "wallet") or "wallet")
+    )
     target_group = None
-    target_keys = factory.LazyFunction(lambda: ["ETH:mainnet:0xabcdef000000000000000000000000000000000000"])
+    target_keys = factory.LazyFunction(
+        lambda: ["ETH:mainnet:0xabcdef000000000000000000000000000000000000"]
+    )
 
     author = ""
 
@@ -366,7 +392,13 @@ class StandaloneAlertInstanceFactory(AlertInstanceFactory):
             "name": "Standalone Alert",
             "description": "Standalone alert spec",
             "variables": [
-                {"id": "threshold", "type": "decimal", "label": "Threshold", "required": True, "default": 100.0}
+                {
+                    "id": "threshold",
+                    "type": "decimal",
+                    "label": "Threshold",
+                    "required": True,
+                    "default": 100.0,
+                }
             ],
             "trigger": {
                 "chain_id": 1,
@@ -377,7 +409,13 @@ class StandaloneAlertInstanceFactory(AlertInstanceFactory):
             },
             "datasources": [],
             "enrichments": [],
-            "conditions": {"all": [{"op": "gt", "left": "$.tx.value_native", "right": "{{threshold}}"}], "any": [], "not": []},
+            "conditions": {
+                "all": [
+                    {"op": "gt", "left": "$.tx.value_native", "right": "{{threshold}}"}
+                ],
+                "any": [],
+                "not": [],
+            },
             "action": {"cooldown_secs": 0},
             "warnings": [],
         }
@@ -386,7 +424,12 @@ class StandaloneAlertInstanceFactory(AlertInstanceFactory):
 
 class EventDrivenAlertInstanceFactory(AlertInstanceFactory):
     trigger_type = "event_driven"
-    trigger_config = factory.LazyAttribute(lambda _o: {"chains": ["ethereum", "polygon"], "event_types": ["transfer", "swap"]})
+    trigger_config = factory.LazyAttribute(
+        lambda _o: {
+            "chains": ["ethereum", "polygon"],
+            "event_types": ["transfer", "swap"],
+        }
+    )
 
 
 class OneTimeAlertInstanceFactory(AlertInstanceFactory):
@@ -397,7 +440,10 @@ class OneTimeAlertInstanceFactory(AlertInstanceFactory):
 class PeriodicAlertInstanceFactory(AlertInstanceFactory):
     trigger_type = "periodic"
     trigger_config = factory.LazyAttribute(
-        lambda _o: {"interval_seconds": fake.random_element(elements=[60, 300, 900, 3600]), "schedule": "*/5 * * * *"}
+        lambda _o: {
+            "interval_seconds": fake.random_element(elements=[60, 300, 900, 3600]),
+            "schedule": "*/5 * * * *",
+        }
     )
 
 
@@ -408,16 +454,24 @@ class AlertExecutionFactory(factory.django.DjangoModelFactory):
         model = AlertExecution
 
     alert_instance = factory.SubFactory(AlertInstanceFactory)
-    alert_version = factory.LazyAttribute(lambda o: o.alert_instance.version if o.alert_instance else 1)
+    alert_version = factory.LazyAttribute(
+        lambda o: o.alert_instance.version if o.alert_instance else 1
+    )
     trigger_mode = "event"
     attempt_number = 1
     max_retries = 3
 
     started_at = factory.LazyFunction(timezone.now)
-    completed_at = factory.LazyAttribute(lambda o: o.started_at + timedelta(milliseconds=fake.random_int(10, 5000)))
-    execution_time_ms = factory.LazyAttribute(lambda o: int((o.completed_at - o.started_at).total_seconds() * 1000))
+    completed_at = factory.LazyAttribute(
+        lambda o: o.started_at + timedelta(milliseconds=fake.random_int(10, 5000))
+    )
+    execution_time_ms = factory.LazyAttribute(
+        lambda o: int((o.completed_at - o.started_at).total_seconds() * 1000)
+    )
 
-    frozen_spec = factory.LazyAttribute(lambda o: o.alert_instance.spec if o.alert_instance else {})
+    frozen_spec = factory.LazyAttribute(
+        lambda o: o.alert_instance.spec if o.alert_instance else {}
+    )
 
     status = factory.Iterator(["completed", "failed", "timeout"])
     result = factory.LazyAttribute(lambda o: True if o.status == "completed" else False)
@@ -428,12 +482,29 @@ class AlertChangeLogFactory(factory.django.DjangoModelFactory):
         model = AlertChangeLog
 
     alert_instance = factory.SubFactory(AlertInstanceFactory)
-    from_version = factory.LazyAttribute(lambda o: o.to_version - 1 if o.to_version > 1 else None)
+    from_version = factory.LazyAttribute(
+        lambda o: o.to_version - 1 if o.to_version > 1 else None
+    )
     to_version = factory.Sequence(lambda n: n + 1)
     change_type = factory.Iterator(["created", "updated", "enabled", "disabled"])
-    changed_fields = factory.LazyAttribute(lambda o: ["name", "nl_description"] if o.change_type == "updated" else ["enabled"])
-    old_values = factory.LazyAttribute(lambda o: {"name": fake.word(), "nl_description": fake.sentence()} if o.change_type == "updated" else {"enabled": False})
-    new_values = factory.LazyAttribute(lambda o: {"name": o.alert_instance.name, "nl_description": o.alert_instance.nl_description} if o.change_type == "updated" else {"enabled": True})
+    changed_fields = factory.LazyAttribute(
+        lambda o: ["name", "nl_description"]
+        if o.change_type == "updated"
+        else ["enabled"]
+    )
+    old_values = factory.LazyAttribute(
+        lambda o: {"name": fake.word(), "nl_description": fake.sentence()}
+        if o.change_type == "updated"
+        else {"enabled": False}
+    )
+    new_values = factory.LazyAttribute(
+        lambda o: {
+            "name": o.alert_instance.name,
+            "nl_description": o.alert_instance.nl_description,
+        }
+        if o.change_type == "updated"
+        else {"enabled": True}
+    )
     changed_by = factory.SubFactory(UserFactory)
     change_reason = factory.Faker("sentence")
 
@@ -445,10 +516,20 @@ def create_alert_instance_with_history(user=None, **alert_kwargs):
 
     alert_instance = AlertInstanceFactory(user=user, **alert_kwargs)
 
-    AlertChangeLogFactory(alert_instance=alert_instance, from_version=None, to_version=1, change_type="created", changed_by=user)
+    AlertChangeLogFactory(
+        alert_instance=alert_instance,
+        from_version=None,
+        to_version=1,
+        change_type="created",
+        changed_by=user,
+    )
 
     for i in range(5):
-        AlertExecutionFactory(alert_instance=alert_instance, attempt_number=1, status="completed" if i % 2 == 0 else "failed")
+        AlertExecutionFactory(
+            alert_instance=alert_instance,
+            attempt_number=1,
+            status="completed" if i % 2 == 0 else "failed",
+        )
 
     return alert_instance
 
@@ -470,9 +551,24 @@ def create_complete_alert_workflow(user=None):
     template = AlertTemplateFactory(created_by=user, is_public=True)
     instance = AlertInstanceFactory(user=user, template=template, enabled=True)
 
-    AlertChangeLogFactory(alert_instance=instance, from_version=None, to_version=1, change_type="created", changed_by=user)
+    AlertChangeLogFactory(
+        alert_instance=instance,
+        from_version=None,
+        to_version=1,
+        change_type="created",
+        changed_by=user,
+    )
 
-    execution1 = AlertExecutionFactory(alert_instance=instance, attempt_number=1, status="failed")
-    execution2 = AlertExecutionFactory(alert_instance=instance, attempt_number=2, status="completed", result=True)
+    execution1 = AlertExecutionFactory(
+        alert_instance=instance, attempt_number=1, status="failed"
+    )
+    execution2 = AlertExecutionFactory(
+        alert_instance=instance, attempt_number=2, status="completed", result=True
+    )
 
-    return {"template": template, "instance": instance, "executions": [execution1, execution2], "user": user}
+    return {
+        "template": template,
+        "instance": instance,
+        "executions": [execution1, execution2],
+        "user": user,
+    }

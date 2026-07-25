@@ -24,7 +24,10 @@ from app.services.alert_templates.hashing import (
     compute_template_spec_hash,
 )
 from app.services.alert_templates.registry_snapshot import get_registry_snapshot
-from app.services.datasource_catalog import get_catalog_entry, list_compiler_catalog_entries
+from app.services.datasource_catalog import (
+    get_catalog_entry,
+    list_compiler_catalog_entries,
+)
 from app.services.nlp.llm_client import get_llm_client
 from app.services.nlp.pipelines import (
     DEFAULT_PIPELINE_ID,
@@ -173,7 +176,11 @@ def _notification_rhs_text(value: Any, variable_ids: set[str]) -> str:
             return ""
         if text.startswith("{{") and text.endswith("}}"):
             return text
-        if text.startswith("$.") or text.startswith("tx.") or text.startswith("target."):
+        if (
+            text.startswith("$.")
+            or text.startswith("tx.")
+            or text.startswith("target.")
+        ):
             _, placeholder = _notification_ref_label_and_placeholder(text)
             return placeholder
         if text in variable_ids:
@@ -194,8 +201,12 @@ def _build_default_notification_templates(
         )
 
     first = conditions[0]
-    left_label, left_placeholder = _notification_ref_label_and_placeholder(first.get("left"))
-    op_phrase = _NOTIFICATION_OP_PHRASES.get(str(first.get("op") or "").strip().lower(), "triggered")
+    left_label, left_placeholder = _notification_ref_label_and_placeholder(
+        first.get("left")
+    )
+    op_phrase = _NOTIFICATION_OP_PHRASES.get(
+        str(first.get("op") or "").strip().lower(), "triggered"
+    )
     right_text = _notification_rhs_text(first.get("right"), variable_ids)
 
     title_label = left_label or "Alert"
@@ -353,7 +364,9 @@ def _infer_variable_type(var: dict[str, Any]) -> str:
     return "string"
 
 
-def _normalize_variable_type(var: dict[str, Any], idx: int, warnings: list[str]) -> None:
+def _normalize_variable_type(
+    var: dict[str, Any], idx: int, warnings: list[str]
+) -> None:
     var_type = var.get("type")
     normalized: Optional[str] = None
     if isinstance(var_type, str):
@@ -414,7 +427,9 @@ def _sanitize_template_datasources(template: Dict[str, Any]) -> None:
     cleaned: list[dict[str, Any]] = []
     for idx, ds in enumerate(raw_list):
         if not isinstance(ds, dict):
-            warnings.append(f"AlertTemplate.datasources[{idx}] dropped; expected object.")
+            warnings.append(
+                f"AlertTemplate.datasources[{idx}] dropped; expected object."
+            )
             continue
         ds_id = ds.get("id")
         if not isinstance(ds_id, str) or not ds_id.strip():
@@ -422,7 +437,9 @@ def _sanitize_template_datasources(template: Dict[str, Any]) -> None:
             continue
         catalog_id = ds.get("catalog_id")
         if not isinstance(catalog_id, str) or not catalog_id.strip():
-            warnings.append(f"AlertTemplate.datasources[{idx}] dropped; missing catalog_id.")
+            warnings.append(
+                f"AlertTemplate.datasources[{idx}] dropped; missing catalog_id."
+            )
             continue
         entry = get_catalog_entry(catalog_id.strip())
         if entry is None:
@@ -486,7 +503,9 @@ def _sanitize_template_enrichments(template: Dict[str, Any]) -> None:
     cleaned: list[dict[str, Any]] = []
     for idx, enrichment in enumerate(raw_list):
         if not isinstance(enrichment, dict):
-            warnings.append(f"AlertTemplate.enrichments[{idx}] dropped; expected object.")
+            warnings.append(
+                f"AlertTemplate.enrichments[{idx}] dropped; expected object."
+            )
             continue
         en_id = enrichment.get("id")
         if not isinstance(en_id, str) or not en_id.strip():
@@ -494,7 +513,9 @@ def _sanitize_template_enrichments(template: Dict[str, Any]) -> None:
             continue
         output = enrichment.get("output")
         if not isinstance(output, str) or not output.strip():
-            warnings.append(f"AlertTemplate.enrichments[{idx}] dropped; missing output.")
+            warnings.append(
+                f"AlertTemplate.enrichments[{idx}] dropped; missing output."
+            )
             continue
         if "expr" not in enrichment:
             warnings.append(f"AlertTemplate.enrichments[{idx}] dropped; missing expr.")
@@ -601,9 +622,21 @@ def _coerce_trigger_filter(value: Any) -> Dict[str, list]:
         return default
     if isinstance(value, dict):
         if {"any_of", "labels", "not"}.issubset(value):
-            any_of = [v.strip() for v in value.get("any_of", []) if isinstance(v, str) and v.strip()]
-            labels = [v.strip() for v in value.get("labels", []) if isinstance(v, str) and v.strip()]
-            not_values = [v.strip() for v in value.get("not", []) if isinstance(v, str) and v.strip()]
+            any_of = [
+                v.strip()
+                for v in value.get("any_of", [])
+                if isinstance(v, str) and v.strip()
+            ]
+            labels = [
+                v.strip()
+                for v in value.get("labels", [])
+                if isinstance(v, str) and v.strip()
+            ]
+            not_values = [
+                v.strip()
+                for v in value.get("not", [])
+                if isinstance(v, str) and v.strip()
+            ]
             return {"any_of": any_of, "labels": labels, "not": not_values}
         addresses = value.get("addresses")
         if isinstance(addresses, list):
@@ -655,11 +688,17 @@ def _coerce_legacy_operand(operand: Any, variable_ids: set[str]) -> Any:
         otype = operand.get("type")
         if isinstance(otype, str) and "value" in operand:
             tnorm = otype.strip().lower()
-            if tnorm in {"exprv1number", "number"} and isinstance(operand.get("value"), (int, float)):
+            if tnorm in {"exprv1number", "number"} and isinstance(
+                operand.get("value"), (int, float)
+            ):
                 return operand.get("value")
-            if tnorm in {"exprv1string", "string"} and isinstance(operand.get("value"), str):
+            if tnorm in {"exprv1string", "string"} and isinstance(
+                operand.get("value"), str
+            ):
                 return operand.get("value").strip()
-            if tnorm in {"exprv1bool", "bool", "boolean"} and isinstance(operand.get("value"), bool):
+            if tnorm in {"exprv1bool", "bool", "boolean"} and isinstance(
+                operand.get("value"), bool
+            ):
                 return operand.get("value")
 
         op_value = operand.get("op")
@@ -685,7 +724,19 @@ def _coerce_legacy_operand(operand: Any, variable_ids: set[str]) -> Any:
             if isinstance(path, str) and path.strip():
                 return _coerce_ref_string(path, variable_ids)
             return operand
-        if normalized_op in {"const", "literal", "value", "val", "string", "bigint", "number", "int", "integer", "decimal", "float"}:
+        if normalized_op in {
+            "const",
+            "literal",
+            "value",
+            "val",
+            "string",
+            "bigint",
+            "number",
+            "int",
+            "integer",
+            "decimal",
+            "float",
+        }:
             path = operand.get("path")
             if isinstance(path, str) and path.strip():
                 return _coerce_ref_string(path, variable_ids)
@@ -756,9 +807,13 @@ def _coerce_legacy_expr(expr: Any, variable_ids: set[str]) -> Any:
         coerced["op"] = normalized_op
     coerced.pop("operator", None)
     if isinstance(expr.get("values"), list):
-        coerced["values"] = [_coerce_legacy_operand(v, variable_ids) for v in expr.get("values") or []]
+        coerced["values"] = [
+            _coerce_legacy_operand(v, variable_ids) for v in expr.get("values") or []
+        ]
     if isinstance(expr.get("args"), list):
-        coerced["args"] = [_coerce_legacy_operand(v, variable_ids) for v in expr.get("args") or []]
+        coerced["args"] = [
+            _coerce_legacy_operand(v, variable_ids) for v in expr.get("args") or []
+        ]
     coerced["left"] = _coerce_legacy_operand(expr.get("left"), variable_ids)
     coerced["right"] = _coerce_legacy_operand(expr.get("right"), variable_ids)
     return coerced
@@ -771,7 +826,11 @@ def _coerce_legacy_template_shape(template: Dict[str, Any]) -> None:
         template["warnings"] = warnings
 
     legacy_type = template.get("type")
-    if "alert_type" not in template and isinstance(legacy_type, str) and legacy_type.strip():
+    if (
+        "alert_type" not in template
+        and isinstance(legacy_type, str)
+        and legacy_type.strip()
+    ):
         lowered = legacy_type.strip().lower()
         if lowered in {"alert", "generic", "template"}:
             template["alert_type"] = "wallet"
@@ -784,7 +843,9 @@ def _coerce_legacy_template_shape(template: Dict[str, Any]) -> None:
         alert_type = str(template.get("alert_type")).strip().lower()
         if alert_type in {"alert", "generic", "template"}:
             template["alert_type"] = "wallet"
-            warnings.append("AlertTemplate.alert_type defaulted to wallet from generic value.")
+            warnings.append(
+                "AlertTemplate.alert_type defaulted to wallet from generic value."
+            )
 
     variables = template.get("variables")
     variable_ids: set[str] = set()
@@ -805,7 +866,9 @@ def _coerce_legacy_template_shape(template: Dict[str, Any]) -> None:
                 continue
             if "id" not in var and isinstance(var.get("name"), str):
                 var["id"] = var["name"]
-                warnings.append(f"AlertTemplate.variables[{idx}].id defaulted from name.")
+                warnings.append(
+                    f"AlertTemplate.variables[{idx}].id defaulted from name."
+                )
             if "label" not in var and isinstance(var.get("id"), str):
                 var["label"] = var["id"].replace("_", " ").title()
             if "required" not in var:
@@ -822,7 +885,9 @@ def _coerce_legacy_template_shape(template: Dict[str, Any]) -> None:
             if "bindings" not in ds and isinstance(ds.get("params"), dict):
                 ds["bindings"] = ds.get("params")
                 ds.pop("params", None)
-                warnings.append(f"AlertTemplate.datasources[{idx}].params renamed to bindings.")
+                warnings.append(
+                    f"AlertTemplate.datasources[{idx}].params renamed to bindings."
+                )
 
     trigger_expr: Optional[dict] = None
     trigger = template.get("trigger")
@@ -831,7 +896,9 @@ def _coerce_legacy_template_shape(template: Dict[str, Any]) -> None:
         raw_to = trigger.get("to")
         tx_type = trigger.get("tx_type")
         if isinstance(tx_type, list):
-            trigger["tx_type"] = next((t for t in tx_type if isinstance(t, str)), "any") or "any"
+            trigger["tx_type"] = (
+                next((t for t in tx_type if isinstance(t, str)), "any") or "any"
+            )
             warnings.append("AlertTemplate.trigger.tx_type coerced from list.")
         elif not isinstance(tx_type, str):
             trigger["tx_type"] = "any"
@@ -843,7 +910,9 @@ def _coerce_legacy_template_shape(template: Dict[str, Any]) -> None:
             trigger["to"] = _coerce_trigger_filter(raw_to)
             warnings.append("AlertTemplate.trigger.to coerced from list.")
         from_value = trigger.get("from")
-        if isinstance(from_value, dict) and isinstance(from_value.get("addresses"), list):
+        if isinstance(from_value, dict) and isinstance(
+            from_value.get("addresses"), list
+        ):
             addresses = [
                 addr.strip()
                 for addr in from_value.get("addresses", [])
@@ -852,19 +921,27 @@ def _coerce_legacy_template_shape(template: Dict[str, Any]) -> None:
             trigger["from"] = {"any_of": addresses, "labels": [], "not": []}
             warnings.append("AlertTemplate.trigger.from coerced from addresses list.")
             from_value = trigger["from"]
-        if not isinstance(from_value, dict) or not {"any_of", "labels", "not"}.issubset(from_value):
+        if not isinstance(from_value, dict) or not {"any_of", "labels", "not"}.issubset(
+            from_value
+        ):
             trigger["from"] = _coerce_trigger_filter(raw_from)
             if trigger["from"]["any_of"] and raw_from is not None:
-                warnings.append("AlertTemplate.trigger.from coerced from legacy filter.")
+                warnings.append(
+                    "AlertTemplate.trigger.from coerced from legacy filter."
+                )
         to_value = trigger.get("to")
         if isinstance(to_value, dict) and isinstance(to_value.get("addresses"), list):
             addresses = [
-                addr.strip() for addr in to_value.get("addresses", []) if isinstance(addr, str) and addr.strip()
+                addr.strip()
+                for addr in to_value.get("addresses", [])
+                if isinstance(addr, str) and addr.strip()
             ]
             trigger["to"] = {"any_of": addresses, "labels": [], "not": []}
             warnings.append("AlertTemplate.trigger.to coerced from addresses list.")
             to_value = trigger["to"]
-        if not isinstance(to_value, dict) or not {"any_of", "labels", "not"}.issubset(to_value):
+        if not isinstance(to_value, dict) or not {"any_of", "labels", "not"}.issubset(
+            to_value
+        ):
             trigger["to"] = _coerce_trigger_filter(raw_to)
             if trigger["to"]["any_of"] and raw_to is not None:
                 warnings.append("AlertTemplate.trigger.to coerced from legacy filter.")
@@ -878,14 +955,20 @@ def _coerce_legacy_template_shape(template: Dict[str, Any]) -> None:
                     "required": True,
                 }
                 method_value = trigger["method"]
-                warnings.append("AlertTemplate.trigger.method defaulted from legacy name.")
+                warnings.append(
+                    "AlertTemplate.trigger.method defaulted from legacy name."
+                )
         if (
             isinstance(method_value, list)
             or "method" not in trigger
             or not isinstance(method_value, dict)
             or not {"selector_any_of", "name_any_of", "required"}.issubset(method_value)
         ):
-            trigger["method"] = {"selector_any_of": [], "name_any_of": [], "required": False}
+            trigger["method"] = {
+                "selector_any_of": [],
+                "name_any_of": [],
+                "required": False,
+            }
             warnings.append("AlertTemplate.trigger.method defaulted.")
 
         legacy_expr = trigger.pop("expression", None)
@@ -901,7 +984,9 @@ def _coerce_legacy_template_shape(template: Dict[str, Any]) -> None:
                 conditions.setdefault("not", [])
                 conditions["all"].append(coerced_expr)
                 template["conditions"] = conditions
-                warnings.append("AlertTemplate.conditions derived from legacy trigger.expression.")
+                warnings.append(
+                    "AlertTemplate.conditions derived from legacy trigger.expression."
+                )
 
     legacy_expr = template.pop("expression", None)
     if legacy_expr is not None:
@@ -915,7 +1000,9 @@ def _coerce_legacy_template_shape(template: Dict[str, Any]) -> None:
             conditions.setdefault("not", [])
             conditions["all"].append(coerced_expr)
             template["conditions"] = conditions
-            warnings.append("AlertTemplate.conditions derived from legacy template.expression.")
+            warnings.append(
+                "AlertTemplate.conditions derived from legacy template.expression."
+            )
 
     conditions = template.get("conditions")
     if isinstance(conditions, dict):
@@ -927,9 +1014,16 @@ def _coerce_legacy_template_shape(template: Dict[str, Any]) -> None:
                     if isinstance(expr, dict) and "expression" in expr:
                         expr_value = expr.get("expression")
                         if isinstance(expr_value, dict):
-                            op_value = expr_value.get("op") or expr_value.get("operator") or expr_value.get("type")
+                            op_value = (
+                                expr_value.get("op")
+                                or expr_value.get("operator")
+                                or expr_value.get("type")
+                            )
                             normalized_op = _normalize_expr_op(op_value)
-                            if normalized_op == "eval_trigger_expression" and isinstance(trigger_expr, dict):
+                            if (
+                                normalized_op == "eval_trigger_expression"
+                                and isinstance(trigger_expr, dict)
+                            ):
                                 coerced_bucket.append(trigger_expr)
                                 continue
                             coerced_expr = _coerce_legacy_expr(expr_value, variable_ids)
@@ -939,7 +1033,11 @@ def _coerce_legacy_template_shape(template: Dict[str, Any]) -> None:
                             if expr_value is not None:
                                 coerced_bucket.append(expr_value)
                         continue
-                    coerced_expr = _coerce_legacy_expr(expr, variable_ids) if isinstance(expr, dict) else expr
+                    coerced_expr = (
+                        _coerce_legacy_expr(expr, variable_ids)
+                        if isinstance(expr, dict)
+                        else expr
+                    )
                     if coerced_expr is None:
                         continue
                     coerced_bucket.append(coerced_expr)
@@ -951,10 +1049,16 @@ def _coerce_legacy_template_shape(template: Dict[str, Any]) -> None:
         body = action.get("message_template") or action.get("body")
         if isinstance(title, str) or isinstance(body, str):
             template["notification_template"] = {
-                "title": title if isinstance(title, str) and title.strip() else template.get("name", ""),
-                "body": body if isinstance(body, str) and body.strip() else template.get("description", ""),
+                "title": title
+                if isinstance(title, str) and title.strip()
+                else template.get("name", ""),
+                "body": body
+                if isinstance(body, str) and body.strip()
+                else template.get("description", ""),
             }
-            warnings.append("AlertTemplate.notification_template derived from legacy action fields.")
+            warnings.append(
+                "AlertTemplate.notification_template derived from legacy action fields."
+            )
 
 
 def _extract_first_json_object(text: str) -> Dict[str, Any]:
@@ -972,7 +1076,9 @@ def _extract_first_json_object(text: str) -> Dict[str, Any]:
             return candidates
 
         # Try code-fenced blocks first (```json ... ``` or ``` ... ```).
-        for match in re.finditer(r"```(?:json)?\\s*(.*?)\\s*```", source, flags=re.DOTALL | re.IGNORECASE):
+        for match in re.finditer(
+            r"```(?:json)?\\s*(.*?)\\s*```", source, flags=re.DOTALL | re.IGNORECASE
+        ):
             block = match.group(1)
             if block:
                 candidates.append(block)
@@ -998,7 +1104,11 @@ def _extract_first_json_object(text: str) -> Dict[str, Any]:
         loaded = _try_parse(candidate)
         if loaded is None:
             continue
-        if "schema_version" in loaded or "template" in loaded or _looks_like_template(loaded):
+        if (
+            "schema_version" in loaded
+            or "template" in loaded
+            or _looks_like_template(loaded)
+        ):
             return loaded
 
     raise ProposedSpecCompilationError("LLM did not return a JSON object")
@@ -1050,9 +1160,9 @@ def _extract_template_from_result(result: Dict[str, Any]) -> Optional[Dict[str, 
             candidate = _coerce_template(wrapper.get("template"))
             if candidate:
                 return candidate
-            candidate = _coerce_template(wrapper.get("alert_template")) or _coerce_template(
-                wrapper.get("alertTemplate")
-            )
+            candidate = _coerce_template(
+                wrapper.get("alert_template")
+            ) or _coerce_template(wrapper.get("alertTemplate"))
             if candidate:
                 return candidate
 
@@ -1067,7 +1177,9 @@ def _looks_like_plan(candidate: Dict[str, Any]) -> bool:
     return all(key in candidate for key in required_keys)
 
 
-def _extract_template_v2_from_result(result: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+def _extract_template_v2_from_result(
+    result: Dict[str, Any]
+) -> Optional[Dict[str, Any]]:
     candidate = _coerce_template(result.get("template"))
     if candidate:
         return candidate
@@ -1138,12 +1250,12 @@ def _build_system_prompt_v2(pipeline: PipelineConfig) -> str:
         "  Use explicit JSONPath refs like $.tx.value_native / $.tx.method_selector in trigger.condition_ast.\n"
         "- Expressions MUST use ExprV1 AST objects with 'op' and operands in 'left'/'right' (or 'values').\n"
         "- Template.trigger.condition_ast must be an expression object.\n"
-        "- In ExprV1, JSONPath refs are plain strings (e.g. \"$.tx.value_native\"), not objects.\n"
+        '- In ExprV1, JSONPath refs are plain strings (e.g. "$.tx.value_native"), not objects.\n'
         "\n"
         "Minimal schema sketch (AlertTemplate v2 draft):\n"
         "- template.schema_version (string)\n"
-        "- template.target_kind (\"wallet\" | \"contract\" | \"token\" | \"network\" | \"protocol\")\n"
-        "- template.scope.networks (e.g. [\"ETH:mainnet\"]) and template.scope.instrument_constraints (list)\n"
+        '- template.target_kind ("wallet" | "contract" | "token" | "network" | "protocol")\n'
+        '- template.scope.networks (e.g. ["ETH:mainnet"]) and template.scope.instrument_constraints (list)\n'
         "- template.signals.principals (list) and template.signals.factors (list)\n"
         "  - each signal: {name, unit, update_sources:[{ref:<catalog_id>, source_type, how_to_ingest, polling:{enabled,cadence_seconds}}]}\n"
         "- template.variables (list, optional)\n"
@@ -1155,55 +1267,55 @@ def _build_system_prompt_v2(pipeline: PipelineConfig) -> str:
         "\n"
         "Example (tx-only, no datasources):\n"
         "{\n"
-        "  \"template\": {\n"
-        "    \"schema_version\": \"alert_template_v2\",\n"
-        "    \"target_kind\": \"wallet\",\n"
-        "    \"name\": \"Large send\",\n"
-        "    \"description\": \"Alert when a monitored wallet sends more than 1 ETH in one transaction.\",\n"
-        "    \"scope\": {\"networks\": [\"ETH:mainnet\"], \"instrument_constraints\": []},\n"
-        "    \"signals\": {\"principals\": [], \"factors\": []},\n"
-        "    \"variables\": [],\n"
-        "    \"trigger\": {\n"
-        "      \"evaluation_mode\": \"event_driven\",\n"
-        "      \"condition_ast\": {\"op\": \"gte\", \"left\": \"$.tx.value_native\", \"right\": 1.0},\n"
-        "      \"cron_cadence_seconds\": 0,\n"
-        "      \"dedupe\": {\"cooldown_seconds\": 0, \"key_template\": \"{{instance_id}}:{{target.key}}\"}\n"
+        '  "template": {\n'
+        '    "schema_version": "alert_template_v2",\n'
+        '    "target_kind": "wallet",\n'
+        '    "name": "Large send",\n'
+        '    "description": "Alert when a monitored wallet sends more than 1 ETH in one transaction.",\n'
+        '    "scope": {"networks": ["ETH:mainnet"], "instrument_constraints": []},\n'
+        '    "signals": {"principals": [], "factors": []},\n'
+        '    "variables": [],\n'
+        '    "trigger": {\n'
+        '      "evaluation_mode": "event_driven",\n'
+        '      "condition_ast": {"op": "gte", "left": "$.tx.value_native", "right": 1.0},\n'
+        '      "cron_cadence_seconds": 0,\n'
+        '      "dedupe": {"cooldown_seconds": 0, "key_template": "{{instance_id}}:{{target.key}}"}\n'
         "    },\n"
-        "    \"notification\": {\"title_template\": \"Large send: {{target.short}}\", \"body_template\": \"Transaction value {{tx.value_native}} ETH (>= 1.0).\"},\n"
-        "    \"derivations\": [],\n"
-        "    \"fallbacks\": [],\n"
-        "    \"assumptions\": []\n"
+        '    "notification": {"title_template": "Large send: {{target.short}}", "body_template": "Transaction value {{tx.value_native}} ETH (>= 1.0)."},\n'
+        '    "derivations": [],\n'
+        '    "fallbacks": [],\n'
+        '    "assumptions": []\n'
         "  },\n"
-        "  \"warnings\": []\n"
+        '  "warnings": []\n'
         "}\n"
         "\n"
         "Example (DuckLake datasource, refer to datasource columns by name):\n"
         "{\n"
-        "  \"template\": {\n"
-        "    \"schema_version\": \"alert_template_v2\",\n"
-        "    \"target_kind\": \"wallet\",\n"
-        "    \"name\": \"Low balance\",\n"
-        "    \"description\": \"Alert when a monitored wallet balance drops below 0.5.\",\n"
-        "    \"scope\": {\"networks\": [\"ETH:mainnet\"], \"instrument_constraints\": []},\n"
-        "    \"signals\": {\n"
-        "      \"principals\": [\n"
-        "        {\"name\": \"balance_latest\", \"unit\": \"decimal\", \"update_sources\": [{\"ref\": \"ducklake.wallet_balance_latest\", \"source_type\": \"observation\", \"how_to_ingest\": \"rpc_call\", \"polling\": {\"enabled\": true, \"cadence_seconds\": 300}}]}\n"
+        '  "template": {\n'
+        '    "schema_version": "alert_template_v2",\n'
+        '    "target_kind": "wallet",\n'
+        '    "name": "Low balance",\n'
+        '    "description": "Alert when a monitored wallet balance drops below 0.5.",\n'
+        '    "scope": {"networks": ["ETH:mainnet"], "instrument_constraints": []},\n'
+        '    "signals": {\n'
+        '      "principals": [\n'
+        '        {"name": "balance_latest", "unit": "decimal", "update_sources": [{"ref": "ducklake.wallet_balance_latest", "source_type": "observation", "how_to_ingest": "rpc_call", "polling": {"enabled": true, "cadence_seconds": 300}}]}\n'
         "      ],\n"
-        "      \"factors\": []\n"
+        '      "factors": []\n'
         "    },\n"
-        "    \"variables\": [],\n"
-        "    \"trigger\": {\n"
-        "      \"evaluation_mode\": \"periodic\",\n"
-        "      \"condition_ast\": {\"op\": \"lt\", \"left\": \"balance_latest\", \"right\": 0.5},\n"
-        "      \"cron_cadence_seconds\": 300,\n"
-        "      \"dedupe\": {\"cooldown_seconds\": 300, \"key_template\": \"{{instance_id}}:{{target.key}}\"}\n"
+        '    "variables": [],\n'
+        '    "trigger": {\n'
+        '      "evaluation_mode": "periodic",\n'
+        '      "condition_ast": {"op": "lt", "left": "balance_latest", "right": 0.5},\n'
+        '      "cron_cadence_seconds": 300,\n'
+        '      "dedupe": {"cooldown_seconds": 300, "key_template": "{{instance_id}}:{{target.key}}"}\n'
         "    },\n"
-        "    \"notification\": {\"title_template\": \"Balance alert: {{target.short}}\", \"body_template\": \"Balance {{balance_latest}} (below 0.5).\"},\n"
-        "    \"derivations\": [],\n"
-        "    \"fallbacks\": [],\n"
-        "    \"assumptions\": []\n"
+        '    "notification": {"title_template": "Balance alert: {{target.short}}", "body_template": "Balance {{balance_latest}} (below 0.5)."},\n'
+        '    "derivations": [],\n'
+        '    "fallbacks": [],\n'
+        '    "assumptions": []\n'
         "  },\n"
-        "  \"warnings\": []\n"
+        '  "warnings": []\n'
         "}\n"
         "\n"
         "For vNext compilation, treat signals[].update_sources[].ref as a datasource catalog_id.\n"
@@ -1234,7 +1346,7 @@ def _build_plan_logic_system_prompt(pipeline: PipelineConfig) -> str:
         "- Do NOT include targets (no wallet addresses, no group IDs, no target_keys).\n"
         "- Do NOT include datasource_catalog IDs in the output.\n"
         "- Do NOT guess network if context.preferred_network is missing.\n"
-        "- If the user is asking about a SINGLE transaction (\"in a single transaction\", \"whenever it sends\", \"whenever it receives\"),\n"
+        '- If the user is asking about a SINGLE transaction ("in a single transaction", "whenever it sends", "whenever it receives"),\n'
         "  you MUST use tx JSONPath refs (e.g. $.tx.value_native / $.tx.method_selector) and MUST NOT use aggregate metrics like tx_count_24h.\n"
         "- Only reference tx fields via explicit JSONPath strings starting with `$.tx.`.\n"
         "- Only reference non-tx metrics using allowlisted datasource column names from datasource_catalog.result_schema.\n"
@@ -1257,27 +1369,27 @@ def _build_plan_logic_system_prompt(pipeline: PipelineConfig) -> str:
         "Examples:\n"
         "1) tx-only:\n"
         "{\n"
-        "  \"target_kind\": \"wallet\",\n"
-        "  \"combine_op\": \"and\",\n"
-        "  \"conditions\": [{\"left\": \"$.tx.value_native\", \"op\": \"gte\", \"right\": 1.0}],\n"
-        "  \"window_duration\": \"\",\n"
-        "  \"notes\": []\n"
+        '  "target_kind": "wallet",\n'
+        '  "combine_op": "and",\n'
+        '  "conditions": [{"left": "$.tx.value_native", "op": "gte", "right": 1.0}],\n'
+        '  "window_duration": "",\n'
+        '  "notes": []\n'
         "}\n"
         "2) scheduled (datasource column):\n"
         "{\n"
-        "  \"target_kind\": \"wallet\",\n"
-        "  \"combine_op\": \"and\",\n"
-        "  \"conditions\": [{\"left\": \"balance_latest\", \"op\": \"lt\", \"right\": 0.5}],\n"
-        "  \"window_duration\": \"\",\n"
-        "  \"notes\": []\n"
+        '  "target_kind": "wallet",\n'
+        '  "combine_op": "and",\n'
+        '  "conditions": [{"left": "balance_latest", "op": "lt", "right": 0.5}],\n'
+        '  "window_duration": "",\n'
+        '  "notes": []\n'
         "}\n"
         "3) windowed:\n"
         "{\n"
-        "  \"target_kind\": \"wallet\",\n"
-        "  \"combine_op\": \"and\",\n"
-        "  \"conditions\": [{\"left\": \"pct_change_window\", \"op\": \"lt\", \"right\": -0.10}],\n"
-        "  \"window_duration\": \"24h\",\n"
-        "  \"notes\": []\n"
+        '  "target_kind": "wallet",\n'
+        '  "combine_op": "and",\n'
+        '  "conditions": [{"left": "pct_change_window", "op": "lt", "right": -0.10}],\n'
+        '  "window_duration": "24h",\n'
+        '  "notes": []\n'
         "}\n"
     )
 
@@ -1294,7 +1406,7 @@ def _build_plan_logic_repair_system_prompt(pipeline: PipelineConfig) -> str:
         "- The previous attempt was invalid because it produced no usable conditions.\n"
         "- You MUST return at least one condition.\n"
         "- If the user intent is about *any incoming/outgoing transfer* and no threshold is given, use:\n"
-        "  {\"left\":\"$.tx.value_native\",\"op\":\"gt\",\"right\":0.0}.\n"
+        '  {"left":"$.tx.value_native","op":"gt","right":0.0}.\n'
     )
 
 
@@ -1473,7 +1585,9 @@ def _build_dspy_demos(dspy_module: Any, examples: list[dict[str, Any]]) -> list[
         if not isinstance(nl_description, str) or not nl_description.strip():
             continue
 
-        context = example.get("context") if isinstance(example.get("context"), dict) else {}
+        context = (
+            example.get("context") if isinstance(example.get("context"), dict) else {}
+        )
         output_json = example.get("output_json")
         if output_json is None:
             continue
@@ -1498,7 +1612,13 @@ def _build_dspy_demos(dspy_module: Any, examples: list[dict[str, Any]]) -> list[
     return demos
 
 
-_SUPPORTED_TARGET_KINDS: set[str] = {"wallet", "contract", "token", "network", "protocol"}
+_SUPPORTED_TARGET_KINDS: set[str] = {
+    "wallet",
+    "contract",
+    "token",
+    "network",
+    "protocol",
+}
 
 
 _DURATION_RE = re.compile(
@@ -1588,7 +1708,9 @@ def _build_dspy_plan_logic_demos(
         nl_description = example.get("nl_description")
         if not isinstance(nl_description, str) or not nl_description.strip():
             continue
-        context = example.get("context") if isinstance(example.get("context"), dict) else {}
+        context = (
+            example.get("context") if isinstance(example.get("context"), dict) else {}
+        )
         output_json = example.get("output_json")
         if output_json is None:
             continue
@@ -1601,7 +1723,11 @@ def _build_dspy_plan_logic_demos(
 
         if not isinstance(template_value, dict):
             continue
-        trigger = template_value.get("trigger") if isinstance(template_value.get("trigger"), dict) else {}
+        trigger = (
+            template_value.get("trigger")
+            if isinstance(template_value.get("trigger"), dict)
+            else {}
+        )
         condition_ast = trigger.get("condition_ast")
         flattened = _flatten_simple_bool_expr(condition_ast)
         if flattened is None:
@@ -1610,7 +1736,11 @@ def _build_dspy_plan_logic_demos(
 
         window_duration = ""
         # Prefer explicit variable default when present.
-        variables = template_value.get("variables") if isinstance(template_value.get("variables"), list) else []
+        variables = (
+            template_value.get("variables")
+            if isinstance(template_value.get("variables"), list)
+            else []
+        )
         for var in variables:
             if not isinstance(var, dict):
                 continue
@@ -1622,14 +1752,19 @@ def _build_dspy_plan_logic_demos(
         if not window_duration:
             window_duration = _extract_window_duration_from_text(nl_description) or ""
 
-        target_kind = str(template_value.get("target_kind") or "wallet").strip().lower() or "wallet"
+        target_kind = (
+            str(template_value.get("target_kind") or "wallet").strip().lower()
+            or "wallet"
+        )
         if target_kind not in _SUPPORTED_TARGET_KINDS:
             target_kind = "wallet"
 
         try:
             demo = demo_cls(
                 nl_description=nl_description.strip(),
-                prompt_json=_build_plan_logic_prompt_json(nl_description.strip(), context, pipeline),
+                prompt_json=_build_plan_logic_prompt_json(
+                    nl_description.strip(), context, pipeline
+                ),
                 target_kind=target_kind,
                 combine_op=combine_op,
                 conditions=conditions,
@@ -1641,6 +1776,7 @@ def _build_dspy_plan_logic_demos(
             continue
 
     return demos
+
 
 def _supported_networks_from_context(context: Dict[str, Any]) -> list[str]:
     """
@@ -1665,7 +1801,9 @@ def _default_plan_name(nl_description: str) -> str:
 
 
 def _default_plan_description(nl_description: str) -> str:
-    return _default_template_description(nl_description).replace("Alert generated from:", "Plan generated from:")
+    return _default_template_description(nl_description).replace(
+        "Alert generated from:", "Plan generated from:"
+    )
 
 
 def _coerce_string_list(value: Any) -> list[str]:
@@ -1689,17 +1827,26 @@ def _sanitize_plan_scope(
     preferred = context.get("preferred_network") or context.get("preferredNetwork")
     if not networks and isinstance(preferred, str) and preferred.strip():
         networks = [preferred.strip()]
-        warnings.append("Plan.scope.networks missing; defaulted from context.preferred_network.")
+        warnings.append(
+            "Plan.scope.networks missing; defaulted from context.preferred_network."
+        )
 
     # Filter to supported networks (if configured) and preserve stable ordering.
     supported = _supported_networks_from_context(context)
     if supported:
         filtered = [n for n in networks if n in supported]
-        if not filtered and isinstance(preferred, str) and preferred.strip() and preferred.strip() in supported:
+        if (
+            not filtered
+            and isinstance(preferred, str)
+            and preferred.strip()
+            and preferred.strip() in supported
+        ):
             # If the model produced an invalid network string (e.g. "ETH"), fall back to the
             # UI-provided preferred network rather than treating it as missing.
             filtered = [preferred.strip()]
-            warnings.append("Plan.scope.networks contained unsupported values; defaulted to context.preferred_network.")
+            warnings.append(
+                "Plan.scope.networks contained unsupported values; defaulted to context.preferred_network."
+            )
         networks = filtered
     scope["networks"] = networks
 
@@ -1714,7 +1861,11 @@ def _sanitize_plan_scope(
         for ent in entities:
             if not isinstance(ent, dict):
                 continue
-            entity_type = str(ent.get("entity_type") or ent.get("entityType") or "").strip().lower()
+            entity_type = (
+                str(ent.get("entity_type") or ent.get("entityType") or "")
+                .strip()
+                .lower()
+            )
             ref = str(ent.get("ref") or "").strip()
             if not ref:
                 continue
@@ -1727,7 +1878,9 @@ def _sanitize_plan_scope(
             )
         if mapped:
             instrument_constraints.extend(mapped)
-            warnings.append("Plan.scope.entities was normalized into scope.instrument_constraints.")
+            warnings.append(
+                "Plan.scope.entities was normalized into scope.instrument_constraints."
+            )
 
     # Compact null notes.
     compacted: list[dict[str, Any]] = []
@@ -1756,7 +1909,11 @@ def _sanitize_plan_signals(
         signals = {}
         plan["signals"] = signals
 
-    allowed_catalog_ids = {c.get("catalog_id") for c in list_compiler_catalog_entries() if isinstance(c, dict)}
+    allowed_catalog_ids = {
+        c.get("catalog_id")
+        for c in list_compiler_catalog_entries()
+        if isinstance(c, dict)
+    }
 
     def sanitize_bucket(bucket: str) -> list[dict[str, Any]]:
         items = signals.get(bucket)
@@ -1791,22 +1948,30 @@ def _sanitize_plan_signals(
                 if not ref:
                     continue
                 if ref not in allowed_catalog_ids:
-                    warnings.append(f"Plan signal source ref {ref!r} is not in DatasourceCatalog; dropped.")
+                    warnings.append(
+                        f"Plan signal source ref {ref!r} is not in DatasourceCatalog; dropped."
+                    )
                     continue
-                source_type = str(src.get("source_type") or "").strip().lower() or "observation"
+                source_type = (
+                    str(src.get("source_type") or "").strip().lower() or "observation"
+                )
                 how = str(src.get("how_to_ingest") or "").strip().lower() or "rpc_call"
                 cleaned_sources.append(
                     {
                         "source_type": source_type,
                         "ref": ref,
                         "how_to_ingest": how,
-                        "polling": src.get("polling") if isinstance(src.get("polling"), dict) else {"enabled": False, "cadence_seconds": 0},
+                        "polling": src.get("polling")
+                        if isinstance(src.get("polling"), dict)
+                        else {"enabled": False, "cadence_seconds": 0},
                     }
                 )
 
             if not cleaned_sources:
                 continue
-            cleaned.append({"name": name.strip(), "unit": unit, "update_sources": cleaned_sources})
+            cleaned.append(
+                {"name": name.strip(), "unit": unit, "update_sources": cleaned_sources}
+            )
 
         return cleaned
 
@@ -1865,7 +2030,11 @@ def _sanitize_plan_trigger(plan: Dict[str, Any], *, warnings: list[str]) -> None
             if isinstance(var_id, str) and var_id.strip():
                 variable_ids.add(var_id.strip())
 
-    raw_mode = str(trigger.get("evaluation_mode") or trigger.get("evaluationMode") or "").strip().lower()
+    raw_mode = (
+        str(trigger.get("evaluation_mode") or trigger.get("evaluationMode") or "")
+        .strip()
+        .lower()
+    )
     mode_aliases = {
         "event": "event_driven",
         "realtime": "event_driven",
@@ -1881,7 +2050,9 @@ def _sanitize_plan_trigger(plan: Dict[str, Any], *, warnings: list[str]) -> None
     if mode not in {"event_driven", "periodic", "hybrid"}:
         # Default to hybrid so the dashboard can choose event-driven vs scheduled.
         trigger["evaluation_mode"] = "hybrid"
-        warnings.append("Plan.trigger.evaluation_mode missing/invalid; defaulted to 'hybrid'.")
+        warnings.append(
+            "Plan.trigger.evaluation_mode missing/invalid; defaulted to 'hybrid'."
+        )
     else:
         trigger["evaluation_mode"] = mode
 
@@ -1890,15 +2061,26 @@ def _sanitize_plan_trigger(plan: Dict[str, Any], *, warnings: list[str]) -> None
     if isinstance(condition, dict):
         trigger["condition_ast"] = _coerce_legacy_expr(condition, variable_ids)
     else:
-        trigger["condition_ast"] = trigger.get("condition_ast") if isinstance(trigger.get("condition_ast"), dict) else {}
+        trigger["condition_ast"] = (
+            trigger.get("condition_ast")
+            if isinstance(trigger.get("condition_ast"), dict)
+            else {}
+        )
 
-    if not isinstance(trigger.get("condition_ast"), dict) or not trigger.get("condition_ast"):
-        warnings.append("Plan.trigger.condition_ast missing or invalid; compilation may fail until repaired.")
+    if not isinstance(trigger.get("condition_ast"), dict) or not trigger.get(
+        "condition_ast"
+    ):
+        warnings.append(
+            "Plan.trigger.condition_ast missing or invalid; compilation may fail until repaired."
+        )
 
     if "cron_cadence_seconds" not in trigger:
         trigger["cron_cadence_seconds"] = int(trigger.get("cron", 0) or 0)
     if not isinstance(trigger.get("dedupe"), dict):
-        trigger["dedupe"] = {"cooldown_seconds": 0, "key_template": "{{instance_id}}:{{target.key}}"}
+        trigger["dedupe"] = {
+            "cooldown_seconds": 0,
+            "key_template": "{{instance_id}}:{{target.key}}",
+        }
 
 
 def _sanitize_plan_notification(plan: Dict[str, Any]) -> None:
@@ -1916,7 +2098,11 @@ def _sanitize_plan_notification(plan: Dict[str, Any]) -> None:
     }
 
     trigger = plan.get("trigger") if isinstance(plan.get("trigger"), dict) else {}
-    condition_ast = trigger.get("condition_ast") if isinstance(trigger.get("condition_ast"), dict) else {}
+    condition_ast = (
+        trigger.get("condition_ast")
+        if isinstance(trigger.get("condition_ast"), dict)
+        else {}
+    )
     extracted_conditions = _extract_conditions_from_ast(condition_ast)
     defaults = _build_default_notification_templates(
         conditions=extracted_conditions,
@@ -1926,9 +2112,16 @@ def _sanitize_plan_notification(plan: Dict[str, Any]) -> None:
     if not title:
         notification["title_template"] = defaults[0]
     if not body:
-        notification["body_template"] = defaults[1] or notification.get("title_template") or ""
-    if isinstance(notification.get("body_template"), str) and not notification["body_template"].strip():
-        notification["body_template"] = defaults[1] or notification.get("title_template") or ""
+        notification["body_template"] = (
+            defaults[1] or notification.get("title_template") or ""
+        )
+    if (
+        isinstance(notification.get("body_template"), str)
+        and not notification["body_template"].strip()
+    ):
+        notification["body_template"] = (
+            defaults[1] or notification.get("title_template") or ""
+        )
 
 
 def _sanitize_plan_targeting(plan: Dict[str, Any], *, warnings: list[str]) -> None:
@@ -1956,7 +2149,11 @@ def _collect_plan_catalog_ids(plan: Dict[str, Any]) -> list[str]:
                 if not isinstance(src, dict):
                     continue
                 ref = src.get("ref")
-                if isinstance(ref, str) and ref.strip() and ref.strip() not in catalog_ids:
+                if (
+                    isinstance(ref, str)
+                    and ref.strip()
+                    and ref.strip() not in catalog_ids
+                ):
                     catalog_ids.append(ref.strip())
     return catalog_ids
 
@@ -1996,7 +2193,11 @@ def _build_plan_human_preview(plan: Dict[str, Any]) -> Dict[str, Any]:
     scope = plan.get("scope") if isinstance(plan.get("scope"), dict) else {}
     networks = _coerce_string_list(scope.get("networks"))
     trigger = plan.get("trigger") if isinstance(plan.get("trigger"), dict) else {}
-    condition_ast = trigger.get("condition_ast") if isinstance(trigger.get("condition_ast"), dict) else {}
+    condition_ast = (
+        trigger.get("condition_ast")
+        if isinstance(trigger.get("condition_ast"), dict)
+        else {}
+    )
     condition_text = _expr_to_text(condition_ast) if condition_ast else ""
     target_kind = str(plan.get("target_kind") or "").strip() or "target"
     network_text = ", ".join(networks) if networks else "any supported network"
@@ -2065,7 +2266,9 @@ def _build_plan_missing_info(
 
     catalog_ids = _collect_plan_catalog_ids(plan)
     signals = plan.get("signals") if isinstance(plan.get("signals"), dict) else {}
-    principals = signals.get("principals") if isinstance(signals.get("principals"), list) else []
+    principals = (
+        signals.get("principals") if isinstance(signals.get("principals"), list) else []
+    )
     factors = signals.get("factors") if isinstance(signals.get("factors"), list) else []
     has_signal_defs = bool(principals or factors)
 
@@ -2081,7 +2284,11 @@ def _build_plan_missing_info(
         )
 
     trigger = plan.get("trigger") if isinstance(plan.get("trigger"), dict) else {}
-    condition_ast = trigger.get("condition_ast") if isinstance(trigger.get("condition_ast"), dict) else {}
+    condition_ast = (
+        trigger.get("condition_ast")
+        if isinstance(trigger.get("condition_ast"), dict)
+        else {}
+    )
     if not condition_ast:
         missing.append(
             {
@@ -2105,7 +2312,9 @@ def _build_plan_missing_info(
     return missing
 
 
-def _compute_plan_confidence(*, compiled_ok: bool, missing_info: list[dict[str, Any]]) -> float:
+def _compute_plan_confidence(
+    *, compiled_ok: bool, missing_info: list[dict[str, Any]]
+) -> float:
     score = 0.35
     if compiled_ok:
         score += 0.35
@@ -2156,8 +2365,12 @@ def _normalize_plan_logic_conditions(value: Any) -> list[dict[str, Any]]:
         if not isinstance(item, dict):
             continue
         # Be resilient to minor schema drift from local models / adapters.
-        left = _normalize_plan_logic_left_ref(item.get("left") or item.get("lhs") or item.get("left_ref"))
-        op = _normalize_expr_op(item.get("op") or item.get("operator") or item.get("comparison"))
+        left = _normalize_plan_logic_left_ref(
+            item.get("left") or item.get("lhs") or item.get("left_ref")
+        )
+        op = _normalize_expr_op(
+            item.get("op") or item.get("operator") or item.get("comparison")
+        )
         right = item.get("right")
         if right is None and "rhs" in item:
             right = item.get("rhs")
@@ -2190,7 +2403,9 @@ def _extract_conditions_from_ast(ast: Any) -> list[dict[str, Any]]:
         return [{"left": left, "op": op, "right": right}]
 
     if op in {"and", "or"}:
-        return _extract_conditions_from_ast(ast.get("left")) + _extract_conditions_from_ast(ast.get("right"))
+        return _extract_conditions_from_ast(
+            ast.get("left")
+        ) + _extract_conditions_from_ast(ast.get("right"))
 
     extracted: list[dict[str, Any]] = []
     for key in ("all", "any", "not"):
@@ -2202,7 +2417,9 @@ def _extract_conditions_from_ast(ast: Any) -> list[dict[str, Any]]:
     return extracted
 
 
-def _fold_conditions_to_expr_ast(combine_op: str, conditions: list[dict[str, Any]]) -> dict[str, Any]:
+def _fold_conditions_to_expr_ast(
+    combine_op: str, conditions: list[dict[str, Any]]
+) -> dict[str, Any]:
     op = str(combine_op or "and").strip().lower()
     if op not in {"and", "or"}:
         op = "and"
@@ -2223,7 +2440,11 @@ def _fold_conditions_to_expr_ast(combine_op: str, conditions: list[dict[str, Any
         cur = {
             "op": op,
             "left": cur,
-            "right": {"op": cond["op"], "left": cond["left"], "right": cond.get("right")},
+            "right": {
+                "op": cond["op"],
+                "left": cond["left"],
+                "right": cond.get("right"),
+            },
         }
     return cur
 
@@ -2252,7 +2473,9 @@ def _signal_unit_for_catalog_column(catalog_id: str, column: str) -> str:
     return "custom"
 
 
-def _build_signals_for_columns(*, catalog_ids: list[str], columns: set[str]) -> dict[str, Any]:
+def _build_signals_for_columns(
+    *, catalog_ids: list[str], columns: set[str]
+) -> dict[str, Any]:
     principals: list[dict[str, Any]] = []
     for name in sorted(columns):
         # Choose the first matching catalog id that contains this column.
@@ -2283,13 +2506,18 @@ def _build_signals_for_columns(*, catalog_ids: list[str], columns: set[str]) -> 
     return {"principals": principals, "factors": []}
 
 
-def _ensure_window_duration_variable(template: dict[str, Any], *, default_value: str) -> None:
+def _ensure_window_duration_variable(
+    template: dict[str, Any], *, default_value: str
+) -> None:
     variables = template.get("variables")
     if not isinstance(variables, list):
         variables = []
         template["variables"] = variables
     for var in variables:
-        if isinstance(var, dict) and str(var.get("id") or "").strip() == "window_duration":
+        if (
+            isinstance(var, dict)
+            and str(var.get("id") or "").strip() == "window_duration"
+        ):
             # Ensure correct type (offline gate).
             var["type"] = "duration"
             return
@@ -2320,7 +2548,9 @@ def _compile_plan_logic_to_template_v2(
         normalized_target_kind = "wallet"
         warnings.append("target_kind invalid; defaulted to 'wallet'.")
 
-    left_refs = {str(c.get("left") or "").strip() for c in conditions if isinstance(c, dict)}
+    left_refs = {
+        str(c.get("left") or "").strip() for c in conditions if isinstance(c, dict)
+    }
     signal_names = {ref for ref in left_refs if ref and not ref.startswith("$.")}
 
     catalog_ids = _infer_catalog_ids_from_signal_names(signal_names)
@@ -2352,7 +2582,10 @@ def _compile_plan_logic_to_template_v2(
             "evaluation_mode": evaluation_mode,
             "condition_ast": condition_ast,
             "cron_cadence_seconds": cron_cadence_seconds,
-            "dedupe": {"cooldown_seconds": cron_cadence_seconds, "key_template": "{{instance_id}}:{{target.key}}"},
+            "dedupe": {
+                "cooldown_seconds": cron_cadence_seconds,
+                "key_template": "{{instance_id}}:{{target.key}}",
+            },
         },
         "notification": {"title_template": "", "body_template": ""},
         "derivations": [],
@@ -2361,7 +2594,9 @@ def _compile_plan_logic_to_template_v2(
     }
 
     if catalog_ids:
-        template["signals"] = _build_signals_for_columns(catalog_ids=catalog_ids, columns=signal_names)
+        template["signals"] = _build_signals_for_columns(
+            catalog_ids=catalog_ids, columns=signal_names
+        )
         if "ducklake.wallet_balance_window" in catalog_ids:
             duration = str(window_duration or "").strip()
             if not duration:
@@ -2422,7 +2657,9 @@ def compile_to_proposed_spec(
         raise ProposedSpecCompilationError(str(exc)) from exc
     if pipeline.pipeline_id != PLAN_PIPELINE_ID:
         # Legacy template pipelines have been removed; vNext ProposedSpec v2 is authoritative.
-        raise ProposedSpecCompilationError(f"Unsupported pipeline_id {pipeline.pipeline_id!r}")
+        raise ProposedSpecCompilationError(
+            f"Unsupported pipeline_id {pipeline.pipeline_id!r}"
+        )
 
     ttl_secs = int(getattr(settings, "NLP_PROPOSED_SPEC_TTL_SECS", 3600))
     expires_at = (timezone.now() + timedelta(seconds=ttl_secs)).isoformat()
@@ -2438,7 +2675,9 @@ def compile_to_proposed_spec(
     if not nl:
         raise ProposedSpecCompilationError("nl_description is required")
 
-    allow_fallback = bool(getattr(settings, "NLP_FALLBACK_ON_DSPY_FAILURE", settings.DEBUG))
+    allow_fallback = bool(
+        getattr(settings, "NLP_FALLBACK_ON_DSPY_FAILURE", settings.DEBUG)
+    )
     raw_response: Optional[str] = None
     t_total_start = time.monotonic()
 
@@ -2450,7 +2689,9 @@ def compile_to_proposed_spec(
     _emit("classify", 10, "Analyzing intent...")
 
     if force_direct_llm:
-        _emit("draft_plan" if is_plan else "draft_template", 35, "Drafting alert logic...")
+        _emit(
+            "draft_plan" if is_plan else "draft_template", 35, "Drafting alert logic..."
+        )
         t_llm_start = time.monotonic()
         result_payload = _compile_with_llm(
             nl_description=nl,
@@ -2460,12 +2701,18 @@ def compile_to_proposed_spec(
             context=context,
             pipeline=pipeline,
         )
-        stage_timings_ms["draft_plan" if is_plan else "draft_template"] = int((time.monotonic() - t_llm_start) * 1000)
+        stage_timings_ms["draft_plan" if is_plan else "draft_template"] = int(
+            (time.monotonic() - t_llm_start) * 1000
+        )
         result = result_payload.parsed
         raw_response = result_payload.raw_response
     else:
         try:
-            _emit("draft_plan" if is_plan else "draft_template", 35, "Drafting alert logic...")
+            _emit(
+                "draft_plan" if is_plan else "draft_template",
+                35,
+                "Drafting alert logic...",
+            )
             t_llm_start = time.monotonic()
             result_payload = _compile_with_dspy(
                 nl_description=nl,
@@ -2483,10 +2730,18 @@ def compile_to_proposed_spec(
         except ProposedSpecCompilationError as exc:
             if not allow_fallback:
                 if exc.raw_response is None and raw_response:
-                    raise ProposedSpecCompilationError(str(exc), raw_response=raw_response) from exc
+                    raise ProposedSpecCompilationError(
+                        str(exc), raw_response=raw_response
+                    ) from exc
                 raise
-            logger.warning("DSPy compile failed; falling back to direct LLM", exc_info=exc)
-            _emit("draft_plan" if is_plan else "draft_template", 35, "Drafting alert logic...")
+            logger.warning(
+                "DSPy compile failed; falling back to direct LLM", exc_info=exc
+            )
+            _emit(
+                "draft_plan" if is_plan else "draft_template",
+                35,
+                "Drafting alert logic...",
+            )
             t_llm_start = time.monotonic()
             result_payload = _compile_with_llm(
                 nl_description=nl,
@@ -2523,10 +2778,16 @@ def compile_to_proposed_spec(
         _sanitize_plan_targeting(template_spec, warnings=warnings)
 
         # Ensure top-level identity exists, but keep fingerprint semantics separate.
-        if not isinstance(template_spec.get("name"), str) or not str(template_spec.get("name") or "").strip():
+        if (
+            not isinstance(template_spec.get("name"), str)
+            or not str(template_spec.get("name") or "").strip()
+        ):
             template_spec["name"] = _default_template_name(nl)
             warnings.append("AlertTemplate.name missing; defaulted from prompt.")
-        if not isinstance(template_spec.get("description"), str) or not str(template_spec.get("description") or "").strip():
+        if (
+            not isinstance(template_spec.get("description"), str)
+            or not str(template_spec.get("description") or "").strip()
+        ):
             template_spec["description"] = _default_template_description(nl)
             warnings.append("AlertTemplate.description missing; defaulted from prompt.")
 
@@ -2534,9 +2795,15 @@ def compile_to_proposed_spec(
         target_kind = str(template_spec.get("target_kind") or "").strip().lower()
         if target_kind not in _SUPPORTED_TARGET_KINDS:
             template_spec["target_kind"] = "wallet"
-            warnings.append("AlertTemplate.target_kind missing/invalid; defaulted to 'wallet'.")
+            warnings.append(
+                "AlertTemplate.target_kind missing/invalid; defaulted to 'wallet'."
+            )
 
-        _sanitize_plan_scope(template_spec, context=context if isinstance(context, dict) else {}, warnings=warnings)
+        _sanitize_plan_scope(
+            template_spec,
+            context=context if isinstance(context, dict) else {},
+            warnings=warnings,
+        )
         _sanitize_plan_variables(template_spec)
         _sanitize_plan_signals(template_spec, warnings=warnings)
         _sanitize_plan_trigger(template_spec, warnings=warnings)
@@ -2549,7 +2816,9 @@ def compile_to_proposed_spec(
         assumptions = template_spec.get("assumptions")
         if not isinstance(assumptions, list):
             assumptions = []
-        assumptions_list = [str(a).strip() for a in assumptions if isinstance(a, str) and str(a).strip()]
+        assumptions_list = [
+            str(a).strip() for a in assumptions if isinstance(a, str) and str(a).strip()
+        ]
         template_spec["assumptions"] = assumptions_list
 
         # Deterministic fingerprint candidate (semantic; excludes identity/presentation keys).
@@ -2557,7 +2826,9 @@ def compile_to_proposed_spec(
 
         # Deterministic preview template_id derived from (fingerprint, snapshot).
         snapshot = get_registry_snapshot()
-        preview_template_id = uuid.uuid5(uuid.NAMESPACE_URL, f"{fingerprint_candidate}:{snapshot.get('hash')}")
+        preview_template_id = uuid.uuid5(
+            uuid.NAMESPACE_URL, f"{fingerprint_candidate}:{snapshot.get('hash')}"
+        )
         template_spec["template_id"] = str(preview_template_id)
         template_spec["template_version"] = 1
         template_spec["fingerprint"] = fingerprint_candidate
@@ -2576,8 +2847,11 @@ def compile_to_proposed_spec(
                 "version": int(template_spec.get("template_version") or 1),
             },
             "registry_snapshot": dict(snapshot),
-            "target_kind": str(template_spec.get("target_kind") or "").strip() or "wallet",
-            "variables": template_spec.get("variables") if isinstance(template_spec.get("variables"), list) else [],
+            "target_kind": str(template_spec.get("target_kind") or "").strip()
+            or "wallet",
+            "variables": template_spec.get("variables")
+            if isinstance(template_spec.get("variables"), list)
+            else [],
             "trigger_pruning": {},
             "datasources": [],
             "enrichments": [],
@@ -2601,7 +2875,11 @@ def compile_to_proposed_spec(
         try:
             compiled_executable = compile_template_to_executable(
                 template_spec,
-                ctx=CompileContext(template_id=preview_template_id, template_version=1, registry_snapshot=snapshot),
+                ctx=CompileContext(
+                    template_id=preview_template_id,
+                    template_version=1,
+                    registry_snapshot=snapshot,
+                ),
             )
             compiled_ok = True
         except AlertTemplateCompileError as exc:
@@ -2620,12 +2898,16 @@ def compile_to_proposed_spec(
             compile_errors=compile_errors,
             context=context if isinstance(context, dict) else {},
         )
-        confidence = _compute_plan_confidence(compiled_ok=compiled_ok, missing_info=missing_info)
+        confidence = _compute_plan_confidence(
+            compiled_ok=compiled_ok, missing_info=missing_info
+        )
 
         _emit("assemble_preview", 90, "Assembling preview...")
         t_assemble_start = time.monotonic()
         # Ensure `assemble_preview` exists as a timing key even if near-zero.
-        stage_timings_ms["assemble_preview"] = int((time.monotonic() - t_assemble_start) * 1000)
+        stage_timings_ms["assemble_preview"] = int(
+            (time.monotonic() - t_assemble_start) * 1000
+        )
         pipeline_metadata: Dict[str, Any] = {
             "model": model_name,
             "latency_ms": int((time.monotonic() - t_total_start) * 1000),
@@ -2646,7 +2928,9 @@ def compile_to_proposed_spec(
             ctx=ctx,
         )
 
-    raise ProposedSpecCompilationError(f"Unsupported pipeline_id {pipeline.pipeline_id!r}")
+    raise ProposedSpecCompilationError(
+        f"Unsupported pipeline_id {pipeline.pipeline_id!r}"
+    )
 
 
 def _compile_with_dspy(
@@ -2684,7 +2968,9 @@ def _compile_with_dspy(
     lm = _configure_dspy_lm(dspy)
     if lm is None:
         if require_dspy:
-            raise ProposedSpecCompilationError("Failed to configure DSPy language model")
+            raise ProposedSpecCompilationError(
+                "Failed to configure DSPy language model"
+            )
         return _compile_with_llm(
             nl_description=nl_description,
             job_id=job_id,
@@ -2729,11 +3015,17 @@ def _compile_with_dspy(
             if demos and isinstance(getattr(extractor, "demos", None), list):
                 extractor.demos.extend(demos)
 
-            prompt_json = _build_plan_logic_prompt_json(nl_description, context, pipeline)
+            prompt_json = _build_plan_logic_prompt_json(
+                nl_description, context, pipeline
+            )
             try:
-                response = extractor(nl_description=nl_description, prompt_json=prompt_json)
+                response = extractor(
+                    nl_description=nl_description, prompt_json=prompt_json
+                )
             except Exception as exc:
-                raise ProposedSpecCompilationError(f"DSPy inference failed: {exc}", raw_response=str(exc)) from exc
+                raise ProposedSpecCompilationError(
+                    f"DSPy inference failed: {exc}", raw_response=str(exc)
+                ) from exc
 
             target_kind = getattr(response, "target_kind", None)
             combine_op = getattr(response, "combine_op", None)
@@ -2751,13 +3043,17 @@ def _compile_with_dspy(
                         conditions_raw = []
 
             normalized_conditions = _normalize_plan_logic_conditions(conditions_raw)
-            normalized_target_kind = str(target_kind or "wallet").strip().lower() or "wallet"
+            normalized_target_kind = (
+                str(target_kind or "wallet").strip().lower() or "wallet"
+            )
             normalized_window_duration = str(window_duration or "").strip()
             normalized_combine_op = str(combine_op or "and").strip().lower() or "and"
 
             # If the model omitted required window_duration, fall back to NL parsing.
             if not normalized_window_duration:
-                normalized_window_duration = _extract_window_duration_from_text(nl_description) or ""
+                normalized_window_duration = (
+                    _extract_window_duration_from_text(nl_description) or ""
+                )
 
             if not normalized_conditions:
                 # Repair pass: some local-model outputs omit conditions when network is missing.
@@ -2774,7 +3070,9 @@ def _compile_with_dspy(
                     window_duration: str = dspy.OutputField()
                     notes: List[str] = dspy.OutputField()
 
-                RepairPlanLogic.__doc__ = _build_plan_logic_repair_system_prompt(pipeline)
+                RepairPlanLogic.__doc__ = _build_plan_logic_repair_system_prompt(
+                    pipeline
+                )
                 repairer = dspy.Predict(RepairPlanLogic)  # type: ignore
                 if demos and isinstance(getattr(repairer, "demos", None), list):
                     repairer.demos.extend(demos)
@@ -2788,32 +3086,45 @@ def _compile_with_dspy(
                     repaired = None
                 if repaired is not None:
                     repaired_conditions = getattr(repaired, "conditions", None)
-                    if isinstance(repaired_conditions, str) and repaired_conditions.strip():
+                    if (
+                        isinstance(repaired_conditions, str)
+                        and repaired_conditions.strip()
+                    ):
                         try:
                             repaired_conditions = json.loads(repaired_conditions)
                         except Exception:
                             repaired_conditions = repaired_conditions
-                    normalized_conditions = _normalize_plan_logic_conditions(repaired_conditions)
+                    normalized_conditions = _normalize_plan_logic_conditions(
+                        repaired_conditions
+                    )
                     normalized_target_kind = (
-                        str(getattr(repaired, "target_kind", normalized_target_kind) or normalized_target_kind)
+                        str(
+                            getattr(repaired, "target_kind", normalized_target_kind)
+                            or normalized_target_kind
+                        )
                         .strip()
                         .lower()
                         or normalized_target_kind
                     )
                     normalized_combine_op = (
-                        str(getattr(repaired, "combine_op", normalized_combine_op) or normalized_combine_op)
+                        str(
+                            getattr(repaired, "combine_op", normalized_combine_op)
+                            or normalized_combine_op
+                        )
                         .strip()
                         .lower()
                         or normalized_combine_op
                     )
-                    normalized_window_duration = (
-                        str(getattr(repaired, "window_duration", normalized_window_duration) or normalized_window_duration)
-                        .strip()
-                    )
+                    normalized_window_duration = str(
+                        getattr(repaired, "window_duration", normalized_window_duration)
+                        or normalized_window_duration
+                    ).strip()
 
             if not normalized_conditions:
                 # Last-resort guardrail: ensure the plan compiles to a schema-safe tx-only condition.
-                normalized_conditions = [{"left": "$.tx.value_native", "op": "gt", "right": 0.0}]
+                normalized_conditions = [
+                    {"left": "$.tx.value_native", "op": "gt", "right": 0.0}
+                ]
 
             template_value, compile_warnings = _compile_plan_logic_to_template_v2(
                 nl_description=nl_description,
@@ -2824,7 +3135,10 @@ def _compile_with_dspy(
                 window_duration=normalized_window_duration,
             )
 
-            wrapper: Dict[str, Any] = {"template": template_value, "warnings": compile_warnings}
+            wrapper: Dict[str, Any] = {
+                "template": template_value,
+                "warnings": compile_warnings,
+            }
             output_text = json.dumps(wrapper, ensure_ascii=True)
             raw_response = _normalize_llm_response(output_text)
             parsed = {"template": template_value, "warnings": compile_warnings}
@@ -2841,8 +3155,12 @@ def _compile_with_dspy(
 
             nl_description: str = dspy.InputField()
             context_json: str = dspy.InputField()
-            template: Dict[str, Any] = dspy.OutputField(desc="AlertTemplate v2 draft JSON object")
-            warnings: List[str] = dspy.OutputField(desc="Warning strings (may be empty)")
+            template: Dict[str, Any] = dspy.OutputField(
+                desc="AlertTemplate v2 draft JSON object"
+            )
+            warnings: List[str] = dspy.OutputField(
+                desc="Warning strings (may be empty)"
+            )
 
         CompileProposedSpec.__doc__ = _build_system_prompt_v2(pipeline)
         compiler = dspy.Predict(CompileProposedSpec)  # type: ignore
@@ -2857,7 +3175,9 @@ def _compile_with_dspy(
                 context_json=_build_user_prompt_v2(nl_description, context, pipeline),
             )
         except Exception as exc:
-            raise ProposedSpecCompilationError(f"DSPy inference failed: {exc}", raw_response=str(exc)) from exc
+            raise ProposedSpecCompilationError(
+                f"DSPy inference failed: {exc}", raw_response=str(exc)
+            ) from exc
 
         template_value = getattr(response, "template", None)
         warnings_value = getattr(response, "warnings", None)
@@ -2883,7 +3203,9 @@ def _compile_with_dspy(
         try:
             parsed = _extract_first_json_object(output_text)
         except ProposedSpecCompilationError as exc:
-            raise ProposedSpecCompilationError(str(exc), raw_response=raw_response) from exc
+            raise ProposedSpecCompilationError(
+                str(exc), raw_response=raw_response
+            ) from exc
         parsed["schema_version"] = "proposed_spec_v2"
         parsed["job_id"] = job_id
         parsed["expires_at"] = expires_at
@@ -2907,7 +3229,9 @@ def _configure_dspy_lm(dspy_module: Any) -> Any:
     model = getattr(settings, "GEMINI_MODEL", "gemini/gemini-3.0-flash")
     api_key = getattr(settings, "GEMINI_API_KEY", None)
     if (not api_key) and str(model or "").strip().lower().startswith("gemini/"):
-        raise ProposedSpecCompilationError("GEMINI_API_KEY not configured for gemini/* model")
+        raise ProposedSpecCompilationError(
+            "GEMINI_API_KEY not configured for gemini/* model"
+        )
 
     try:
         temperature = float(getattr(settings, "NLP_TEMPERATURE", 0.1))
@@ -2950,10 +3274,18 @@ def _compile_with_llm(
 ) -> LLMParseResult:
     client = get_llm_client()
     is_plan = pipeline.pipeline_id == PLAN_PIPELINE_ID
-    system_prompt = _build_system_prompt_v2(pipeline) if is_plan else _build_system_prompt(pipeline)
-    prompt = _build_user_prompt_v2(nl_description, context, pipeline) if is_plan else _build_user_prompt(nl_description, context, pipeline)
+    system_prompt = (
+        _build_system_prompt_v2(pipeline) if is_plan else _build_system_prompt(pipeline)
+    )
+    prompt = (
+        _build_user_prompt_v2(nl_description, context, pipeline)
+        if is_plan
+        else _build_user_prompt(nl_description, context, pipeline)
+    )
     try:
-        response = client.generate(prompt=prompt, system_prompt=system_prompt, use_cache=False)
+        response = client.generate(
+            prompt=prompt, system_prompt=system_prompt, use_cache=False
+        )
     except Exception as exc:
         raise ProposedSpecCompilationError(f"LLM request failed: {exc}") from exc
     raw_response = _normalize_llm_response(response.content)

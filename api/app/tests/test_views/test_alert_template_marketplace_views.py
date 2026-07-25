@@ -15,8 +15,14 @@ from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
 from app.models.alert_templates import AlertTemplate, AlertTemplateVersion
-from app.services.alert_templates.compilation import CompileContext, compile_template_to_executable
-from app.services.alert_templates.hashing import compute_template_fingerprint, compute_template_spec_hash
+from app.services.alert_templates.compilation import (
+    CompileContext,
+    compile_template_to_executable,
+)
+from app.services.alert_templates.hashing import (
+    compute_template_fingerprint,
+    compute_template_spec_hash,
+)
 from app.services.alert_templates.registry_snapshot import get_registry_snapshot
 
 User = get_user_model()
@@ -30,7 +36,13 @@ def _minimal_alert_template_spec() -> dict:
         "target_kind": "wallet",
         "scope": {"networks": ["ETH:mainnet"], "instrument_constraints": []},
         "variables": [
-            {"id": "threshold", "type": "decimal", "label": "Threshold", "required": True, "default": 0.5},
+            {
+                "id": "threshold",
+                "type": "decimal",
+                "label": "Threshold",
+                "required": True,
+                "default": 0.5,
+            },
         ],
         "signals": {
             "principals": [
@@ -49,16 +61,26 @@ def _minimal_alert_template_spec() -> dict:
         "derivations": [],
         "trigger": {
             "evaluation_mode": "periodic",
-            "condition_ast": {"op": "lt", "left": "balance_latest", "right": "{{threshold}}"},
+            "condition_ast": {
+                "op": "lt",
+                "left": "balance_latest",
+                "right": "{{threshold}}",
+            },
             "cron_cadence_seconds": 3600,
-            "dedupe": {"cooldown_seconds": 300, "key_template": "{{instance_id}}:{{target.key}}"},
+            "dedupe": {
+                "cooldown_seconds": 300,
+                "key_template": "{{instance_id}}:{{target.key}}",
+            },
             "pruning_hints": {
                 "evm": {
                     "tx_type": "any",
                 }
             },
         },
-        "notification": {"title_template": "Balance alert: {{target.short}}", "body_template": "Balance: {{balance_latest}}"},
+        "notification": {
+            "title_template": "Balance alert: {{target.short}}",
+            "body_template": "Balance: {{balance_latest}}",
+        },
         "fallbacks": [],
         "assumptions": [],
     }
@@ -70,12 +92,18 @@ def _minimal_alert_template_spec() -> dict:
 )
 class TestAlertTemplateMarketplaceViews(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(email="user@example.com", password="testpass123")
-        self.other = User.objects.create_user(email="other@example.com", password="testpass123")
+        self.user = User.objects.create_user(
+            email="user@example.com", password="testpass123"
+        )
+        self.other = User.objects.create_user(
+            email="other@example.com", password="testpass123"
+        )
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)
 
-    def test_list_templates_includes_public_marketplace_templates_with_summary_fields(self):
+    def test_list_templates_includes_public_marketplace_templates_with_summary_fields(
+        self,
+    ):
         template_spec = _minimal_alert_template_spec()
         fingerprint = compute_template_fingerprint(dict(template_spec))
 
@@ -92,7 +120,11 @@ class TestAlertTemplateMarketplaceViews(TestCase):
         snapshot = get_registry_snapshot()
         executable = compile_template_to_executable(
             to_persist,
-            ctx=CompileContext(template_id=template_id, template_version=template_version, registry_snapshot=snapshot),
+            ctx=CompileContext(
+                template_id=template_id,
+                template_version=template_version,
+                registry_snapshot=snapshot,
+            ),
         )
 
         template = AlertTemplate.objects.create(
@@ -144,7 +176,11 @@ class TestAlertTemplateMarketplaceViews(TestCase):
         snapshot = get_registry_snapshot()
         executable = compile_template_to_executable(
             to_persist,
-            ctx=CompileContext(template_id=template_id, template_version=template_version, registry_snapshot=snapshot),
+            ctx=CompileContext(
+                template_id=template_id,
+                template_version=template_version,
+                registry_snapshot=snapshot,
+            ),
         )
 
         template = AlertTemplate.objects.create(
@@ -175,5 +211,9 @@ class TestAlertTemplateMarketplaceViews(TestCase):
         assert payload["success"] is True
         assert payload["template"]["id"] == str(template_id)
         assert payload["bundle"]["template_version"] == 1
-        assert payload["bundle"]["template_spec"]["schema_version"] == "alert_template_v2"
-        assert payload["bundle"]["executable"]["schema_version"] == "alert_executable_v1"
+        assert (
+            payload["bundle"]["template_spec"]["schema_version"] == "alert_template_v2"
+        )
+        assert (
+            payload["bundle"]["executable"]["schema_version"] == "alert_executable_v1"
+        )

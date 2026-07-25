@@ -86,9 +86,13 @@ def cleanup_alert_templates_table_v2(apps, schema_editor) -> None:
         ]:
             try:
                 if vendor == "postgresql":
-                    cursor.execute(f'ALTER TABLE "alert_templates" DROP COLUMN IF EXISTS "{col}" CASCADE;')
+                    cursor.execute(
+                        f'ALTER TABLE "alert_templates" DROP COLUMN IF EXISTS "{col}" CASCADE;'
+                    )
                 else:
-                    cursor.execute(f'ALTER TABLE "alert_templates" DROP COLUMN "{col}";')
+                    cursor.execute(
+                        f'ALTER TABLE "alert_templates" DROP COLUMN "{col}";'
+                    )
             except Exception:
                 continue
 
@@ -99,6 +103,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(cleanup_alert_templates_table_v2, reverse_code=migrations.RunPython.noop),
+        migrations.RunPython(
+            cleanup_alert_templates_table_v2, reverse_code=migrations.RunPython.noop
+        ),
     ]
-

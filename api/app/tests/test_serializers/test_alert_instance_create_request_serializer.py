@@ -24,14 +24,37 @@ def _minimal_template_spec(*, template_id: uuid.UUID, template_version: int) -> 
         "description": "Test Template",
         "target_kind": "wallet",
         "scope": {"networks": ["ETH:mainnet"], "instrument_constraints": []},
-        "variables": [{"id": "threshold", "type": "decimal", "label": "Threshold", "required": True}],
-        "signals": {"principals": [], "factors": [{"name": "balance_latest", "unit": "WEI", "update_sources": [{"ref": "ducklake.wallet_balance_window"}]}]},
+        "variables": [
+            {
+                "id": "threshold",
+                "type": "decimal",
+                "label": "Threshold",
+                "required": True,
+            }
+        ],
+        "signals": {
+            "principals": [],
+            "factors": [
+                {
+                    "name": "balance_latest",
+                    "unit": "WEI",
+                    "update_sources": [{"ref": "ducklake.wallet_balance_window"}],
+                }
+            ],
+        },
         "derivations": [],
         "trigger": {
             "evaluation_mode": "periodic",
-            "condition_ast": {"op": "gt", "left": "balance_latest", "right": "{{threshold}}"},
+            "condition_ast": {
+                "op": "gt",
+                "left": "balance_latest",
+                "right": "{{threshold}}",
+            },
             "cron_cadence_seconds": 300,
-            "dedupe": {"cooldown_seconds": 0, "key_template": "{{instance_id}}:{{target.key}}"},
+            "dedupe": {
+                "cooldown_seconds": 0,
+                "key_template": "{{instance_id}}:{{target.key}}",
+            },
             "pruning_hints": {"evm": {"tx_type": "any"}},
         },
         "notification": {"title_template": "Test", "body_template": "Test"},
@@ -72,7 +95,10 @@ class TestAlertInstanceCreateRequestSerializer:
                 "template_version": 1,
                 "trigger_type": "periodic",
                 "trigger_config": {"cron": "*/5 * * * *", "timezone": "UTC"},
-                "target_selector": {"mode": "keys", "keys": ["ETH:mainnet:0x742d35cc6634c0532925a3b844bc9e7595f12345"]},
+                "target_selector": {
+                    "mode": "keys",
+                    "keys": ["ETH:mainnet:0x742d35cc6634c0532925a3b844bc9e7595f12345"],
+                },
                 "variable_values": {},
             },
             context={"request": Mock(user=user)},
@@ -154,9 +180,15 @@ class TestAlertInstanceCreateRequestSerializer:
                 "template_version": 1,
                 "trigger_type": "event_driven",
                 "trigger_config": {"networks": ["ETH:mainnet"]},
-                "target_selector": {"mode": "keys", "keys": ["ETH:mainnet:0x742d35cc6634c0532925a3b844bc9e7595f12345"]},
+                "target_selector": {
+                    "mode": "keys",
+                    "keys": ["ETH:mainnet:0x742d35cc6634c0532925a3b844bc9e7595f12345"],
+                },
                 "variable_values": {"threshold": 1.0},
-                "notification_overrides": {"title_template": "Custom title", "body_template": "Custom body"},
+                "notification_overrides": {
+                    "title_template": "Custom title",
+                    "body_template": "Custom body",
+                },
             },
             context={"request": Mock(user=user)},
         )

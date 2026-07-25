@@ -533,24 +533,28 @@ def newsfeed_transactions(request: Request) -> Response:
 
     if not target_keys:
         # No monitored wallets - return empty response
-        return Response({
-            "transactions": [],
-            "total": 0,
-            "monitored_addresses": 0,
-            "chains": [],
-        })
+        return Response(
+            {
+                "transactions": [],
+                "total": 0,
+                "monitored_addresses": 0,
+                "chains": [],
+            }
+        )
 
     # Parse target keys into chain_id → addresses mapping
     chain_addresses = _parse_target_keys(target_keys, chain_filter)
 
     if not chain_addresses:
         # No addresses match the filter - return empty response
-        return Response({
-            "transactions": [],
-            "total": 0,
-            "monitored_addresses": len(target_keys),
-            "chains": [],
-        })
+        return Response(
+            {
+                "transactions": [],
+                "total": 0,
+                "monitored_addresses": len(target_keys),
+                "chains": [],
+            }
+        )
 
     # Collect all addresses and chain_ids for query
     all_addresses: List[str] = []
@@ -564,6 +568,7 @@ def newsfeed_transactions(request: Request) -> Response:
     per_chain_limit = limit + offset
 
     try:
+
         async def run_queries() -> Tuple[List[List[Dict[str, Any]]], List[str]]:
             client = DuckLakeClient()
             tasks: List[asyncio.Task[List[Dict[str, Any]]]] = []
@@ -603,7 +608,9 @@ def newsfeed_transactions(request: Request) -> Response:
                     """
 
                     if transaction_type_filter:
-                        transaction_literal = _escape_sql_literal(transaction_type_filter.upper())
+                        transaction_literal = _escape_sql_literal(
+                            transaction_type_filter.upper()
+                        )
                         sql += f" AND t.transaction_type = '{transaction_literal}'"
 
                     sql += f"""
@@ -619,22 +626,26 @@ def newsfeed_transactions(request: Request) -> Response:
                   AND addr_tx.block_date >= CAST('{start_date_date}' AS DATE)
                     """
 
-                    tasks.append(asyncio.create_task(
-                        client.query_rows(
-                            query=sql,
-                            table="address_transactions",
-                            chain=chain,
-                            subnet=subnet,
+                    tasks.append(
+                        asyncio.create_task(
+                            client.query_rows(
+                                query=sql,
+                                table="address_transactions",
+                                chain=chain,
+                                subnet=subnet,
+                            )
                         )
-                    ))
-                    tasks.append(asyncio.create_task(
-                        client.query_rows(
-                            query=count_sql,
-                            table="address_transactions",
-                            chain=chain,
-                            subnet=subnet,
+                    )
+                    tasks.append(
+                        asyncio.create_task(
+                            client.query_rows(
+                                query=count_sql,
+                                table="address_transactions",
+                                chain=chain,
+                                subnet=subnet,
+                            )
                         )
-                    ))
+                    )
                     chain_order.append(chain_id)
 
                 if not tasks:
@@ -648,12 +659,14 @@ def newsfeed_transactions(request: Request) -> Response:
         results, chain_order = async_to_sync(run_queries)()
 
         if not results:
-            return Response({
-                "transactions": [],
-                "total": 0,
-                "monitored_addresses": len(all_addresses),
-                "chains": all_chain_ids,
-            })
+            return Response(
+                {
+                    "transactions": [],
+                    "total": 0,
+                    "monitored_addresses": len(all_addresses),
+                    "chains": all_chain_ids,
+                }
+            )
 
         combined: List[Dict[str, Any]] = []
         total = 0
@@ -668,26 +681,33 @@ def newsfeed_transactions(request: Request) -> Response:
             key=lambda row: row.get("block_timestamp") or "",
             reverse=True,
         )
-        paged = combined[offset: offset + limit]
+        paged = combined[offset : offset + limit]
 
-        return Response({
-            "transactions": paged,
-            "total": total,
-            "monitored_addresses": len(all_addresses),
-            "chains": all_chain_ids,
-        })
+        return Response(
+            {
+                "transactions": paged,
+                "total": total,
+                "monitored_addresses": len(all_addresses),
+                "chains": all_chain_ids,
+            }
+        )
 
     except Exception as e:
         error_message = str(e)
-        if "address_transactions" in error_message or "metadata.ducklake" in error_message:
+        if (
+            "address_transactions" in error_message
+            or "metadata.ducklake" in error_message
+        ):
             logger.warning(f"DuckLake newsfeed unavailable: {e}")
-            return Response({
-                "transactions": [],
-                "total": 0,
-                "monitored_addresses": len(all_addresses),
-                "chains": all_chain_ids,
-                "warning": "Newsfeed unavailable. DuckLake data not ready.",
-            })
+            return Response(
+                {
+                    "transactions": [],
+                    "total": 0,
+                    "monitored_addresses": len(all_addresses),
+                    "chains": all_chain_ids,
+                    "warning": "Newsfeed unavailable. DuckLake data not ready.",
+                }
+            )
 
         logger.error(f"Failed to get newsfeed transactions: {e}")
         return Response(

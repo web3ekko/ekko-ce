@@ -5,14 +5,14 @@ export interface EkkoLogoProps {
    * - horizontal: Icon + "EKKO" text side-by-side
    * - vertical: Icon with "EKKO" text stacked below
    */
-  variant?: 'icon' | 'horizontal' | 'vertical';
+  variant?: "icon" | "horizontal" | "vertical";
 
   /**
    * Size of the logo
    * - Predefined: 'sm' (32px), 'md' (48px), 'lg' (96px), 'xl' (128px)
    * - Custom: Number in pixels
    */
-  size?: 'sm' | 'md' | 'lg' | 'xl' | number;
+  size?: "sm" | "md" | "lg" | "xl" | number;
 
   /**
    * Additional CSS classes to apply
@@ -63,52 +63,52 @@ const SIZE_MAP = {
  * ```
  */
 export const EkkoLogo = ({
-  variant = 'icon',
-  size = 'md',
-  className = '',
+  variant = "icon",
+  size = "md",
+  className = "",
   alt,
   interactive = false,
   onClick,
 }: EkkoLogoProps) => {
   // Calculate numeric size
-  const numericSize = typeof size === 'number' ? size : SIZE_MAP[size];
+  const numericSize = typeof size === "number" ? size : SIZE_MAP[size];
 
   // Determine logo source path (light mode only)
   const getLogoSrc = () => {
     switch (variant) {
-      case 'horizontal':
-        return '/logos/ekko-logo-horizontal.svg';
-      case 'vertical':
-        return '/logos/ekko-logo-vertical.svg';
-      case 'icon':
+      case "horizontal":
+        return "/logos/ekko-logo-horizontal.svg";
+      case "vertical":
+        return "/logos/ekko-logo-vertical.svg";
+      case "icon":
       default:
-        return '/logos/ekko-icon.svg';
+        return "/logos/ekko-icon.svg";
     }
   };
 
   // Default alt text based on interactivity
-  const defaultAlt = interactive
-    ? 'Ekko - Go to dashboard'
-    : 'Ekko logo';
+  const defaultAlt = interactive ? "Ekko - Go to dashboard" : "Ekko logo";
 
   const altText = alt || defaultAlt;
 
   // Base styles
   const baseStyles: React.CSSProperties = {
-    width: variant === 'horizontal' ? numericSize * 2 : numericSize,
-    height: variant === 'vertical' ? numericSize * 1.2 : numericSize,
-    display: 'inline-block',
-    transition: 'opacity 0.2s ease',
-    cursor: interactive ? 'pointer' : 'default',
+    width: variant === "horizontal" ? numericSize * 2 : numericSize,
+    height: variant === "vertical" ? numericSize * 1.2 : numericSize,
+    display: "inline-block",
+    transition: "opacity 0.2s ease",
+    cursor: interactive ? "pointer" : "default",
   };
 
   // Wrapper classes
   const wrapperClasses = [
-    'ekko-logo',
+    "ekko-logo",
     `ekko-logo--${variant}`,
-    interactive && 'ekko-logo--interactive',
+    interactive && "ekko-logo--interactive",
     className,
-  ].filter(Boolean).join(' ');
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   const handleClick = () => {
     if (interactive && onClick) {
@@ -117,7 +117,11 @@ export const EkkoLogo = ({
   };
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
-    if (interactive && onClick && (event.key === 'Enter' || event.key === ' ')) {
+    if (
+      interactive &&
+      onClick &&
+      (event.key === "Enter" || event.key === " ")
+    ) {
       event.preventDefault();
       onClick();
     }
@@ -129,17 +133,17 @@ export const EkkoLogo = ({
       style={baseStyles}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
-      role={interactive ? 'button' : 'img'}
+      role={interactive ? "button" : "img"}
       aria-label={interactive ? altText : undefined}
       tabIndex={interactive ? 0 : undefined}
     >
       <img
         src={getLogoSrc()}
-        alt={interactive ? '' : altText}
+        alt={interactive ? "" : altText}
         style={{
-          width: '100%',
-          height: '100%',
-          objectFit: 'contain',
+          width: "100%",
+          height: "100%",
+          objectFit: "contain",
         }}
         draggable="false"
       />

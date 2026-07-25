@@ -29,11 +29,16 @@ def _get_default_plan() -> BillingPlan | None:
 
 
 def _get_or_create_subscription(user) -> BillingSubscription:
-    subscription = BillingSubscription.objects.filter(user=user).order_by("-created_at").first()
+    subscription = (
+        BillingSubscription.objects.filter(user=user).order_by("-created_at").first()
+    )
     if subscription:
         return subscription
 
-    plan = _get_default_plan() or BillingPlan.objects.filter(is_active=True).order_by("price_usd").first()
+    plan = (
+        _get_default_plan()
+        or BillingPlan.objects.filter(is_active=True).order_by("price_usd").first()
+    )
     if not plan:
         raise ValueError("No billing plans configured")
 
@@ -73,7 +78,9 @@ class BillingOverviewView(APIView):
         period_start = subscription.current_period_start
         period_end = subscription.current_period_end
 
-        alerts_used = AlertInstance.objects.filter(user=user, created_at__gte=period_start).count()
+        alerts_used = AlertInstance.objects.filter(
+            user=user, created_at__gte=period_start
+        ).count()
 
         accounts_group = GenericGroup.objects.filter(
             owner=user,
@@ -82,11 +89,14 @@ class BillingOverviewView(APIView):
         ).first()
         wallets_used = accounts_group.member_count if accounts_group else 0
 
-        api_calls_used = ApiUsageRecord.objects.filter(
-            user=user,
-            date__gte=period_start.date(),
-            date__lte=period_end.date(),
-        ).aggregate(total=Sum("requests"))["total"] or 0
+        api_calls_used = (
+            ApiUsageRecord.objects.filter(
+                user=user,
+                date__gte=period_start.date(),
+                date__lte=period_end.date(),
+            ).aggregate(total=Sum("requests"))["total"]
+            or 0
+        )
 
         notifications_used = NotificationDelivery.objects.filter(
             user=user,
@@ -101,14 +111,20 @@ class BillingOverviewView(APIView):
             "notifications": _usage_bucket(notifications_used, plan.max_notifications),
         }
 
-        invoices = BillingInvoice.objects.filter(subscription=subscription).order_by("-billed_at")[:12]
+        invoices = BillingInvoice.objects.filter(subscription=subscription).order_by(
+            "-billed_at"
+        )[:12]
 
-        return Response({
-            "subscription": BillingSubscriptionSerializer(subscription).data,
-            "plans": BillingPlanSerializer(BillingPlan.objects.filter(is_active=True), many=True).data,
-            "usage": BillingUsageSerializer(usage_payload).data,
-            "invoices": BillingInvoiceSerializer(invoices, many=True).data,
-        })
+        return Response(
+            {
+                "subscription": BillingSubscriptionSerializer(subscription).data,
+                "plans": BillingPlanSerializer(
+                    BillingPlan.objects.filter(is_active=True), many=True
+                ).data,
+                "usage": BillingUsageSerializer(usage_payload).data,
+                "invoices": BillingInvoiceSerializer(invoices, many=True).data,
+            }
+        )
 
 
 class BillingSubscriptionView(APIView):
@@ -120,11 +136,15 @@ class BillingSubscriptionView(APIView):
         plan_id = request.data.get("plan_id")
 
         if not plan_id:
-            return Response({"error": "plan_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "plan_id is required"}, status=status.HTTP_400_BAD_REQUEST
+            )
 
         plan = BillingPlan.objects.filter(id=plan_id, is_active=True).first()
         if not plan:
-            return Response({"error": "Plan not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "Plan not found"}, status=status.HTTP_404_NOT_FOUND
+            )
 
         now = timezone.now()
         if plan.billing_cycle == "yearly":
@@ -137,13 +157,15 @@ class BillingSubscriptionView(APIView):
         subscription.current_period_start = now
         subscription.current_period_end = period_end
         subscription.cancel_at_period_end = False
-        subscription.save(update_fields=[
-            "plan",
-            "status",
-            "current_period_start",
-            "current_period_end",
-            "cancel_at_period_end",
-            "updated_at",
-        ])
+        subscription.save(
+            update_fields=[
+                "plan",
+                "status",
+                "current_period_start",
+                "current_period_end",
+                "cancel_at_period_end",
+                "updated_at",
+            ]
+        )
 
         return Response(BillingSubscriptionSerializer(subscription).data)

@@ -1,11 +1,11 @@
 /**
  * Enhanced Alert Table Component
- * 
+ *
  * Improved alert table with search, filters, and better styling
  * matching the Wallet table design
  */
 
-import React, { useState } from 'react'
+import React, { useState } from "react";
 import {
   Card,
   Table,
@@ -25,7 +25,7 @@ import {
   Paper,
   Avatar,
   Tooltip,
-} from '@mantine/core'
+} from "@mantine/core";
 import {
   IconSearch,
   IconFilter,
@@ -43,38 +43,38 @@ import {
   IconChevronDown,
   IconSortAscending,
   IconSortDescending,
-} from '@tabler/icons-react'
-import { notifications } from '@mantine/notifications'
-import { ChainLogo } from '../brand/ChainLogo'
-import { getChainIdentity } from '../../utils/chain-identity'
-import { AlertEventBadge } from './AlertEventBadge'
+} from "@tabler/icons-react";
+import { notifications } from "@mantine/notifications";
+import { ChainLogo } from "../brand/ChainLogo";
+import { getChainIdentity } from "../../utils/chain-identity";
+import { AlertEventBadge } from "./AlertEventBadge";
 
 interface Alert {
-  id: string
-  name: string
-  description: string
-  status: 'active' | 'paused' | 'error' | 'draft'
-  network: string
-  event_type: string
-  last_triggered: string | null
-  trigger_count: number
-  enabled: boolean
-  priority?: 'low' | 'normal' | 'high' | 'critical'
-  created_at?: string
+  id: string;
+  name: string;
+  description: string;
+  status: "active" | "paused" | "error" | "draft";
+  network: string;
+  event_type: string;
+  last_triggered: string | null;
+  trigger_count: number;
+  enabled: boolean;
+  priority?: "low" | "normal" | "high" | "critical";
+  created_at?: string;
 }
 
 interface EnhancedAlertTableProps {
-  alerts: Alert[]
-  selectedAlerts: string[]
-  onToggleAlert: (alertId: string) => void
-  onDeleteAlert: (alertId: string) => void
-  onEditAlert?: (alertId: string) => void
-  onDuplicateAlert?: (alertId: string) => void
-  onSelectAlert: (alertId: string) => void
-  onSelectAllAlerts: () => void
-  onClearSelection: () => void
-  onRefresh?: () => void
-  isLoading?: boolean
+  alerts: Alert[];
+  selectedAlerts: string[];
+  onToggleAlert: (alertId: string) => void;
+  onDeleteAlert: (alertId: string) => void;
+  onEditAlert?: (alertId: string) => void;
+  onDuplicateAlert?: (alertId: string) => void;
+  onSelectAlert: (alertId: string) => void;
+  onSelectAllAlerts: () => void;
+  onClearSelection: () => void;
+  onRefresh?: () => void;
+  isLoading?: boolean;
 }
 
 export function EnhancedAlertTable({
@@ -90,111 +90,113 @@ export function EnhancedAlertTable({
   onRefresh,
   isLoading = false,
 }: EnhancedAlertTableProps) {
-  const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string | null>(null)
-  const [networkFilter, setNetworkFilter] = useState<string | null>(null)
-  const [sortBy, setSortBy] = useState<'name' | 'status' | 'triggered' | null>(null)
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [networkFilter, setNetworkFilter] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<"name" | "status" | "triggered" | null>(
+    null,
+  );
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   // Filter alerts based on search and filters
   const filteredAlerts = alerts.filter((alert) => {
     const matchesSearch =
       alert.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      alert.description.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesStatus = !statusFilter || alert.status === statusFilter
-    const matchesNetwork = !networkFilter || alert.network === networkFilter
+      alert.description.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = !statusFilter || alert.status === statusFilter;
+    const matchesNetwork = !networkFilter || alert.network === networkFilter;
 
-    return matchesSearch && matchesStatus && matchesNetwork
-  })
+    return matchesSearch && matchesStatus && matchesNetwork;
+  });
 
   // Sort alerts
   const sortedAlerts = [...filteredAlerts].sort((a, b) => {
-    if (!sortBy) return 0
+    if (!sortBy) return 0;
 
-    let comparison = 0
+    let comparison = 0;
     switch (sortBy) {
-      case 'name':
-        comparison = a.name.localeCompare(b.name)
-        break
-      case 'status':
-        comparison = a.status.localeCompare(b.status)
-        break
-      case 'triggered':
-        comparison = b.trigger_count - a.trigger_count
-        break
+      case "name":
+        comparison = a.name.localeCompare(b.name);
+        break;
+      case "status":
+        comparison = a.status.localeCompare(b.status);
+        break;
+      case "triggered":
+        comparison = b.trigger_count - a.trigger_count;
+        break;
     }
 
-    return sortOrder === 'asc' ? comparison : -comparison
-  })
+    return sortOrder === "asc" ? comparison : -comparison;
+  });
 
-  const handleSort = (field: 'name' | 'status' | 'triggered') => {
+  const handleSort = (field: "name" | "status" | "triggered") => {
     if (sortBy === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
     } else {
-      setSortBy(field)
-      setSortOrder('asc')
+      setSortBy(field);
+      setSortOrder("asc");
     }
-  }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active':
-        return 'green'
-      case 'paused':
-        return 'orange'
-      case 'error':
-        return 'red'
-      case 'draft':
-        return 'gray'
+      case "active":
+        return "green";
+      case "paused":
+        return "orange";
+      case "error":
+        return "red";
+      case "draft":
+        return "gray";
       default:
-        return 'gray'
+        return "gray";
     }
-  }
+  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'active':
-        return <IconCheck size={12} />
-      case 'paused':
-        return <IconPlayerPause size={12} />
-      case 'error':
-        return <IconAlertCircle size={12} />
-      case 'draft':
-        return <IconClock size={12} />
+      case "active":
+        return <IconCheck size={12} />;
+      case "paused":
+        return <IconPlayerPause size={12} />;
+      case "error":
+        return <IconAlertCircle size={12} />;
+      case "draft":
+        return <IconClock size={12} />;
       default:
-        return <IconCheck size={12} />
+        return <IconCheck size={12} />;
     }
-  }
+  };
 
   const getPriorityColor = (priority?: string) => {
     switch (priority) {
-      case 'critical':
-        return 'red'
-      case 'high':
-        return 'orange'
-      case 'normal':
-        return 'blue'
-      case 'low':
-        return 'gray'
+      case "critical":
+        return "red";
+      case "high":
+        return "orange";
+      case "normal":
+        return "blue";
+      case "low":
+        return "gray";
       default:
-        return 'gray'
+        return "gray";
     }
-  }
+  };
 
   const formatTimeAgo = (dateString: string | null) => {
-    if (!dateString) return 'Never'
+    if (!dateString) return "Never";
 
-    const date = new Date(dateString)
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-    const diffDays = Math.floor(diffHours / 24)
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffHours / 24);
 
-    if (diffHours < 1) return 'Just now'
-    if (diffHours < 24) return `${diffHours}h ago`
-    if (diffDays < 7) return `${diffDays}d ago`
-    return date.toLocaleDateString()
-  }
+    if (diffHours < 1) return "Just now";
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
+  };
 
   // Empty state
   if (alerts.length === 0 && !isLoading) {
@@ -205,20 +207,22 @@ export function EnhancedAlertTable({
             <Avatar size={80} radius="xl" color="gray">
               <IconBellOff size={40} />
             </Avatar>
-            <div style={{ textAlign: 'center' }}>
+            <div style={{ textAlign: "center" }}>
               <Title order={3} mb="xs">
                 No alerts yet
               </Title>
               <Text c="dimmed" size="sm" maw={400}>
-                Create your first alert to start monitoring blockchain activity. You can use
-                templates for quick setup or create custom alerts.
+                Create your first alert to start monitoring blockchain activity.
+                You can use templates for quick setup or create custom alerts.
               </Text>
             </div>
-            <Button leftSection={<IconBell size={16} />}>Create Your First Alert</Button>
+            <Button leftSection={<IconBell size={16} />}>
+              Create Your First Alert
+            </Button>
           </Stack>
         </Center>
       </Card>
-    )
+    );
   }
 
   return (
@@ -246,10 +250,10 @@ export function EnhancedAlertTable({
               onChange={setStatusFilter}
               clearable
               data={[
-                { value: 'active', label: 'Active' },
-                { value: 'paused', label: 'Paused' },
-                { value: 'error', label: 'Error' },
-                { value: 'draft', label: 'Draft' },
+                { value: "active", label: "Active" },
+                { value: "paused", label: "Paused" },
+                { value: "error", label: "Error" },
+                { value: "draft", label: "Draft" },
               ]}
               style={{ width: 140 }}
             />
@@ -259,15 +263,19 @@ export function EnhancedAlertTable({
               onChange={setNetworkFilter}
               clearable
               data={[
-                { value: 'ethereum', label: 'Ethereum' },
-                { value: 'polygon', label: 'Polygon' },
-                { value: 'arbitrum', label: 'Arbitrum' },
-                { value: 'optimism', label: 'Optimism' },
+                { value: "ethereum", label: "Ethereum" },
+                { value: "polygon", label: "Polygon" },
+                { value: "arbitrum", label: "Arbitrum" },
+                { value: "optimism", label: "Optimism" },
               ]}
               style={{ width: 140 }}
             />
             <Tooltip label="Refresh alerts">
-              <ActionIcon variant="light" onClick={onRefresh} loading={isLoading}>
+              <ActionIcon
+                variant="light"
+                onClick={onRefresh}
+                loading={isLoading}
+              >
                 <IconRefresh size={16} />
               </ActionIcon>
             </Tooltip>
@@ -275,7 +283,12 @@ export function EnhancedAlertTable({
         </Group>
 
         {selectedAlerts.length > 0 && (
-          <Paper p="sm" radius="md" withBorder style={{ backgroundColor: 'var(--mantine-color-blue-0)' }}>
+          <Paper
+            p="sm"
+            radius="md"
+            withBorder
+            style={{ backgroundColor: "var(--mantine-color-blue-0)" }}
+          >
             <Group justify="space-between">
               <Group gap="md">
                 <Badge size="lg" variant="filled">
@@ -289,11 +302,11 @@ export function EnhancedAlertTable({
                   onClick={() => {
                     // Bulk delete logic
                     notifications.show({
-                      title: 'Alerts Deleted',
+                      title: "Alerts Deleted",
                       message: `${selectedAlerts.length} alerts have been deleted`,
-                      color: 'green',
-                    })
-                    onClearSelection()
+                      color: "green",
+                    });
+                    onClearSelection();
                   }}
                 >
                   Delete Selected
@@ -306,23 +319,25 @@ export function EnhancedAlertTable({
           </Paper>
         )}
 
-        <div style={{ overflowX: 'auto' }}>
+        <div style={{ overflowX: "auto" }}>
           <Table verticalSpacing="sm" horizontalSpacing="md" highlightOnHover>
             <Table.Thead>
               <Table.Tr>
                 <Table.Th w={40}>
                   <Checkbox
                     checked={
-                      selectedAlerts.length === sortedAlerts.length && sortedAlerts.length > 0
+                      selectedAlerts.length === sortedAlerts.length &&
+                      sortedAlerts.length > 0
                     }
                     indeterminate={
-                      selectedAlerts.length > 0 && selectedAlerts.length < sortedAlerts.length
+                      selectedAlerts.length > 0 &&
+                      selectedAlerts.length < sortedAlerts.length
                     }
                     onChange={(e) => {
                       if (e.currentTarget.checked) {
-                        onSelectAllAlerts()
+                        onSelectAllAlerts();
                       } else {
-                        onClearSelection()
+                        onClearSelection();
                       }
                     }}
                   />
@@ -330,12 +345,12 @@ export function EnhancedAlertTable({
                 <Table.Th>
                   <Group
                     gap={4}
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => handleSort('name')}
+                    style={{ cursor: "pointer" }}
+                    onClick={() => handleSort("name")}
                   >
                     <Text fw={500}>Name</Text>
-                    {sortBy === 'name' &&
-                      (sortOrder === 'asc' ? (
+                    {sortBy === "name" &&
+                      (sortOrder === "asc" ? (
                         <IconSortAscending size={14} />
                       ) : (
                         <IconSortDescending size={14} />
@@ -345,12 +360,12 @@ export function EnhancedAlertTable({
                 <Table.Th>
                   <Group
                     gap={4}
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => handleSort('status')}
+                    style={{ cursor: "pointer" }}
+                    onClick={() => handleSort("status")}
                   >
                     <Text fw={500}>Status</Text>
-                    {sortBy === 'status' &&
-                      (sortOrder === 'asc' ? (
+                    {sortBy === "status" &&
+                      (sortOrder === "asc" ? (
                         <IconSortAscending size={14} />
                       ) : (
                         <IconSortDescending size={14} />
@@ -362,12 +377,12 @@ export function EnhancedAlertTable({
                 <Table.Th>
                   <Group
                     gap={4}
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => handleSort('triggered')}
+                    style={{ cursor: "pointer" }}
+                    onClick={() => handleSort("triggered")}
                   >
                     <Text fw={500}>Last Triggered</Text>
-                    {sortBy === 'triggered' &&
-                      (sortOrder === 'asc' ? (
+                    {sortBy === "triggered" &&
+                      (sortOrder === "asc" ? (
                         <IconSortAscending size={14} />
                       ) : (
                         <IconSortDescending size={14} />
@@ -396,15 +411,19 @@ export function EnhancedAlertTable({
                           fw={500}
                           size="sm"
                           style={{
-                            whiteSpace: 'normal',
-                            wordBreak: 'break-word',
-                            overflowWrap: 'anywhere',
+                            whiteSpace: "normal",
+                            wordBreak: "break-word",
+                            overflowWrap: "anywhere",
                           }}
                         >
                           {alert.name}
                         </Text>
-                        {alert.priority && alert.priority !== 'normal' && (
-                          <Badge size="xs" color={getPriorityColor(alert.priority)} variant="dot">
+                        {alert.priority && alert.priority !== "normal" && (
+                          <Badge
+                            size="xs"
+                            color={getPriorityColor(alert.priority)}
+                            variant="dot"
+                          >
                             {alert.priority}
                           </Badge>
                         )}
@@ -512,18 +531,18 @@ export function EnhancedAlertTable({
           <Group gap="lg">
             <Group gap="xs">
               <Badge color="green" variant="light" size="sm">
-                {alerts.filter((a) => a.status === 'active').length} Active
+                {alerts.filter((a) => a.status === "active").length} Active
               </Badge>
               <Badge color="orange" variant="light" size="sm">
-                {alerts.filter((a) => a.status === 'paused').length} Paused
+                {alerts.filter((a) => a.status === "paused").length} Paused
               </Badge>
               <Badge color="red" variant="light" size="sm">
-                {alerts.filter((a) => a.status === 'error').length} Error
+                {alerts.filter((a) => a.status === "error").length} Error
               </Badge>
             </Group>
           </Group>
         </Group>
       </Stack>
     </Card>
-  )
+  );
 }

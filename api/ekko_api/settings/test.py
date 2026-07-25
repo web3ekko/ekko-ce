@@ -29,10 +29,14 @@ import dj_database_url
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 if DATABASE_URL:
-    DATABASES = {"default": dj_database_url.config(default=DATABASE_URL, conn_max_age=600)}
+    DATABASES = {
+        "default": dj_database_url.config(default=DATABASE_URL, conn_max_age=600)
+    }
     DATABASES["default"]["TEST"] = {"NAME": "test_ekko_api"}
 else:
-    DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memory:"}}
+    DATABASES = {
+        "default": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memory:"}
+    }
 
 # Test Redis - use docker-compose Redis
 #
@@ -93,7 +97,9 @@ NATS_SUBJECT_PREFIX = "test_ekko"
 NATS_ENABLED = os.environ.get("EKKO_TEST_USE_NATS", "").strip() == "1"
 
 # wasmCloud runtime Redis projection is out-of-scope for unit tests; disable by default.
-ALERT_RUNTIME_REDIS_SYNC_ENABLED = os.environ.get("EKKO_TEST_RUNTIME_REDIS_SYNC", "").strip() == "1"
+ALERT_RUNTIME_REDIS_SYNC_ENABLED = (
+    os.environ.get("EKKO_TEST_RUNTIME_REDIS_SYNC", "").strip() == "1"
+)
 
 # Security settings for testing
 SECRET_KEY = "test-secret-key-for-testing-only-not-for-production"
@@ -149,8 +155,8 @@ CELERY_TASK_EAGER_PROPAGATES = True
 # Django Allauth test configuration
 # Note: Using new settings format (deprecated settings removed for Django 6.0)
 ACCOUNT_EMAIL_VERIFICATION = "mandatory"
-ACCOUNT_LOGIN_METHODS = {'email'}
-ACCOUNT_SIGNUP_FIELDS = ['email*', 'first_name*', 'last_name*']
+ACCOUNT_LOGIN_METHODS = {"email"}
+ACCOUNT_SIGNUP_FIELDS = ["email*", "first_name*", "last_name*"]
 
 # Test-specific middleware (remove some security middleware for testing)
 MIDDLEWARE = [

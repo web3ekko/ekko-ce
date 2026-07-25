@@ -2,7 +2,7 @@
  * Marketplace Template Detail Page
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Badge,
@@ -17,7 +17,7 @@ import {
   Text,
   ThemeIcon,
   Title,
-} from '@mantine/core'
+} from "@mantine/core";
 import {
   IconAlertCircle,
   IconArrowLeft,
@@ -27,109 +27,129 @@ import {
   IconShieldCheck,
   IconActivity,
   IconNetwork,
-} from '@tabler/icons-react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { notifications } from '@mantine/notifications'
-import { alertsApiService, type AlertTemplateSummary } from '../../services/alerts-api'
+} from "@tabler/icons-react";
+import { useNavigate, useParams } from "react-router-dom";
+import { notifications } from "@mantine/notifications";
+import {
+  alertsApiService,
+  type AlertTemplateSummary,
+} from "../../services/alerts-api";
 
-const TEMPLATE_META: Record<string, { label: string; icon: typeof IconTemplate; color: string }> = {
-  wallet: { label: 'Wallet', icon: IconWallet, color: 'blue' },
-  token: { label: 'Token', icon: IconCoins, color: 'teal' },
-  contract: { label: 'Contract', icon: IconShieldCheck, color: 'orange' },
-  protocol: { label: 'Protocol', icon: IconNetwork, color: 'grape' },
-  network: { label: 'Network', icon: IconNetwork, color: 'green' },
-  anomaly: { label: 'Anomaly', icon: IconActivity, color: 'red' },
-}
+const TEMPLATE_META: Record<
+  string,
+  { label: string; icon: typeof IconTemplate; color: string }
+> = {
+  wallet: { label: "Wallet", icon: IconWallet, color: "blue" },
+  token: { label: "Token", icon: IconCoins, color: "teal" },
+  contract: { label: "Contract", icon: IconShieldCheck, color: "orange" },
+  protocol: { label: "Protocol", icon: IconNetwork, color: "grape" },
+  network: { label: "Network", icon: IconNetwork, color: "green" },
+  anomaly: { label: "Anomaly", icon: IconActivity, color: "red" },
+};
 
 export function MarketplaceTemplateDetailPage() {
-  const { id } = useParams()
-  const navigate = useNavigate()
-  const [template, setTemplate] = useState<(AlertTemplateSummary & { latest_template_version?: number }) | null>(null)
-  const [templateVersion, setTemplateVersion] = useState<number | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [template, setTemplate] = useState<
+    (AlertTemplateSummary & { latest_template_version?: number }) | null
+  >(null);
+  const [templateVersion, setTemplateVersion] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let isActive = true
+    let isActive = true;
 
     const loadTemplate = async () => {
-      if (!id) return
-      setIsLoading(true)
-      setError(null)
+      if (!id) return;
+      setIsLoading(true);
+      setError(null);
       try {
-        const resp = await alertsApiService.getTemplateLatest(id)
-        if (!isActive) return
+        const resp = await alertsApiService.getTemplateLatest(id);
+        if (!isActive) return;
         if (!resp.success || !resp.template || !resp.bundle) {
-          setError(resp.message || 'Unable to load template')
-          return
+          setError(resp.message || "Unable to load template");
+          return;
         }
-        setTemplate(resp.template as any)
-        setTemplateVersion(resp.bundle.template_version)
+        setTemplate(resp.template as any);
+        setTemplateVersion(resp.bundle.template_version);
       } catch (loadError: any) {
-        console.error('Failed to load template:', loadError)
+        console.error("Failed to load template:", loadError);
         if (isActive) {
-          setError(loadError?.message || 'Unable to load template')
+          setError(loadError?.message || "Unable to load template");
         }
       } finally {
-        if (isActive) setIsLoading(false)
+        if (isActive) setIsLoading(false);
       }
-    }
+    };
 
-    loadTemplate()
+    loadTemplate();
     return () => {
-      isActive = false
-    }
-  }, [id])
+      isActive = false;
+    };
+  }, [id]);
 
   const meta = useMemo(() => {
-    if (!template) return null
-    const key = (template.target_kind || '').toLowerCase()
-    return TEMPLATE_META[key] || { label: 'Template', icon: IconTemplate, color: 'gray' }
-  }, [template])
+    if (!template) return null;
+    const key = (template.target_kind || "").toLowerCase();
+    return (
+      TEMPLATE_META[key] || {
+        label: "Template",
+        icon: IconTemplate,
+        color: "gray",
+      }
+    );
+  }, [template]);
 
   const handleUseTemplate = () => {
-    if (!template || !templateVersion) return
+    if (!template || !templateVersion) return;
     notifications.show({
-      title: 'Template selected',
-      message: 'Opening the alert builder with this template.',
-      color: 'blue',
+      title: "Template selected",
+      message: "Opening the alert builder with this template.",
+      color: "blue",
       icon: <IconTemplate size={16} />,
-    })
-    navigate(`/dashboard/alerts?create=true&template_id=${template.id}&template_version=${templateVersion}`)
-  }
+    });
+    navigate(
+      `/dashboard/alerts?create=true&template_id=${template.id}&template_version=${templateVersion}`,
+    );
+  };
 
   if (isLoading) {
     return (
       <Center h={300}>
         <Loader size="lg" />
       </Center>
-    )
+    );
   }
 
   if (error || !template || !templateVersion) {
     return (
       <Container size="md" py="xl">
         <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light">
-          {error || 'Template not found'}
+          {error || "Template not found"}
         </Alert>
         <Button
           mt="md"
           variant="light"
           leftSection={<IconArrowLeft size={16} />}
-          onClick={() => navigate('/dashboard/marketplace')}
+          onClick={() => navigate("/dashboard/marketplace")}
         >
           Back to marketplace
         </Button>
       </Container>
-    )
+    );
   }
 
-  const MetaIcon = meta?.icon || IconTemplate
+  const MetaIcon = meta?.icon || IconTemplate;
 
   return (
     <Container size="md" py="xl">
       <Stack gap="lg">
-        <Button variant="subtle" leftSection={<IconArrowLeft size={16} />} onClick={() => navigate('/dashboard/marketplace')}>
+        <Button
+          variant="subtle"
+          leftSection={<IconArrowLeft size={16} />}
+          onClick={() => navigate("/dashboard/marketplace")}
+        >
           Back to marketplace
         </Button>
 
@@ -137,14 +157,23 @@ export function MarketplaceTemplateDetailPage() {
           <Stack gap="md">
             <Group justify="space-between" align="flex-start">
               <Group gap="sm">
-                <ThemeIcon size="lg" radius="md" variant="light" color={meta?.color || 'gray'}>
+                <ThemeIcon
+                  size="lg"
+                  radius="md"
+                  variant="light"
+                  color={meta?.color || "gray"}
+                >
                   <MetaIcon size={20} />
                 </ThemeIcon>
                 <div>
                   <Title order={3}>{template.name}</Title>
                   <Group gap="xs" mt={4}>
-                    <Badge size="sm" color={meta?.color || 'gray'} variant="light">
-                      {meta?.label || 'Template'}
+                    <Badge
+                      size="sm"
+                      color={meta?.color || "gray"}
+                      variant="light"
+                    >
+                      {meta?.label || "Template"}
                     </Badge>
                     {template.is_verified && (
                       <Badge size="sm" color="blue" variant="light">
@@ -166,7 +195,7 @@ export function MarketplaceTemplateDetailPage() {
             </Group>
 
             <Text c="dimmed">
-              {template.description || 'No description provided.'}
+              {template.description || "No description provided."}
             </Text>
 
             <Divider />
@@ -188,11 +217,18 @@ export function MarketplaceTemplateDetailPage() {
             </Group>
 
             <Stack gap="xs">
-              <Text size="sm" fw={600}>Template variables</Text>
+              <Text size="sm" fw={600}>
+                Template variables
+              </Text>
               {template.variable_names?.length ? (
                 <Group gap="xs">
                   {template.variable_names.map((variable) => (
-                    <Badge key={variable} size="sm" variant="light" color="gray">
+                    <Badge
+                      key={variable}
+                      size="sm"
+                      variant="light"
+                      color="gray"
+                    >
                       {variable}
                     </Badge>
                   ))}
@@ -207,5 +243,5 @@ export function MarketplaceTemplateDetailPage() {
         </Card>
       </Stack>
     </Container>
-  )
+  );
 }

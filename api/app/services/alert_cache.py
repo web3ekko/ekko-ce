@@ -117,7 +117,10 @@ class AlertCacheManager:
         try:
             # Only cache alerts with execution-safe AlertTemplateIR v1 spec.
             execution_spec = self._get_execution_spec(alert_instance)
-            if not isinstance(execution_spec, dict) or execution_spec.get("version") != "v1":
+            if (
+                not isinstance(execution_spec, dict)
+                or execution_spec.get("version") != "v1"
+            ):
                 logger.warning(
                     "Skipping Redis cache sync for alert %s: unsupported spec version",
                     alert_id,
@@ -179,14 +182,16 @@ class AlertCacheManager:
                     pipe.sadd(f"alerts:chain:{chain}:{event_type}", alert_id)
 
                 # 5. Add to schedule sorted sets based on trigger_type
-                if alert_instance.trigger_type == 'periodic':
+                if alert_instance.trigger_type == "periodic":
                     next_run = self._calculate_next_run(alert_instance)
                     if next_run:
                         pipe.zadd("periodic_schedule", {alert_id: next_run.timestamp()})
-                elif alert_instance.trigger_type == 'one_time':
+                elif alert_instance.trigger_type == "one_time":
                     scheduled_time = self._get_scheduled_time(alert_instance)
                     if scheduled_time:
-                        pipe.zadd("onetime_schedule", {alert_id: scheduled_time.timestamp()})
+                        pipe.zadd(
+                            "onetime_schedule", {alert_id: scheduled_time.timestamp()}
+                        )
 
                 # Execute pipeline
                 pipe.execute()
@@ -268,7 +273,7 @@ class AlertCacheManager:
             alert_data = self.redis_client.hgetall(f"alert:{alert_id}")
 
             if alert_data:
-                spec = json.loads(alert_data.get('spec', '{}'))
+                spec = json.loads(alert_data.get("spec", "{}"))
                 alert_type = str(alert_data.get("alert_type") or "wallet")
                 chains_for_chain_events: List[str] = []
 
@@ -296,12 +301,18 @@ class AlertCacheManager:
                         )
                         chains_for_chain_events.append(f"{chain}:{network}")
                         if alert_type == "wallet":
-                            index_keys.append(f"alerts:address:{chain}:{network}:{address}")
+                            index_keys.append(
+                                f"alerts:address:{chain}:{network}:{address}"
+                            )
                         else:
-                            index_keys.append(f"alerts:contract:{chain}:{network}:{address}")
+                            index_keys.append(
+                                f"alerts:contract:{chain}:{network}:{address}"
+                            )
                 else:
                     trigger = spec.get("trigger", {}) if isinstance(spec, dict) else {}
-                    chain_id = trigger.get("chain_id") if isinstance(trigger, dict) else None
+                    chain_id = (
+                        trigger.get("chain_id") if isinstance(trigger, dict) else None
+                    )
                     if isinstance(chain_id, int):
                         chain_prefix_by_id = {
                             1: "ETH",
@@ -321,12 +332,14 @@ class AlertCacheManager:
 
                 # Get chain:event keys to clean
                 chain_event_keys = []
-                if alert_data.get('trigger_type') == 'event_driven':
-                    trigger_config = json.loads(alert_data.get('trigger_config', '{}'))
-                    event_types = trigger_config.get('event_types', [])
+                if alert_data.get("trigger_type") == "event_driven":
+                    trigger_config = json.loads(alert_data.get("trigger_config", "{}"))
+                    event_types = trigger_config.get("event_types", [])
                     for chain in sorted(set(chains_for_chain_events)):
                         for event_type in event_types:
-                            chain_event_keys.append(f"alerts:chain:{chain}:{event_type}")
+                            chain_event_keys.append(
+                                f"alerts:chain:{chain}:{event_type}"
+                            )
 
             with self.redis_client.pipeline() as pipe:
                 # Delete alert hash
@@ -362,7 +375,9 @@ class AlertCacheManager:
         - Fallback: computed instance spec
         """
         template = getattr(alert_instance, "template", None)
-        template_spec = getattr(template, "spec", None) if template is not None else None
+        template_spec = (
+            getattr(template, "spec", None) if template is not None else None
+        )
         if isinstance(template_spec, dict) and template_spec:
             return template_spec
 
@@ -442,7 +457,7 @@ class AlertCacheManager:
 
         # Get all enabled alerts
         alerts = list(
-            AlertInstance.objects.filter(enabled=True).select_related('template')
+            AlertInstance.objects.filter(enabled=True).select_related("template")
         )
 
         total_alerts = len(alerts)
@@ -450,13 +465,15 @@ class AlertCacheManager:
 
         # Process in batches
         for i in range(0, total_alerts, BATCH_SIZE):
-            batch = alerts[i:i + BATCH_SIZE]
+            batch = alerts[i : i + BATCH_SIZE]
             batch_stats = self._sync_batch_to_redis(batch)
             stats["synced"] += batch_stats["synced"]
             stats["failed"] += batch_stats["failed"]
 
             if (i + BATCH_SIZE) % 1000 == 0:
-                logger.info(f"Processed {min(i + BATCH_SIZE, total_alerts)}/{total_alerts} alerts")
+                logger.info(
+                    f"Processed {min(i + BATCH_SIZE, total_alerts)}/{total_alerts} alerts"
+                )
 
         logger.info(f"Cache warming complete: {stats}")
         return stats
@@ -478,13 +495,18 @@ class AlertCacheManager:
         try:
             # Step 1: Collect all index keys across all alerts
             all_index_keys: Set[str] = set()
-            alert_data_map: Dict[str, Dict[str, Any]] = {}  # alert_id -> {keys, data, instance}
+            alert_data_map: Dict[
+                str, Dict[str, Any]
+            ] = {}  # alert_id -> {keys, data, instance}
 
             for alert in alerts:
                 alert_id = str(alert.id)
                 try:
                     execution_spec = self._get_execution_spec(alert)
-                    if not isinstance(execution_spec, dict) or execution_spec.get("version") != "v1":
+                    if (
+                        not isinstance(execution_spec, dict)
+                        or execution_spec.get("version") != "v1"
+                    ):
                         logger.warning(
                             "Skipping Redis cache sync for alert %s: unsupported spec version",
                             alert_id,
@@ -501,13 +523,13 @@ class AlertCacheManager:
                     all_index_keys.update(keys)
 
                     alert_data_map[alert_id] = {
-                        'keys': keys,
-                        'data': self._serialize_alert_for_redis(
+                        "keys": keys,
+                        "data": self._serialize_alert_for_redis(
                             alert_instance=alert,
                             execution_spec=execution_spec,
                             expanded_targets=expanded_targets,
                         ),
-                        'instance': alert,
+                        "instance": alert,
                     }
                 except Exception as e:
                     logger.error(f"Failed to prepare alert {alert.id}: {e}")
@@ -533,7 +555,7 @@ class AlertCacheManager:
 
             # Add all alert_ids to their respective indexes
             for alert_id, info in alert_data_map.items():
-                for key in info['keys']:
+                for key in info["keys"]:
                     if key not in index_updates:
                         index_updates[key] = []
                     if alert_id not in index_updates[key]:
@@ -542,10 +564,10 @@ class AlertCacheManager:
             # Step 4: Single pipeline for all SET operations
             with self.redis_client.pipeline() as pipe:
                 for alert_id, info in alert_data_map.items():
-                    instance = info['instance']
+                    instance = info["instance"]
 
                     # Create alert:{id} hash with TTL
-                    pipe.hset(f"alert:{alert_id}", mapping=info['data'])
+                    pipe.hset(f"alert:{alert_id}", mapping=info["data"])
                     pipe.expire(f"alert:{alert_id}", ALERT_HASH_TTL)
 
                     # Add to active alerts set if enabled
@@ -560,14 +582,19 @@ class AlertCacheManager:
                         pipe.sadd(f"alerts:chain:{chain}:{event_type}", alert_id)
 
                     # Add to schedule sorted sets based on trigger_type
-                    if instance.trigger_type == 'periodic':
+                    if instance.trigger_type == "periodic":
                         next_run = self._calculate_next_run(instance)
                         if next_run:
-                            pipe.zadd("periodic_schedule", {alert_id: next_run.timestamp()})
-                    elif instance.trigger_type == 'one_time':
+                            pipe.zadd(
+                                "periodic_schedule", {alert_id: next_run.timestamp()}
+                            )
+                    elif instance.trigger_type == "one_time":
                         scheduled_time = self._get_scheduled_time(instance)
                         if scheduled_time:
-                            pipe.zadd("onetime_schedule", {alert_id: scheduled_time.timestamp()})
+                            pipe.zadd(
+                                "onetime_schedule",
+                                {alert_id: scheduled_time.timestamp()},
+                            )
 
                 # Write all index updates
                 for key, alert_ids in index_updates.items():
@@ -602,8 +629,12 @@ class AlertCacheManager:
             "trigger_config": json.dumps(alert_instance.trigger_config or {}),
             "spec": json.dumps(execution_spec),
             "template_id": str(template_id) if template_id else "",
-            "template_params": json.dumps(getattr(alert_instance, "template_params", None) or {}),
-            "alert_type": str(getattr(alert_instance, "alert_type", "wallet") or "wallet"),
+            "template_params": json.dumps(
+                getattr(alert_instance, "template_params", None) or {}
+            ),
+            "alert_type": str(
+                getattr(alert_instance, "alert_type", "wallet") or "wallet"
+            ),
             "target_keys": json.dumps(expanded_targets),
             "user_id": str(alert_instance.user_id),
             "enabled": "1" if alert_instance.enabled else "0",
@@ -611,7 +642,8 @@ class AlertCacheManager:
             "created_at": alert_instance.created_at.isoformat(),
             "last_job_created_at": (
                 alert_instance.last_job_created_at.isoformat()
-                if alert_instance.last_job_created_at else ""
+                if alert_instance.last_job_created_at
+                else ""
             ),
             "job_creation_count": str(alert_instance.job_creation_count),
             "name": alert_instance.name or "",
@@ -626,9 +658,9 @@ class AlertCacheManager:
         chain_events = []
 
         # Get event types from trigger_config (for event_driven)
-        if alert_instance.trigger_type == 'event_driven':
+        if alert_instance.trigger_type == "event_driven":
             trigger_config = alert_instance.trigger_config or {}
-            event_types = trigger_config.get('event_types', [])
+            event_types = trigger_config.get("event_types", [])
 
             chains: List[str] = []
             if hasattr(alert_instance, "get_chains"):
@@ -648,7 +680,9 @@ class AlertCacheManager:
                     parts = [p.strip() for p in raw.split(":")]
                     if len(parts) < 2:
                         continue
-                    chains.append(f"{_normalize_chain_prefix(parts[0])}:{parts[1].lower()}")
+                    chains.append(
+                        f"{_normalize_chain_prefix(parts[0])}:{parts[1].lower()}"
+                    )
 
             for chain in sorted(set(chains)):
                 for event_type in event_types:
@@ -697,7 +731,7 @@ class AlertCacheManager:
                 cursor, keys = self.redis_client.scan(
                     cursor=cursor,
                     match=pattern,
-                    count=100  # Process 100 keys per iteration
+                    count=100,  # Process 100 keys per iteration
                 )
 
                 for key in keys:
@@ -714,7 +748,9 @@ class AlertCacheManager:
                                 self.redis_client.set(key, json.dumps(members))
                                 self.redis_client.expire(key, INDEX_KEY_TTL)
                             stats["migrated"] += 1
-                            logger.info(f"Migrated {key} from SET to JSON ({len(members)} items)")
+                            logger.info(
+                                f"Migrated {key} from SET to JSON ({len(members)} items)"
+                            )
 
                         elif key_type == "string":
                             # Already a string, verify it's valid JSON

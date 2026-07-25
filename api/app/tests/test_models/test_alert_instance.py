@@ -23,14 +23,15 @@ User = get_user_model()
 # Test Fixtures
 # ===================================================================
 
+
 @pytest.fixture
 def test_user(db):
     """Create a test user"""
     return User.objects.create_user(
-        email='testuser@example.com',
-        first_name='Test',
-        last_name='User',
-        password='testpass123'
+        email="testuser@example.com",
+        first_name="Test",
+        last_name="User",
+        password="testpass123",
     )
 
 
@@ -38,10 +39,10 @@ def test_user(db):
 def provider_user(db):
     """Create a provider/developer user"""
     return User.objects.create_user(
-        email='provider@example.com',
-        first_name='Provider',
-        last_name='User',
-        password='providerpass123'
+        email="provider@example.com",
+        first_name="Provider",
+        last_name="User",
+        password="providerpass123",
     )
 
 
@@ -49,11 +50,11 @@ def provider_user(db):
 def ethereum_chain(db):
     """Create Ethereum chain for testing"""
     return Chain.objects.create(
-        name='ethereum',
-        display_name='Ethereum',
+        name="ethereum",
+        display_name="Ethereum",
         chain_id=1,
-        native_token='ETH',
-        enabled=True
+        native_token="ETH",
+        enabled=True,
     )
 
 
@@ -61,11 +62,11 @@ def ethereum_chain(db):
 def solana_chain(db):
     """Create Solana chain for testing"""
     return Chain.objects.create(
-        name='solana',
-        display_name='Solana',
+        name="solana",
+        display_name="Solana",
         chain_id=101,
-        native_token='SOL',
-        enabled=True
+        native_token="SOL",
+        enabled=True,
     )
 
 
@@ -108,10 +109,10 @@ def wallet_group(db, test_user):
             "members": {
                 "ETH:mainnet:0x1234567890abcdef": {"label": "Main Wallet"},
                 "ETH:mainnet:0xfedcba0987654321": {"label": "Backup Wallet"},
-                "SOL:mainnet:ABC123xyz": {"label": "SOL Wallet"}
+                "SOL:mainnet:ABC123xyz": {"label": "SOL Wallet"},
             }
         },
-        member_count=3
+        member_count=3,
     )
     return group
 
@@ -126,10 +127,10 @@ def network_group(db, test_user):
         member_data={
             "members": {
                 "ETH:mainnet": {"enabled": True},
-                "ETH:goerli": {"enabled": True}
+                "ETH:goerli": {"enabled": True},
             }
         },
-        member_count=2
+        member_count=2,
     )
     return group
 
@@ -147,13 +148,14 @@ def sample_alert_instance(db, test_user, public_alert_template):
         sub_event="TOKEN_TRANSFER",
         alert_type=AlertType.WALLET,
         user=test_user,
-        enabled=True
+        enabled=True,
     )
 
 
 # ===================================================================
 # AlertInstance Target Keys Tests
 # ===================================================================
+
 
 @pytest.mark.django_db
 class TestAlertInstanceTargetKeys:
@@ -168,7 +170,7 @@ class TestAlertInstanceTargetKeys:
             template_params={"wallet": "0x123"},
             event_type="ASSET_EVENT",
             sub_event="TOKEN_TRANSFER",
-            user=test_user
+            user=test_user,
         )
         assert alert.target_keys == []
 
@@ -183,7 +185,7 @@ class TestAlertInstanceTargetKeys:
             event_type="ASSET_EVENT",
             sub_event="TOKEN_TRANSFER",
             target_keys=target_keys,
-            user=test_user
+            user=test_user,
         )
         assert alert.target_keys == target_keys
 
@@ -192,7 +194,7 @@ class TestAlertInstanceTargetKeys:
         sample_alert_instance.alert_type = AlertType.WALLET
         sample_alert_instance.target_keys = [
             "ETH:mainnet:0x1234567890abcdef",
-            "SOL:mainnet:ABC123xyz"
+            "SOL:mainnet:ABC123xyz",
         ]
         # Should not raise
         sample_alert_instance.validate_target_keys_format()
@@ -200,10 +202,7 @@ class TestAlertInstanceTargetKeys:
     def test_validate_target_keys_valid_network_format(self, sample_alert_instance):
         """Test validation passes for valid network key format"""
         sample_alert_instance.alert_type = AlertType.NETWORK
-        sample_alert_instance.target_keys = [
-            "ETH:mainnet",
-            "SOL:devnet"
-        ]
+        sample_alert_instance.target_keys = ["ETH:mainnet", "SOL:devnet"]
         # Should not raise
         sample_alert_instance.validate_target_keys_format()
 
@@ -246,7 +245,9 @@ class TestAlertInstanceTargetKeys:
 
     def test_validate_target_keys_not_list(self, sample_alert_instance):
         """Test validation fails when target_keys is not a list"""
-        sample_alert_instance.target_keys = "ETH:mainnet:0x123"  # String instead of list
+        sample_alert_instance.target_keys = (
+            "ETH:mainnet:0x123"  # String instead of list
+        )
 
         with pytest.raises(ValidationError) as exc_info:
             sample_alert_instance.validate_target_keys_format()
@@ -273,15 +274,14 @@ class TestAlertInstanceGetEffectiveTargets:
 
     def test_get_effective_targets_from_target_keys(self, sample_alert_instance):
         """Test get_effective_targets returns target_keys when set"""
-        sample_alert_instance.target_keys = [
-            "ETH:mainnet:0x1234",
-            "ETH:mainnet:0x5678"
-        ]
+        sample_alert_instance.target_keys = ["ETH:mainnet:0x1234", "ETH:mainnet:0x5678"]
 
         targets = sample_alert_instance.get_effective_targets()
         assert targets == ["ETH:mainnet:0x1234", "ETH:mainnet:0x5678"]
 
-    def test_get_effective_targets_from_group(self, sample_alert_instance, wallet_group):
+    def test_get_effective_targets_from_group(
+        self, sample_alert_instance, wallet_group
+    ):
         """Test get_effective_targets returns group members when no target_keys"""
         sample_alert_instance.target_keys = []
         sample_alert_instance.target_group = wallet_group
@@ -293,7 +293,9 @@ class TestAlertInstanceGetEffectiveTargets:
         assert "ETH:mainnet:0xfedcba0987654321" in targets
         assert "SOL:mainnet:ABC123xyz" in targets
 
-    def test_get_effective_targets_keys_override_group(self, sample_alert_instance, wallet_group):
+    def test_get_effective_targets_keys_override_group(
+        self, sample_alert_instance, wallet_group
+    ):
         """Test that target_keys takes precedence over target_group"""
         sample_alert_instance.target_keys = ["ETH:mainnet:0xONLY_THIS_ONE"]
         sample_alert_instance.target_group = wallet_group
@@ -345,14 +347,18 @@ class TestAlertInstanceHasExplicitTargets:
 class TestAlertInstanceTargetGroupValidation:
     """Tests for AlertInstance.validate_target_group_type() method"""
 
-    def test_wallet_alert_with_wallet_group_valid(self, sample_alert_instance, wallet_group):
+    def test_wallet_alert_with_wallet_group_valid(
+        self, sample_alert_instance, wallet_group
+    ):
         """Test wallet alert can target wallet group"""
         sample_alert_instance.alert_type = AlertType.WALLET
         sample_alert_instance.target_group = wallet_group
         # Should not raise
         sample_alert_instance.validate_target_group_type()
 
-    def test_wallet_alert_with_network_group_invalid(self, sample_alert_instance, network_group):
+    def test_wallet_alert_with_network_group_invalid(
+        self, sample_alert_instance, network_group
+    ):
         """Test wallet alert cannot target network group"""
         sample_alert_instance.alert_type = AlertType.WALLET
         sample_alert_instance.target_group = network_group
@@ -361,7 +367,9 @@ class TestAlertInstanceTargetGroupValidation:
             sample_alert_instance.validate_target_group_type()
         assert "requires target group of type" in str(exc_info.value)
 
-    def test_network_alert_with_network_group_valid(self, sample_alert_instance, network_group):
+    def test_network_alert_with_network_group_valid(
+        self, sample_alert_instance, network_group
+    ):
         """Test network alert can target network group"""
         sample_alert_instance.alert_type = AlertType.NETWORK
         sample_alert_instance.target_group = network_group
@@ -379,6 +387,7 @@ class TestAlertInstanceTargetGroupValidation:
 # DefaultNetworkAlert Model Tests
 # ===================================================================
 
+
 @pytest.mark.django_db
 class TestDefaultNetworkAlertModel:
     """Tests for DefaultNetworkAlert model"""
@@ -387,36 +396,34 @@ class TestDefaultNetworkAlertModel:
         """Test creating a default network alert"""
         default_alert = DefaultNetworkAlert.objects.create(
             chain=ethereum_chain,
-            subnet='mainnet',
+            subnet="mainnet",
             alert_template=public_alert_template,
             enabled=True,
-            settings={'default_priority': 'normal'}
+            settings={"default_priority": "normal"},
         )
 
         assert default_alert.id is not None
         assert default_alert.chain == ethereum_chain
-        assert default_alert.subnet == 'mainnet'
+        assert default_alert.subnet == "mainnet"
         assert default_alert.alert_template == public_alert_template
         assert default_alert.enabled is True
-        assert default_alert.settings == {'default_priority': 'normal'}
+        assert default_alert.settings == {"default_priority": "normal"}
 
     def test_default_network_alert_str(self, ethereum_chain, public_alert_template):
         """Test string representation"""
         default_alert = DefaultNetworkAlert.objects.create(
-            chain=ethereum_chain,
-            subnet='mainnet',
-            alert_template=public_alert_template
+            chain=ethereum_chain, subnet="mainnet", alert_template=public_alert_template
         )
 
         expected = f"Default Alert: {ethereum_chain.display_name} (mainnet)"
         assert str(default_alert) == expected
 
-    def test_unique_constraint_chain_subnet(self, ethereum_chain, public_alert_template):
+    def test_unique_constraint_chain_subnet(
+        self, ethereum_chain, public_alert_template
+    ):
         """Test unique together constraint on chain + subnet"""
         DefaultNetworkAlert.objects.create(
-            chain=ethereum_chain,
-            subnet='mainnet',
-            alert_template=public_alert_template
+            chain=ethereum_chain, subnet="mainnet", alert_template=public_alert_template
         )
 
         # Create another template for the second alert
@@ -432,17 +439,17 @@ class TestDefaultNetworkAlertModel:
         with pytest.raises(IntegrityError):
             DefaultNetworkAlert.objects.create(
                 chain=ethereum_chain,
-                subnet='mainnet',  # Same chain + subnet
-                alert_template=another_template
+                subnet="mainnet",  # Same chain + subnet
+                alert_template=another_template,
             )
 
-    def test_different_subnet_allowed(self, ethereum_chain, public_alert_template, test_user):
+    def test_different_subnet_allowed(
+        self, ethereum_chain, public_alert_template, test_user
+    ):
         """Test that same chain with different subnet is allowed"""
         # Create mainnet default
         mainnet_default = DefaultNetworkAlert.objects.create(
-            chain=ethereum_chain,
-            subnet='mainnet',
-            alert_template=public_alert_template
+            chain=ethereum_chain, subnet="mainnet", alert_template=public_alert_template
         )
 
         # Create another template for testnet
@@ -458,12 +465,12 @@ class TestDefaultNetworkAlertModel:
         # Create testnet default - should succeed
         testnet_default = DefaultNetworkAlert.objects.create(
             chain=ethereum_chain,
-            subnet='goerli',  # Different subnet
-            alert_template=testnet_template
+            subnet="goerli",  # Different subnet
+            alert_template=testnet_template,
         )
 
-        assert mainnet_default.subnet == 'mainnet'
-        assert testnet_default.subnet == 'goerli'
+        assert mainnet_default.subnet == "mainnet"
+        assert testnet_default.subnet == "goerli"
 
 
 @pytest.mark.django_db
@@ -474,20 +481,20 @@ class TestDefaultNetworkAlertValidation:
         """Test that validation fails for non-public template"""
         default_alert = DefaultNetworkAlert(
             chain=ethereum_chain,
-            subnet='mainnet',
-            alert_template=private_alert_template
+            subnet="mainnet",
+            alert_template=private_alert_template,
         )
 
         with pytest.raises(ValidationError) as exc_info:
             default_alert.clean()
         assert "must use a public template" in str(exc_info.value)
 
-    def test_public_template_passes_validation(self, ethereum_chain, public_alert_template):
+    def test_public_template_passes_validation(
+        self, ethereum_chain, public_alert_template
+    ):
         """Test that validation passes for public template"""
         default_alert = DefaultNetworkAlert(
-            chain=ethereum_chain,
-            subnet='mainnet',
-            alert_template=public_alert_template
+            chain=ethereum_chain, subnet="mainnet", alert_template=public_alert_template
         )
         # Should not raise
         default_alert.clean()
@@ -501,80 +508,82 @@ class TestDefaultNetworkAlertClassMethods:
         """Test get_for_chain returns alert when it exists"""
         DefaultNetworkAlert.objects.create(
             chain=ethereum_chain,
-            subnet='mainnet',
+            subnet="mainnet",
             alert_template=public_alert_template,
-            enabled=True
+            enabled=True,
         )
 
-        result = DefaultNetworkAlert.get_for_chain('ethereum', 'mainnet')
+        result = DefaultNetworkAlert.get_for_chain("ethereum", "mainnet")
 
         assert result is not None
         assert result.chain == ethereum_chain
-        assert result.subnet == 'mainnet'
+        assert result.subnet == "mainnet"
 
     def test_get_for_chain_not_found(self, ethereum_chain, public_alert_template):
         """Test get_for_chain returns None when not found"""
         # Don't create any default alert
-        result = DefaultNetworkAlert.get_for_chain('nonexistent', 'mainnet')
+        result = DefaultNetworkAlert.get_for_chain("nonexistent", "mainnet")
         assert result is None
 
     def test_get_for_chain_disabled(self, ethereum_chain, public_alert_template):
         """Test get_for_chain returns None for disabled alert"""
         DefaultNetworkAlert.objects.create(
             chain=ethereum_chain,
-            subnet='mainnet',
+            subnet="mainnet",
             alert_template=public_alert_template,
-            enabled=False  # Disabled
+            enabled=False,  # Disabled
         )
 
-        result = DefaultNetworkAlert.get_for_chain('ethereum', 'mainnet')
+        result = DefaultNetworkAlert.get_for_chain("ethereum", "mainnet")
         assert result is None
 
-    def test_get_for_chain_different_subnet(self, ethereum_chain, public_alert_template):
+    def test_get_for_chain_different_subnet(
+        self, ethereum_chain, public_alert_template
+    ):
         """Test get_for_chain returns None for different subnet"""
         DefaultNetworkAlert.objects.create(
             chain=ethereum_chain,
-            subnet='mainnet',
+            subnet="mainnet",
             alert_template=public_alert_template,
-            enabled=True
+            enabled=True,
         )
 
-        result = DefaultNetworkAlert.get_for_chain('ethereum', 'goerli')
+        result = DefaultNetworkAlert.get_for_chain("ethereum", "goerli")
         assert result is None
 
     def test_get_fallback_template_exists(self, ethereum_chain, public_alert_template):
         """Test get_fallback_template returns template when alert exists"""
         DefaultNetworkAlert.objects.create(
             chain=ethereum_chain,
-            subnet='mainnet',
+            subnet="mainnet",
             alert_template=public_alert_template,
-            enabled=True
+            enabled=True,
         )
 
-        result = DefaultNetworkAlert.get_fallback_template('ethereum', 'mainnet')
+        result = DefaultNetworkAlert.get_fallback_template("ethereum", "mainnet")
 
         assert result is not None
         assert result == public_alert_template
 
     def test_get_fallback_template_not_found(self):
         """Test get_fallback_template returns None when not found"""
-        result = DefaultNetworkAlert.get_fallback_template('nonexistent', 'mainnet')
+        result = DefaultNetworkAlert.get_fallback_template("nonexistent", "mainnet")
         assert result is None
 
     def test_get_for_chain_default_subnet(self, ethereum_chain, public_alert_template):
         """Test get_for_chain uses mainnet as default subnet"""
         DefaultNetworkAlert.objects.create(
             chain=ethereum_chain,
-            subnet='mainnet',
+            subnet="mainnet",
             alert_template=public_alert_template,
-            enabled=True
+            enabled=True,
         )
 
         # Call without specifying subnet
-        result = DefaultNetworkAlert.get_for_chain('ethereum')
+        result = DefaultNetworkAlert.get_for_chain("ethereum")
 
         assert result is not None
-        assert result.subnet == 'mainnet'
+        assert result.subnet == "mainnet"
 
 
 @pytest.mark.django_db
@@ -584,9 +593,7 @@ class TestDefaultNetworkAlertSettings:
     def test_settings_default_empty_dict(self, ethereum_chain, public_alert_template):
         """Test settings defaults to empty dict"""
         default_alert = DefaultNetworkAlert.objects.create(
-            chain=ethereum_chain,
-            subnet='mainnet',
-            alert_template=public_alert_template
+            chain=ethereum_chain, subnet="mainnet", alert_template=public_alert_template
         )
 
         assert default_alert.settings == {}
@@ -594,18 +601,18 @@ class TestDefaultNetworkAlertSettings:
     def test_settings_with_custom_values(self, ethereum_chain, public_alert_template):
         """Test settings can store custom values"""
         settings = {
-            'default_priority': 'high',
-            'cooldown_minutes': 10,
-            'max_notifications_per_hour': 50
+            "default_priority": "high",
+            "cooldown_minutes": 10,
+            "max_notifications_per_hour": 50,
         }
 
         default_alert = DefaultNetworkAlert.objects.create(
             chain=ethereum_chain,
-            subnet='mainnet',
+            subnet="mainnet",
             alert_template=public_alert_template,
-            settings=settings
+            settings=settings,
         )
 
-        assert default_alert.settings['default_priority'] == 'high'
-        assert default_alert.settings['cooldown_minutes'] == 10
-        assert default_alert.settings['max_notifications_per_hour'] == 50
+        assert default_alert.settings["default_priority"] == "high"
+        assert default_alert.settings["cooldown_minutes"] == 10
+        assert default_alert.settings["max_notifications_per_hour"] == 50

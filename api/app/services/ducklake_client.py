@@ -30,13 +30,15 @@ def _is_missing_table_error(message: str, table: str) -> bool:
         or "does not exist" in msg
         or "unknown table" in msg
         or f"table with name {table.lower()}" in msg
-        or table.lower() in msg and "table" in msg
+        or table.lower() in msg
+        and "table" in msg
     )
 
 
 @dataclass
 class DeliveryMetrics:
     """Aggregated delivery metrics for a time period."""
+
     total_deliveries: int
     successful_deliveries: int
     failed_deliveries: int
@@ -53,6 +55,7 @@ class DeliveryMetrics:
 @dataclass
 class ChannelHealthMetrics:
     """Health metrics for a specific notification channel."""
+
     channel_id: str
     channel_type: str
     total_deliveries: int
@@ -70,6 +73,7 @@ class ChannelHealthMetrics:
 @dataclass
 class NotificationHistoryItem:
     """A single notification in user history."""
+
     notification_id: str
     alert_id: str
     alert_name: str
@@ -90,6 +94,7 @@ class NotificationHistoryItem:
 @dataclass
 class NotificationHistoryResponse:
     """Paginated notification history response."""
+
     count: int
     items: List[NotificationHistoryItem]
     has_more: bool
@@ -111,7 +116,9 @@ class DuckLakeClient:
             nats_url: NATS server URL (defaults to settings.NATS_URL)
             timeout: Request timeout in seconds
         """
-        self.nats_url = nats_url or getattr(settings, 'NATS_URL', 'nats://localhost:4222')
+        self.nats_url = nats_url or getattr(
+            settings, "NATS_URL", "nats://localhost:4222"
+        )
         self.timeout = timeout
         self._nc: Optional[NATSClient] = None
         self._loop: Optional[asyncio.AbstractEventLoop] = None
@@ -228,7 +235,7 @@ class DuckLakeClient:
         self,
         start_date: datetime,
         end_date: datetime,
-        channel_type: Optional[str] = None
+        channel_type: Optional[str] = None,
     ) -> DeliveryMetrics:
         """
         Get aggregated platform health metrics for a time period.
@@ -303,7 +310,12 @@ class DuckLakeClient:
         """
 
         # Execute queries in parallel
-        overall_results, error_results, hourly_results, channel_results = await asyncio.gather(
+        (
+            overall_results,
+            error_results,
+            hourly_results,
+            channel_results,
+        ) = await asyncio.gather(
             self._query(query=overall_query, table="notification_deliveries"),
             self._query(query=error_query, table="notification_deliveries"),
             self._query(query=hourly_query, table="notification_deliveries"),
@@ -312,33 +324,32 @@ class DuckLakeClient:
 
         # Parse results
         overall = overall_results[0] if overall_results else {}
-        total = overall.get('total_deliveries', 0)
-        successful = overall.get('successful_deliveries', 0)
+        total = overall.get("total_deliveries", 0)
+        successful = overall.get("successful_deliveries", 0)
 
         success_rate = (successful / total * 100) if total > 0 else 0.0
 
-        error_breakdown = {
-            row['error_type']: row['count']
-            for row in error_results
-        }
+        error_breakdown = {row["error_type"]: row["count"] for row in error_results}
 
         hourly_volume = [
             {
-                'hour': row['hour'],
-                'volume': row['volume'],
-                'successful': row['successful'],
-                'failed': row['failed']
+                "hour": row["hour"],
+                "volume": row["volume"],
+                "successful": row["successful"],
+                "failed": row["failed"],
             }
             for row in hourly_results
         ]
 
         channel_breakdown = {
-            row['channel_type']: {
-                'total': row['total'],
-                'successful': row['successful'],
-                'failed': row['failed'],
-                'success_rate': (row['successful'] / row['total'] * 100) if row['total'] > 0 else 0.0,
-                'avg_response_time': row['avg_response_time']
+            row["channel_type"]: {
+                "total": row["total"],
+                "successful": row["successful"],
+                "failed": row["failed"],
+                "success_rate": (row["successful"] / row["total"] * 100)
+                if row["total"] > 0
+                else 0.0,
+                "avg_response_time": row["avg_response_time"],
             }
             for row in channel_results
         }
@@ -346,15 +357,15 @@ class DuckLakeClient:
         return DeliveryMetrics(
             total_deliveries=total,
             successful_deliveries=successful,
-            failed_deliveries=overall.get('failed_deliveries', 0),
+            failed_deliveries=overall.get("failed_deliveries", 0),
             success_rate=success_rate,
-            avg_response_time_ms=overall.get('avg_response_time_ms', 0.0),
-            p50_response_time_ms=overall.get('p50_response_time_ms', 0.0),
-            p95_response_time_ms=overall.get('p95_response_time_ms', 0.0),
-            p99_response_time_ms=overall.get('p99_response_time_ms', 0.0),
+            avg_response_time_ms=overall.get("avg_response_time_ms", 0.0),
+            p50_response_time_ms=overall.get("p50_response_time_ms", 0.0),
+            p95_response_time_ms=overall.get("p95_response_time_ms", 0.0),
+            p99_response_time_ms=overall.get("p99_response_time_ms", 0.0),
             error_breakdown=error_breakdown,
             hourly_volume=hourly_volume,
-            channel_breakdown=channel_breakdown
+            channel_breakdown=channel_breakdown,
         )
 
     async def get_user_notifications(
@@ -396,10 +407,14 @@ class DuckLakeClient:
             where_clauses.append(f"alert_id = '{alert_id}'")
 
         if start_date:
-            where_clauses.append(f"created_at >= '{start_date.strftime('%Y-%m-%d %H:%M:%S')}'")
+            where_clauses.append(
+                f"created_at >= '{start_date.strftime('%Y-%m-%d %H:%M:%S')}'"
+            )
 
         if end_date:
-            where_clauses.append(f"created_at <= '{end_date.strftime('%Y-%m-%d %H:%M:%S')}'")
+            where_clauses.append(
+                f"created_at <= '{end_date.strftime('%Y-%m-%d %H:%M:%S')}'"
+            )
 
         where_clause = " AND ".join(where_clauses)
 
@@ -450,13 +465,13 @@ class DuckLakeClient:
             raise
 
         # Parse count
-        total_count = count_results[0].get('total_count', 0) if count_results else 0
+        total_count = count_results[0].get("total_count", 0) if count_results else 0
 
         # Parse notification items
         items = []
         for row in data_results:
             # Parse target_channels from JSON if present
-            target_channels = row.get('target_channels')
+            target_channels = row.get("target_channels")
             if isinstance(target_channels, str):
                 try:
                     target_channels = json.loads(target_channels)
@@ -464,28 +479,30 @@ class DuckLakeClient:
                     target_channels = None
 
             # Parse created_at timestamp
-            created_at = row.get('created_at')
+            created_at = row.get("created_at")
             if isinstance(created_at, str):
                 try:
-                    created_at = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+                    created_at = datetime.fromisoformat(
+                        created_at.replace("Z", "+00:00")
+                    )
                 except ValueError:
                     created_at = datetime.utcnow()
 
             item = NotificationHistoryItem(
-                notification_id=row.get('notification_id', ''),
-                alert_id=row.get('alert_id', ''),
-                alert_name=row.get('alert_name', ''),
-                title=row.get('title', ''),
-                message=row.get('message', ''),
-                priority=row.get('priority', 'normal'),
-                delivery_status=row.get('delivery_status', 'unknown'),
-                channels_delivered=row.get('channels_delivered', 0) or 0,
-                channels_failed=row.get('channels_failed', 0) or 0,
+                notification_id=row.get("notification_id", ""),
+                alert_id=row.get("alert_id", ""),
+                alert_name=row.get("alert_name", ""),
+                title=row.get("title", ""),
+                message=row.get("message", ""),
+                priority=row.get("priority", "normal"),
+                delivery_status=row.get("delivery_status", "unknown"),
+                channels_delivered=row.get("channels_delivered", 0) or 0,
+                channels_failed=row.get("channels_failed", 0) or 0,
                 created_at=created_at,
-                transaction_hash=row.get('transaction_hash'),
-                chain_id=row.get('chain_id'),
-                block_number=row.get('block_number'),
-                value_usd=row.get('value_usd'),
+                transaction_hash=row.get("transaction_hash"),
+                chain_id=row.get("chain_id"),
+                block_number=row.get("block_number"),
+                value_usd=row.get("value_usd"),
                 target_channels=target_channels,
             )
             items.append(item)
@@ -500,9 +517,7 @@ class DuckLakeClient:
         )
 
     async def get_channel_health(
-        self,
-        channel_id: str,
-        lookback_hours: int = 24
+        self, channel_id: str, lookback_hours: int = 24
     ) -> ChannelHealthMetrics:
         """
         Get health metrics for a specific notification channel.
@@ -543,9 +558,9 @@ class DuckLakeClient:
             raise ValueError(f"No data found for channel {channel_id}")
 
         row = results[0]
-        total = row['total_deliveries']
-        successful = row['successful_deliveries']
-        failed = row['failed_deliveries']
+        total = row["total_deliveries"]
+        successful = row["successful_deliveries"]
+        failed = row["failed_deliveries"]
 
         success_rate = (successful / total * 100) if total > 0 else 0.0
 
@@ -555,17 +570,17 @@ class DuckLakeClient:
 
         return ChannelHealthMetrics(
             channel_id=channel_id,
-            channel_type=row['channel_type'],
+            channel_type=row["channel_type"],
             total_deliveries=total,
             successful_deliveries=successful,
             failed_deliveries=failed,
             success_rate=success_rate,
-            avg_response_time_ms=row['avg_response_time_ms'] or 0.0,
-            last_success_at=row.get('last_success_at'),
-            last_failure_at=row.get('last_failure_at'),
-            last_error=row.get('last_error'),
+            avg_response_time_ms=row["avg_response_time_ms"] or 0.0,
+            last_success_at=row.get("last_success_at"),
+            last_failure_at=row.get("last_failure_at"),
+            last_error=row.get("last_error"),
             consecutive_failures=consecutive_failures,
-            is_healthy=is_healthy
+            is_healthy=is_healthy,
         )
 
 
@@ -585,7 +600,9 @@ def _decode_arrow_ipc_rows(payload: bytes) -> List[Dict[str, Any]]:
     try:
         import pyarrow.ipc as ipc
     except Exception as exc:  # pragma: no cover - runtime dependency
-        raise Exception("pyarrow is required to decode DuckLake query responses") from exc
+        raise Exception(
+            "pyarrow is required to decode DuckLake query responses"
+        ) from exc
 
     try:
         reader = ipc.open_stream(payload)

@@ -10,7 +10,9 @@ class TestDuckLakeClient(unittest.TestCase):
         client = DuckLakeClient(nats_url="nats://test")
 
         async def run():
-            with patch.object(client, "_query", new=AsyncMock(return_value=[{"ok": 1}])) as mock_query:
+            with patch.object(
+                client, "_query", new=AsyncMock(return_value=[{"ok": 1}])
+            ) as mock_query:
                 rows = await client.query_rows(query="select 1", table="transactions")
                 self.assertEqual(rows, [{"ok": 1}])
                 mock_query.assert_awaited_once()
@@ -25,7 +27,10 @@ class TestDuckLakeClient(unittest.TestCase):
         first_nc.close = AsyncMock()
 
         async def first_connect():
-            with patch("app.services.ducklake_client.nats.connect", new=AsyncMock(return_value=first_nc)):
+            with patch(
+                "app.services.ducklake_client.nats.connect",
+                new=AsyncMock(return_value=first_nc),
+            ):
                 await client.connect()
 
         asyncio.run(first_connect())
@@ -36,7 +41,10 @@ class TestDuckLakeClient(unittest.TestCase):
         second_nc.close = AsyncMock()
 
         async def second_connect():
-            with patch("app.services.ducklake_client.nats.connect", new=AsyncMock(return_value=second_nc)) as connect_mock:
+            with patch(
+                "app.services.ducklake_client.nats.connect",
+                new=AsyncMock(return_value=second_nc),
+            ) as connect_mock:
                 await client.connect()
                 connect_mock.assert_awaited_once()
 

@@ -4,64 +4,78 @@
  * Executive-level stats driven by live dashboard APIs.
  */
 
-import { useMemo } from 'react'
-import { Grid, Group, Text, Badge, ThemeIcon, Center, Loader } from '@mantine/core'
-import { IconBell, IconWallet, IconFolder, IconActivity } from '@tabler/icons-react'
-import { ExecutiveCard } from '../ui/ExecutiveCard'
-import { useDashboardStats } from '../../hooks/useDashboardStats'
+import { useMemo } from "react";
+import {
+  Grid,
+  Group,
+  Text,
+  Badge,
+  ThemeIcon,
+  Center,
+  Loader,
+} from "@mantine/core";
+import {
+  IconBell,
+  IconWallet,
+  IconFolder,
+  IconActivity,
+} from "@tabler/icons-react";
+import { ExecutiveCard } from "../ui/ExecutiveCard";
+import { useDashboardStats } from "../../hooks/useDashboardStats";
 
 interface MetricCard {
-  id: string
-  title: string
-  value: number
-  subtitle: string
-  icon: typeof IconBell
-  color: string
+  id: string;
+  title: string;
+  value: number;
+  subtitle: string;
+  icon: typeof IconBell;
+  color: string;
 }
 
-const formatNumber = (value: number) => new Intl.NumberFormat('en-US').format(value)
+const formatNumber = (value: number) =>
+  new Intl.NumberFormat("en-US").format(value);
 
 export function ExecutivePortfolioCards() {
-  const { stats, isLoading, error } = useDashboardStats()
+  const { stats, isLoading, error } = useDashboardStats();
 
   const metrics = useMemo<MetricCard[]>(() => {
-    if (!stats) return []
+    if (!stats) return [];
 
     return [
       {
-        id: 'alerts-active',
-        title: 'Active Alerts',
+        id: "alerts-active",
+        title: "Active Alerts",
         value: stats.alerts.active,
         subtitle: `${formatNumber(stats.alerts.total)} total alerts`,
         icon: IconBell,
-        color: 'blue',
+        color: "blue",
       },
       {
-        id: 'wallets-watched',
-        title: 'Watched Wallets',
+        id: "wallets-watched",
+        title: "Watched Wallets",
         value: stats.wallets.watched,
         subtitle: `${formatNumber(stats.wallets.total)} total wallets`,
         icon: IconWallet,
-        color: 'teal',
+        color: "teal",
       },
       {
-        id: 'alert-groups',
-        title: 'Alert Groups',
+        id: "alert-groups",
+        title: "Alert Groups",
         value: stats.groups.total,
         subtitle: `${formatNumber(stats.groups.subscribed)} subscribed`,
         icon: IconFolder,
-        color: 'grape',
+        color: "grape",
       },
       {
-        id: 'executions',
-        title: 'Executions (24h)',
+        id: "executions",
+        title: "Executions (24h)",
         value: stats.activity.executions_24h,
         subtitle: `${formatNumber(stats.activity.triggered_24h)} triggered`,
         icon: IconActivity,
-        color: 'orange',
+        color: "orange",
       },
-    ]
-  }, [stats])
+    ];
+  }, [stats]);
 
   if (isLoading) {
     return (
@@ -74,7 +88,7 @@ export function ExecutivePortfolioCards() {
           </ExecutiveCard>
         </Grid.Col>
       </Grid>
-    )
+    );
   }
 
   if (error) {
@@ -96,19 +110,24 @@ export function ExecutivePortfolioCards() {
           </ExecutiveCard>
         </Grid.Col>
       </Grid>
-    )
+    );
   }
 
   return (
     <Grid gutter="xs">
       {metrics.map((metric) => {
-        const MetricIcon = metric.icon
+        const MetricIcon = metric.icon;
         return (
           <Grid.Col key={metric.id} span={{ base: 12, sm: 6, lg: 3 }}>
             <ExecutiveCard variant="elevated" size="default" glowOnHover>
               <Group justify="space-between" align="center" mb="xs">
                 <Group gap={8} align="center">
-                  <ThemeIcon variant="light" color={metric.color} radius="md" size="md">
+                  <ThemeIcon
+                    variant="light"
+                    color={metric.color}
+                    radius="md"
+                    size="md"
+                  >
                     <MetricIcon size={16} />
                   </ThemeIcon>
                   <Text size="sm" fw={600} c="#0F172A">
@@ -128,8 +147,8 @@ export function ExecutivePortfolioCards() {
               </Text>
             </ExecutiveCard>
           </Grid.Col>
-        )
+        );
       })}
     </Grid>
-  )
+  );
 }

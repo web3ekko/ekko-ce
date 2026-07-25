@@ -29,6 +29,7 @@ class GetActiveAlertsByTriggerTypeView(APIView):
     Used by Alert Scheduler Provider to fetch periodic and one_time alerts.
     NO AUTHENTICATION REQUIRED - External service endpoint.
     """
+
     permission_classes = []
 
     def get(self, request):
@@ -43,29 +44,30 @@ class GetActiveAlertsByTriggerTypeView(APIView):
             }
             400 Bad Request: Missing or invalid trigger_type parameter
         """
-        trigger_type = request.GET.get('trigger_type')
+        trigger_type = request.GET.get("trigger_type")
 
         if not trigger_type:
             return Response(
-                {'error': 'trigger_type parameter is required'},
-                status=status.HTTP_400_BAD_REQUEST
+                {"error": "trigger_type parameter is required"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
-        valid_trigger_types = ['periodic', 'one_time', 'event_driven']
+        valid_trigger_types = ["periodic", "one_time", "event_driven"]
         if trigger_type not in valid_trigger_types:
             return Response(
                 {
-                    'error': f'Invalid trigger_type. Must be one of: {", ".join(valid_trigger_types)}'
+                    "error": f'Invalid trigger_type. Must be one of: {", ".join(valid_trigger_types)}'
                 },
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         # Query active alerts of the specified trigger type
         # Get only the latest version of each alert
-        alerts = AlertInstance.objects.filter(
-            enabled=True,
-            trigger_type=trigger_type
-        ).select_related('template').order_by('name', '-version')
+        alerts = (
+            AlertInstance.objects.filter(enabled=True, trigger_type=trigger_type)
+            .select_related("template")
+            .order_by("name", "-version")
+        )
 
         # Filter to latest version only
         latest_alerts = []
@@ -79,10 +81,7 @@ class GetActiveAlertsByTriggerTypeView(APIView):
 
         serializer = AlertJobConfigSerializer(latest_alerts, many=True)
 
-        return Response({
-            'count': len(latest_alerts),
-            'alerts': serializer.data
-        })
+        return Response({"count": len(latest_alerts), "alerts": serializer.data})
 
 
 class GetMatchingEventDrivenAlertsView(APIView):
@@ -93,6 +92,7 @@ class GetMatchingEventDrivenAlertsView(APIView):
     alerts that should be evaluated for the current transaction.
     NO AUTHENTICATION REQUIRED - External service endpoint.
     """
+
     permission_classes = []
 
     def get(self, request):
@@ -110,21 +110,18 @@ class GetMatchingEventDrivenAlertsView(APIView):
             }
             400 Bad Request: Missing chain parameter
         """
-        chain = request.GET.get('chain')
-        event_type = request.GET.get('event_type')
-        address = request.GET.get('address')
+        chain = request.GET.get("chain")
+        event_type = request.GET.get("event_type")
+        address = request.GET.get("address")
 
         if not chain:
             return Response(
-                {'error': 'chain parameter is required'},
-                status=status.HTTP_400_BAD_REQUEST
+                {"error": "chain parameter is required"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         # Start with event_driven alerts only
-        alerts = AlertInstance.objects.filter(
-            enabled=True,
-            trigger_type='event_driven'
-        )
+        alerts = AlertInstance.objects.filter(enabled=True, trigger_type="event_driven")
 
         # Filter by chain.
         #
@@ -153,7 +150,9 @@ class GetMatchingEventDrivenAlertsView(APIView):
 
         # SQLite JSONField backend does not support `__contains` lookups. Use a
         # python-side filter in tests/dev when running on SQLite.
-        supports_json_contains = bool(getattr(connection.features, "supports_json_field_contains", False))
+        supports_json_contains = bool(
+            getattr(connection.features, "supports_json_field_contains", False)
+        )
         if supports_json_contains:
             filters = Q()
             if chain_id is not None:
@@ -163,7 +162,9 @@ class GetMatchingEventDrivenAlertsView(APIView):
             if chain_part:
                 filters |= Q(trigger_config__chains__contains=[chain_part])
                 filters |= Q(trigger_config__chains__contains=[chain_raw])
-                filters |= Q(trigger_config__chains__contains=[f"{chain_part}-{network}"])
+                filters |= Q(
+                    trigger_config__chains__contains=[f"{chain_part}-{network}"]
+                )
             else:
                 filters |= Q(trigger_config__chains__contains=[chain_raw])
 
@@ -171,7 +172,9 @@ class GetMatchingEventDrivenAlertsView(APIView):
 
             # Filter by event_type if provided
             if event_type:
-                alerts = alerts.filter(Q(trigger_config__event_types__contains=[event_type]))
+                alerts = alerts.filter(
+                    Q(trigger_config__event_types__contains=[event_type])
+                )
 
             # Filter by address if provided
             if address:
@@ -191,8 +194,12 @@ class GetMatchingEventDrivenAlertsView(APIView):
                     "binance": "BNB",
                     "bnb": "BNB",
                 }
-                chain_prefix = prefix_map.get(chain_part, chain_part.upper() if chain_part else "ETH")
-                target_key = normalize_network_subnet_address_key(f"{chain_prefix}:{network}:{address}")
+                chain_prefix = prefix_map.get(
+                    chain_part, chain_part.upper() if chain_part else "ETH"
+                )
+                target_key = normalize_network_subnet_address_key(
+                    f"{chain_prefix}:{network}:{address}"
+                )
 
                 alerts = alerts.filter(
                     Q(target_keys__contains=[target_key])
@@ -208,7 +215,9 @@ class GetMatchingEventDrivenAlertsView(APIView):
                 chain_candidates = [chain_part, chain_raw, f"{chain_part}-{network}"]
             else:
                 chain_candidates = [chain_raw]
-            chain_candidates_set = {c for c in chain_candidates if isinstance(c, str) and c.strip()}
+            chain_candidates_set = {
+                c for c in chain_candidates if isinstance(c, str) and c.strip()
+            }
 
             target_key = None
             if address:
@@ -226,21 +235,33 @@ class GetMatchingEventDrivenAlertsView(APIView):
                     "binance": "BNB",
                     "bnb": "BNB",
                 }
-                chain_prefix = prefix_map.get(chain_part, chain_part.upper() if chain_part else "ETH")
-                target_key = normalize_network_subnet_address_key(f"{chain_prefix}:{network}:{address}")
+                chain_prefix = prefix_map.get(
+                    chain_part, chain_part.upper() if chain_part else "ETH"
+                )
+                target_key = normalize_network_subnet_address_key(
+                    f"{chain_prefix}:{network}:{address}"
+                )
 
             def _matches_chain(alert: AlertInstance) -> bool:
                 spec = alert._standalone_spec or {}
                 trigger = spec.get("trigger") if isinstance(spec, dict) else {}
-                spec_chain_id = trigger.get("chain_id") if isinstance(trigger, dict) else None
+                spec_chain_id = (
+                    trigger.get("chain_id") if isinstance(trigger, dict) else None
+                )
                 if chain_id is not None and spec_chain_id == chain_id:
                     return True
                 trig = alert.trigger_config or {}
                 chains = trig.get("chains") if isinstance(trig, dict) else None
                 if not isinstance(chains, list):
                     return False
-                normalized = {str(c).strip().lower() for c in chains if isinstance(c, str) and c.strip()}
-                return any(str(c).strip().lower() in normalized for c in chain_candidates_set)
+                normalized = {
+                    str(c).strip().lower()
+                    for c in chains
+                    if isinstance(c, str) and c.strip()
+                }
+                return any(
+                    str(c).strip().lower() in normalized for c in chain_candidates_set
+                )
 
             def _matches_event_type(alert: AlertInstance) -> bool:
                 if not event_type:
@@ -249,7 +270,11 @@ class GetMatchingEventDrivenAlertsView(APIView):
                 types = trig.get("event_types") if isinstance(trig, dict) else None
                 if not isinstance(types, list):
                     return False
-                normalized = {str(t).strip().lower() for t in types if isinstance(t, str) and t.strip()}
+                normalized = {
+                    str(t).strip().lower()
+                    for t in types
+                    if isinstance(t, str) and t.strip()
+                }
                 return str(event_type).strip().lower() in normalized
 
             def _matches_address(alert: AlertInstance) -> bool:
@@ -259,7 +284,9 @@ class GetMatchingEventDrivenAlertsView(APIView):
                 trig = alert.trigger_config or {}
                 if isinstance(trig, dict):
                     addrs = trig.get("addresses")
-                    if isinstance(addrs, list) and any(str(a).strip().lower() == addr for a in addrs):
+                    if isinstance(addrs, list) and any(
+                        str(a).strip().lower() == addr for a in addrs
+                    ):
                         return True
                 if target_key and isinstance(getattr(alert, "target_keys", None), list):
                     if target_key in alert.target_keys:
@@ -272,15 +299,25 @@ class GetMatchingEventDrivenAlertsView(APIView):
                             return True
                 return False
 
-            filtered = [a for a in list(alerts) if _matches_chain(a) and _matches_event_type(a) and _matches_address(a)]
-            filtered.sort(key=lambda a: (str(a.name or ""), -(int(getattr(a, "version", 0) or 0))))
+            filtered = [
+                a
+                for a in list(alerts)
+                if _matches_chain(a) and _matches_event_type(a) and _matches_address(a)
+            ]
+            filtered.sort(
+                key=lambda a: (str(a.name or ""), -(int(getattr(a, "version", 0) or 0)))
+            )
             alerts = filtered
 
         # Get latest versions only
         latest_alerts = []
         seen_templates = set()
 
-        for alert in alerts.order_by('name', '-version') if hasattr(alerts, "order_by") else alerts:
+        for alert in (
+            alerts.order_by("name", "-version")
+            if hasattr(alerts, "order_by")
+            else alerts
+        ):
             key = (alert.template_id, alert.name) if alert.template else alert.name
             if key not in seen_templates:
                 seen_templates.add(key)
@@ -288,15 +325,17 @@ class GetMatchingEventDrivenAlertsView(APIView):
 
         serializer = AlertJobConfigSerializer(latest_alerts, many=True)
 
-        return Response({
-            'count': len(latest_alerts),
-            'alerts': serializer.data,
-            'filters': {
-                'chain': chain,
-                **({"event_type": event_type} if event_type else {}),
-                **({"address": address} if address else {}),
+        return Response(
+            {
+                "count": len(latest_alerts),
+                "alerts": serializer.data,
+                "filters": {
+                    "chain": chain,
+                    **({"event_type": event_type} if event_type else {}),
+                    **({"address": address} if address else {}),
+                },
             }
-        })
+        )
 
 
 class RecordJobCreationView(APIView):
@@ -306,6 +345,7 @@ class RecordJobCreationView(APIView):
     Used by actors and Alert Scheduler Provider to track when jobs are created.
     NO AUTHENTICATION REQUIRED - External service endpoint.
     """
+
     permission_classes = []
 
     def post(self, request):
@@ -328,29 +368,32 @@ class RecordJobCreationView(APIView):
 
         if not serializer.is_valid():
             return Response(
-                {'error': serializer.errors},
-                status=status.HTTP_400_BAD_REQUEST
+                {"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST
             )
 
-        alert_id = serializer.validated_data['alert_id']
-        created_at = serializer.validated_data['created_at']
+        alert_id = serializer.validated_data["alert_id"]
+        created_at = serializer.validated_data["created_at"]
 
         # Get the alert and update job creation tracking
         try:
             alert = AlertInstance.objects.get(id=alert_id)
         except AlertInstance.DoesNotExist:
             return Response(
-                {'error': f'Alert with ID {alert_id} does not exist'},
-                status=status.HTTP_400_BAD_REQUEST
+                {"error": f"Alert with ID {alert_id} does not exist"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         # Increment count and update timestamp
         alert.job_creation_count += 1
         alert.last_job_created_at = created_at
-        alert.save(update_fields=['job_creation_count', 'last_job_created_at'])
+        alert.save(update_fields=["job_creation_count", "last_job_created_at"])
 
-        return Response({
-            'success': True,
-            'job_creation_count': alert.job_creation_count,
-            'last_job_created_at': alert.last_job_created_at.isoformat() if alert.last_job_created_at else None,
-        })
+        return Response(
+            {
+                "success": True,
+                "job_creation_count": alert.job_creation_count,
+                "last_job_created_at": alert.last_job_created_at.isoformat()
+                if alert.last_job_created_at
+                else None,
+            }
+        )

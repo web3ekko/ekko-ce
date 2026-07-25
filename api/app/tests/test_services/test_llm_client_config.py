@@ -25,13 +25,17 @@ class TestLLMClientConfig(TestCase):
             choices=[SimpleNamespace(message=SimpleNamespace(content='{"ok":true}'))],
             usage={"prompt_tokens": 1, "completion_tokens": 2, "total_tokens": 3},
         )
-        with patch("app.services.nlp.llm_client.litellm.completion", return_value=fake_resp) as mocked:
+        with patch(
+            "app.services.nlp.llm_client.litellm.completion", return_value=fake_resp
+        ) as mocked:
             resp = client.generate('{"ping":"pong"}', system_prompt="Return JSON")
         # Local backends should not receive an empty Authorization header (api_key=None).
         assert "api_key" not in mocked.call_args.kwargs
         assert resp.content == '{"ok":true}'
 
-    @override_settings(GEMINI_MODEL="gemini/gemini-3.0-flash", GEMINI_API_KEY="test-key")
+    @override_settings(
+        GEMINI_MODEL="gemini/gemini-3.0-flash", GEMINI_API_KEY="test-key"
+    )
     def test_gemini_model_passes_api_key_to_litellm(self):
         client = LLMClient()
         assert client.is_configured is True
@@ -40,6 +44,8 @@ class TestLLMClientConfig(TestCase):
             choices=[SimpleNamespace(message=SimpleNamespace(content='{"ok":true}'))],
             usage={"prompt_tokens": 1, "completion_tokens": 2, "total_tokens": 3},
         )
-        with patch("app.services.nlp.llm_client.litellm.completion", return_value=fake_resp) as mocked:
+        with patch(
+            "app.services.nlp.llm_client.litellm.completion", return_value=fake_resp
+        ) as mocked:
             client.generate('{"ping":"pong"}', system_prompt="Return JSON")
         assert mocked.call_args.kwargs.get("api_key") == "test-key"

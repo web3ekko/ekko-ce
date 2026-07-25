@@ -20,7 +20,9 @@ class TestAlertRuntimeSyncSignals(TestCase):
         tmpl_ver.template_version = 1
 
         with override_settings(ALERT_RUNTIME_REDIS_SYNC_ENABLED=False):
-            with patch("app.services.alert_runtime_projection.AlertRuntimeProjection") as proj:
+            with patch(
+                "app.services.alert_runtime_projection.AlertRuntimeProjection"
+            ) as proj:
                 project_alert_instance_to_redis(sender=None, instance=inst)
                 project_alert_template_bundle_to_redis(sender=None, instance=tmpl_ver)
                 remove_alert_instance_from_redis(sender=None, instance=inst)
@@ -34,7 +36,9 @@ class TestAlertRuntimeSyncSignals(TestCase):
         tmpl_ver.template_version = 1
 
         with override_settings(ALERT_RUNTIME_REDIS_SYNC_ENABLED=True):
-            with patch("app.services.alert_runtime_projection.AlertRuntimeProjection") as proj:
+            with patch(
+                "app.services.alert_runtime_projection.AlertRuntimeProjection"
+            ) as proj:
                 project_alert_instance_to_redis(sender=None, instance=inst)
                 project_alert_template_bundle_to_redis(sender=None, instance=tmpl_ver)
                 remove_alert_instance_from_redis(sender=None, instance=inst)

@@ -16,4 +16,3 @@ class TestNLPEvalPromptsCommand(TestCase):
         assert "expected_trigger_modes_any_of" in sample
         assert "expected_missing_info_codes_any_of" in sample
         assert "expected_variable_ids_all" in sample
-

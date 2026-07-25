@@ -34,10 +34,12 @@ class UserFactory(factory.django.DjangoModelFactory):
     has_passkey = False
     preferred_auth_method = "passkey"
     username = factory.LazyAttribute(lambda obj: obj.email)  # Use email as username
-    firebase_uid = factory.LazyFunction(lambda: f"firebase_{uuid.uuid4().hex}")  # Unique firebase UID
-    
+    firebase_uid = factory.LazyFunction(
+        lambda: f"firebase_{uuid.uuid4().hex}"
+    )  # Unique firebase UID
+
     # Timestamps are handled by Django automatically
-    
+
     @factory.post_generation
     def set_password(self, create, extracted, **kwargs):
         """Set a password for the user (though we use passwordless auth)"""
@@ -58,10 +60,10 @@ class AdminUserFactory(UserFactory):
 
 class UserDeviceFactory(factory.django.DjangoModelFactory):
     """Factory for UserDevice model"""
-    
+
     class Meta:
         model = UserDevice
-    
+
     user = factory.SubFactory(UserFactory)
     device_name = factory.Faker("word")
     device_type = factory.Iterator(["web", "ios", "android", "desktop"])
@@ -70,17 +72,15 @@ class UserDeviceFactory(factory.django.DjangoModelFactory):
     supports_biometric = False
     is_trusted = False
     device_fingerprint = factory.LazyFunction(lambda: fake.sha256()[:32])
-    trust_expires_at = factory.LazyFunction(
-        lambda: timezone.now() + timedelta(days=90)
-    )
+    trust_expires_at = factory.LazyFunction(lambda: timezone.now() + timedelta(days=90))
 
 
 class AuthenticationLogFactory(factory.django.DjangoModelFactory):
     """Factory for AuthenticationLog model"""
-    
+
     class Meta:
         model = AuthenticationLog
-    
+
     user = factory.SubFactory(UserFactory)
     action = factory.Iterator(["login", "logout", "signup", "recovery", "2fa_setup"])
     method = factory.Iterator(["passkey", "email", "recovery_code", "totp"])
@@ -94,16 +94,14 @@ class AuthenticationLogFactory(factory.django.DjangoModelFactory):
 
 class EmailVerificationCodeFactory(factory.django.DjangoModelFactory):
     """Factory for EmailVerificationCode model"""
-    
+
     class Meta:
         model = EmailVerificationCode
-    
+
     user = factory.SubFactory(UserFactory)
     code = factory.LazyFunction(lambda: f"{fake.random_int(100000, 999999)}")
     purpose = factory.Iterator(["login", "signup", "password_reset", "email_change"])
-    expires_at = factory.LazyFunction(
-        lambda: timezone.now() + timedelta(minutes=15)
-    )
+    expires_at = factory.LazyFunction(lambda: timezone.now() + timedelta(minutes=15))
     is_used = False
     used_at = None
 
@@ -122,16 +120,12 @@ def create_verification_code_flow(user=None, purpose="login"):
         user = UserFactory()
 
     verification_code = EmailVerificationCodeFactory(user=user, purpose=purpose)
-    auth_log = AuthenticationLogFactory(
-        user=user,
-        action=purpose,
-        method="email"
-    )
+    auth_log = AuthenticationLogFactory(user=user, action=purpose, method="email")
 
     return {
-        'user': user,
-        'verification_code': verification_code,
-        'auth_log': auth_log,
+        "user": user,
+        "verification_code": verification_code,
+        "auth_log": auth_log,
     }
 
 

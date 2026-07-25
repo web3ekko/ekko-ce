@@ -13,4 +13,3 @@ __all__ = [
     "list_catalog_entries",
     "list_compiler_catalog_entries",
 ]
-

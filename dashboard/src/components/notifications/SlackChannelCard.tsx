@@ -1,67 +1,92 @@
-import React, { useState } from 'react'
-import { Card, Group, Text, Badge, Button, Switch, ActionIcon, Stack, Tooltip } from '@mantine/core'
-import { IconBrandSlack, IconTrash, IconSend, IconCheck, IconX } from '@tabler/icons-react'
-import type { NotificationChannelEndpoint, SlackChannelConfig } from '../../services/notifications-api'
+import React, { useState } from "react";
+import {
+  Card,
+  Group,
+  Text,
+  Badge,
+  Button,
+  Switch,
+  ActionIcon,
+  Stack,
+  Tooltip,
+} from "@mantine/core";
+import {
+  IconBrandSlack,
+  IconTrash,
+  IconSend,
+  IconCheck,
+  IconX,
+} from "@tabler/icons-react";
+import type {
+  NotificationChannelEndpoint,
+  SlackChannelConfig,
+} from "../../services/notifications-api";
 
 interface SlackChannelCardProps {
-  channel: NotificationChannelEndpoint
-  onToggle: (channelId: string, enabled: boolean) => Promise<void>
-  onDelete: (channelId: string) => Promise<void>
-  onTest: (channelId: string) => Promise<void>
+  channel: NotificationChannelEndpoint;
+  onToggle: (channelId: string, enabled: boolean) => Promise<void>;
+  onDelete: (channelId: string) => Promise<void>;
+  onTest: (channelId: string) => Promise<void>;
   stats?: {
-    success_count: number
-    failure_count: number
-    last_success_at?: string
-    last_failure_at?: string
-  }
+    success_count: number;
+    failure_count: number;
+    last_success_at?: string;
+    last_failure_at?: string;
+  };
 }
 
-export function SlackChannelCard({ channel, onToggle, onDelete, onTest, stats }: SlackChannelCardProps) {
-  const [isToggling, setIsToggling] = useState(false)
-  const [isTesting, setIsTesting] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
+export function SlackChannelCard({
+  channel,
+  onToggle,
+  onDelete,
+  onTest,
+  stats,
+}: SlackChannelCardProps) {
+  const [isToggling, setIsToggling] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  const config = channel.config as SlackChannelConfig
+  const config = channel.config as SlackChannelConfig;
 
   const handleToggle = async () => {
-    setIsToggling(true)
+    setIsToggling(true);
     try {
-      await onToggle(channel.id, !channel.enabled)
+      await onToggle(channel.id, !channel.enabled);
     } finally {
-      setIsToggling(false)
+      setIsToggling(false);
     }
-  }
+  };
 
   const handleTest = async () => {
-    setIsTesting(true)
+    setIsTesting(true);
     try {
-      await onTest(channel.id)
+      await onTest(channel.id);
     } finally {
-      setIsTesting(false)
+      setIsTesting(false);
     }
-  }
+  };
 
   const handleDelete = async () => {
     if (window.confirm(`Are you sure you want to delete "${channel.label}"?`)) {
-      setIsDeleting(true)
+      setIsDeleting(true);
       try {
-        await onDelete(channel.id)
+        await onDelete(channel.id);
       } finally {
-        setIsDeleting(false)
+        setIsDeleting(false);
       }
     }
-  }
+  };
 
   const formatDate = (dateStr?: string) => {
-    if (!dateStr) return 'Never'
-    const date = new Date(dateStr)
-    return new Intl.DateTimeFormat('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit'
-    }).format(date)
-  }
+    if (!dateStr) return "Never";
+    const date = new Date(dateStr);
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(date);
+  };
 
   return (
     <Card shadow="sm" padding="lg" radius="md" withBorder>
@@ -71,17 +96,23 @@ export function SlackChannelCard({ channel, onToggle, onDelete, onTest, stats }:
           <Group gap="sm">
             <IconBrandSlack size={24} color="#4A154B" />
             <div>
-              <Text fw={500} size="sm">{channel.label}</Text>
-              <Text size="xs" c="dimmed">{config.workspace_name || 'Slack Workspace'}</Text>
+              <Text fw={500} size="sm">
+                {channel.label}
+              </Text>
+              <Text size="xs" c="dimmed">
+                {config.workspace_name || "Slack Workspace"}
+              </Text>
             </div>
           </Group>
           <Group gap="xs">
             <Badge
-              color={channel.enabled ? 'green' : 'gray'}
+              color={channel.enabled ? "green" : "gray"}
               variant="light"
-              leftSection={channel.enabled ? <IconCheck size={12} /> : <IconX size={12} />}
+              leftSection={
+                channel.enabled ? <IconCheck size={12} /> : <IconX size={12} />
+              }
             >
-              {channel.enabled ? 'Active' : 'Disabled'}
+              {channel.enabled ? "Active" : "Disabled"}
             </Badge>
             {channel.verified && (
               <Badge color="blue" variant="light">
@@ -94,16 +125,24 @@ export function SlackChannelCard({ channel, onToggle, onDelete, onTest, stats }:
         {/* Channel Info */}
         <Stack gap="xs">
           <Group gap="xs">
-            <Text size="xs" c="dimmed">Channel:</Text>
-            <Text size="xs" fw={500}>{config.channel || '#alerts'}</Text>
+            <Text size="xs" c="dimmed">
+              Channel:
+            </Text>
+            <Text size="xs" fw={500}>
+              {config.channel || "#alerts"}
+            </Text>
           </Group>
           <Group gap="xs">
-            <Text size="xs" c="dimmed">Created:</Text>
+            <Text size="xs" c="dimmed">
+              Created:
+            </Text>
             <Text size="xs">{formatDate(channel.created_at)}</Text>
           </Group>
           {channel.last_used_at && (
             <Group gap="xs">
-              <Text size="xs" c="dimmed">Last used:</Text>
+              <Text size="xs" c="dimmed">
+                Last used:
+              </Text>
               <Text size="xs">{formatDate(channel.last_used_at)}</Text>
             </Group>
           )}
@@ -114,12 +153,20 @@ export function SlackChannelCard({ channel, onToggle, onDelete, onTest, stats }:
           <Card withBorder padding="sm" radius="sm" bg="gray.0">
             <Group justify="space-around">
               <div>
-                <Text size="xs" c="dimmed" ta="center">Delivered</Text>
-                <Text size="lg" fw={700} c="green" ta="center">{stats.success_count}</Text>
+                <Text size="xs" c="dimmed" ta="center">
+                  Delivered
+                </Text>
+                <Text size="lg" fw={700} c="green" ta="center">
+                  {stats.success_count}
+                </Text>
               </div>
               <div>
-                <Text size="xs" c="dimmed" ta="center">Failed</Text>
-                <Text size="lg" fw={700} c="red" ta="center">{stats.failure_count}</Text>
+                <Text size="xs" c="dimmed" ta="center">
+                  Failed
+                </Text>
+                <Text size="lg" fw={700} c="red" ta="center">
+                  {stats.failure_count}
+                </Text>
               </div>
             </Group>
           </Card>
@@ -133,7 +180,7 @@ export function SlackChannelCard({ channel, onToggle, onDelete, onTest, stats }:
             disabled={isToggling}
             label={
               <Text size="xs" c="dimmed">
-                {channel.enabled ? 'Enabled' : 'Disabled'}
+                {channel.enabled ? "Enabled" : "Disabled"}
               </Text>
             }
           />
@@ -167,5 +214,5 @@ export function SlackChannelCard({ channel, onToggle, onDelete, onTest, stats }:
         </Group>
       </Stack>
     </Card>
-  )
+  );
 }

@@ -7,8 +7,8 @@
  * - Wallet Import: bulk add wallets to Accounts
  */
 
-import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   ActionIcon,
   Alert,
@@ -26,9 +26,9 @@ import {
   TextInput,
   Tooltip,
   Title,
-} from '@mantine/core'
-import { useDisclosure } from '@mantine/hooks'
-import { notifications } from '@mantine/notifications'
+} from "@mantine/core";
+import { useDisclosure } from "@mantine/hooks";
+import { notifications } from "@mantine/notifications";
 import {
   IconCheck,
   IconCopy,
@@ -38,29 +38,29 @@ import {
   IconUpload,
   IconUsers,
   IconWallet,
-} from '@tabler/icons-react'
-import { BulkImportModal } from '../components/ui/BulkImportModal'
-import { AddWalletModal } from '../components/wallets/AddWalletModal'
-import { useWalletStore } from '../store/wallets'
-import { usePersonalizationStore } from '../store/personalization'
-import groupsApiService from '../services/groups-api'
-import { truncateMiddle } from '../utils/wallet-display'
+} from "@tabler/icons-react";
+import { BulkImportModal } from "../components/ui/BulkImportModal";
+import { AddWalletModal } from "../components/wallets/AddWalletModal";
+import { useWalletStore } from "../store/wallets";
+import { usePersonalizationStore } from "../store/personalization";
+import groupsApiService from "../services/groups-api";
+import { truncateMiddle } from "../utils/wallet-display";
 
 function encodeWalletKeyForRoute(walletKey: string): string {
-  return encodeURIComponent(walletKey)
+  return encodeURIComponent(walletKey);
 }
 
 type ImportRow = {
-  network: string
-  subnet: string
-  address: string
-  label?: string
-  owner_verified?: boolean
-}
+  network: string;
+  subnet: string;
+  address: string;
+  label?: string;
+  owner_verified?: boolean;
+};
 
 const accountsCsvTemplate = `network,subnet,address,label,owner_verified
 ETH,mainnet,0x71C7656EC7ab88b098defB751B7401B5f6d8976F,Treasury,false
-BTC,mainnet,bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh,Savings,false`
+BTC,mainnet,bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh,Savings,false`;
 
 const accountsJsonTemplate = `[
   {
@@ -70,30 +70,44 @@ const accountsJsonTemplate = `[
     "label": "Treasury",
     "owner_verified": false
   }
-]`
+]`;
 
 function parseCsv(data: string): ImportRow[] {
-  const lines = data.trim().split('\n').filter(Boolean)
-  if (lines.length < 2) return []
+  const lines = data.trim().split("\n").filter(Boolean);
+  if (lines.length < 2) return [];
 
-  const headers = lines[0].split(',').map((h) => h.trim().toLowerCase())
-  const rows: ImportRow[] = []
+  const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+  const rows: ImportRow[] = [];
 
   for (const line of lines.slice(1)) {
-    const values = line.split(',').map((v) => v.trim())
-    const record: Record<string, string> = {}
+    const values = line.split(",").map((v) => v.trim());
+    const record: Record<string, string> = {};
     headers.forEach((header, index) => {
-      record[header] = values[index] || ''
-    })
+      record[header] = values[index] || "";
+    });
 
-    const network = (record.network || record.blockchain || record.chain || '').trim()
-    const subnet = (record.subnet || 'mainnet').trim()
-    const address = (record.address || '').trim()
-    const label = (record.label || record.name || '').trim()
-    const ownerVerifiedRaw = (record.owner_verified || record.ownerverified || '').trim().toLowerCase()
-    const owner_verified = ownerVerifiedRaw === 'true' || ownerVerifiedRaw === '1' || ownerVerifiedRaw === 'yes'
+    const network = (
+      record.network ||
+      record.blockchain ||
+      record.chain ||
+      ""
+    ).trim();
+    const subnet = (record.subnet || "mainnet").trim();
+    const address = (record.address || "").trim();
+    const label = (record.label || record.name || "").trim();
+    const ownerVerifiedRaw = (
+      record.owner_verified ||
+      record.ownerverified ||
+      ""
+    )
+      .trim()
+      .toLowerCase();
+    const owner_verified =
+      ownerVerifiedRaw === "true" ||
+      ownerVerifiedRaw === "1" ||
+      ownerVerifiedRaw === "yes";
 
-    if (!network || !subnet || !address) continue
+    if (!network || !subnet || !address) continue;
 
     rows.push({
       network,
@@ -101,31 +115,31 @@ function parseCsv(data: string): ImportRow[] {
       address,
       label: label || undefined,
       owner_verified,
-    })
+    });
   }
 
-  return rows
+  return rows;
 }
 
 function parseJson(data: string): ImportRow[] {
-  const parsed = JSON.parse(data)
-  if (!Array.isArray(parsed)) return []
+  const parsed = JSON.parse(data);
+  if (!Array.isArray(parsed)) return [];
 
   return parsed
     .map((row) => {
-      const network = String(row.network || '').trim()
-      const subnet = String(row.subnet || 'mainnet').trim()
-      const address = String(row.address || '').trim()
-      const label = row.label ? String(row.label).trim() : undefined
-      const owner_verified = Boolean(row.owner_verified)
-      if (!network || !subnet || !address) return null
-      return { network, subnet, address, label, owner_verified }
+      const network = String(row.network || "").trim();
+      const subnet = String(row.subnet || "mainnet").trim();
+      const address = String(row.address || "").trim();
+      const label = row.label ? String(row.label).trim() : undefined;
+      const owner_verified = Boolean(row.owner_verified);
+      if (!network || !subnet || !address) return null;
+      return { network, subnet, address, label, owner_verified };
     })
-    .filter((row): row is ImportRow => row !== null)
+    .filter((row): row is ImportRow => row !== null);
 }
 
 export function WalletsPage() {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
   const {
     accounts,
     accountsGroup,
@@ -135,91 +149,100 @@ export function WalletsPage() {
     loadAccounts,
     loadWalletGroups,
     removeAccountWallet,
-  } = useWalletStore()
+  } = useWalletStore();
 
-  const loadChains = usePersonalizationStore((s) => s.loadChains)
-  const loadWalletNicknames = usePersonalizationStore((s) => s.loadWalletNicknames)
-  const getChainId = usePersonalizationStore((s) => s.getChainId)
-  const getWalletNickname = usePersonalizationStore((s) => s.getWalletNickname)
+  const loadChains = usePersonalizationStore((s) => s.loadChains);
+  const loadWalletNicknames = usePersonalizationStore(
+    (s) => s.loadWalletNicknames,
+  );
+  const getChainId = usePersonalizationStore((s) => s.getChainId);
+  const getWalletNickname = usePersonalizationStore((s) => s.getWalletNickname);
 
-  const [activeTab, setActiveTab] = useState<string | null>('accounts')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [addWalletOpened, { open: openAddWallet, close: closeAddWallet }] = useDisclosure(false)
-  const [bulkImportOpened, { open: openBulkImport, close: closeBulkImport }] = useDisclosure(false)
+  const [activeTab, setActiveTab] = useState<string | null>("accounts");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [addWalletOpened, { open: openAddWallet, close: closeAddWallet }] =
+    useDisclosure(false);
+  const [bulkImportOpened, { open: openBulkImport, close: closeBulkImport }] =
+    useDisclosure(false);
 
   useEffect(() => {
-    void loadAccounts()
-    void loadWalletGroups()
-    void loadWalletNicknames()
-    void loadChains()
-  }, [loadAccounts, loadWalletGroups, loadWalletNicknames, loadChains])
+    void loadAccounts();
+    void loadWalletGroups();
+    void loadWalletNicknames();
+    void loadChains();
+  }, [loadAccounts, loadWalletGroups, loadWalletNicknames, loadChains]);
 
-  const getDisplayLabel = (wallet: { label?: string; address: string; network: string }): string => {
-    const nickname = getWalletNickname(wallet.address, getChainId(wallet.network))
-    return wallet.label || nickname || truncateMiddle(wallet.address)
-  }
+  const getDisplayLabel = (wallet: {
+    label?: string;
+    address: string;
+    network: string;
+  }): string => {
+    const nickname = getWalletNickname(
+      wallet.address,
+      getChainId(wallet.network),
+    );
+    return wallet.label || nickname || truncateMiddle(wallet.address);
+  };
 
   const filteredAccounts = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase()
-    if (!q) return accounts
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return accounts;
     return accounts.filter((w) => {
-      const nickname = getWalletNickname(w.address, getChainId(w.network))
+      const nickname = getWalletNickname(w.address, getChainId(w.network));
       return (
-        (w.label || '').toLowerCase().includes(q) ||
-        (nickname || '').toLowerCase().includes(q) ||
+        (w.label || "").toLowerCase().includes(q) ||
+        (nickname || "").toLowerCase().includes(q) ||
         w.wallet_key.toLowerCase().includes(q) ||
         w.address.toLowerCase().includes(q)
-      )
-    })
-  }, [accounts, searchQuery, getWalletNickname, getChainId])
+      );
+    });
+  }, [accounts, searchQuery, getWalletNickname, getChainId]);
 
   const handleCopy = async (value: string) => {
-    await navigator.clipboard.writeText(value)
+    await navigator.clipboard.writeText(value);
     notifications.show({
-      title: 'Copied',
-      message: 'Copied to clipboard',
-      color: 'green',
+      title: "Copied",
+      message: "Copied to clipboard",
+      color: "green",
       icon: <IconCheck size={16} />,
-    })
-  }
+    });
+  };
 
   const handleRemoveAccountWallet = async (walletKey: string) => {
-    if (!confirm('Remove this wallet from your Accounts?')) return
-    await removeAccountWallet(walletKey)
-  }
+    if (!confirm("Remove this wallet from your Accounts?")) return;
+    await removeAccountWallet(walletKey);
+  };
 
   const handleBulkImport = async (
     data: string,
-    format: 'csv' | 'json'
+    format: "csv" | "json",
   ): Promise<{ success: number; failed: number; errors?: string[] }> => {
-    const rows = format === 'json' ? parseJson(data) : parseCsv(data)
+    const rows = format === "json" ? parseJson(data) : parseCsv(data);
 
     const wallets = rows.map((row) => ({
       member_key: `${row.network.toUpperCase()}:${row.subnet.toLowerCase()}:${row.address}`,
       label: row.label,
       owner_verified: row.owner_verified,
-    }))
+    }));
 
     if (!wallets.length) {
-      return { success: 0, failed: 0 }
+      return { success: 0, failed: 0 };
     }
 
-    const resp = await groupsApiService.addWalletsToAccounts({ wallets })
-    await loadAccounts()
+    const resp = await groupsApiService.addWalletsToAccounts({ wallets });
+    await loadAccounts();
 
     const errors: string[] = (resp.errors || []).map((e) => {
       const message =
-        typeof e.errors === 'string'
-          ? e.errors
-          : JSON.stringify(e.errors)
-      return `${e.member_key || `row ${e.row_number}`}: ${message}`
-    })
+        typeof e.errors === "string" ? e.errors : JSON.stringify(e.errors);
+      return `${e.member_key || `row ${e.row_number}`}: ${message}`;
+    });
 
-    const success = resp.added + (resp.already_exists?.length || 0)
-    const failed = resp.errors?.length || 0
+    const success = resp.added + (resp.already_exists?.length || 0);
+    const failed = resp.errors?.length || 0;
 
-    return { success, failed, errors: errors.length ? errors : undefined }
-  }
+    return { success, failed, errors: errors.length ? errors : undefined };
+  };
 
   if (isLoading && accounts.length === 0 && walletGroups.length === 0) {
     return (
@@ -229,7 +252,7 @@ export function WalletsPage() {
           <Text c="dimmed">Loading wallets…</Text>
         </Stack>
       </Center>
-    )
+    );
   }
 
   return (
@@ -254,7 +277,7 @@ export function WalletsPage() {
             </Button>
             <Button
               leftSection={<IconPlus size={16} />}
-              style={{ backgroundColor: '#2563EB' }}
+              style={{ backgroundColor: "#2563EB" }}
               onClick={openAddWallet}
             >
               Add wallet
@@ -295,7 +318,9 @@ export function WalletsPage() {
                   style={{ flex: 1, maxWidth: 420 }}
                 />
                 <Badge variant="light" color="gray">
-                  {accountsGroup ? 'Accounts created' : 'Accounts not created yet'}
+                  {accountsGroup
+                    ? "Accounts created"
+                    : "Accounts not created yet"}
                 </Badge>
               </Group>
 
@@ -305,11 +330,15 @@ export function WalletsPage() {
                     <IconWallet size={28} color="#64748B" />
                     <Title order={3}>Add your first wallet</Title>
                     <Text c="dimmed" ta="center" maw={420}>
-                      Accounts is your private list of wallets. Add a wallet to start monitoring and to use it as a
-                      target for alert groups.
+                      Accounts is your private list of wallets. Add a wallet to
+                      start monitoring and to use it as a target for alert
+                      groups.
                     </Text>
                     <Group>
-                      <Button onClick={openAddWallet} style={{ backgroundColor: '#2563EB' }}>
+                      <Button
+                        onClick={openAddWallet}
+                        style={{ backgroundColor: "#2563EB" }}
+                      >
                         Add wallet
                       </Button>
                       <Button variant="light" onClick={openBulkImport}>
@@ -337,7 +366,11 @@ export function WalletsPage() {
                             <Text fw={600} size="sm">
                               {getDisplayLabel(wallet)}
                             </Text>
-                            <Text size="xs" c="dimmed" style={{ fontFamily: 'monospace' }}>
+                            <Text
+                              size="xs"
+                              c="dimmed"
+                              style={{ fontFamily: "monospace" }}
+                            >
                               {wallet.wallet_key}
                             </Text>
                           </Table.Td>
@@ -347,13 +380,18 @@ export function WalletsPage() {
                             </Badge>
                           </Table.Td>
                           <Table.Td>
-                            <Text size="sm" style={{ fontFamily: 'monospace' }}>
+                            <Text size="sm" style={{ fontFamily: "monospace" }}>
                               {truncateMiddle(wallet.address)}
                             </Text>
                           </Table.Td>
                           <Table.Td>
-                            <Badge variant="dot" color={wallet.owner_verified ? 'green' : 'gray'}>
-                              {wallet.owner_verified ? 'Verified' : 'Unverified'}
+                            <Badge
+                              variant="dot"
+                              color={wallet.owner_verified ? "green" : "gray"}
+                            >
+                              {wallet.owner_verified
+                                ? "Verified"
+                                : "Unverified"}
                             </Badge>
                           </Table.Td>
                           <Table.Td>
@@ -361,7 +399,9 @@ export function WalletsPage() {
                               <Tooltip label="Copy wallet key">
                                 <ActionIcon
                                   variant="subtle"
-                                  onClick={() => void handleCopy(wallet.wallet_key)}
+                                  onClick={() =>
+                                    void handleCopy(wallet.wallet_key)
+                                  }
                                 >
                                   <IconCopy size={16} />
                                 </ActionIcon>
@@ -369,7 +409,11 @@ export function WalletsPage() {
                               <Tooltip label="View details">
                                 <ActionIcon
                                   variant="subtle"
-                                  onClick={() => navigate(`/dashboard/wallets/${encodeWalletKeyForRoute(wallet.wallet_key)}`)}
+                                  onClick={() =>
+                                    navigate(
+                                      `/dashboard/wallets/${encodeWalletKeyForRoute(wallet.wallet_key)}`,
+                                    )
+                                  }
                                 >
                                   <IconWallet size={16} />
                                 </ActionIcon>
@@ -378,7 +422,11 @@ export function WalletsPage() {
                                 <ActionIcon
                                   variant="subtle"
                                   color="red"
-                                  onClick={() => void handleRemoveAccountWallet(wallet.wallet_key)}
+                                  onClick={() =>
+                                    void handleRemoveAccountWallet(
+                                      wallet.wallet_key,
+                                    )
+                                  }
                                 >
                                   <IconTrash size={16} />
                                 </ActionIcon>
@@ -400,10 +448,14 @@ export function WalletsPage() {
                 <div>
                   <Title order={3}>Wallet Groups</Title>
                   <Text c="dimmed" size="sm">
-                    Organize wallets into groups and use groups as alert targets.
+                    Organize wallets into groups and use groups as alert
+                    targets.
                   </Text>
                 </div>
-                <Button onClick={() => navigate('/dashboard/wallets/groups')} style={{ backgroundColor: '#2563EB' }}>
+                <Button
+                  onClick={() => navigate("/dashboard/wallets/groups")}
+                  style={{ backgroundColor: "#2563EB" }}
+                >
                   Manage groups
                 </Button>
               </Group>
@@ -427,15 +479,28 @@ export function WalletsPage() {
                     </Table.Thead>
                     <Table.Tbody>
                       {walletGroups.map((group) => {
-                        const visibility = (group.settings as { visibility?: string } | undefined)?.visibility || 'private'
+                        const visibility =
+                          (
+                            group.settings as
+                              { visibility?: string } | undefined
+                          )?.visibility || "private";
                         return (
                           <Table.Tr key={group.id}>
                             <Table.Td>
-                              <Text fw={600} size="sm">{group.name}</Text>
-                              <Text size="xs" c="dimmed">{group.description || ''}</Text>
+                              <Text fw={600} size="sm">
+                                {group.name}
+                              </Text>
+                              <Text size="xs" c="dimmed">
+                                {group.description || ""}
+                              </Text>
                             </Table.Td>
                             <Table.Td>
-                              <Badge variant="light" color={visibility === 'public' ? 'blue' : 'gray'}>
+                              <Badge
+                                variant="light"
+                                color={
+                                  visibility === "public" ? "blue" : "gray"
+                                }
+                              >
                                 {visibility}
                               </Badge>
                             </Table.Td>
@@ -449,7 +514,11 @@ export function WalletsPage() {
                                 <Tooltip label="View group">
                                   <ActionIcon
                                     variant="subtle"
-                                    onClick={() => navigate(`/dashboard/wallets/groups/${group.id}`)}
+                                    onClick={() =>
+                                      navigate(
+                                        `/dashboard/wallets/groups/${group.id}`,
+                                      )
+                                    }
                                   >
                                     <IconUsers size={16} />
                                   </ActionIcon>
@@ -457,7 +526,7 @@ export function WalletsPage() {
                               </Group>
                             </Table.Td>
                           </Table.Tr>
-                        )
+                        );
                       })}
                     </Table.Tbody>
                   </Table>
@@ -472,7 +541,7 @@ export function WalletsPage() {
         opened={addWalletOpened}
         onClose={closeAddWallet}
         onWalletAdded={() => {
-          void loadWalletGroups()
+          void loadWalletGroups();
         }}
       />
 
@@ -487,5 +556,5 @@ export function WalletsPage() {
         onImport={handleBulkImport}
       />
     </Container>
-  )
+  );
 }

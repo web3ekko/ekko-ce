@@ -15,20 +15,36 @@ class ProfileSerializer(serializers.ModelSerializer):
     has_passkey = serializers.BooleanField(read_only=True)
     has_2fa = serializers.BooleanField(read_only=True)
     is_email_verified = serializers.BooleanField(read_only=True)
-    member_since = serializers.DateTimeField(source='created_at', read_only=True)
+    member_since = serializers.DateTimeField(source="created_at", read_only=True)
 
     class Meta:
         model = User
         fields = [
-            'id', 'email', 'first_name', 'last_name', 'full_name',
-            'preferred_auth_method', 'is_email_verified', 'has_passkey',
-            'has_2fa', 'last_login_method', 'member_since',
-            'created_at', 'updated_at'
+            "id",
+            "email",
+            "first_name",
+            "last_name",
+            "full_name",
+            "preferred_auth_method",
+            "is_email_verified",
+            "has_passkey",
+            "has_2fa",
+            "last_login_method",
+            "member_since",
+            "created_at",
+            "updated_at",
         ]
         read_only_fields = [
-            'id', 'email', 'full_name', 'is_email_verified',
-            'has_passkey', 'has_2fa', 'last_login_method',
-            'created_at', 'updated_at', 'member_since'
+            "id",
+            "email",
+            "full_name",
+            "is_email_verified",
+            "has_passkey",
+            "has_2fa",
+            "last_login_method",
+            "created_at",
+            "updated_at",
+            "member_since",
         ]
 
 
@@ -37,24 +53,23 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['first_name', 'last_name']
+        fields = ["first_name", "last_name"]
 
 
 class PreferencesSerializer(serializers.Serializer):
     """Serializer for user preferences"""
 
     preferred_auth_method = serializers.ChoiceField(
-        choices=[('passkey', 'Passkey'), ('email', 'Email Magic Link')],
-        required=False
+        choices=[("passkey", "Passkey"), ("email", "Email Magic Link")], required=False
     )
     notification_preferences = serializers.DictField(required=False, default=dict)
     theme = serializers.ChoiceField(
-        choices=[('light', 'Light'), ('dark', 'Dark'), ('system', 'System')],
+        choices=[("light", "Light"), ("dark", "Dark"), ("system", "System")],
         required=False,
-        default='system'
+        default="system",
     )
-    timezone = serializers.CharField(required=False, max_length=50, default='UTC')
-    language = serializers.CharField(required=False, max_length=10, default='en')
+    timezone = serializers.CharField(required=False, max_length=50, default="UTC")
+    language = serializers.CharField(required=False, max_length=10, default="en")
 
 
 class ConnectedServiceSerializer(serializers.Serializer):
@@ -84,8 +99,7 @@ class ExportRequestSerializer(serializers.Serializer):
     """Serializer for data export request"""
 
     format = serializers.ChoiceField(
-        choices=[('json', 'JSON'), ('csv', 'CSV')],
-        default='json'
+        choices=[("json", "JSON"), ("csv", "CSV")], default="json"
     )
     include_alerts = serializers.BooleanField(default=True)
     include_wallets = serializers.BooleanField(default=True)
@@ -110,7 +124,7 @@ class DeleteAccountSerializer(serializers.Serializer):
 
     def validate_confirmation(self, value):
         """Verify the user typed 'DELETE' to confirm"""
-        if value != 'DELETE':
+        if value != "DELETE":
             raise serializers.ValidationError(
                 "Please type 'DELETE' to confirm account deletion"
             )

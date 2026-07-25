@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState } from "react";
 import {
   Card,
   Stack,
@@ -13,7 +13,7 @@ import {
   Alert,
   TextInput,
   Modal,
-} from '@mantine/core'
+} from "@mantine/core";
 import {
   IconBrandTelegram,
   IconTrash,
@@ -22,23 +22,26 @@ import {
   IconAlertCircle,
   IconCopy,
   IconQrcode,
-} from '@tabler/icons-react'
-import QRCode from 'qrcode'
-import type { NotificationChannelEndpoint, DeliveryStatsResponse } from '../../services/notifications-api'
+} from "@tabler/icons-react";
+import QRCode from "qrcode";
+import type {
+  NotificationChannelEndpoint,
+  DeliveryStatsResponse,
+} from "../../services/notifications-api";
 
 interface TelegramChannelCardProps {
-  channel: NotificationChannelEndpoint
-  onToggle: (channelId: string, enabled: boolean) => Promise<void>
-  onDelete: (channelId: string) => Promise<void>
-  onTest: (channelId: string) => Promise<void>
-  onVerify?: (channelId: string, code: string) => Promise<void>
-  stats?: DeliveryStatsResponse
+  channel: NotificationChannelEndpoint;
+  onToggle: (channelId: string, enabled: boolean) => Promise<void>;
+  onDelete: (channelId: string) => Promise<void>;
+  onTest: (channelId: string) => Promise<void>;
+  onVerify?: (channelId: string, code: string) => Promise<void>;
+  stats?: DeliveryStatsResponse;
 }
 
 interface TelegramChannelConfig {
-  bot_token?: string
-  chat_id?: string
-  username?: string
+  bot_token?: string;
+  chat_id?: string;
+  username?: string;
 }
 
 export function TelegramChannelCard({
@@ -49,83 +52,85 @@ export function TelegramChannelCard({
   onVerify,
   stats,
 }: TelegramChannelCardProps) {
-  const [isToggling, setIsToggling] = useState(false)
-  const [isTesting, setIsTesting] = useState(false)
-  const [showVerifyModal, setShowVerifyModal] = useState(false)
-  const [verificationCode, setVerificationCode] = useState('')
-  const [isVerifying, setIsVerifying] = useState(false)
-  const [showQRModal, setShowQRModal] = useState(false)
-  const [qrCodeUrl, setQrCodeUrl] = useState<string>('')
+  const [isToggling, setIsToggling] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [verificationCode, setVerificationCode] = useState("");
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [qrCodeUrl, setQrCodeUrl] = useState<string>("");
 
-  const config = channel.config as TelegramChannelConfig
+  const config = channel.config as TelegramChannelConfig;
 
   const handleToggle = async (checked: boolean) => {
-    setIsToggling(true)
+    setIsToggling(true);
     try {
-      await onToggle(channel.id, checked)
+      await onToggle(channel.id, checked);
     } finally {
-      setIsToggling(false)
+      setIsToggling(false);
     }
-  }
+  };
 
   const handleDelete = async () => {
-    if (window.confirm('Are you sure you want to delete this Telegram channel?')) {
-      await onDelete(channel.id)
+    if (
+      window.confirm("Are you sure you want to delete this Telegram channel?")
+    ) {
+      await onDelete(channel.id);
     }
-  }
+  };
 
   const handleTest = async () => {
-    setIsTesting(true)
+    setIsTesting(true);
     try {
-      await onTest(channel.id)
+      await onTest(channel.id);
     } finally {
-      setIsTesting(false)
+      setIsTesting(false);
     }
-  }
+  };
 
   const handleVerify = async () => {
     if (!verificationCode || verificationCode.length !== 6) {
-      return
+      return;
     }
 
     if (onVerify) {
-      setIsVerifying(true)
+      setIsVerifying(true);
       try {
-        await onVerify(channel.id, verificationCode)
-        setShowVerifyModal(false)
-        setVerificationCode('')
+        await onVerify(channel.id, verificationCode);
+        setShowVerifyModal(false);
+        setVerificationCode("");
       } finally {
-        setIsVerifying(false)
+        setIsVerifying(false);
       }
     }
-  }
+  };
 
   const handleCopyChatId = () => {
     if (config.chat_id) {
-      navigator.clipboard.writeText(config.chat_id)
+      navigator.clipboard.writeText(config.chat_id);
     }
-  }
+  };
 
   const handleShowQR = async () => {
     // Generate bot link
-    const botUsername = config.bot_token?.split(':')[0] || 'ekko_alerts_bot'
-    const botLink = `https://t.me/${botUsername}`
+    const botUsername = config.bot_token?.split(":")[0] || "ekko_alerts_bot";
+    const botLink = `https://t.me/${botUsername}`;
 
     try {
       const qrUrl = await QRCode.toDataURL(botLink, {
         width: 256,
         margin: 2,
         color: {
-          dark: '#000000',
-          light: '#FFFFFF',
+          dark: "#000000",
+          light: "#FFFFFF",
         },
-      })
-      setQrCodeUrl(qrUrl)
-      setShowQRModal(true)
+      });
+      setQrCodeUrl(qrUrl);
+      setShowQRModal(true);
     } catch (err) {
-      console.error('Failed to generate QR code:', err)
+      console.error("Failed to generate QR code:", err);
     }
-  }
+  };
 
   return (
     <>
@@ -140,13 +145,13 @@ export function TelegramChannelCard({
                   {channel.label}
                 </Text>
                 <Text size="xs" c="dimmed">
-                  {config.username ? `@${config.username}` : 'Telegram Bot'}
+                  {config.username ? `@${config.username}` : "Telegram Bot"}
                 </Text>
               </div>
             </Group>
             <Group gap="xs">
-              <Badge color={channel.enabled ? 'green' : 'gray'}>
-                {channel.enabled ? 'Active' : 'Disabled'}
+              <Badge color={channel.enabled ? "green" : "gray"}>
+                {channel.enabled ? "Active" : "Disabled"}
               </Badge>
               {channel.verified ? (
                 <Badge color="blue" leftSection={<IconCheck size={12} />}>
@@ -166,7 +171,11 @@ export function TelegramChannelCard({
               </Text>
               <Code>{config.chat_id}</Code>
               <Tooltip label="Copy Chat ID">
-                <ActionIcon size="sm" variant="subtle" onClick={handleCopyChatId}>
+                <ActionIcon
+                  size="sm"
+                  variant="subtle"
+                  onClick={handleCopyChatId}
+                >
                   <IconCopy size={14} />
                 </ActionIcon>
               </Tooltip>
@@ -182,8 +191,9 @@ export function TelegramChannelCard({
             >
               <Stack gap="xs">
                 <Text size="xs">
-                  Please verify this Telegram channel by sending <Code>/subscribe</Code> to the bot and
-                  entering the verification code.
+                  Please verify this Telegram channel by sending{" "}
+                  <Code>/subscribe</Code> to the bot and entering the
+                  verification code.
                 </Text>
                 <Group gap="xs">
                   <Button
@@ -247,7 +257,7 @@ export function TelegramChannelCard({
                 checked={channel.enabled}
                 onChange={(e) => handleToggle(e.currentTarget.checked)}
                 disabled={isToggling || !channel.verified}
-                label={channel.enabled ? 'Enabled' : 'Disabled'}
+                label={channel.enabled ? "Enabled" : "Disabled"}
               />
             </Group>
             <Group gap="xs">
@@ -280,8 +290,8 @@ export function TelegramChannelCard({
       <Modal
         opened={showVerifyModal}
         onClose={() => {
-          setShowVerifyModal(false)
-          setVerificationCode('')
+          setShowVerifyModal(false);
+          setVerificationCode("");
         }}
         title="Enter Verification Code"
         size="sm"
@@ -294,7 +304,9 @@ export function TelegramChannelCard({
             placeholder="000000"
             maxLength={6}
             value={verificationCode}
-            onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+            onChange={(e) =>
+              setVerificationCode(e.target.value.replace(/\D/g, ""))
+            }
             autoFocus
           />
           <Group justify="flex-end">
@@ -325,13 +337,18 @@ export function TelegramChannelCard({
             Scan this QR code with your Telegram app to open the bot
           </Text>
           {qrCodeUrl && (
-            <img src={qrCodeUrl} alt="Telegram Bot QR Code" style={{ maxWidth: '100%' }} />
+            <img
+              src={qrCodeUrl}
+              alt="Telegram Bot QR Code"
+              style={{ maxWidth: "100%" }}
+            />
           )}
           <Text size="xs" c="dimmed" ta="center">
-            After opening the bot, send <Code>/subscribe</Code> to get your verification code
+            After opening the bot, send <Code>/subscribe</Code> to get your
+            verification code
           </Text>
         </Stack>
       </Modal>
     </>
-  )
+  );
 }

@@ -46,10 +46,13 @@ class ApiKeyListCreateView(APIView):
             status="active",
         )
 
-        return Response({
-            "key": raw_key,
-            "key_details": ApiKeySerializer(api_key).data,
-        }, status=status.HTTP_201_CREATED)
+        return Response(
+            {
+                "key": raw_key,
+                "key_details": ApiKeySerializer(api_key).data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class ApiKeyDetailView(APIView):
@@ -58,7 +61,9 @@ class ApiKeyDetailView(APIView):
     def patch(self, request, key_id):
         api_key = ApiKey.objects.filter(user=request.user, id=key_id).first()
         if not api_key:
-            return Response({"error": "API key not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "API key not found"}, status=status.HTTP_404_NOT_FOUND
+            )
 
         data = request.data
         if "name" in data:
@@ -67,12 +72,20 @@ class ApiKeyDetailView(APIView):
             api_key.access_level = data["access_level"]
         if "expires_at" in data:
             try:
-                api_key.expires_at = DateTimeField().to_internal_value(data["expires_at"])
+                api_key.expires_at = DateTimeField().to_internal_value(
+                    data["expires_at"]
+                )
             except ValidationError as exc:
-                return Response({"error": exc.detail}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"error": exc.detail}, status=status.HTTP_400_BAD_REQUEST
+                )
         if "rate_limit" in data and isinstance(data["rate_limit"], dict):
-            api_key.rate_limit_per_minute = data["rate_limit"].get("requests_per_minute", api_key.rate_limit_per_minute)
-            api_key.rate_limit_per_day = data["rate_limit"].get("requests_per_day", api_key.rate_limit_per_day)
+            api_key.rate_limit_per_minute = data["rate_limit"].get(
+                "requests_per_minute", api_key.rate_limit_per_minute
+            )
+            api_key.rate_limit_per_day = data["rate_limit"].get(
+                "requests_per_day", api_key.rate_limit_per_day
+            )
 
         api_key.save()
         return Response(ApiKeySerializer(api_key).data)
@@ -80,7 +93,9 @@ class ApiKeyDetailView(APIView):
     def delete(self, request, key_id):
         api_key = ApiKey.objects.filter(user=request.user, id=key_id).first()
         if not api_key:
-            return Response({"error": "API key not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "API key not found"}, status=status.HTTP_404_NOT_FOUND
+            )
 
         api_key.status = "revoked"
         api_key.save(update_fields=["status", "updated_at"])
@@ -94,7 +109,9 @@ class ApiKeyRevokeView(APIView):
     def post(self, request, key_id):
         api_key = ApiKey.objects.filter(user=request.user, id=key_id).first()
         if not api_key:
-            return Response({"error": "API key not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "API key not found"}, status=status.HTTP_404_NOT_FOUND
+            )
 
         api_key.status = "revoked"
         api_key.save(update_fields=["status", "updated_at"])
@@ -107,7 +124,10 @@ class ApiUsageView(APIView):
     def get(self, request):
         days = int(request.query_params.get("days", 7))
         if days <= 0 or days > 90:
-            return Response({"error": "days must be between 1 and 90"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "days must be between 1 and 90"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         end_date = timezone.now().date()
         start_date = end_date - timedelta(days=days - 1)
@@ -125,7 +145,11 @@ class ApiUsageView(APIView):
             if record:
                 results.append(record)
             else:
-                results.append(ApiUsageRecord(user=request.user, date=current_date, requests=0, errors=0))
+                results.append(
+                    ApiUsageRecord(
+                        user=request.user, date=current_date, requests=0, errors=0
+                    )
+                )
             current_date += timedelta(days=1)
 
         serialized = ApiUsageRecordSerializer(results, many=True).data
@@ -141,5 +165,7 @@ class ApiEndpointsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        endpoints = ApiEndpoint.objects.filter(is_active=True).order_by("path", "method")
+        endpoints = ApiEndpoint.objects.filter(is_active=True).order_by(
+            "path", "method"
+        )
         return Response({"endpoints": ApiEndpointSerializer(endpoints, many=True).data})

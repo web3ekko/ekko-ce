@@ -26,8 +26,20 @@ def _minimal_plan_spec(*, catalog_id: str) -> dict:
         "target_kind": "wallet",
         "scope": {"networks": ["ETH:mainnet"], "instrument_constraints": []},
         "variables": [
-            {"id": "threshold", "type": "decimal", "label": "Threshold", "required": True, "default": 0.5},
-            {"id": "window_duration", "type": "duration", "label": "Window", "required": True, "default": "24h"},
+            {
+                "id": "threshold",
+                "type": "decimal",
+                "label": "Threshold",
+                "required": True,
+                "default": 0.5,
+            },
+            {
+                "id": "window_duration",
+                "type": "duration",
+                "label": "Window",
+                "required": True,
+                "default": "24h",
+            },
         ],
         "signals": {
             "principals": [
@@ -49,11 +61,21 @@ def _minimal_plan_spec(*, catalog_id: str) -> dict:
         "derivations": [],
         "trigger": {
             "evaluation_mode": "periodic",
-            "condition_ast": {"op": "lt", "left": "balance_latest", "right": "{{threshold}}"},
+            "condition_ast": {
+                "op": "lt",
+                "left": "balance_latest",
+                "right": "{{threshold}}",
+            },
             "cron_cadence_seconds": 3600,
-            "dedupe": {"cooldown_seconds": 300, "key_template": "{{instance_id}}:{{target.key}}"},
+            "dedupe": {
+                "cooldown_seconds": 300,
+                "key_template": "{{instance_id}}:{{target.key}}",
+            },
         },
-        "notification": {"title_template": "Balance alert: {{target.short}}", "body_template": "Balance: {{balance_latest}}"},
+        "notification": {
+            "title_template": "Balance alert: {{target.short}}",
+            "body_template": "Balance: {{balance_latest}}",
+        },
         "fallbacks": [],
         "assumptions": [],
     }
@@ -147,7 +169,9 @@ class TestNLPPlanCompiler(TestCase):
         assert any(e[0] == "compile" for e in events)
         assert any(e[0] == "assemble_preview" for e in events)
 
-    def test_compile_to_proposed_spec_v2_includes_context_patches_for_network_missing_info(self):
+    def test_compile_to_proposed_spec_v2_includes_context_patches_for_network_missing_info(
+        self,
+    ):
         catalog_id = list_compiler_catalog_entries()[0]["catalog_id"]
 
         def stub_dspy(**_kwargs):
@@ -174,8 +198,18 @@ class TestNLPPlanCompiler(TestCase):
 
         missing = result.get("missing_info")
         assert isinstance(missing, list)
-        network_item = next((m for m in missing if isinstance(m, dict) and m.get("code") == "network_required"), None)
+        network_item = next(
+            (
+                m
+                for m in missing
+                if isinstance(m, dict) and m.get("code") == "network_required"
+            ),
+            None,
+        )
         assert isinstance(network_item, dict)
         options = network_item.get("options")
         assert isinstance(options, list) and options
-        assert all(isinstance(o, dict) and isinstance(o.get("context_patch"), dict) for o in options)
+        assert all(
+            isinstance(o, dict) and isinstance(o.get("context_patch"), dict)
+            for o in options
+        )

@@ -63,7 +63,9 @@ class AlertTemplateSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
 
-    def _get_latest_version_obj(self, obj: AlertTemplate) -> Optional[AlertTemplateVersion]:
+    def _get_latest_version_obj(
+        self, obj: AlertTemplate
+    ) -> Optional[AlertTemplateVersion]:
         # Prefer prefetched versions to avoid N+1 on list endpoints.
         versions = getattr(obj, "versions", None)
         if versions is not None and hasattr(versions, "all"):
@@ -113,7 +115,9 @@ class AlertTemplateSerializer(serializers.ModelSerializer):
         if latest is None:
             return None
 
-        template_spec = latest.template_spec if isinstance(latest.template_spec, dict) else None
+        template_spec = (
+            latest.template_spec if isinstance(latest.template_spec, dict) else None
+        )
         executable = latest.executable if isinstance(latest.executable, dict) else None
         if template_spec is None or executable is None:
             return None
@@ -167,5 +171,7 @@ class AlertTemplateInlinePreviewSerializer(serializers.Serializer):
     job_id = serializers.UUIDField()
     target_selector = serializers.DictField()
     variable_values = serializers.DictField(required=False, default=dict)
-    sample_size = serializers.IntegerField(required=False, default=50, min_value=1, max_value=500)
+    sample_size = serializers.IntegerField(
+        required=False, default=50, min_value=1, max_value=500
+    )
     effective_as_of = serializers.DateTimeField(required=False, allow_null=True)

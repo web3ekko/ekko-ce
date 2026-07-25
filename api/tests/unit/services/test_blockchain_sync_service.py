@@ -11,10 +11,13 @@ class TestBlockchainSyncService:
     def mock_redis(self):
         """Create a mock Redis client."""
         from app.services.blockchain_sync_service import BlockchainSyncService
+
         BlockchainSyncService.reset_client()
 
         mock_client = MagicMock()
-        with patch.object(BlockchainSyncService, 'get_redis_client', return_value=mock_client):
+        with patch.object(
+            BlockchainSyncService, "get_redis_client", return_value=mock_client
+        ):
             yield mock_client
 
     @pytest.fixture
@@ -189,7 +192,9 @@ class TestBlockchainSyncSignals:
     @pytest.fixture
     def mock_sync_service(self):
         """Mock the BlockchainSyncService."""
-        with patch('app.services.blockchain_sync_service.BlockchainSyncService') as mock_service:
+        with patch(
+            "app.services.blockchain_sync_service.BlockchainSyncService"
+        ) as mock_service:
             yield mock_service
 
     def test_signal_syncs_enabled_node_on_save(self, mock_sync_service):
@@ -202,9 +207,7 @@ class TestBlockchainSyncSignals:
         mock_node.chain_name = "Ethereum Mainnet"
 
         sync_blockchain_node_to_redis(
-            sender=MagicMock(),
-            instance=mock_node,
-            created=True
+            sender=MagicMock(), instance=mock_node, created=True
         )
 
         mock_sync_service.sync_node_to_redis.assert_called_once_with(mock_node)
@@ -220,26 +223,23 @@ class TestBlockchainSyncSignals:
         mock_node.vm_type = "EVM"
 
         sync_blockchain_node_to_redis(
-            sender=MagicMock(),
-            instance=mock_node,
-            created=False
+            sender=MagicMock(), instance=mock_node, created=False
         )
 
         mock_sync_service.remove_node_from_redis.assert_called_once_with("EVM", "1")
 
     def test_signal_removes_node_on_delete(self, mock_sync_service):
         """Test that deleting a node triggers removal."""
-        from app.signals.blockchain_sync_signals import remove_blockchain_node_from_redis
+        from app.signals.blockchain_sync_signals import (
+            remove_blockchain_node_from_redis,
+        )
 
         mock_node = MagicMock()
         mock_node.chain_id = "1"
         mock_node.chain_name = "Ethereum Mainnet"
         mock_node.vm_type = "EVM"
 
-        remove_blockchain_node_from_redis(
-            sender=MagicMock(),
-            instance=mock_node
-        )
+        remove_blockchain_node_from_redis(sender=MagicMock(), instance=mock_node)
 
         mock_sync_service.remove_node_from_redis.assert_called_once_with("EVM", "1")
 
@@ -255,9 +255,7 @@ class TestBlockchainSyncSignals:
 
         # Should not raise
         sync_blockchain_node_to_redis(
-            sender=MagicMock(),
-            instance=mock_node,
-            created=True
+            sender=MagicMock(), instance=mock_node, created=True
         )
 
 

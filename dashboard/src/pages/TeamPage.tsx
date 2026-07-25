@@ -4,7 +4,7 @@
  * Team management and collaboration features with card-based layout
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from "react";
 import {
   Container,
   Title,
@@ -22,7 +22,7 @@ import {
   SimpleGrid,
   Center,
   Loader,
-} from '@mantine/core'
+} from "@mantine/core";
 import {
   IconPlus,
   IconSearch,
@@ -30,24 +30,31 @@ import {
   IconShield,
   IconAlertCircle,
   IconCheck,
-} from '@tabler/icons-react'
-import { useDisclosure } from '@mantine/hooks'
-import { notifications } from '@mantine/notifications'
-import { TeamMemberCard, type TeamMember } from '../components/team/TeamMemberCard'
-import teamsApiService, { type TeamMemberRecord, type TeamSummary } from '../services/teams-api'
-import { InviteMemberModal } from '../components/team/InviteMemberModal'
+} from "@tabler/icons-react";
+import { useDisclosure } from "@mantine/hooks";
+import { notifications } from "@mantine/notifications";
+import {
+  TeamMemberCard,
+  type TeamMember,
+} from "../components/team/TeamMemberCard";
+import teamsApiService, {
+  type TeamMemberRecord,
+  type TeamSummary,
+} from "../services/teams-api";
+import { InviteMemberModal } from "../components/team/InviteMemberModal";
 
 const formatRelativeTime = (timestamp?: string | null) => {
-  if (!timestamp) return 'Never'
-  const now = Date.now()
-  const value = new Date(timestamp).getTime()
-  const diff = now - value
+  if (!timestamp) return "Never";
+  const now = Date.now();
+  const value = new Date(timestamp).getTime();
+  const diff = now - value;
 
-  if (diff < 60 * 1000) return 'Just now'
-  if (diff < 60 * 60 * 1000) return `${Math.floor(diff / (60 * 1000))}m ago`
-  if (diff < 24 * 60 * 60 * 1000) return `${Math.floor(diff / (60 * 60 * 1000))}h ago`
-  return new Date(timestamp).toLocaleDateString()
-}
+  if (diff < 60 * 1000) return "Just now";
+  if (diff < 60 * 60 * 1000) return `${Math.floor(diff / (60 * 1000))}m ago`;
+  if (diff < 24 * 60 * 60 * 1000)
+    return `${Math.floor(diff / (60 * 60 * 1000))}h ago`;
+  return new Date(timestamp).toLocaleDateString();
+};
 
 const mapMember = (member: TeamMemberRecord): TeamMember => ({
   id: member.id,
@@ -57,169 +64,183 @@ const mapMember = (member: TeamMemberRecord): TeamMember => ({
   status: member.status,
   joinedAt: member.joined_at,
   lastActive: formatRelativeTime(member.last_active_at),
-})
+});
 
 export function TeamPage() {
-  const [inviteOpened, { open: openInvite, close: closeInvite }] = useDisclosure(false)
-  const [activeTab, setActiveTab] = useState<string | null>('members')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [teams, setTeams] = useState<TeamSummary[]>([])
-  const [members, setMembers] = useState<TeamMemberRecord[]>([])
-  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [inviteOpened, { open: openInvite, close: closeInvite }] =
+    useDisclosure(false);
+  const [activeTab, setActiveTab] = useState<string | null>("members");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [teams, setTeams] = useState<TeamSummary[]>([]);
+  const [members, setMembers] = useState<TeamMemberRecord[]>([]);
+  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const selectedTeam = teams.find((team) => team.id === selectedTeamId) || null
+  const selectedTeam = teams.find((team) => team.id === selectedTeamId) || null;
 
   const loadTeams = async () => {
-    setIsLoading(true)
+    setIsLoading(true);
     try {
-      const teamList = await teamsApiService.getTeams()
-      setTeams(teamList)
+      const teamList = await teamsApiService.getTeams();
+      setTeams(teamList);
       if (!selectedTeamId && teamList.length > 0) {
-        setSelectedTeamId(teamList[0].id)
+        setSelectedTeamId(teamList[0].id);
       }
     } catch (error) {
-      console.error('Failed to load teams:', error)
+      console.error("Failed to load teams:", error);
       notifications.show({
-        title: 'Error',
-        message: 'Failed to load teams',
-        color: 'red',
-      })
+        title: "Error",
+        message: "Failed to load teams",
+        color: "red",
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const loadMembers = async (teamId: string) => {
-    setIsLoading(true)
+    setIsLoading(true);
     try {
-      const teamMembers = await teamsApiService.getMembers(teamId)
-      setMembers(teamMembers)
+      const teamMembers = await teamsApiService.getMembers(teamId);
+      setMembers(teamMembers);
     } catch (error) {
-      console.error('Failed to load team members:', error)
+      console.error("Failed to load team members:", error);
       notifications.show({
-        title: 'Error',
-        message: 'Failed to load team members',
-        color: 'red',
-      })
+        title: "Error",
+        message: "Failed to load team members",
+        color: "red",
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    loadTeams()
-  }, [])
+    loadTeams();
+  }, []);
 
   useEffect(() => {
     if (selectedTeamId) {
-      loadMembers(selectedTeamId)
+      loadMembers(selectedTeamId);
     } else {
-      setMembers([])
+      setMembers([]);
     }
-  }, [selectedTeamId])
+  }, [selectedTeamId]);
 
-  const handleInviteMember = async (formData: { email: string; role: TeamMember['role'] }) => {
+  const handleInviteMember = async (formData: {
+    email: string;
+    role: TeamMember["role"];
+  }) => {
     if (!selectedTeamId) {
-      return
+      return;
     }
 
     try {
-      await teamsApiService.inviteMember(selectedTeamId, formData)
+      await teamsApiService.inviteMember(selectedTeamId, formData);
       notifications.show({
-        title: 'Invitation Sent',
+        title: "Invitation Sent",
         message: `Invitation sent to ${formData.email}`,
-        color: 'green',
+        color: "green",
         icon: <IconCheck size={16} />,
-      })
-      closeInvite()
-      await loadMembers(selectedTeamId)
+      });
+      closeInvite();
+      await loadMembers(selectedTeamId);
     } catch (error) {
-      console.error('Failed to invite member:', error)
+      console.error("Failed to invite member:", error);
       notifications.show({
-        title: 'Invite failed',
-        message: 'Unable to invite team member. Ensure the user exists and try again.',
-        color: 'red',
-      })
+        title: "Invite failed",
+        message:
+          "Unable to invite team member. Ensure the user exists and try again.",
+        color: "red",
+      });
     }
-  }
+  };
 
   const handleRemoveMember = async (id: string) => {
-    if (!selectedTeamId) return
-    if (!confirm('Are you sure you want to remove this team member?')) return
+    if (!selectedTeamId) return;
+    if (!confirm("Are you sure you want to remove this team member?")) return;
 
     try {
-      await teamsApiService.removeMember(selectedTeamId, id)
+      await teamsApiService.removeMember(selectedTeamId, id);
       notifications.show({
-        title: 'Member Removed',
-        message: 'Team member has been removed successfully',
-        color: 'orange',
-      })
-      await loadMembers(selectedTeamId)
+        title: "Member Removed",
+        message: "Team member has been removed successfully",
+        color: "orange",
+      });
+      await loadMembers(selectedTeamId);
     } catch (error) {
-      console.error('Failed to remove member:', error)
+      console.error("Failed to remove member:", error);
       notifications.show({
-        title: 'Remove failed',
-        message: 'Unable to remove team member',
-        color: 'red',
-      })
+        title: "Remove failed",
+        message: "Unable to remove team member",
+        color: "red",
+      });
     }
-  }
+  };
 
   const handleResendInvite = async (email: string) => {
-    if (!selectedTeamId) return
-    const member = members.find((item) => item.email === email)
-    if (!member) return
+    if (!selectedTeamId) return;
+    const member = members.find((item) => item.email === email);
+    if (!member) return;
 
     try {
-      await teamsApiService.resendInvite(selectedTeamId, member.id)
+      await teamsApiService.resendInvite(selectedTeamId, member.id);
       notifications.show({
-        title: 'Invite Resent',
+        title: "Invite Resent",
         message: `Invitation resent to ${email}`,
-        color: 'blue',
+        color: "blue",
         icon: <IconCheck size={16} />,
-      })
+      });
     } catch (error) {
-      console.error('Failed to resend invite:', error)
+      console.error("Failed to resend invite:", error);
       notifications.show({
-        title: 'Resend failed',
-        message: 'Unable to resend invite',
-        color: 'red',
-      })
+        title: "Resend failed",
+        message: "Unable to resend invite",
+        color: "red",
+      });
     }
-  }
+  };
 
   const handleUpdateMember = async (member: TeamMember) => {
-    if (!selectedTeamId) return
+    if (!selectedTeamId) return;
     try {
-      await teamsApiService.updateMemberRole(selectedTeamId, member.id, member.role)
+      await teamsApiService.updateMemberRole(
+        selectedTeamId,
+        member.id,
+        member.role,
+      );
       notifications.show({
-        title: 'Role Updated',
+        title: "Role Updated",
         message: `${member.name}'s role updated`,
-        color: 'green',
-      })
-      await loadMembers(selectedTeamId)
+        color: "green",
+      });
+      await loadMembers(selectedTeamId);
     } catch (error) {
-      console.error('Failed to update member role:', error)
+      console.error("Failed to update member role:", error);
       notifications.show({
-        title: 'Update failed',
-        message: 'Unable to update member role',
-        color: 'red',
-      })
+        title: "Update failed",
+        message: "Unable to update member role",
+        color: "red",
+      });
     }
-  }
+  };
 
   const filteredMembers = useMemo(() => {
-    const formatted = members.map(mapMember)
-    return formatted.filter((member) =>
-      member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      member.email.toLowerCase().includes(searchQuery.toLowerCase())
-    )
-  }, [members, searchQuery])
+    const formatted = members.map(mapMember);
+    return formatted.filter(
+      (member) =>
+        member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        member.email.toLowerCase().includes(searchQuery.toLowerCase()),
+    );
+  }, [members, searchQuery]);
 
-  const totalMembers = members.length
-  const activeMembers = members.filter((member) => member.status === 'active').length
-  const adminCount = members.filter((member) => ['owner', 'admin'].includes(member.role)).length
+  const totalMembers = members.length;
+  const activeMembers = members.filter(
+    (member) => member.status === "active",
+  ).length;
+  const adminCount = members.filter((member) =>
+    ["owner", "admin"].includes(member.role),
+  ).length;
 
   if (isLoading && teams.length === 0) {
     return (
@@ -231,7 +252,7 @@ export function TeamPage() {
           </Stack>
         </Center>
       </Container>
-    )
+    );
   }
 
   return (
@@ -240,7 +261,9 @@ export function TeamPage() {
         {/* Header */}
         <Group justify="space-between" align="flex-start">
           <div>
-            <Title order={1} c="#0F172A">Team</Title>
+            <Title order={1} c="#0F172A">
+              Team
+            </Title>
             <Text c="#475569" mt="xs">
               Manage your team members and permissions
             </Text>
@@ -248,7 +271,10 @@ export function TeamPage() {
           <Group gap="md">
             {teams.length > 1 && (
               <Select
-                data={teams.map((team) => ({ value: team.id, label: team.name }))}
+                data={teams.map((team) => ({
+                  value: team.id,
+                  label: team.name,
+                }))}
                 value={selectedTeamId}
                 onChange={(value) => setSelectedTeamId(value)}
                 placeholder="Select team"
@@ -256,7 +282,7 @@ export function TeamPage() {
             )}
             <Button
               leftSection={<IconPlus size={16} />}
-              style={{ backgroundColor: '#2563EB' }}
+              style={{ backgroundColor: "#2563EB" }}
               onClick={openInvite}
               disabled={!selectedTeamId}
             >
@@ -270,7 +296,9 @@ export function TeamPage() {
             <Stack align="center" gap="sm" py="xl">
               <IconUsers size={32} color="#94A3B8" />
               <Text fw={600}>No teams found</Text>
-              <Text size="sm" c="dimmed">Create a team to start collaborating.</Text>
+              <Text size="sm" c="dimmed">
+                Create a team to start collaborating.
+              </Text>
             </Stack>
           </Card>
         ) : (
@@ -282,8 +310,12 @@ export function TeamPage() {
                   <Group gap="xs">
                     <IconUsers size={20} color="#2563EB" />
                     <div>
-                      <Text size="sm" c="#475569">Total Members</Text>
-                      <Text size="xl" fw={700} c="#0F172A">{totalMembers}</Text>
+                      <Text size="sm" c="#475569">
+                        Total Members
+                      </Text>
+                      <Text size="xl" fw={700} c="#0F172A">
+                        {totalMembers}
+                      </Text>
                     </div>
                   </Group>
                 </Card>
@@ -293,7 +325,9 @@ export function TeamPage() {
                   <Group gap="xs">
                     <IconCheck size={20} color="#10B981" />
                     <div>
-                      <Text size="sm" c="#475569">Active Members</Text>
+                      <Text size="sm" c="#475569">
+                        Active Members
+                      </Text>
                       <Text size="xl" fw={700} c="#0F172A">
                         {activeMembers}
                       </Text>
@@ -306,7 +340,9 @@ export function TeamPage() {
                   <Group gap="xs">
                     <IconShield size={20} color="#F59E0B" />
                     <div>
-                      <Text size="sm" c="#475569">Admins</Text>
+                      <Text size="sm" c="#475569">
+                        Admins
+                      </Text>
                       <Text size="xl" fw={700} c="#0F172A">
                         {adminCount}
                       </Text>
@@ -322,7 +358,10 @@ export function TeamPage() {
                 <Tabs.Tab value="members" leftSection={<IconUsers size={16} />}>
                   Members
                 </Tabs.Tab>
-                <Tabs.Tab value="permissions" leftSection={<IconShield size={16} />}>
+                <Tabs.Tab
+                  value="permissions"
+                  leftSection={<IconShield size={16} />}
+                >
                   Permissions
                 </Tabs.Tab>
               </Tabs.List>
@@ -346,7 +385,8 @@ export function TeamPage() {
                         py="xs"
                       >
                         <Text size="sm">
-                          You're using {totalMembers} of {selectedTeam.max_members} team member slots.
+                          You're using {totalMembers} of{" "}
+                          {selectedTeam.max_members} team member slots.
                         </Text>
                       </Alert>
                     )}
@@ -377,7 +417,8 @@ export function TeamPage() {
                   <Stack gap="sm">
                     <Title order={4}>Permissions</Title>
                     <Text size="sm" c="dimmed">
-                      Role-based permissions are managed by your organization admins.
+                      Role-based permissions are managed by your organization
+                      admins.
                     </Text>
                   </Stack>
                 </Card>
@@ -393,5 +434,5 @@ export function TeamPage() {
         onSubmit={handleInviteMember}
       />
     </Container>
-  )
+  );
 }

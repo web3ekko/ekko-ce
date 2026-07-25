@@ -22,10 +22,10 @@ class CustomUserManager(UserManager):
     def create_user(self, email, password=None, **extra_fields):
         """Create and save a user with the given email"""
         if not email:
-            raise ValueError('The Email field must be set')
+            raise ValueError("The Email field must be set")
         email = self.normalize_email(email)
         # Set username to email to avoid unique constraint issues
-        extra_fields.setdefault('username', email)
+        extra_fields.setdefault("username", email)
         user = self.model(email=email, **extra_fields)
         if password:
             user.set_password(password)
@@ -36,14 +36,14 @@ class CustomUserManager(UserManager):
 
     def create_superuser(self, email, password=None, **extra_fields):
         """Create and save a superuser with the given email"""
-        extra_fields.setdefault('is_staff', True)
-        extra_fields.setdefault('is_superuser', True)
-        extra_fields.setdefault('is_email_verified', True)
+        extra_fields.setdefault("is_staff", True)
+        extra_fields.setdefault("is_superuser", True)
+        extra_fields.setdefault("is_email_verified", True)
 
-        if extra_fields.get('is_staff') is not True:
-            raise ValueError('Superuser must have is_staff=True.')
-        if extra_fields.get('is_superuser') is not True:
-            raise ValueError('Superuser must have is_superuser=True.')
+        if extra_fields.get("is_staff") is not True:
+            raise ValueError("Superuser must have is_staff=True.")
+        if extra_fields.get("is_superuser") is not True:
+            raise ValueError("Superuser must have is_superuser=True.")
 
         return self.create_user(email, password, **extra_fields)
 
@@ -54,20 +54,21 @@ class User(AbstractUser):
 
     Uses email as the primary identifier, no passwords required
     """
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    email = models.EmailField(unique=True, verbose_name='Email Address')
-    first_name = models.CharField(max_length=150, verbose_name='First Name')
-    last_name = models.CharField(max_length=150, verbose_name='Last Name')
+    email = models.EmailField(unique=True, verbose_name="Email Address")
+    first_name = models.CharField(max_length=150, verbose_name="First Name")
+    last_name = models.CharField(max_length=150, verbose_name="Last Name")
 
     # Authentication preferences
     preferred_auth_method = models.CharField(
         max_length=20,
         choices=[
-            ('passkey', 'Passkey'),
-            ('email', 'Email Magic Link'),
+            ("passkey", "Passkey"),
+            ("email", "Email Magic Link"),
         ],
-        default='passkey',
-        verbose_name='Preferred Authentication Method'
+        default="passkey",
+        verbose_name="Preferred Authentication Method",
     )
 
     # Firebase integration
@@ -76,36 +77,36 @@ class User(AbstractUser):
         blank=True,
         null=True,
         unique=True,
-        help_text='Firebase user ID for cross-platform authentication'
+        help_text="Firebase user ID for cross-platform authentication",
     )
 
     # Account status
-    is_email_verified = models.BooleanField(default=False, verbose_name='Email Verified')
-    has_passkey = models.BooleanField(default=False, verbose_name='Has Passkey')
-    has_2fa = models.BooleanField(default=False, verbose_name='Has 2FA Enabled')
+    is_email_verified = models.BooleanField(
+        default=False, verbose_name="Email Verified"
+    )
+    has_passkey = models.BooleanField(default=False, verbose_name="Has Passkey")
+    has_2fa = models.BooleanField(default=False, verbose_name="Has 2FA Enabled")
 
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     last_login_method = models.CharField(
-        max_length=20,
-        blank=True,
-        verbose_name='Last Login Method'
+        max_length=20, blank=True, verbose_name="Last Login Method"
     )
 
     # Use email as username
-    USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['first_name', 'last_name']
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = ["first_name", "last_name"]
 
     # Use custom manager
     objects = CustomUserManager()
 
     class Meta:
-        verbose_name = 'User'
-        verbose_name_plural = 'Users'
+        verbose_name = "User"
+        verbose_name_plural = "Users"
         indexes = [
-            models.Index(fields=['email']),
-            models.Index(fields=['created_at']),
+            models.Index(fields=["email"]),
+            models.Index(fields=["created_at"]),
         ]
 
     def __str__(self):
@@ -120,9 +121,9 @@ class User(AbstractUser):
         """Check if user has any registered passkeys via Django Allauth"""
         try:
             from allauth.mfa.models import Authenticator
+
             return Authenticator.objects.filter(
-                user=self,
-                type=Authenticator.Type.WEBAUTHN
+                user=self, type=Authenticator.Type.WEBAUTHN
             ).exists()
         except ImportError:
             return False
@@ -130,42 +131,49 @@ class User(AbstractUser):
     def update_passkey_status(self):
         """Update has_passkey field based on Allauth Authenticator records"""
         self.has_passkey = self.has_passkey_via_allauth
-        self.save(update_fields=['has_passkey'])
+        self.save(update_fields=["has_passkey"])
 
 
 class UserDevice(models.Model):
     """
     Track user devices for cross-device authentication and trust management
     """
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='devices')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="devices")
 
     # Device information
-    device_name = models.CharField(max_length=255, verbose_name='Device Name')
+    device_name = models.CharField(max_length=255, verbose_name="Device Name")
     device_type = models.CharField(
         max_length=20,
         choices=[
-            ('ios', 'iOS'),
-            ('android', 'Android'),
-            ('web', 'Web Browser'),
-            ('desktop', 'Desktop'),
+            ("ios", "iOS"),
+            ("android", "Android"),
+            ("web", "Web Browser"),
+            ("desktop", "Desktop"),
         ],
-        verbose_name='Device Type'
+        verbose_name="Device Type",
     )
-    device_id = models.CharField(max_length=255, unique=True, verbose_name='Device ID')
-    device_fingerprint = models.TextField(blank=True, verbose_name='Device Fingerprint')
+    device_id = models.CharField(max_length=255, unique=True, verbose_name="Device ID")
+    device_fingerprint = models.TextField(blank=True, verbose_name="Device Fingerprint")
 
     # Authentication capabilities
-    supports_passkey = models.BooleanField(default=False, verbose_name='Supports Passkey')
-    supports_biometric = models.BooleanField(default=False, verbose_name='Supports Biometric')
+    supports_passkey = models.BooleanField(
+        default=False, verbose_name="Supports Passkey"
+    )
+    supports_biometric = models.BooleanField(
+        default=False, verbose_name="Supports Biometric"
+    )
 
     # Trust and status
-    is_trusted = models.BooleanField(default=False, verbose_name='Is Trusted')
-    is_active = models.BooleanField(default=True, verbose_name='Is Active')
-    trust_expires_at = models.DateTimeField(null=True, blank=True, verbose_name='Trust Expires At')
+    is_trusted = models.BooleanField(default=False, verbose_name="Is Trusted")
+    is_active = models.BooleanField(default=True, verbose_name="Is Active")
+    trust_expires_at = models.DateTimeField(
+        null=True, blank=True, verbose_name="Trust Expires At"
+    )
 
     # Usage tracking
-    last_used = models.DateTimeField(auto_now=True, verbose_name='Last Used')
+    last_used = models.DateTimeField(auto_now=True, verbose_name="Last Used")
     created_at = models.DateTimeField(auto_now_add=True)
 
     # Push notification token fields
@@ -173,47 +181,47 @@ class UserDevice(models.Model):
         max_length=512,
         blank=True,
         null=True,
-        verbose_name='Push Token',
-        help_text="FCM/APNs device token for push notifications"
+        verbose_name="Push Token",
+        help_text="FCM/APNs device token for push notifications",
     )
     token_type = models.CharField(
         max_length=10,
         choices=[
-            ('fcm', 'FCM'),
-            ('apns', 'APNs'),
+            ("fcm", "FCM"),
+            ("apns", "APNs"),
         ],
         blank=True,
         null=True,
-        verbose_name='Token Type',
-        help_text="Push notification provider type"
+        verbose_name="Token Type",
+        help_text="Push notification provider type",
     )
     token_updated_at = models.DateTimeField(
         null=True,
         blank=True,
-        verbose_name='Token Updated At',
-        help_text="Timestamp when device token was last updated"
+        verbose_name="Token Updated At",
+        help_text="Timestamp when device token was last updated",
     )
     token_hash = models.CharField(
         max_length=64,
         blank=True,
         null=True,
-        verbose_name='Token Hash',
-        help_text="SHA256 hash of device token for DuckLake storage (PII protection)"
+        verbose_name="Token Hash",
+        help_text="SHA256 hash of device token for DuckLake storage (PII protection)",
     )
     push_enabled = models.BooleanField(
         default=True,
-        verbose_name='Push Enabled',
-        help_text="User can disable push notifications for this specific device"
+        verbose_name="Push Enabled",
+        help_text="User can disable push notifications for this specific device",
     )
 
     class Meta:
-        verbose_name = 'User Device'
-        verbose_name_plural = 'User Devices'
+        verbose_name = "User Device"
+        verbose_name_plural = "User Devices"
         indexes = [
-            models.Index(fields=['user', 'is_active']),
-            models.Index(fields=['device_id']),
-            models.Index(fields=['last_used']),
-            models.Index(fields=['user', 'push_enabled']),
+            models.Index(fields=["user", "is_active"]),
+            models.Index(fields=["device_id"]),
+            models.Index(fields=["last_used"]),
+            models.Index(fields=["user", "push_enabled"]),
         ]
 
     def __str__(self):
@@ -225,7 +233,7 @@ class UserDevice(models.Model):
             return False
         return timezone.now() > self.trust_expires_at
 
-    def register_push_token(self, token: str, token_type: str = 'fcm') -> None:
+    def register_push_token(self, token: str, token_type: str = "fcm") -> None:
         """
         Register or update push notification token for this device.
 
@@ -241,10 +249,15 @@ class UserDevice(models.Model):
         self.token_updated_at = timezone.now()
         self.token_hash = hashlib.sha256(token.encode()).hexdigest()
         self.push_enabled = True
-        self.save(update_fields=[
-            'device_token', 'token_type', 'token_updated_at',
-            'token_hash', 'push_enabled'
-        ])
+        self.save(
+            update_fields=[
+                "device_token",
+                "token_type",
+                "token_updated_at",
+                "token_hash",
+                "push_enabled",
+            ]
+        )
 
         # Warm Redis cache for wasmCloud
         self._warm_push_cache()
@@ -257,9 +270,9 @@ class UserDevice(models.Model):
         self.token_type = None
         self.token_hash = None
         self.push_enabled = False
-        self.save(update_fields=[
-            'device_token', 'token_type', 'token_hash', 'push_enabled'
-        ])
+        self.save(
+            update_fields=["device_token", "token_type", "token_hash", "push_enabled"]
+        )
 
         # Update Redis cache
         self._warm_push_cache()
@@ -269,7 +282,7 @@ class UserDevice(models.Model):
         from django.core.cache import cache
 
         self.push_enabled = enabled
-        self.save(update_fields=['push_enabled'])
+        self.save(update_fields=["push_enabled"])
 
         # Update Redis cache
         self._warm_push_cache()
@@ -287,25 +300,32 @@ class UserDevice(models.Model):
             push_enabled=True,
             device_token__isnull=False,
         ).values(
-            'id', 'device_name', 'device_type', 'device_token',
-            'token_type', 'token_hash', 'token_updated_at'
+            "id",
+            "device_name",
+            "device_type",
+            "device_token",
+            "token_type",
+            "token_hash",
+            "token_updated_at",
         )
 
         cache_data = {
-            'user_id': str(self.user_id),
-            'devices': [
+            "user_id": str(self.user_id),
+            "devices": [
                 {
-                    'id': str(d['id']),
-                    'device_name': d['device_name'],
-                    'device_type': d['device_type'],
-                    'device_token': d['device_token'],
-                    'token_type': d['token_type'],
-                    'token_hash': d['token_hash'],
-                    'token_updated_at': d['token_updated_at'].isoformat() if d['token_updated_at'] else None,
+                    "id": str(d["id"]),
+                    "device_name": d["device_name"],
+                    "device_type": d["device_type"],
+                    "device_token": d["device_token"],
+                    "token_type": d["token_type"],
+                    "token_hash": d["token_hash"],
+                    "token_updated_at": d["token_updated_at"].isoformat()
+                    if d["token_updated_at"]
+                    else None,
                 }
                 for d in push_devices
             ],
-            'cached_at': timezone.now().isoformat(),
+            "cached_at": timezone.now().isoformat(),
         }
 
         # Cache for 1 hour
@@ -329,73 +349,81 @@ class UserDevice(models.Model):
             push_enabled=True,
             device_token__isnull=False,
         ).values(
-            'id', 'device_name', 'device_type', 'device_token',
-            'token_type', 'token_hash', 'token_updated_at'
+            "id",
+            "device_name",
+            "device_type",
+            "device_token",
+            "token_type",
+            "token_hash",
+            "token_updated_at",
         )
 
         cache_data = {
-            'user_id': str(user_id),
-            'devices': [
+            "user_id": str(user_id),
+            "devices": [
                 {
-                    'id': str(d['id']),
-                    'device_name': d['device_name'],
-                    'device_type': d['device_type'],
-                    'device_token': d['device_token'],
-                    'token_type': d['token_type'],
-                    'token_hash': d['token_hash'],
-                    'token_updated_at': d['token_updated_at'].isoformat() if d['token_updated_at'] else None,
+                    "id": str(d["id"]),
+                    "device_name": d["device_name"],
+                    "device_type": d["device_type"],
+                    "device_token": d["device_token"],
+                    "token_type": d["token_type"],
+                    "token_hash": d["token_hash"],
+                    "token_updated_at": d["token_updated_at"].isoformat()
+                    if d["token_updated_at"]
+                    else None,
                 }
                 for d in push_devices
             ],
-            'cached_at': timezone.now().isoformat(),
+            "cached_at": timezone.now().isoformat(),
         }
 
         cache.set(cache_key, cache_data, timeout=3600)
         return cache_data
 
 
-
-
-
-
 class AuthenticationLog(models.Model):
     """
     Audit trail for authentication events
     """
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='auth_logs', null=True, blank=True)
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="auth_logs", null=True, blank=True
+    )
 
     # Authentication details
     method = models.CharField(
         max_length=20,
         choices=[
-            ('passkey', 'Passkey'),
-            ('email_magic_link', 'Email Magic Link'),
-            ('email_code', 'Email Code'),
-            ('totp', 'TOTP'),
-            ('recovery_code', 'Recovery Code'),
-            ('cross_device', 'Cross-Device'),
+            ("passkey", "Passkey"),
+            ("email_magic_link", "Email Magic Link"),
+            ("email_code", "Email Code"),
+            ("totp", "TOTP"),
+            ("recovery_code", "Recovery Code"),
+            ("cross_device", "Cross-Device"),
         ],
-        verbose_name='Authentication Method'
+        verbose_name="Authentication Method",
     )
-    success = models.BooleanField(verbose_name='Success')
-    failure_reason = models.CharField(max_length=255, blank=True, verbose_name='Failure Reason')
+    success = models.BooleanField(verbose_name="Success")
+    failure_reason = models.CharField(
+        max_length=255, blank=True, verbose_name="Failure Reason"
+    )
 
     # Request details
-    ip_address = models.GenericIPAddressField(verbose_name='IP Address')
-    user_agent = models.TextField(blank=True, verbose_name='User Agent')
-    device_info = models.JSONField(default=dict, verbose_name='Device Info')
+    ip_address = models.GenericIPAddressField(verbose_name="IP Address")
+    user_agent = models.TextField(blank=True, verbose_name="User Agent")
+    device_info = models.JSONField(default=dict, verbose_name="Device Info")
 
     # Timestamps
     timestamp = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        verbose_name = 'Authentication Log'
-        verbose_name_plural = 'Authentication Logs'
+        verbose_name = "Authentication Log"
+        verbose_name_plural = "Authentication Logs"
         indexes = [
-            models.Index(fields=['user', 'timestamp']),
-            models.Index(fields=['method', 'success']),
-            models.Index(fields=['ip_address', 'timestamp']),
+            models.Index(fields=["user", "timestamp"]),
+            models.Index(fields=["method", "success"]),
+            models.Index(fields=["ip_address", "timestamp"]),
         ]
 
     def __str__(self):
@@ -404,75 +432,81 @@ class AuthenticationLog(models.Model):
         return f"{status} {self.method} for {user_email} at {self.timestamp}"
 
 
-
-
-
-
 class EmailVerificationCode(models.Model):
     """
     Manage 6-digit verification codes for email authentication
-    
+
     Replaces magic links with codes that users enter in the app
     """
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='verification_codes')
-    email = models.EmailField(verbose_name='Email Address')
-    code = models.CharField(max_length=6, verbose_name='Verification Code')
-    
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="verification_codes",
+    )
+    email = models.EmailField(verbose_name="Email Address")
+    code = models.CharField(max_length=6, verbose_name="Verification Code")
+
     # Code details
     purpose = models.CharField(
         max_length=20,
         choices=[
-            ('signup', 'Signup'),
-            ('signin', 'Sign In'),
-            ('recovery', 'Account Recovery'),
+            ("signup", "Signup"),
+            ("signin", "Sign In"),
+            ("recovery", "Account Recovery"),
         ],
-        verbose_name='Purpose'
+        verbose_name="Purpose",
     )
-    
+
     # Security
-    ip_address = models.GenericIPAddressField(verbose_name='Requesting IP Address')
-    user_agent = models.TextField(blank=True, verbose_name='User Agent')
-    
+    ip_address = models.GenericIPAddressField(verbose_name="Requesting IP Address")
+    user_agent = models.TextField(blank=True, verbose_name="User Agent")
+
     # Status
-    used_at = models.DateTimeField(null=True, blank=True, verbose_name='Used At')
+    used_at = models.DateTimeField(null=True, blank=True, verbose_name="Used At")
     created_at = models.DateTimeField(auto_now_add=True)
-    expires_at = models.DateTimeField(verbose_name='Expires At')
-    attempts = models.PositiveSmallIntegerField(default=0, verbose_name='Verification Attempts')
-    
+    expires_at = models.DateTimeField(verbose_name="Expires At")
+    attempts = models.PositiveSmallIntegerField(
+        default=0, verbose_name="Verification Attempts"
+    )
+
     class Meta:
-        verbose_name = 'Email Verification Code'
-        verbose_name_plural = 'Email Verification Codes'
+        verbose_name = "Email Verification Code"
+        verbose_name_plural = "Email Verification Codes"
         indexes = [
-            models.Index(fields=['email', 'purpose', 'created_at']),
-            models.Index(fields=['code', 'email']),
-            models.Index(fields=['expires_at']),
-            models.Index(fields=['user', 'purpose']),
+            models.Index(fields=["email", "purpose", "created_at"]),
+            models.Index(fields=["code", "email"]),
+            models.Index(fields=["expires_at"]),
+            models.Index(fields=["user", "purpose"]),
         ]
-    
+
     def __str__(self):
         return f"Code for {self.email} ({self.purpose})"
-    
+
     @property
     def is_used(self):
         return self.used_at is not None
-    
+
     @property
     def is_expired(self):
         return timezone.now() > self.expires_at
-    
+
     @property
     def is_valid(self):
         return not self.is_used and not self.is_expired
-    
+
     def mark_as_used(self):
         self.used_at = timezone.now()
-        self.save(update_fields=['used_at'])
+        self.save(update_fields=["used_at"])
 
 
 # =============================================================================
 # Signal Handlers for Redis Cache Management
 # =============================================================================
+
 
 @receiver(post_delete, sender=UserDevice)
 def warm_push_cache_on_device_delete(sender, instance, **kwargs):
@@ -493,27 +527,36 @@ def warm_push_cache_on_device_delete(sender, instance, **kwargs):
         push_enabled=True,
         device_token__isnull=False,
     ).values(
-        'id', 'device_name', 'device_type', 'device_token',
-        'token_type', 'token_hash', 'token_updated_at'
+        "id",
+        "device_name",
+        "device_type",
+        "device_token",
+        "token_type",
+        "token_hash",
+        "token_updated_at",
     )
 
     cache_data = {
-        'user_id': str(instance.user_id),
-        'devices': [
+        "user_id": str(instance.user_id),
+        "devices": [
             {
-                'id': str(d['id']),
-                'device_name': d['device_name'],
-                'device_type': d['device_type'],
-                'device_token': d['device_token'],
-                'token_type': d['token_type'],
-                'token_hash': d['token_hash'],
-                'token_updated_at': d['token_updated_at'].isoformat() if d['token_updated_at'] else None,
+                "id": str(d["id"]),
+                "device_name": d["device_name"],
+                "device_type": d["device_type"],
+                "device_token": d["device_token"],
+                "token_type": d["token_type"],
+                "token_hash": d["token_hash"],
+                "token_updated_at": d["token_updated_at"].isoformat()
+                if d["token_updated_at"]
+                else None,
             }
             for d in remaining_devices
         ],
-        'cached_at': timezone.now().isoformat(),
+        "cached_at": timezone.now().isoformat(),
     }
 
     # Always set cache (empty list is valid - means no push devices)
     cache.set(cache_key, cache_data, timeout=3600)
-    logger.info(f"Updated push devices cache for user {instance.user_id} (device deleted)")
+    logger.info(
+        f"Updated push devices cache for user {instance.user_id} (device deleted)"
+    )

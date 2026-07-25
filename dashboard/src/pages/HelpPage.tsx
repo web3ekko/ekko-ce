@@ -1,6 +1,6 @@
 /**
  * Help & Support Page - Improved Version
- * 
+ *
  * Documentation, FAQs, and support resources with premium UI
  */
 
@@ -23,7 +23,7 @@ import {
   ThemeIcon,
   SimpleGrid,
   Avatar,
-} from '@mantine/core'
+} from "@mantine/core";
 import {
   IconSearch,
   IconMail,
@@ -38,57 +38,68 @@ import {
   IconLifebuoy,
   IconBrandDiscord,
   IconBrandTwitter,
-} from '@tabler/icons-react'
-import { useState } from 'react'
+} from "@tabler/icons-react";
+import { useState } from "react";
 
 export function HelpPage() {
-  const [activeTab, setActiveTab] = useState<string | null>('faq')
+  const [activeTab, setActiveTab] = useState<string | null>("faq");
 
   const faqs = [
     {
-      question: 'How do I connect my wallet?',
-      answer: 'You can connect your wallet by clicking the "Connect Wallet" button in the top right corner and selecting your preferred wallet provider. We support MetaMask, WalletConnect, and Coinbase Wallet.'
+      question: "How do I connect my wallet?",
+      answer:
+        'You can connect your wallet by clicking the "Connect Wallet" button in the top right corner and selecting your preferred wallet provider. We support MetaMask, WalletConnect, and Coinbase Wallet.',
     },
     {
-      question: 'How do I set up alerts?',
-      answer: 'Navigate to the Alerts page and click "Create Alert". You can set up various types of alerts including transaction monitoring, balance changes, and custom conditions.'
+      question: "How do I set up alerts?",
+      answer:
+        'Navigate to the Alerts page and click "Create Alert". You can set up various types of alerts including transaction monitoring, balance changes, and custom conditions.',
     },
     {
-      question: 'What is the Pro Plan?',
-      answer: 'The Pro Plan unlocks advanced features like unlimited alerts, faster refresh rates, and API access. You can upgrade from your Account Settings.'
+      question: "What is the Pro Plan?",
+      answer:
+        "The Pro Plan unlocks advanced features like unlimited alerts, faster refresh rates, and API access. You can upgrade from your Account Settings.",
     },
     {
-      question: 'How do I manage my API keys?',
-      answer: 'Go to the Developer API section to create, manage, and monitor your API keys. You can set different access levels and rate limits for each key.'
+      question: "How do I manage my API keys?",
+      answer:
+        "Go to the Developer API section to create, manage, and monitor your API keys. You can set different access levels and rate limits for each key.",
     },
     {
-      question: 'Is my data secure?',
-      answer: 'Yes, we use industry-standard encryption and security practices. We never store your private keys and all data is encrypted in transit and at rest.'
-    }
-  ]
+      question: "Is my data secure?",
+      answer:
+        "Yes, we use industry-standard encryption and security practices. We never store your private keys and all data is encrypted in transit and at rest.",
+    },
+  ];
 
   const supportTickets: Array<{
-    id: string
-    subject: string
-    status: 'open' | 'in_progress' | 'resolved'
-    created: string
-  }> = []
+    id: string;
+    subject: string;
+    status: "open" | "in_progress" | "resolved";
+    created: string;
+  }> = [];
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'open': return 'red'
-      case 'in_progress': return 'blue'
-      case 'resolved': return 'green'
-      default: return 'gray'
+      case "open":
+        return "red";
+      case "in_progress":
+        return "blue";
+      case "resolved":
+        return "green";
+      default:
+        return "gray";
     }
-  }
+  };
 
   return (
     <Container size="xl" py="xl">
       <Stack gap="xl">
         {/* Header */}
-        <div style={{ textAlign: 'center', padding: '40px 0' }}>
-          <Title order={1} c="#0F172A" mb="md">How can we help you?</Title>
+        <div style={{ textAlign: "center", padding: "40px 0" }}>
+          <Title order={1} c="#0F172A" mb="md">
+            How can we help you?
+          </Title>
           <Text c="#475569" size="lg" mb="xl">
             Search our knowledge base or get in touch with our support team
           </Text>
@@ -97,7 +108,7 @@ export function HelpPage() {
             leftSection={<IconSearch size={20} />}
             size="lg"
             radius="md"
-            style={{ maxWidth: 600, margin: '0 auto' }}
+            style={{ maxWidth: 600, margin: "0 auto" }}
           />
         </div>
 
@@ -113,15 +124,25 @@ export function HelpPage() {
             <Grid>
               <Grid.Col span={{ base: 12, lg: 8 }} offset={{ lg: 2 }}>
                 <Card padding="xl" radius="md" withBorder>
-                  <Title order={3} mb="xl">Frequently Asked Questions</Title>
+                  <Title order={3} mb="xl">
+                    Frequently Asked Questions
+                  </Title>
                   <Accordion variant="separated" radius="md">
                     {faqs.map((faq, index) => (
-                      <Accordion.Item key={index} value={index.toString()} mb="sm">
-                        <Accordion.Control icon={<IconQuestionMark size={16} color="#2563EB" />}>
+                      <Accordion.Item
+                        key={index}
+                        value={index.toString()}
+                        mb="sm"
+                      >
+                        <Accordion.Control
+                          icon={<IconQuestionMark size={16} color="#2563EB" />}
+                        >
                           <Text fw={500}>{faq.question}</Text>
                         </Accordion.Control>
                         <Accordion.Panel>
-                          <Text size="sm" c="#475569" lh={1.6}>{faq.answer}</Text>
+                          <Text size="sm" c="#475569" lh={1.6}>
+                            {faq.answer}
+                          </Text>
                         </Accordion.Panel>
                       </Accordion.Item>
                     ))}
@@ -134,40 +155,77 @@ export function HelpPage() {
           <Tabs.Panel value="docs" pt="xl">
             <SimpleGrid cols={{ base: 1, md: 2, lg: 3 }} spacing="lg">
               <Card padding="lg" radius="md" withBorder>
-                <ThemeIcon size={48} radius="md" variant="light" color="blue" mb="md">
+                <ThemeIcon
+                  size={48}
+                  radius="md"
+                  variant="light"
+                  color="blue"
+                  mb="md"
+                >
                   <IconBook size={24} />
                 </ThemeIcon>
-                <Title order={4} mb="xs">Getting Started</Title>
+                <Title order={4} mb="xs">
+                  Getting Started
+                </Title>
                 <Text size="sm" c="#64748B" mb="lg">
-                  Learn the basics of setting up your account and connecting wallets.
+                  Learn the basics of setting up your account and connecting
+                  wallets.
                 </Text>
-                <Button variant="light" fullWidth rightSection={<IconChevronRight size={16} />}>
+                <Button
+                  variant="light"
+                  fullWidth
+                  rightSection={<IconChevronRight size={16} />}
+                >
                   Read Guide
                 </Button>
               </Card>
 
               <Card padding="lg" radius="md" withBorder>
-                <ThemeIcon size={48} radius="md" variant="light" color="green" mb="md">
+                <ThemeIcon
+                  size={48}
+                  radius="md"
+                  variant="light"
+                  color="green"
+                  mb="md"
+                >
                   <IconLifebuoy size={24} />
                 </ThemeIcon>
-                <Title order={4} mb="xs">Troubleshooting</Title>
+                <Title order={4} mb="xs">
+                  Troubleshooting
+                </Title>
                 <Text size="sm" c="#64748B" mb="lg">
                   Solutions to common issues and error messages.
                 </Text>
-                <Button variant="light" fullWidth rightSection={<IconChevronRight size={16} />}>
+                <Button
+                  variant="light"
+                  fullWidth
+                  rightSection={<IconChevronRight size={16} />}
+                >
                   View Solutions
                 </Button>
               </Card>
 
               <Card padding="lg" radius="md" withBorder>
-                <ThemeIcon size={48} radius="md" variant="light" color="teal" mb="md">
+                <ThemeIcon
+                  size={48}
+                  radius="md"
+                  variant="light"
+                  color="teal"
+                  mb="md"
+                >
                   <IconExternalLink size={24} />
                 </ThemeIcon>
-                <Title order={4} mb="xs">API Reference</Title>
+                <Title order={4} mb="xs">
+                  API Reference
+                </Title>
                 <Text size="sm" c="#64748B" mb="lg">
                   Complete documentation for developers and integrators.
                 </Text>
-                <Button variant="light" fullWidth rightSection={<IconChevronRight size={16} />}>
+                <Button
+                  variant="light"
+                  fullWidth
+                  rightSection={<IconChevronRight size={16} />}
+                >
                   API Docs
                 </Button>
               </Card>
@@ -178,7 +236,9 @@ export function HelpPage() {
             <Grid>
               <Grid.Col span={{ base: 12, lg: 8 }}>
                 <Card padding="xl" radius="md" withBorder>
-                  <Title order={3} mb="md">Send us a message</Title>
+                  <Title order={3} mb="md">
+                    Send us a message
+                  </Title>
                   <Text c="#64748B" mb="xl">
                     We typically respond within 24 hours.
                   </Text>
@@ -189,9 +249,15 @@ export function HelpPage() {
                       <TextInput label="Email" placeholder="your@email.com" />
                     </Group>
                     <TextInput label="Subject" placeholder="How can we help?" />
-                    <Textarea label="Message" placeholder="Describe your issue..." minRows={5} />
+                    <Textarea
+                      label="Message"
+                      placeholder="Describe your issue..."
+                      minRows={5}
+                    />
                     <Group justify="flex-end">
-                      <Button size="md" color="blue">Send Message</Button>
+                      <Button size="md" color="blue">
+                        Send Message
+                      </Button>
                     </Group>
                   </Stack>
                 </Card>
@@ -200,7 +266,9 @@ export function HelpPage() {
               <Grid.Col span={{ base: 12, lg: 4 }}>
                 <Stack gap="md">
                   <Card padding="lg" radius="md" withBorder>
-                    <Title order={4} mb="md">Other ways to connect</Title>
+                    <Title order={4} mb="md">
+                      Other ways to connect
+                    </Title>
                     <Stack gap="md">
                       <Button
                         variant="default"
@@ -229,7 +297,12 @@ export function HelpPage() {
                     </Stack>
                   </Card>
 
-                  <Alert icon={<IconAlertCircle size={16} />} title="System Status" color="green" variant="light">
+                  <Alert
+                    icon={<IconAlertCircle size={16} />}
+                    title="System Status"
+                    color="green"
+                    variant="light"
+                  >
                     All systems operational.
                   </Alert>
                 </Stack>
@@ -242,14 +315,23 @@ export function HelpPage() {
               {supportTickets.length === 0 ? (
                 <Card padding="lg" radius="md" withBorder>
                   <Stack align="center" gap="xs">
-                    <ThemeIcon size={48} radius="md" variant="light" color="blue">
+                    <ThemeIcon
+                      size={48}
+                      radius="md"
+                      variant="light"
+                      color="blue"
+                    >
                       <IconLifebuoy size={24} />
                     </ThemeIcon>
                     <Text fw={600}>No support tickets yet</Text>
                     <Text size="sm" c="#64748B" ta="center" maw={360}>
-                      Submit a request in the Contact Support tab and your ticket will appear here.
+                      Submit a request in the Contact Support tab and your
+                      ticket will appear here.
                     </Text>
-                    <Button variant="light" onClick={() => setActiveTab('support')}>
+                    <Button
+                      variant="light"
+                      onClick={() => setActiveTab("support")}
+                    >
                       Contact Support
                     </Button>
                   </Stack>
@@ -260,14 +342,23 @@ export function HelpPage() {
                     <Group justify="space-between" align="flex-start">
                       <div>
                         <Group gap="sm" mb="xs">
-                          <Text fw={600} c="#0F172A">{ticket.subject}</Text>
-                          <Badge color={getStatusColor(ticket.status)} variant="light">
-                            {ticket.status.replace('_', ' ')}
+                          <Text fw={600} c="#0F172A">
+                            {ticket.subject}
+                          </Text>
+                          <Badge
+                            color={getStatusColor(ticket.status)}
+                            variant="light"
+                          >
+                            {ticket.status.replace("_", " ")}
                           </Badge>
                         </Group>
-                        <Text size="sm" c="#64748B">Ticket ID: {ticket.id} • Created {ticket.created}</Text>
+                        <Text size="sm" c="#64748B">
+                          Ticket ID: {ticket.id} • Created {ticket.created}
+                        </Text>
                       </div>
-                      <Button variant="subtle" size="sm">View Thread</Button>
+                      <Button variant="subtle" size="sm">
+                        View Thread
+                      </Button>
                     </Group>
                   </Card>
                 ))
@@ -277,5 +368,5 @@ export function HelpPage() {
         </Tabs>
       </Stack>
     </Container>
-  )
+  );
 }

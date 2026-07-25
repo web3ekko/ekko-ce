@@ -27,11 +27,15 @@ class ApiKey(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="api_keys")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="api_keys"
+    )
     name = models.CharField(max_length=100)
     key_prefix = models.CharField(max_length=32, unique=True)
     key_hash = models.CharField(max_length=64)
-    access_level = models.CharField(max_length=20, choices=ACCESS_LEVEL_CHOICES, default="full")
+    access_level = models.CharField(
+        max_length=20, choices=ACCESS_LEVEL_CHOICES, default="full"
+    )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="active")
     expires_at = models.DateTimeField(null=True, blank=True)
     last_used_at = models.DateTimeField(null=True, blank=True)
@@ -76,8 +80,18 @@ class ApiUsageRecord(models.Model):
     """Daily API usage summary."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="api_usage_records")
-    api_key = models.ForeignKey(ApiKey, on_delete=models.SET_NULL, null=True, blank=True, related_name="usage_records")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="api_usage_records",
+    )
+    api_key = models.ForeignKey(
+        ApiKey,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="usage_records",
+    )
     date = models.DateField()
     requests = models.PositiveIntegerField(default=0)
     errors = models.PositiveIntegerField(default=0)

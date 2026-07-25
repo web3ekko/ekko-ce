@@ -7,7 +7,9 @@ from app.services.nlp.compiler import ProposedSpecCompilationError
 from app.tasks import nlp_tasks
 
 
-@override_settings(CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}})
+@override_settings(
+    CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
+)
 class TestNlpTasks(TestCase):
     def test_parse_nl_description_persists_raw_llm_response_on_failure(self) -> None:
         cache.clear()

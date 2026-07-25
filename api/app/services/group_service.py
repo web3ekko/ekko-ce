@@ -55,7 +55,9 @@ def _alert_runtime_target_groups_key(member_key: str) -> str:
     return f"{ALERT_RUNTIME_TARGET_GROUPS_PREFIX}{member_key}"
 
 
-def _alert_runtime_group_partition_set_key(group_id: UUID, network: str, subnet: str) -> str:
+def _alert_runtime_group_partition_set_key(
+    group_id: UUID, network: str, subnet: str
+) -> str:
     return f"{ALERT_RUNTIME_GROUP_TARGETS_PREFIX}{group_id}:{network}:{subnet}"
 
 
@@ -91,10 +93,7 @@ class GroupService:
 
     @transaction.atomic
     def add_members(
-        self,
-        group_id: UUID,
-        members: List[Dict],
-        sync_redis: bool = True
+        self, group_id: UUID, members: List[Dict], sync_redis: bool = True
     ) -> int:
         """
         Add members to group with JSONB update and Redis sync.
@@ -122,43 +121,50 @@ class GroupService:
         # Normalize member keys to canonical form for this group type.
         normalized_members: List[Dict] = []
         for member in members:
-            raw_key = member.get('key')
+            raw_key = member.get("key")
             if not isinstance(raw_key, str) or not raw_key.strip():
                 raise ValidationError("Member must include non-empty 'key'")
-            normalized_members.append({**member, 'key': group.normalize_member_key(raw_key)})
+            normalized_members.append(
+                {**member, "key": group.normalize_member_key(raw_key)}
+            )
 
         # Validate AlertGroup members before adding
         if group.group_type == GroupType.ALERT:
-            member_keys = [m['key'] for m in normalized_members]
+            member_keys = [m["key"] for m in normalized_members]
             group.validate_alert_group_members(member_keys)
 
-        current_members = group.member_data.get('members', {})
+        current_members = group.member_data.get("members", {})
         now = timezone.now().isoformat()
         added_keys = []
 
         for member in normalized_members:
-            key = member['key']
+            key = member["key"]
             if key not in current_members:
-                member_metadata = member.get('metadata', {}) or {}
-                if group.group_type == GroupType.WALLET and group.settings.get('system_key') == SYSTEM_GROUP_ACCOUNTS:
+                member_metadata = member.get("metadata", {}) or {}
+                if (
+                    group.group_type == GroupType.WALLET
+                    and group.settings.get("system_key") == SYSTEM_GROUP_ACCOUNTS
+                ):
                     member_metadata = {
-                        "owner_verified": bool(member_metadata.get("owner_verified", False)),
+                        "owner_verified": bool(
+                            member_metadata.get("owner_verified", False)
+                        ),
                         **member_metadata,
                     }
 
                 current_members[key] = {
-                    'added_at': now,
-                    'added_by': str(member.get('added_by', '')),
-                    'label': member.get('label', ''),
-                    'tags': member.get('tags', []),
-                    'metadata': member_metadata
+                    "added_at": now,
+                    "added_by": str(member.get("added_by", "")),
+                    "label": member.get("label", ""),
+                    "tags": member.get("tags", []),
+                    "metadata": member_metadata,
                 }
                 added_keys.append(key)
 
         if added_keys:
-            group.member_data['members'] = current_members
+            group.member_data["members"] = current_members
             group.member_count = len(current_members)
-            group.save(update_fields=['member_data', 'member_count', 'updated_at'])
+            group.save(update_fields=["member_data", "member_count", "updated_at"])
 
             if sync_redis:
                 self._sync_members_to_redis(group_id, added_keys, add=True)
@@ -169,10 +175,7 @@ class GroupService:
 
     @transaction.atomic
     def remove_members(
-        self,
-        group_id: UUID,
-        member_keys: List[str],
-        sync_redis: bool = True
+        self, group_id: UUID, member_keys: List[str], sync_redis: bool = True
     ) -> int:
         """
         Remove members from group with JSONB update and Redis sync.
@@ -188,7 +191,7 @@ class GroupService:
         from app.models.groups import GenericGroup
 
         group = GenericGroup.objects.select_for_update().get(id=group_id)
-        current_members = group.member_data.get('members', {})
+        current_members = group.member_data.get("members", {})
         removed_keys = []
 
         for key in member_keys:
@@ -201,9 +204,9 @@ class GroupService:
                 removed_keys.append(normalized_key)
 
         if removed_keys:
-            group.member_data['members'] = current_members
+            group.member_data["members"] = current_members
             group.member_count = len(current_members)
-            group.save(update_fields=['member_data', 'member_count', 'updated_at'])
+            group.save(update_fields=["member_data", "member_count", "updated_at"])
 
             if sync_redis:
                 self._sync_members_to_redis(group_id, removed_keys, add=False)
@@ -212,11 +215,7 @@ class GroupService:
 
         return len(removed_keys)
 
-    def get_members(
-        self,
-        group_id: UUID,
-        use_cache: bool = True
-    ) -> List[str]:
+    def get_members(self, group_id: UUID, use_cache: bool = True) -> List[str]:
         """
         Get member keys - Redis first, PostgreSQL fallback.
 
@@ -234,23 +233,21 @@ class GroupService:
 
         # Fallback to PostgreSQL
         from app.models.groups import GenericGroup
+
         group = GenericGroup.objects.get(id=group_id)
-        return list(group.member_data.get('members', {}).keys())
+        return list(group.member_data.get("members", {}).keys())
 
     def is_member(self, group_id: UUID, member_key: str) -> bool:
         """O(1) membership check via Redis."""
         return bool(self.redis.sismember(f"group:{group_id}:members", member_key))
 
-    def get_member_metadata(
-        self,
-        group_id: UUID,
-        member_key: str
-    ) -> Optional[Dict]:
+    def get_member_metadata(self, group_id: UUID, member_key: str) -> Optional[Dict]:
         """Get metadata for a specific member from PostgreSQL."""
         from app.models.groups import GenericGroup
+
         group = GenericGroup.objects.get(id=group_id)
         normalized_key = group.normalize_member_key(member_key)
-        members = group.member_data.get('members', {})
+        members = group.member_data.get("members", {})
         return members.get(member_key) or members.get(normalized_key)
 
     # -------------------------------------------------------------------------
@@ -306,7 +303,7 @@ class GroupService:
 
         # Get target group IDs if using group-based targeting
         target_group_ids = []
-        if hasattr(alert_instance, 'target_group') and alert_instance.target_group:
+        if hasattr(alert_instance, "target_group") and alert_instance.target_group:
             target_group_ids = [str(alert_instance.target_group.id)]
 
         # Get existing targets to compute diff for reverse index cleanup
@@ -343,9 +340,13 @@ class GroupService:
         pipe.set(f"alert:{alert_id}:targets:json", json.dumps(list(target_keys)))
 
         pipe.execute()
-        logger.info(f"Synced alert {alert_id} with {len(target_keys)} targets and {len(target_group_ids)} groups to Redis")
+        logger.info(
+            f"Synced alert {alert_id} with {len(target_keys)} targets and {len(target_group_ids)} groups to Redis"
+        )
 
-    def remove_alert_from_redis(self, alert_id: str, user_id: Optional[str] = None) -> None:
+    def remove_alert_from_redis(
+        self, alert_id: str, user_id: Optional[str] = None
+    ) -> None:
         """
         Remove alert data from Redis.
 
@@ -398,7 +399,9 @@ class GroupService:
         service.rebuild_group_redis_cache(group.id)
 
     @classmethod
-    def remove_group_from_redis(cls, group_id: UUID, member_keys: List[str] = None) -> None:
+    def remove_group_from_redis(
+        cls, group_id: UUID, member_keys: List[str] = None
+    ) -> None:
         """
         Remove group from Redis (called from Django signal).
 
@@ -434,6 +437,7 @@ class GroupService:
 
         # Remove from type index (we don't know the type, so try all)
         from app.models.groups import GroupType
+
         for group_type in GroupType.values:
             pipe.srem(f"groups:type:{group_type}", str(group_id))
 
@@ -462,12 +466,14 @@ class GroupService:
         from app.models.alerts import AlertInstance
         from app.models.alert_templates import AlertTemplate
 
-        template_ids = cls._extract_template_ids_from_alert_group(subscription.alert_group)
+        template_ids = cls._extract_template_ids_from_alert_group(
+            subscription.alert_group
+        )
 
         managed_instances = AlertInstance.objects.filter(
             user=subscription.owner,
             source_subscription=subscription,
-        ).select_related('template', 'target_group')
+        ).select_related("template", "target_group")
 
         desired_target_group = getattr(subscription, "target_group", None)
         desired_target_group_id = getattr(subscription, "target_group_id", None)
@@ -487,7 +493,9 @@ class GroupService:
                 return
             alert_instance.enabled = False
             alert_instance.disabled_by_subscription = True
-            alert_instance.save(update_fields=['enabled', 'disabled_by_subscription', 'updated_at'])
+            alert_instance.save(
+                update_fields=["enabled", "disabled_by_subscription", "updated_at"]
+            )
 
         if not subscription.is_active:
             for instance in managed_instances:
@@ -516,15 +524,25 @@ class GroupService:
         # Ensure existing instances target the current target_group
         for instance in managed_instances:
             if desired_target_group_id:
-                if instance.target_group_id != desired_target_group_id or instance.target_keys:
+                if (
+                    instance.target_group_id != desired_target_group_id
+                    or instance.target_keys
+                ):
                     instance.target_group = desired_target_group
                     instance.target_keys = []
-                    instance.save(update_fields=['target_group', 'target_keys', 'updated_at'])
+                    instance.save(
+                        update_fields=["target_group", "target_keys", "updated_at"]
+                    )
             else:
-                if instance.target_group_id is not None or instance.target_keys != desired_target_keys:
+                if (
+                    instance.target_group_id is not None
+                    or instance.target_keys != desired_target_keys
+                ):
                     instance.target_group = None
                     instance.target_keys = desired_target_keys
-                    instance.save(update_fields=['target_group', 'target_keys', 'updated_at'])
+                    instance.save(
+                        update_fields=["target_group", "target_keys", "updated_at"]
+                    )
 
         def get_template_params(template: AlertTemplate) -> Dict:
             return cls._build_subscription_template_params(
@@ -533,7 +551,9 @@ class GroupService:
             )
 
         def get_missing_required(template: AlertTemplate, params: Dict) -> List[str]:
-            return cls._missing_required_template_params(template=template, params=params)
+            return cls._missing_required_template_params(
+                template=template, params=params
+            )
 
         # Update existing instances and create missing ones
         for template_id in template_ids:
@@ -554,7 +574,7 @@ class GroupService:
 
                 if instance.template_params != desired_params:
                     instance.template_params = desired_params
-                    changed_fields.append('template_params')
+                    changed_fields.append("template_params")
 
                 if missing_required:
                     disable_due_to_subscription(instance)
@@ -564,10 +584,10 @@ class GroupService:
                     if instance.disabled_by_subscription:
                         instance.enabled = True
                         instance.disabled_by_subscription = False
-                        changed_fields.extend(['enabled', 'disabled_by_subscription'])
+                        changed_fields.extend(["enabled", "disabled_by_subscription"])
 
                 if changed_fields:
-                    instance.save(update_fields=[*changed_fields, 'updated_at'])
+                    instance.save(update_fields=[*changed_fields, "updated_at"])
 
                 continue
 
@@ -587,16 +607,24 @@ class GroupService:
 
             AlertInstance.objects.create(
                 name=f"{template.name} ({desired_target_label or 'target'})",
-                nl_description=str(getattr(template, "description", "") or getattr(template, "name", "") or "").strip(),
+                nl_description=str(
+                    getattr(template, "description", "")
+                    or getattr(template, "name", "")
+                    or ""
+                ).strip(),
                 template=template,
                 template_version=template_version,
                 template_params=desired_params,
-                event_type=event_type_map.get(str(template.alert_type), "ACCOUNT_EVENT"),
+                event_type=event_type_map.get(
+                    str(template.alert_type), "ACCOUNT_EVENT"
+                ),
                 sub_event="CUSTOM",
                 sub_event_confidence=1.0,
                 user=subscription.owner,
                 enabled=enabled_default,
-                disabled_by_subscription=(not enabled_default and bool(missing_required)),
+                disabled_by_subscription=(
+                    not enabled_default and bool(missing_required)
+                ),
                 alert_type=template.alert_type,
                 target_group=desired_target_group,
                 target_keys=desired_target_keys,
@@ -625,8 +653,15 @@ class GroupService:
         template,
         subscription_settings: Dict,
     ) -> Dict:
-        base_params = subscription_settings.get(cls.SUBSCRIPTION_TEMPLATE_PARAMS_KEY, {}) or {}
-        params_by_template = subscription_settings.get(cls.SUBSCRIPTION_TEMPLATE_PARAMS_BY_TEMPLATE_KEY, {}) or {}
+        base_params = (
+            subscription_settings.get(cls.SUBSCRIPTION_TEMPLATE_PARAMS_KEY, {}) or {}
+        )
+        params_by_template = (
+            subscription_settings.get(
+                cls.SUBSCRIPTION_TEMPLATE_PARAMS_BY_TEMPLATE_KEY, {}
+            )
+            or {}
+        )
 
         if not isinstance(base_params, dict):
             base_params = {}
@@ -634,7 +669,11 @@ class GroupService:
             params_by_template = {}
 
         template_id = str(template.id).lower()
-        template_specific = params_by_template.get(template_id) or params_by_template.get(str(template.id)) or {}
+        template_specific = (
+            params_by_template.get(template_id)
+            or params_by_template.get(str(template.id))
+            or {}
+        )
         if not isinstance(template_specific, dict):
             template_specific = {}
 
@@ -683,13 +722,15 @@ class GroupService:
 
         subscriptions = GroupSubscription.objects.filter(
             alert_group_id=alert_group_id,
-        ).select_related('alert_group', 'target_group', 'owner')
+        ).select_related("alert_group", "target_group", "owner")
 
         for subscription in subscriptions:
             cls.materialize_subscription(subscription)
 
     @classmethod
-    def remove_alert_targets_from_redis(cls, alert_id: str, user_id: Optional[str] = None) -> None:
+    def remove_alert_targets_from_redis(
+        cls, alert_id: str, user_id: Optional[str] = None
+    ) -> None:
         """
         Remove alert targets from Redis (wrapper for signal handler).
 
@@ -757,7 +798,9 @@ class GroupService:
             if len(parts) < 2:
                 continue
             network, subnet = parts[0], parts[1].lower()
-            partition_set_key = _alert_runtime_group_partition_set_key(group_id, network, subnet)
+            partition_set_key = _alert_runtime_group_partition_set_key(
+                group_id, network, subnet
+            )
             partition_set_keys.add(partition_set_key)
             pipe.sadd(partition_set_key, member_key)
 
@@ -773,7 +816,9 @@ class GroupService:
         pipe.execute()
         logger.info(f"Rebuilt Redis cache for group {group_id}")
 
-    def remove_group_from_redis(self, group_id: UUID, group_type: str, owner_id: int) -> None:
+    def remove_group_from_redis(
+        self, group_id: UUID, group_type: str, owner_id: int
+    ) -> None:
         """
         Remove group data from Redis on deletion.
 
@@ -828,7 +873,7 @@ class GroupService:
         from app.models.groups import GenericGroup
 
         group = GenericGroup.objects.get(id=group_id)
-        pg_members = set(group.member_data.get('members', {}).keys())
+        pg_members = set(group.member_data.get("members", {}).keys())
         redis_members = self.redis.smembers(f"group:{group_id}:members")
 
         stats = {"added": 0, "removed": 0}
@@ -875,10 +920,7 @@ class GroupService:
     # -------------------------------------------------------------------------
 
     def _sync_members_to_redis(
-        self,
-        group_id: UUID,
-        member_keys: List[str],
-        add: bool = True
+        self, group_id: UUID, member_keys: List[str], add: bool = True
     ) -> None:
         """
         Sync member changes to Redis.
@@ -942,13 +984,13 @@ class GroupService:
         target_keys: Set[str] = set()
 
         # Source 1: explicit target_keys (preferred)
-        explicit_keys = getattr(alert_instance, 'target_keys', None) or []
+        explicit_keys = getattr(alert_instance, "target_keys", None) or []
         if explicit_keys:
             for key in explicit_keys:
                 if not isinstance(key, str) or not key.strip():
                     continue
                 key = key.strip()
-                alert_type = getattr(alert_instance, 'alert_type', None)
+                alert_type = getattr(alert_instance, "alert_type", None)
                 if alert_type == AlertType.NETWORK:
                     target_keys.add(normalize_network_subnet_key(key))
                 elif alert_type == AlertType.PROTOCOL:
@@ -956,7 +998,9 @@ class GroupService:
                 elif alert_type == AlertType.NFT:
                     raw = key
                     if raw.count(":") >= 3:
-                        target_keys.add(normalize_network_subnet_address_token_id_key(raw))
+                        target_keys.add(
+                            normalize_network_subnet_address_token_id_key(raw)
+                        )
                     else:
                         target_keys.add(normalize_network_subnet_address_key(raw))
                 else:
@@ -964,9 +1008,9 @@ class GroupService:
             return target_keys
 
         # Source 1: target_group (if using group-level alerts)
-        if hasattr(alert_instance, 'target_group') and alert_instance.target_group:
+        if hasattr(alert_instance, "target_group") and alert_instance.target_group:
             group = alert_instance.target_group
-            members = group.member_data.get('members', {})
+            members = group.member_data.get("members", {})
             for key in members.keys():
                 target_keys.add(group.normalize_member_key(key))
 
@@ -974,17 +1018,19 @@ class GroupService:
 
     @staticmethod
     def _extract_template_ids_from_alert_group(alert_group) -> Set[str]:
-        members = (alert_group.member_data or {}).get('members', {})
+        members = (alert_group.member_data or {}).get("members", {})
         template_ids: Set[str] = set()
         for key in members.keys():
             key = str(key)
-            if key.lower().startswith('template:'):
-                template_id = key.split(':', 1)[1].strip()
+            if key.lower().startswith("template:"):
+                template_id = key.split(":", 1)[1].strip()
                 if template_id:
                     template_ids.add(template_id.lower())
         return template_ids
 
-    def _update_wallet_alerts_json(self, wallet_key: str, alert_id: str, add: bool = True) -> None:
+    def _update_wallet_alerts_json(
+        self, wallet_key: str, alert_id: str, add: bool = True
+    ) -> None:
         """
         Update JSON array version of wallet→alerts for wasmCloud compatibility.
 
@@ -1012,6 +1058,7 @@ class GroupService:
         except Exception as e:
             logger.warning(f"Failed to update wallet alerts JSON for {wallet_key}: {e}")
 
+
 class AlertValidationService:
     """
     Validates alert targets match alert type.
@@ -1026,13 +1073,13 @@ class AlertValidationService:
 
     # Key format patterns per alert type
     KEY_PATTERNS = {
-        'wallet': r'^[A-Z]+:[a-z0-9\-]+:(0x[a-fA-F0-9]+|[a-zA-Z0-9]+)$',  # ETH:mainnet:0x123 or SOL:mainnet:5yBb
-        'network': r'^[A-Z]+:[a-z0-9\-]+$',                                 # ETH:mainnet
-        'protocol': r'^[A-Z]+:[a-z0-9\-]+:[a-z0-9][a-z0-9\-_\.]*$',         # ETH:mainnet:aave
-        'token': r'^[A-Z]+:[a-z0-9\-]+:(0x[a-fA-F0-9]+|[a-zA-Z0-9]+)$',    # ETH:mainnet:0xUSDC
-        'contract': r'^[A-Z]+:[a-z0-9\-]+:(0x[a-fA-F0-9]+|[a-zA-Z0-9]+)$', # ETH:mainnet:0xContract
+        "wallet": r"^[A-Z]+:[a-z0-9\-]+:(0x[a-fA-F0-9]+|[a-zA-Z0-9]+)$",  # ETH:mainnet:0x123 or SOL:mainnet:5yBb
+        "network": r"^[A-Z]+:[a-z0-9\-]+$",  # ETH:mainnet
+        "protocol": r"^[A-Z]+:[a-z0-9\-]+:[a-z0-9][a-z0-9\-_\.]*$",  # ETH:mainnet:aave
+        "token": r"^[A-Z]+:[a-z0-9\-]+:(0x[a-fA-F0-9]+|[a-zA-Z0-9]+)$",  # ETH:mainnet:0xUSDC
+        "contract": r"^[A-Z]+:[a-z0-9\-]+:(0x[a-fA-F0-9]+|[a-zA-Z0-9]+)$",  # ETH:mainnet:0xContract
         # NFT keys may optionally include a token_id segment. token_id accepts any string.
-        'nft': r'^[A-Z]+:[a-z0-9\-]+:(0x[a-fA-F0-9]+|[a-zA-Z0-9]+)(:.+)?$',  # ETH:mainnet:0xCollection[:token_id]
+        "nft": r"^[A-Z]+:[a-z0-9\-]+:(0x[a-fA-F0-9]+|[a-zA-Z0-9]+)(:.+)?$",  # ETH:mainnet:0xCollection[:token_id]
     }
 
     @classmethod
@@ -1076,28 +1123,30 @@ class AlertValidationService:
         from app.models.groups import ALERT_TYPE_TO_GROUP_TYPE, AlertType
 
         # Get alert_type (from new field or infer from spec)
-        alert_type = getattr(instance, 'alert_type', None)
+        alert_type = getattr(instance, "alert_type", None)
         if not alert_type:
             # Default to wallet for backward compatibility
             alert_type = AlertType.WALLET
 
         # Validate target_group if present
-        if hasattr(instance, 'target_group') and instance.target_group:
+        if hasattr(instance, "target_group") and instance.target_group:
             valid_types = ALERT_TYPE_TO_GROUP_TYPE.get(alert_type, [])
             if instance.target_group.group_type not in valid_types:
-                raise ValidationError({
-                    'target_group': f"Group type '{instance.target_group.group_type}' "
-                                    f"not valid for alert type '{alert_type}'. "
-                                    f"Expected: {valid_types}"
-                })
+                raise ValidationError(
+                    {
+                        "target_group": f"Group type '{instance.target_group.group_type}' "
+                        f"not valid for alert type '{alert_type}'. "
+                        f"Expected: {valid_types}"
+                    }
+                )
 
         # Validate individual targets in spec
         spec = instance.spec or {}
-        targets = spec.get('targets', [])
+        targets = spec.get("targets", [])
         if targets:
             cls.validate_targets(alert_type, targets)
 
         # Validate wallet key if present
-        wallet = spec.get('wallet')
+        wallet = spec.get("wallet")
         if wallet:
             cls.validate_targets(alert_type, [wallet])

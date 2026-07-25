@@ -16,7 +16,14 @@ class TestNLPPipelineImportExamples(TestCase):
             {
                 "nl_description": "Alert me when a monitored wallet has more than 5 transactions in the last 24 hours.",
                 "context": {"preferred_network": "ETH:mainnet"},
-                "output_json": {"schema_version": "alert_template_v2", "target_kind": "wallet", "scope": {"networks": ["ETH:mainnet"]}, "signals": {}, "trigger": {}, "notification": {}},
+                "output_json": {
+                    "schema_version": "alert_template_v2",
+                    "target_kind": "wallet",
+                    "scope": {"networks": ["ETH:mainnet"]},
+                    "signals": {},
+                    "trigger": {},
+                    "notification": {},
+                },
             }
         ]
 

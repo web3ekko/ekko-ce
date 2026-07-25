@@ -1,10 +1,10 @@
 /**
  * Natural Language Input Component
- * 
+ *
  * AI-powered alert creation from natural language descriptions
  */
 
-import { useState } from 'react'
+import { useState } from "react";
 import {
   Stack,
   Title,
@@ -17,7 +17,7 @@ import {
   List,
   Badge,
   Divider,
-} from '@mantine/core'
+} from "@mantine/core";
 import {
   IconWand,
   IconArrowLeft,
@@ -25,12 +25,12 @@ import {
   IconBulb,
   IconSparkles,
   IconAlertCircle,
-} from '@tabler/icons-react'
+} from "@tabler/icons-react";
 
 interface NaturalLanguageInputProps {
-  onSubmit: (input: string) => void
-  onBack: () => void
-  isLoading: boolean
+  onSubmit: (input: string) => void;
+  onBack: () => void;
+  isLoading: boolean;
 }
 
 const EXAMPLE_PROMPTS = [
@@ -40,7 +40,7 @@ const EXAMPLE_PROMPTS = [
   "Monitor when my wallet balance drops below 1 ETH",
   "Alert on new governance proposals for Compound protocol",
   "Detect when gas prices go above 100 gwei",
-]
+];
 
 const TIPS = [
   "Be specific about amounts, tokens, and protocols",
@@ -48,35 +48,36 @@ const TIPS = [
   "Include wallet addresses if monitoring specific accounts",
   "Specify time windows for better accuracy",
   "Use common protocol names (Uniswap, Aave, etc.)",
-]
+];
 
-export function NaturalLanguageInput({ 
-  onSubmit, 
-  onBack, 
-  isLoading 
+export function NaturalLanguageInput({
+  onSubmit,
+  onBack,
+  isLoading,
 }: NaturalLanguageInputProps) {
-  const [input, setInput] = useState('')
-  const [selectedExample, setSelectedExample] = useState<string | null>(null)
+  const [input, setInput] = useState("");
+  const [selectedExample, setSelectedExample] = useState<string | null>(null);
 
   const handleSubmit = () => {
-    if (!input.trim()) return
-    onSubmit(input.trim())
-  }
+    if (!input.trim()) return;
+    onSubmit(input.trim());
+  };
 
   const handleExampleClick = (example: string) => {
-    setInput(example)
-    setSelectedExample(example)
-  }
+    setInput(example);
+    setSelectedExample(example);
+  };
 
-  const isValid = input.trim().length >= 10
+  const isValid = input.trim().length >= 10;
 
   return (
     <Stack gap="xl">
       {/* Header */}
-      <div style={{ textAlign: 'center' }}>
+      <div style={{ textAlign: "center" }}>
         <Title order={3}>Describe Your Alert</Title>
         <Text c="dimmed" mt="sm">
-          Tell us what you want to monitor in plain English. Our AI will create the alert for you.
+          Tell us what you want to monitor in plain English. Our AI will create
+          the alert for you.
         </Text>
       </div>
 
@@ -87,7 +88,7 @@ export function NaturalLanguageInput({
             <IconSparkles size="1.25rem" color="var(--mantine-color-blue-6)" />
             <Title order={5}>What would you like to monitor?</Title>
           </Group>
-          
+
           <Textarea
             placeholder="Example: Alert me when any wallet receives more than 100 ETH in a single transaction"
             value={input}
@@ -97,12 +98,12 @@ export function NaturalLanguageInput({
             autosize
             disabled={isLoading}
           />
-          
+
           <Group justify="space-between">
             <Text size="xs" c="dimmed">
               {input.length} characters (minimum 10)
             </Text>
-            
+
             {isValid && (
               <Badge color="green" variant="light" size="sm">
                 Ready to generate
@@ -119,11 +120,11 @@ export function NaturalLanguageInput({
             <IconBulb size="1.25rem" color="var(--mantine-color-yellow-6)" />
             <Title order={5}>Example Prompts</Title>
           </Group>
-          
+
           <Text size="sm" c="dimmed">
             Click on any example to use it as a starting point:
           </Text>
-          
+
           <Stack gap="xs">
             {EXAMPLE_PROMPTS.map((example, index) => (
               <Card
@@ -131,20 +132,20 @@ export function NaturalLanguageInput({
                 padding="sm"
                 radius="sm"
                 withBorder
-                style={{ 
-                  cursor: 'pointer',
-                  backgroundColor: selectedExample === example ? 
-                    'var(--mantine-color-blue-0)' : 
-                    'transparent',
-                  borderColor: selectedExample === example ? 
-                    'var(--mantine-color-blue-3)' : 
-                    'var(--mantine-color-gray-3)',
+                style={{
+                  cursor: "pointer",
+                  backgroundColor:
+                    selectedExample === example
+                      ? "var(--mantine-color-blue-0)"
+                      : "transparent",
+                  borderColor:
+                    selectedExample === example
+                      ? "var(--mantine-color-blue-3)"
+                      : "var(--mantine-color-gray-3)",
                 }}
                 onClick={() => handleExampleClick(example)}
               >
-                <Text size="sm">
-                  {example}
-                </Text>
+                <Text size="sm">{example}</Text>
               </Card>
             ))}
           </Stack>
@@ -158,9 +159,7 @@ export function NaturalLanguageInput({
         </Text>
         <List size="sm" spacing="xs">
           {TIPS.map((tip, index) => (
-            <List.Item key={index}>
-              {tip}
-            </List.Item>
+            <List.Item key={index}>{tip}</List.Item>
           ))}
         </List>
       </Alert>
@@ -169,9 +168,9 @@ export function NaturalLanguageInput({
       {isLoading && (
         <Alert color="blue" icon={<IconSparkles size="1rem" />}>
           <Text size="sm">
-            Our AI is analyzing your description and generating the perfect alert configuration. 
-            This process uses advanced language models to understand your intent and create 
-            precise monitoring conditions.
+            Our AI is analyzing your description and generating the perfect
+            alert configuration. This process uses advanced language models to
+            understand your intent and create precise monitoring conditions.
           </Text>
         </Alert>
       )}
@@ -186,7 +185,7 @@ export function NaturalLanguageInput({
         >
           Back
         </Button>
-        
+
         <Button
           leftSection={<IconWand size="1rem" />}
           rightSection={<IconArrowRight size="1rem" />}
@@ -195,11 +194,11 @@ export function NaturalLanguageInput({
           loading={isLoading}
           size="md"
         >
-          {isLoading ? 'Generating Alert...' : 'Generate Alert'}
+          {isLoading ? "Generating Alert..." : "Generate Alert"}
         </Button>
       </Group>
     </Stack>
-  )
+  );
 }
 
-export default NaturalLanguageInput
+export default NaturalLanguageInput;

@@ -21,7 +21,7 @@ from django.dispatch import receiver
 logger = logging.getLogger(__name__)
 
 
-@receiver(post_save, sender='app.BlockchainNode')
+@receiver(post_save, sender="app.BlockchainNode")
 def sync_blockchain_node_to_redis(sender, instance, created, **kwargs):
     """
     Sync BlockchainNode to Redis when created or updated.
@@ -55,12 +55,10 @@ def sync_blockchain_node_to_redis(sender, instance, created, **kwargs):
 
     except Exception as e:
         # Signal handlers should NOT raise exceptions that break model operations
-        logger.error(
-            f"Error syncing BlockchainNode {instance.chain_id} to Redis: {e}"
-        )
+        logger.error(f"Error syncing BlockchainNode {instance.chain_id} to Redis: {e}")
 
 
-@receiver(post_delete, sender='app.BlockchainNode')
+@receiver(post_delete, sender="app.BlockchainNode")
 def remove_blockchain_node_from_redis(sender, instance, **kwargs):
     """
     Remove BlockchainNode from Redis when deleted.

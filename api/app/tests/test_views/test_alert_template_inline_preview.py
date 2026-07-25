@@ -27,7 +27,13 @@ def _template_spec() -> dict:
         "target_kind": "wallet",
         "scope": {"networks": ["ETH:mainnet"], "instrument_constraints": []},
         "variables": [
-            {"id": "threshold", "type": "decimal", "label": "Threshold", "required": True, "default": 0.5},
+            {
+                "id": "threshold",
+                "type": "decimal",
+                "label": "Threshold",
+                "required": True,
+                "default": 0.5,
+            },
         ],
         "signals": {
             "principals": [
@@ -46,11 +52,21 @@ def _template_spec() -> dict:
         "derivations": [],
         "trigger": {
             "evaluation_mode": "periodic",
-            "condition_ast": {"op": "lt", "left": "balance_latest", "right": "{{threshold}}"},
+            "condition_ast": {
+                "op": "lt",
+                "left": "balance_latest",
+                "right": "{{threshold}}",
+            },
             "cron_cadence_seconds": 3600,
-            "dedupe": {"cooldown_seconds": 300, "key_template": "{{instance_id}}:{{target.key}}"},
+            "dedupe": {
+                "cooldown_seconds": 300,
+                "key_template": "{{instance_id}}:{{target.key}}",
+            },
         },
-        "notification": {"title_template": "Balance alert", "body_template": "Balance: {{balance_latest}}"},
+        "notification": {
+            "title_template": "Balance alert",
+            "body_template": "Balance: {{balance_latest}}",
+        },
         "fallbacks": [],
         "assumptions": [],
     }
@@ -69,7 +85,15 @@ class _FakePreviewService:
                 "estimated_daily_triggers": 0.0,
                 "evaluation_time_ms": 0.0,
             },
-            "sample_triggers": [{"timestamp": "2026-01-01T00:00:00Z", "data": {"target_key": keys[0] if total else ""}, "matched_condition": "lt"}] if total else [],
+            "sample_triggers": [
+                {
+                    "timestamp": "2026-01-01T00:00:00Z",
+                    "data": {"target_key": keys[0] if total else ""},
+                    "matched_condition": "lt",
+                }
+            ]
+            if total
+            else [],
             "near_misses": [],
             "evaluation_mode": "aggregate",
             "requires_wasmcloud": False,
@@ -82,11 +106,15 @@ class _FakePreviewService:
 )
 class TestAlertTemplateInlinePreview(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(email="user@example.com", password="testpass123")
+        self.user = User.objects.create_user(
+            email="user@example.com", password="testpass123"
+        )
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)
 
-    def test_preview_from_job_id_evaluates_compiled_executable_over_sample_targets(self):
+    def test_preview_from_job_id_evaluates_compiled_executable_over_sample_targets(
+        self,
+    ):
         template_id = uuid.uuid4()
         template_version = 1
 
@@ -96,7 +124,10 @@ class TestAlertTemplateInlinePreview(TestCase):
         template["fingerprint"] = "sha256:test"
         template["spec_hash"] = "sha256:testspec"
 
-        executable = {"schema_version": "alert_executable_v1", "template": {"template_id": str(template_id), "version": 1}}
+        executable = {
+            "schema_version": "alert_executable_v1",
+            "template": {"template_id": str(template_id), "version": 1},
+        }
 
         job_id = uuid.uuid4()
         cache_key = f"nlp:proposed_spec:{self.user.id}:{job_id}"
@@ -109,19 +140,29 @@ class TestAlertTemplateInlinePreview(TestCase):
                 "pipeline_version": "v1",
                 "template": template,
                 "compiled_executable": executable,
-                "required_user_inputs": {"targets_required": True, "target_kind": "wallet", "required_variables": ["threshold"]},
+                "required_user_inputs": {
+                    "targets_required": True,
+                    "target_kind": "wallet",
+                    "required_variables": ["threshold"],
+                },
                 "human_preview": {"summary": "Balance alert"},
             },
             timeout=3600,
         )
 
         fake_service = _FakePreviewService()
-        with patch("app.views.alert_template_views._get_preview_service", return_value=fake_service):
+        with patch(
+            "app.views.alert_template_views._get_preview_service",
+            return_value=fake_service,
+        ):
             resp = self.client.post(
                 "/api/alert-templates/preview/",
                 data={
                     "job_id": str(job_id),
-                    "target_selector": {"mode": "keys", "keys": ["ETH:mainnet:0xaaa", "ETH:mainnet:0xbbb"]},
+                    "target_selector": {
+                        "mode": "keys",
+                        "keys": ["ETH:mainnet:0xaaa", "ETH:mainnet:0xbbb"],
+                    },
                     "variable_values": {"threshold": 0.5},
                     "sample_size": 50,
                 },

@@ -19,7 +19,11 @@ class NLPPipeline(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def clean(self) -> None:
-        if self.active_version and self.pk and self.active_version.pipeline_id != self.pk:
+        if (
+            self.active_version
+            and self.pk
+            and self.active_version.pipeline_id != self.pk
+        ):
             raise ValidationError("Active version must belong to the same pipeline.")
 
     def __str__(self) -> str:

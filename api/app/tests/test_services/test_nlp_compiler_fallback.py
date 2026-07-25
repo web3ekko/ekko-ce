@@ -14,13 +14,25 @@ def _template_stub() -> dict:
         "target_kind": "wallet",
         "scope": {"networks": ["ETH:mainnet"], "instrument_constraints": []},
         "variables": [],
-        "signals": {"principals": [], "factors": [{"name": "balance_latest", "unit": "WEI", "update_sources": [{"ref": "ducklake.wallet_balance_window"}]}]},
+        "signals": {
+            "principals": [],
+            "factors": [
+                {
+                    "name": "balance_latest",
+                    "unit": "WEI",
+                    "update_sources": [{"ref": "ducklake.wallet_balance_window"}],
+                }
+            ],
+        },
         "derivations": [],
         "trigger": {
             "evaluation_mode": "periodic",
             "condition_ast": {"op": "gt", "left": "balance_latest", "right": 0},
             "cron_cadence_seconds": 300,
-            "dedupe": {"cooldown_seconds": 0, "key_template": "{{instance_id}}:{{target.key}}"},
+            "dedupe": {
+                "cooldown_seconds": 0,
+                "key_template": "{{instance_id}}:{{target.key}}",
+            },
             "pruning_hints": {"evm": {"tx_type": "any"}},
         },
         "notification": {"title_template": "t", "body_template": "b"},
@@ -42,7 +54,9 @@ def test_compile_to_proposed_spec_falls_back_on_dspy_failure(monkeypatch):
     monkeypatch.setattr(compiler, "_compile_with_dspy", raise_dspy_error)
     monkeypatch.setattr(compiler, "_compile_with_llm", stub_llm)
     monkeypatch.setattr(compiler.settings, "DEBUG", True, raising=False)
-    monkeypatch.setattr(compiler.settings, "NLP_FALLBACK_ON_DSPY_FAILURE", True, raising=False)
+    monkeypatch.setattr(
+        compiler.settings, "NLP_FALLBACK_ON_DSPY_FAILURE", True, raising=False
+    )
     monkeypatch.setattr(compiler.settings, "NLP_REQUIRE_DSPY", False, raising=False)
 
     result = compiler.compile_to_proposed_spec(
@@ -55,4 +69,3 @@ def test_compile_to_proposed_spec_falls_back_on_dspy_failure(monkeypatch):
 
     assert result["schema_version"] == "proposed_spec_v2"
     assert result["template"]["name"] == "Test Template"
-

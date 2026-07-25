@@ -38,13 +38,17 @@ def drop_legacy_columns(apps, schema_editor) -> None:
     with schema_editor.connection.cursor() as cursor:
         for col in LEGACY_COLUMNS:
             if vendor == "postgresql":
-                cursor.execute(f'ALTER TABLE "alert_templates" DROP COLUMN IF EXISTS "{col}";')
+                cursor.execute(
+                    f'ALTER TABLE "alert_templates" DROP COLUMN IF EXISTS "{col}";'
+                )
                 continue
 
             if vendor == "sqlite":
                 # SQLite doesn't support IF EXISTS on DROP COLUMN; ignore missing columns.
                 try:
-                    cursor.execute(f'ALTER TABLE "alert_templates" DROP COLUMN "{col}";')
+                    cursor.execute(
+                        f'ALTER TABLE "alert_templates" DROP COLUMN "{col}";'
+                    )
                 except Exception as exc:  # pragma: no cover - vendor-specific
                     msg = str(exc).lower()
                     if "no such column" in msg or "does not exist" in msg:
@@ -65,6 +69,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(drop_legacy_columns, reverse_code=migrations.RunPython.noop),
+        migrations.RunPython(
+            drop_legacy_columns, reverse_code=migrations.RunPython.noop
+        ),
     ]
-

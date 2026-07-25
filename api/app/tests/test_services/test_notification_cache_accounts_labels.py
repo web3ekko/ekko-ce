@@ -31,7 +31,9 @@ def test_cache_accounts_wallet_labels_builds_address_map(user):
         settings={"system_key": SYSTEM_GROUP_ACCOUNTS, "visibility": "private"},
         member_data={
             "members": {
-                "ETH:mainnet:0xabcdef000000000000000000000000000000000000": {"label": "Treasury"},
+                "ETH:mainnet:0xabcdef000000000000000000000000000000000000": {
+                    "label": "Treasury"
+                },
                 "ETH:mainnet:0x1111111111111111111111111111111111111111": {"label": ""},
             }
         },
@@ -42,7 +44,9 @@ def test_cache_accounts_wallet_labels_builds_address_map(user):
     cache = NotificationCacheManager(redis_client=fake_redis)
 
     labels = cache.cache_accounts_wallet_labels(str(user.id))
-    assert labels == {"ETH:mainnet:0xabcdef000000000000000000000000000000000000": "Treasury"}
+    assert labels == {
+        "ETH:mainnet:0xabcdef000000000000000000000000000000000000": "Treasury"
+    }
 
     stored = fake_redis.get(f"user:wallet_labels:{user.id}")
     assert stored is not None

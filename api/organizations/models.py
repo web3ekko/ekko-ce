@@ -29,9 +29,9 @@ class Organization(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'organizations'
-        verbose_name = 'Organization'
-        verbose_name_plural = 'Organizations'
+        db_table = "organizations"
+        verbose_name = "Organization"
+        verbose_name_plural = "Organizations"
 
     def __str__(self):
         return self.name
@@ -41,7 +41,9 @@ class Team(models.Model):
     """Team model for organizing users"""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='teams')
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name="teams"
+    )
     name = models.CharField(max_length=255)
     slug = models.SlugField(max_length=100)
     description = models.TextField(null=True, blank=True)
@@ -55,13 +57,13 @@ class Team(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'teams'
-        verbose_name = 'Team'
-        verbose_name_plural = 'Teams'
-        unique_together = [['organization', 'slug']]
+        db_table = "teams"
+        verbose_name = "Team"
+        verbose_name_plural = "Teams"
+        unique_together = [["organization", "slug"]]
         indexes = [
-            models.Index(fields=['organization']),
-            models.Index(fields=['is_active']),
+            models.Index(fields=["organization"]),
+            models.Index(fields=["is_active"]),
         ]
 
     def __str__(self):
@@ -70,18 +72,21 @@ class Team(models.Model):
 
 class TeamMemberRole(models.TextChoices):
     """Team member role choices"""
-    OWNER = 'owner', 'Owner'
-    ADMIN = 'admin', 'Admin'
-    MEMBER = 'member', 'Member'
-    VIEWER = 'viewer', 'Viewer'
+
+    OWNER = "owner", "Owner"
+    ADMIN = "admin", "Admin"
+    MEMBER = "member", "Member"
+    VIEWER = "viewer", "Viewer"
 
 
 class TeamMember(models.Model):
     """Team membership association"""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='members')
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='team_memberships')
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="members")
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="team_memberships"
+    )
 
     # Membership metadata
     role = models.CharField(max_length=20, choices=TeamMemberRole.choices)
@@ -91,7 +96,7 @@ class TeamMember(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='team_invitations'
+        related_name="team_invitations",
     )
 
     # Status
@@ -102,14 +107,14 @@ class TeamMember(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'team_members'
-        verbose_name = 'Team Member'
-        verbose_name_plural = 'Team Members'
-        unique_together = [['team', 'user']]
+        db_table = "team_members"
+        verbose_name = "Team Member"
+        verbose_name_plural = "Team Members"
+        unique_together = [["team", "user"]]
         indexes = [
-            models.Index(fields=['team']),
-            models.Index(fields=['user']),
-            models.Index(fields=['is_active']),
+            models.Index(fields=["team"]),
+            models.Index(fields=["user"]),
+            models.Index(fields=["is_active"]),
         ]
 
     def __str__(self):
@@ -119,7 +124,9 @@ class TeamMember(models.Model):
 class UserSettings(models.Model):
     """User notification and preference settings"""
 
-    user = models.OneToOneField(User, on_delete=models.CASCADE, primary_key=True, related_name='settings')
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, primary_key=True, related_name="settings"
+    )
     mute = models.BooleanField(default=False)
 
     # Timestamps
@@ -127,9 +134,9 @@ class UserSettings(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'userSettings'
-        verbose_name = 'User Settings'
-        verbose_name_plural = 'User Settings'
+        db_table = "userSettings"
+        verbose_name = "User Settings"
+        verbose_name_plural = "User Settings"
 
     def __str__(self):
         return f"Settings for {self.user.email}"

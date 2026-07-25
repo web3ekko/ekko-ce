@@ -10,7 +10,8 @@ F = TypeVar("F", bound=Callable[..., Any])
 
 
 class Enqueueable(Protocol):
-    def enqueue(self, **kwargs: Any) -> Any: ...
+    def enqueue(self, **kwargs: Any) -> Any:
+        ...
 
 
 @dataclass(frozen=True)

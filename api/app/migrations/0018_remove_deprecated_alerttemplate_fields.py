@@ -9,7 +9,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("app", "0017_groupsubscription_target_key_and_constraints"),
     ]
@@ -28,4 +27,3 @@ class Migration(migrations.Migration):
             name="validation_schema",
         ),
     ]
-

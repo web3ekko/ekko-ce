@@ -16,16 +16,15 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('app', '0013_add_notification_channel_preferences'),
+        ("app", "0013_add_notification_channel_preferences"),
     ]
 
     operations = [
         # Add new unified spec field for AlertTemplateIR v1
         migrations.AddField(
-            model_name='alerttemplate',
-            name='spec',
+            model_name="alerttemplate",
+            name="spec",
             field=models.JSONField(
                 blank=True,
                 null=True,
@@ -83,40 +82,37 @@ class Migration(migrations.Migration):
 
             "action": {"dedupe_key": "{{$.tx.hash}}", "cooldown_secs": 60},
             "warnings": []
-        }"""
+        }""",
             ),
         ),
-
         # Deprecate spec_blueprint - make nullable for migration
         migrations.AlterField(
-            model_name='alerttemplate',
-            name='spec_blueprint',
+            model_name="alerttemplate",
+            name="spec_blueprint",
             field=models.JSONField(
                 blank=True,
                 null=True,
-                help_text="DEPRECATED: Use 'spec' field instead. Alert specification template with {{placeholders}}"
+                help_text="DEPRECATED: Use 'spec' field instead. Alert specification template with {{placeholders}}",
             ),
         ),
-
         # Deprecate variables - make nullable for migration
         migrations.AlterField(
-            model_name='alerttemplate',
-            name='variables',
+            model_name="alerttemplate",
+            name="variables",
             field=models.JSONField(
                 blank=True,
                 null=True,
-                help_text="DEPRECATED: Use 'spec.variables' instead. Array of variable descriptors."
+                help_text="DEPRECATED: Use 'spec.variables' instead. Array of variable descriptors.",
             ),
         ),
-
         # Update validation_schema help text to mark as deprecated
         migrations.AlterField(
-            model_name='alerttemplate',
-            name='validation_schema',
+            model_name="alerttemplate",
+            name="validation_schema",
             field=models.JSONField(
                 blank=True,
                 default=dict,
-                help_text="DEPRECATED: Use 'spec' field instead. JSON schema for frontend form generation."
+                help_text="DEPRECATED: Use 'spec' field instead. JSON schema for frontend form generation.",
             ),
         ),
     ]

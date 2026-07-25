@@ -4,12 +4,20 @@
  * Email verification is the current sign-in method for the web dashboard.
  */
 
-import { Container, Title, Stack, Text, Card, Tabs, LoadingOverlay } from '@mantine/core'
-import { IconShield, IconDevices, IconHistory } from '@tabler/icons-react'
-import { useAuthStore } from '../../store/auth'
+import {
+  Container,
+  Title,
+  Stack,
+  Text,
+  Card,
+  Tabs,
+  LoadingOverlay,
+} from "@mantine/core";
+import { IconShield, IconDevices, IconHistory } from "@tabler/icons-react";
+import { useAuthStore } from "../../store/auth";
 
 export function SecurityPage() {
-  const { isLoading } = useAuthStore()
+  const { isLoading } = useAuthStore();
 
   return (
     <Container size="lg">
@@ -17,7 +25,9 @@ export function SecurityPage() {
 
       <Stack gap="xl">
         <div>
-          <Title order={2} mb="xs">Security Settings</Title>
+          <Title order={2} mb="xs">
+            Security Settings
+          </Title>
           <Text c="dimmed">
             Manage account security and authentication preferences.
           </Text>
@@ -56,5 +66,5 @@ export function SecurityPage() {
         </Tabs>
       </Stack>
     </Container>
-  )
+  );
 }

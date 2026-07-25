@@ -6,7 +6,9 @@ from app.models.alerts import AlertInstance
 pytestmark = pytest.mark.django_db
 
 
-def test_template_subscribers_follow_enabled_state(monkeypatch, user, sample_alert_template):
+def test_template_subscribers_follow_enabled_state(
+    monkeypatch, user, sample_alert_template
+):
     calls: list[tuple[str, str, str]] = []
 
     class FakeNotificationCacheManager:
@@ -16,12 +18,16 @@ def test_template_subscribers_follow_enabled_state(monkeypatch, user, sample_ale
         def add_subscriber_to_template(self, template_id: str, user_id: str) -> None:
             calls.append(("add", template_id, user_id))
 
-        def remove_subscriber_from_template(self, template_id: str, user_id: str) -> None:
+        def remove_subscriber_from_template(
+            self, template_id: str, user_id: str
+        ) -> None:
             calls.append(("remove", template_id, user_id))
 
     import app.services.notification_cache as notification_cache
 
-    monkeypatch.setattr(notification_cache, "NotificationCacheManager", FakeNotificationCacheManager)
+    monkeypatch.setattr(
+        notification_cache, "NotificationCacheManager", FakeNotificationCacheManager
+    )
 
     latest = sample_alert_template.versions.order_by("-template_version").first()
     template_version = int(getattr(latest, "template_version", 1) or 1)

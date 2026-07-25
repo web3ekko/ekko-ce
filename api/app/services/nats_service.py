@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 try:
     import nats
     from nats.aio.client import Client as NATSClient
+
     NATS_AVAILABLE = True
 except ImportError:
     NATS_AVAILABLE = False
@@ -39,7 +40,7 @@ class NATSService:
     """
 
     def __init__(self, stub_mode: bool = False):
-        self._nc: Optional['NATSClient'] = None
+        self._nc: Optional["NATSClient"] = None
         self._stub_mode = stub_mode or not NATS_AVAILABLE
         self._connected = False
         self._subscriptions: Dict[str, Any] = {}
@@ -72,9 +73,9 @@ class NATSService:
             return True
 
         try:
-            nats_url = getattr(settings, 'NATS_URL', 'nats://localhost:4222')
-            max_reconnects = getattr(settings, 'NATS_MAX_RECONNECT_ATTEMPTS', 10)
-            reconnect_wait = getattr(settings, 'NATS_RECONNECT_TIME_WAIT', 2)
+            nats_url = getattr(settings, "NATS_URL", "nats://localhost:4222")
+            max_reconnects = getattr(settings, "NATS_MAX_RECONNECT_ATTEMPTS", 10)
+            reconnect_wait = getattr(settings, "NATS_RECONNECT_TIME_WAIT", 2)
 
             self._nc = await nats.connect(
                 nats_url,
@@ -134,26 +135,28 @@ class NATSService:
         Returns:
             Publish result with success status
         """
-        payload = json.dumps(data).encode('utf-8')
+        payload = json.dumps(data).encode("utf-8")
 
         if self._stub_mode:
-            logger.info(f"[STUB] NATS publish to {subject}: {json.dumps(data, indent=2)}")
-            return {'success': True, 'stub': True}
+            logger.info(
+                f"[STUB] NATS publish to {subject}: {json.dumps(data, indent=2)}"
+            )
+            return {"success": True, "stub": True}
 
         if not self.is_connected:
             await self.connect()
 
         if not self.is_connected:
             logger.error(f"Cannot publish to {subject}: not connected to NATS")
-            return {'success': False, 'error': 'Not connected'}
+            return {"success": False, "error": "Not connected"}
 
         try:
             await self._nc.publish(subject, payload)
             logger.debug(f"Published to {subject}: {len(payload)} bytes")
-            return {'success': True}
+            return {"success": True}
         except Exception as e:
             logger.error(f"Failed to publish to {subject}: {e}")
-            return {'success': False, 'error': str(e)}
+            return {"success": False, "error": str(e)}
 
     async def subscribe(self, subject: str, callback: Callable) -> bool:
         """
@@ -191,10 +194,12 @@ class NATSService:
     # Alert lifecycle methods
     # ============================================================
 
-    async def publish_alert_message(self, subject: str, message: Dict[str, Any]) -> bool:
+    async def publish_alert_message(
+        self, subject: str, message: Dict[str, Any]
+    ) -> bool:
         """Publish alert message"""
         result = await self.publish(subject, message)
-        return result.get('success', False)
+        return result.get("success", False)
 
     # ============================================================
     # WebSocket event methods (Phase 1: ws.events subject)
@@ -251,7 +256,7 @@ def get_nats_service(stub_mode: Optional[bool] = None) -> NATSService:
     if _nats_service is None:
         # Auto-detect stub mode from settings
         if stub_mode is None:
-            stub_mode = not getattr(settings, 'NATS_ENABLED', True)
+            stub_mode = not getattr(settings, "NATS_ENABLED", True)
         _nats_service = NATSService(stub_mode=stub_mode)
 
     return _nats_service
@@ -267,6 +272,7 @@ def reset_nats_service():
 # Synchronous wrapper functions for Django views
 # ============================================================
 
+
 def publish_alert_created_sync(alert):
     """
     Publish alert created event synchronously.
@@ -274,29 +280,30 @@ def publish_alert_created_sync(alert):
     Args:
         alert: Alert instance that was created
     """
+
     async def _publish():
         service = get_nats_service()
         await service.connect()
 
         message = {
-            'id': str(uuid.uuid4()),
-            'timestamp': timezone.now().isoformat(),
-            'user_id': str(alert.user.id),
-            'alert': {
-                'id': str(alert.id),
-                'name': alert.name,
-                'nl_description': alert.nl_description,
-                'event_type': alert.event_type,
-                'sub_event': alert.sub_event,
-                'template_id': str(alert.template.id) if alert.template else None,
-                'enabled': alert.enabled,
-                'version': alert.version,
-                'processing_status': getattr(alert, 'processing_status', 'skipped'),
+            "id": str(uuid.uuid4()),
+            "timestamp": timezone.now().isoformat(),
+            "user_id": str(alert.user.id),
+            "alert": {
+                "id": str(alert.id),
+                "name": alert.name,
+                "nl_description": alert.nl_description,
+                "event_type": alert.event_type,
+                "sub_event": alert.sub_event,
+                "template_id": str(alert.template.id) if alert.template else None,
+                "enabled": alert.enabled,
+                "version": alert.version,
+                "processing_status": getattr(alert, "processing_status", "skipped"),
             },
-            'correlation_id': f'alert-created-{alert.id}'
+            "correlation_id": f"alert-created-{alert.id}",
         }
 
-        await service.publish('alerts.created', message)
+        await service.publish("alerts.created", message)
 
     try:
         asyncio.run(_publish())
@@ -311,29 +318,30 @@ def publish_alert_updated_sync(alert):
     Args:
         alert: Alert instance that was updated
     """
+
     async def _publish():
         service = get_nats_service()
         await service.connect()
 
         message = {
-            'id': str(uuid.uuid4()),
-            'timestamp': timezone.now().isoformat(),
-            'user_id': str(alert.user.id),
-            'alert': {
-                'id': str(alert.id),
-                'name': alert.name,
-                'nl_description': alert.nl_description,
-                'event_type': alert.event_type,
-                'sub_event': alert.sub_event,
-                'spec': alert.spec,
-                'enabled': alert.enabled,
-                'version': alert.version,
-                'processing_status': getattr(alert, 'processing_status', 'skipped'),
+            "id": str(uuid.uuid4()),
+            "timestamp": timezone.now().isoformat(),
+            "user_id": str(alert.user.id),
+            "alert": {
+                "id": str(alert.id),
+                "name": alert.name,
+                "nl_description": alert.nl_description,
+                "event_type": alert.event_type,
+                "sub_event": alert.sub_event,
+                "spec": alert.spec,
+                "enabled": alert.enabled,
+                "version": alert.version,
+                "processing_status": getattr(alert, "processing_status", "skipped"),
             },
-            'correlation_id': f'alert-updated-{alert.id}'
+            "correlation_id": f"alert-updated-{alert.id}",
         }
 
-        await service.publish('alerts.updated', message)
+        await service.publish("alerts.updated", message)
 
     try:
         asyncio.run(_publish())
@@ -348,24 +356,25 @@ def publish_alert_enabled_sync(alert):
     Args:
         alert: Alert instance that was enabled
     """
+
     async def _publish():
         service = get_nats_service()
         await service.connect()
 
         message = {
-            'id': str(uuid.uuid4()),
-            'timestamp': timezone.now().isoformat(),
-            'user_id': str(alert.user.id),
-            'alert': {
-                'id': str(alert.id),
-                'name': alert.name,
-                'enabled': True,
-                'version': alert.version
+            "id": str(uuid.uuid4()),
+            "timestamp": timezone.now().isoformat(),
+            "user_id": str(alert.user.id),
+            "alert": {
+                "id": str(alert.id),
+                "name": alert.name,
+                "enabled": True,
+                "version": alert.version,
             },
-            'correlation_id': f'alert-enabled-{alert.id}'
+            "correlation_id": f"alert-enabled-{alert.id}",
         }
 
-        await service.publish('alerts.enabled', message)
+        await service.publish("alerts.enabled", message)
 
     try:
         asyncio.run(_publish())
@@ -380,24 +389,25 @@ def publish_alert_disabled_sync(alert):
     Args:
         alert: Alert instance that was disabled
     """
+
     async def _publish():
         service = get_nats_service()
         await service.connect()
 
         message = {
-            'id': str(uuid.uuid4()),
-            'timestamp': timezone.now().isoformat(),
-            'user_id': str(alert.user.id),
-            'alert': {
-                'id': str(alert.id),
-                'name': alert.name,
-                'enabled': False,
-                'version': alert.version
+            "id": str(uuid.uuid4()),
+            "timestamp": timezone.now().isoformat(),
+            "user_id": str(alert.user.id),
+            "alert": {
+                "id": str(alert.id),
+                "name": alert.name,
+                "enabled": False,
+                "version": alert.version,
             },
-            'correlation_id': f'alert-disabled-{alert.id}'
+            "correlation_id": f"alert-disabled-{alert.id}",
         }
 
-        await service.publish('alerts.disabled', message)
+        await service.publish("alerts.disabled", message)
 
     try:
         asyncio.run(_publish())
@@ -474,13 +484,15 @@ def publish_ws_event_sync(
     """
     # Check rate limit first (skip for error events to ensure delivery)
     if event_type != "nlp.error" and not _check_ws_event_rate_limit(user_id):
-        logger.warning(f"WS event dropped due to rate limit: user={user_id}, type={event_type}")
+        logger.warning(
+            f"WS event dropped due to rate limit: user={user_id}, type={event_type}"
+        )
         return False
 
     async def _publish():
         # Create a fresh client for this call to avoid event loop issues
         # (asyncio.run creates a new loop each time)
-        stub_mode = not getattr(settings, 'NATS_ENABLED', True)
+        stub_mode = not getattr(settings, "NATS_ENABLED", True)
         service = NATSService(stub_mode=stub_mode)
         try:
             await service.connect()
@@ -490,7 +502,7 @@ def publish_ws_event_sync(
                 payload=payload,
                 job_id=job_id,
             )
-            return result.get('success', False)
+            return result.get("success", False)
         finally:
             # Always disconnect to clean up resources
             await service.disconnect()

@@ -232,8 +232,12 @@ def seed_prompt_cases_as_dicts() -> List[Dict[str, Any]]:
             "context": dict(c.context),
             "expected_catalog_ids_any_of": list(c.expected_catalog_ids_any_of or []),
             "expected_no_catalog_ids": bool(c.expected_no_catalog_ids),
-            "expected_trigger_modes_any_of": list(c.expected_trigger_modes_any_of or []),
-            "expected_missing_info_codes_any_of": list(c.expected_missing_info_codes_any_of or []),
+            "expected_trigger_modes_any_of": list(
+                c.expected_trigger_modes_any_of or []
+            ),
+            "expected_missing_info_codes_any_of": list(
+                c.expected_missing_info_codes_any_of or []
+            ),
             "expected_variable_ids_all": list(c.expected_variable_ids_all or []),
         }
         for c in seed_prompt_cases()

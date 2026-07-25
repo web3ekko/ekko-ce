@@ -61,7 +61,10 @@ class TestParseTargetKeys:
 
         assert "ethereum_mainnet" in result
         assert len(result["ethereum_mainnet"]) == 1
-        assert result["ethereum_mainnet"][0] == "0x742d35cc6634c0532925a3b844bc9e7fe3c45bf3"
+        assert (
+            result["ethereum_mainnet"][0]
+            == "0x742d35cc6634c0532925a3b844bc9e7fe3c45bf3"
+        )
 
     def test_parse_multiple_chains(self):
         """Test parsing addresses from multiple chains."""
@@ -84,7 +87,9 @@ class TestParseTargetKeys:
             "SOL:mainnet:ABC123",
             "MATIC:mainnet:0x456",
         ]
-        result = _parse_target_keys(keys, chain_filter="ethereum_mainnet,solana_mainnet")
+        result = _parse_target_keys(
+            keys, chain_filter="ethereum_mainnet,solana_mainnet"
+        )
 
         assert len(result) == 2
         assert "ethereum_mainnet" in result
@@ -261,7 +266,9 @@ class TestNewsfeedTransactionsEndpoint:
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
-    def test_returns_empty_when_no_alerts(self, authenticated_client, mock_ducklake_service):
+    def test_returns_empty_when_no_alerts(
+        self, authenticated_client, mock_ducklake_service
+    ):
         """Test returns empty response when user has no wallet alerts."""
         client, user = authenticated_client
         url = reverse("alerts:analytics-newsfeed-transactions")
@@ -442,7 +449,9 @@ class TestNewsfeedTransactionsEndpoint:
         params = call_args[0][1]
         assert params["start_date"] is not None
 
-    def test_invalid_start_date_returns_400(self, authenticated_client, mock_ducklake_service):
+    def test_invalid_start_date_returns_400(
+        self, authenticated_client, mock_ducklake_service
+    ):
         """Test that invalid start_date returns 400 error."""
         client, user = authenticated_client
 
@@ -484,7 +493,9 @@ class TestNewsfeedTransactionsEndpoint:
         assert "solana_mainnet" in data["chains"]
         assert "polygon_mainnet" in data["chains"]
 
-    def test_ducklake_error_returns_500(self, authenticated_client, mock_ducklake_service):
+    def test_ducklake_error_returns_500(
+        self, authenticated_client, mock_ducklake_service
+    ):
         """Test that DuckLake errors return 500 response."""
         client, user = authenticated_client
 
@@ -503,7 +514,9 @@ class TestNewsfeedTransactionsEndpoint:
         assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
         assert "error" in response.json()
 
-    def test_default_start_date_is_24h_ago(self, authenticated_client, mock_ducklake_service):
+    def test_default_start_date_is_24h_ago(
+        self, authenticated_client, mock_ducklake_service
+    ):
         """Test that default start_date is 24 hours ago."""
         client, user = authenticated_client
 

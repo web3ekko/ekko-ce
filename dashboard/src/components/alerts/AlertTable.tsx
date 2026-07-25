@@ -1,10 +1,10 @@
 /**
  * Alert Table Component
- * 
+ *
  * Data table for displaying alerts with sorting, selection, and actions
  */
 
-import { useState } from 'react'
+import { useState } from "react";
 import {
   Table,
   Checkbox,
@@ -19,8 +19,8 @@ import {
   Stack,
   Avatar,
   UnstyledButton,
-} from '@mantine/core'
-import { modals } from '@mantine/modals'
+} from "@mantine/core";
+import { modals } from "@mantine/modals";
 import {
   IconChevronUp,
   IconChevronDown,
@@ -33,22 +33,22 @@ import {
   IconPlayerPause,
   IconClock,
   IconUser,
-} from '@tabler/icons-react'
-import { useAlertStore } from '../../store/alerts'
-import type { Alert, AlertSortOptions } from '../../types/alerts'
+} from "@tabler/icons-react";
+import { useAlertStore } from "../../store/alerts";
+import type { Alert, AlertSortOptions } from "../../types/alerts";
 
 interface AlertTableProps {
-  alerts: Alert[]
-  selectedAlerts: string[]
-  sort: AlertSortOptions
-  onSort: (sort: AlertSortOptions) => void
-  onView: (alertId: string) => void
-  onEdit: (alertId: string) => void
-  onToggle: (alertId: string, enabled: boolean) => void
-  onDuplicate: (alertId: string) => void
-  onDelete: (alertId: string) => void
-  getStatusColor: (status: Alert['status']) => string
-  getStatusIcon: (status: Alert['status']) => React.ReactNode
+  alerts: Alert[];
+  selectedAlerts: string[];
+  sort: AlertSortOptions;
+  onSort: (sort: AlertSortOptions) => void;
+  onView: (alertId: string) => void;
+  onEdit: (alertId: string) => void;
+  onToggle: (alertId: string, enabled: boolean) => void;
+  onDuplicate: (alertId: string) => void;
+  onDelete: (alertId: string) => void;
+  getStatusColor: (status: Alert["status"]) => string;
+  getStatusIcon: (status: Alert["status"]) => React.ReactNode;
 }
 
 export function AlertTable({
@@ -64,83 +64,88 @@ export function AlertTable({
   getStatusColor,
   getStatusIcon,
 }: AlertTableProps) {
-  const { selectAlert, selectMultipleAlerts } = useAlertStore()
+  const { selectAlert, selectMultipleAlerts } = useAlertStore();
 
-  const handleSort = (field: AlertSortOptions['field']) => {
-    const direction = sort.field === field && sort.direction === 'asc' ? 'desc' : 'asc'
-    onSort({ field, direction })
-  }
+  const handleSort = (field: AlertSortOptions["field"]) => {
+    const direction =
+      sort.field === field && sort.direction === "asc" ? "desc" : "asc";
+    onSort({ field, direction });
+  };
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      selectMultipleAlerts(alerts.map(alert => alert.id))
+      selectMultipleAlerts(alerts.map((alert) => alert.id));
     } else {
-      selectMultipleAlerts([])
+      selectMultipleAlerts([]);
     }
-  }
+  };
 
   const handleDeleteConfirm = (alert: Alert) => {
     modals.openConfirmModal({
-      title: 'Delete Alert',
+      title: "Delete Alert",
       children: (
         <Text size="sm">
-          Are you sure you want to delete "{alert.name}"? This action cannot be undone.
+          Are you sure you want to delete "{alert.name}"? This action cannot be
+          undone.
         </Text>
       ),
-      labels: { confirm: 'Delete', cancel: 'Cancel' },
-      confirmProps: { color: 'red' },
+      labels: { confirm: "Delete", cancel: "Cancel" },
+      confirmProps: { color: "red" },
       onConfirm: () => onDelete(alert.id),
-    })
-  }
+    });
+  };
 
-  const SortableHeader = ({ 
-    field, 
-    children 
-  }: { 
-    field: AlertSortOptions['field']
-    children: React.ReactNode 
+  const SortableHeader = ({
+    field,
+    children,
+  }: {
+    field: AlertSortOptions["field"];
+    children: React.ReactNode;
   }) => (
     <UnstyledButton onClick={() => handleSort(field)}>
       <Group gap="xs" wrap="nowrap">
         <Text fw={500} size="sm">
           {children}
         </Text>
-        {sort.field === field && (
-          sort.direction === 'asc' ? 
-            <IconChevronUp size="0.875rem" /> : 
+        {sort.field === field &&
+          (sort.direction === "asc" ? (
+            <IconChevronUp size="0.875rem" />
+          ) : (
             <IconChevronDown size="0.875rem" />
-        )}
+          ))}
       </Group>
     </UnstyledButton>
-  )
+  );
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  }
+    return new Date(dateString).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
 
   const formatTimeAgo = (dateString: string) => {
-    const date = new Date(dateString)
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffMins = Math.floor(diffMs / (1000 * 60))
-    const diffHours = Math.floor(diffMins / 60)
-    const diffDays = Math.floor(diffHours / 24)
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
 
-    if (diffMins < 1) return 'Just now'
-    if (diffMins < 60) return `${diffMins}m ago`
-    if (diffHours < 24) return `${diffHours}h ago`
-    if (diffDays < 7) return `${diffDays}d ago`
-    return formatDate(dateString)
-  }
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return formatDate(dateString);
+  };
 
-  const allSelected = alerts.length > 0 && selectedAlerts.length === alerts.length
-  const someSelected = selectedAlerts.length > 0 && selectedAlerts.length < alerts.length
+  const allSelected =
+    alerts.length > 0 && selectedAlerts.length === alerts.length;
+  const someSelected =
+    selectedAlerts.length > 0 && selectedAlerts.length < alerts.length;
 
   return (
     <Card shadow="sm" padding={0} radius="md" withBorder>
@@ -161,7 +166,9 @@ export function AlertTable({
               <Table.Th>Status</Table.Th>
               <Table.Th>Event Type</Table.Th>
               <Table.Th>
-                <SortableHeader field="last_triggered">Last Triggered</SortableHeader>
+                <SortableHeader field="last_triggered">
+                  Last Triggered
+                </SortableHeader>
               </Table.Th>
               <Table.Th>
                 <SortableHeader field="trigger_count">Triggers</SortableHeader>
@@ -183,13 +190,13 @@ export function AlertTable({
                     onChange={() => selectAlert(alert.id)}
                   />
                 </Table.Td>
-                
+
                 <Table.Td>
                   <Stack gap="xs">
-                    <Text 
-                      fw={500} 
+                    <Text
+                      fw={500}
                       size="sm"
-                      style={{ cursor: 'pointer' }}
+                      style={{ cursor: "pointer" }}
                       onClick={() => onView(alert.id)}
                     >
                       {alert.name}
@@ -201,7 +208,7 @@ export function AlertTable({
                     )}
                   </Stack>
                 </Table.Td>
-                
+
                 <Table.Td>
                   <Badge
                     color={getStatusColor(alert.status)}
@@ -212,13 +219,13 @@ export function AlertTable({
                     {alert.status}
                   </Badge>
                 </Table.Td>
-                
+
                 <Table.Td>
                   <Badge variant="outline" size="sm">
-                    {alert.spec.event_type.replace('_', ' ')}
+                    {alert.spec.event_type.replace("_", " ")}
                   </Badge>
                 </Table.Td>
-                
+
                 <Table.Td>
                   {alert.last_triggered ? (
                     <Tooltip label={formatDate(alert.last_triggered)}>
@@ -232,13 +239,11 @@ export function AlertTable({
                     </Text>
                   )}
                 </Table.Td>
-                
+
                 <Table.Td>
-                  <Text size="sm">
-                    {alert.trigger_count.toLocaleString()}
-                  </Text>
+                  <Text size="sm">{alert.trigger_count.toLocaleString()}</Text>
                 </Table.Td>
-                
+
                 <Table.Td>
                   <Tooltip label={formatDate(alert.created_at)}>
                     <Text size="sm" c="dimmed">
@@ -246,7 +251,7 @@ export function AlertTable({
                     </Text>
                   </Tooltip>
                 </Table.Td>
-                
+
                 <Table.Td>
                   <Group gap="xs">
                     <Avatar size="xs" radius="xl">
@@ -257,15 +262,17 @@ export function AlertTable({
                     </Text>
                   </Group>
                 </Table.Td>
-                
+
                 <Table.Td>
                   <Switch
                     checked={alert.enabled}
-                    onChange={(e) => onToggle(alert.id, e.currentTarget.checked)}
+                    onChange={(e) =>
+                      onToggle(alert.id, e.currentTarget.checked)
+                    }
                     size="sm"
                   />
                 </Table.Td>
-                
+
                 <Table.Td>
                   <Menu shadow="md" width={200}>
                     <Menu.Target>
@@ -294,10 +301,16 @@ export function AlertTable({
                       </Menu.Item>
                       <Menu.Divider />
                       <Menu.Item
-                        leftSection={alert.enabled ? <IconPlayerPause size="1rem" /> : <IconPlayerPlay size="1rem" />}
+                        leftSection={
+                          alert.enabled ? (
+                            <IconPlayerPause size="1rem" />
+                          ) : (
+                            <IconPlayerPlay size="1rem" />
+                          )
+                        }
                         onClick={() => onToggle(alert.id, !alert.enabled)}
                       >
-                        {alert.enabled ? 'Disable' : 'Enable'}
+                        {alert.enabled ? "Disable" : "Enable"}
                       </Menu.Item>
                       <Menu.Divider />
                       <Menu.Item
@@ -316,7 +329,7 @@ export function AlertTable({
         </Table>
       </Table.ScrollContainer>
     </Card>
-  )
+  );
 }
 
-export default AlertTable
+export default AlertTable;
