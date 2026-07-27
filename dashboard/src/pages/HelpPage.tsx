@@ -287,6 +287,10 @@ export function HelpPage() {
                         @EkkoSupport
                       </Button>
                       <Button
+                        component="a"
+                        href="https://discord.gg/msCh4Ue8P3"
+                        target="_blank"
+                        rel="noopener noreferrer"
                         variant="default"
                         fullWidth
                         leftSection={<IconBrandDiscord size={16} />}

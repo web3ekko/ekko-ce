@@ -20,7 +20,11 @@ In this tutorial, you will learn how to start Ekko CE, create a real-time blockc
    cp .env.example .env
    ```
 
-2. Start the full service stack:
+2. Configure LLM API Keys (for natural language parsing):
+   - Set `GEMINI_API_KEY=your_key` in `.env` to use Google Gemini (`gemini/gemini-3.0-flash`).
+   - Alternatively, for local offline execution, set `GEMINI_MODEL=ollama/llama3.1` (no API key required).
+
+3. Start the full service stack:
 
    ```bash
    docker compose up --build -d
@@ -47,7 +51,31 @@ You will be greeted by the Ekko CE Dashboard home page.
 
 ---
 
-## Step 3: Create an Alert Using Natural Language
+## Step 3: Authenticate & Generate API Tokens
+
+Ekko CE enforces Knox Token authentication for protected REST API endpoints.
+
+### Option A: Via User Interface (Dashboard)
+1. Register/Log in at `http://localhost:3000`.
+2. Navigate to **Settings** -> **Developer API Keys**.
+3. Click **Generate New API Key** to copy your token for REST API requests.
+
+### Option B: Via Container CLI (Testing)
+Run the following command to generate a Knox API token directly for testing:
+
+```bash
+docker compose exec api python manage.py shell -c "from authentication.models import User; from knox.models import AuthToken; user, _ = User.objects.get_or_create(email='dev@ekko.dev', defaults={'username': 'devuser'}); _, token = AuthToken.objects.create(user); print('AUTH_TOKEN:', token)"
+```
+
+Verify token authentication with a GET request:
+
+```bash
+curl -H "Authorization: Token <YOUR_AUTH_TOKEN>" http://localhost:8000/api/alert-templates/
+```
+
+---
+
+## Step 4: Create an Alert Using Natural Language
 
 1. On the dashboard homepage, navigate to **Create Alert**.
 2. In the natural language input prompt, enter your monitoring intent in plain English:

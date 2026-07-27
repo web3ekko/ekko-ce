@@ -1,10 +1,11 @@
 # Ekko CE
 
-![Docker Compose Ready](https://img.shields.io/badge/docker--compose-ready-2496ED?logo=docker&logoColor=white)
-![Avalanche First](https://img.shields.io/badge/avalanche-first-E84142?logo=avax&logoColor=white)
-![Natural Language Alerts](https://img.shields.io/badge/alerts-natural%20language-2563EB)
-![Runtime](https://img.shields.io/badge/runtime-wasmCloud%20%2B%20NATS-0F172A)
-![Stack](https://img.shields.io/badge/stack-Django%20%7C%20React%20%7C%20PostgreSQL%20%7C%20Redis%20%7C%20MinIO-334155)
+[![Docker Compose Ready](https://img.shields.io/badge/docker--compose-ready-2496ED?logo=docker&logoColor=white)](https://github.com/web3ekko/ekko-ce)
+[![Avalanche First](https://img.shields.io/badge/avalanche-first-E84142?logo=avax&logoColor=white)](https://github.com/web3ekko/ekko-ce)
+[![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/msCh4Ue8P3)
+[![Natural Language Alerts](https://img.shields.io/badge/alerts-natural%20language-2563EB)](https://github.com/web3ekko/ekko-ce)
+[![Runtime](https://img.shields.io/badge/runtime-wasmCloud%20%2B%20NATS-0F172A)](https://github.com/web3ekko/ekko-ce)
+[![Stack](https://img.shields.io/badge/stack-Django%20%7C%20React%20%7C%20PostgreSQL%20%7C%20Redis%20%7C%20MinIO-334155)](https://github.com/web3ekko/ekko-ce)
 
 Open-source, real-time blockchain monitoring and alerting built for Avalanche teams.
 
@@ -94,6 +95,8 @@ For the full, knowledge-backed managed experience, sign up at **https://app.ekko
 cp .env.example .env
 ```
 
+> **LLM Provider Setup:** Natural language alert parsing routes via LiteLLM. Set `GEMINI_API_KEY` in `.env` for Gemini models (`gemini/gemini-3.0-flash`), or specify a local model with `GEMINI_MODEL=ollama/llama3.1` (no API key required).
+
 ### 2) Start everything
 
 ```bash
@@ -115,7 +118,23 @@ docker compose up --build
 docker compose exec api python manage.py createsuperuser
 ```
 
-### 5) Stop or reset
+### 5) Generating API Auth Tokens
+
+To interact directly with protected REST API endpoints (`/api/alert-templates/`, `/api/alerts/`, etc.) via cURL or custom integrations:
+
+- **Via User Interface:** Create an account at `http://localhost:3000`, open **Settings** -> **Developer API Keys**, and generate an API key directly from the UI.
+- **Via CLI Command:** Generate a Knox Auth Token for testing using the container shell:
+  ```bash
+  docker compose exec api python manage.py shell -c "from authentication.models import User; from knox.models import AuthToken; user, _ = User.objects.get_or_create(email='dev@ekko.dev', defaults={'username': 'devuser'}); _, token = AuthToken.objects.create(user); print('AUTH_TOKEN:', token)"
+  ```
+
+Test an authenticated request using the header:
+
+```bash
+curl -H "Authorization: Token <YOUR_AUTH_TOKEN>" http://localhost:8000/api/alert-templates/
+```
+
+### 6) Stop or reset
 
 ```bash
 # stop
@@ -198,6 +217,11 @@ docker compose logs -f wasmcloud
 # migrations
 docker compose exec api python manage.py migrate
 ```
+
+## Community & Support
+
+- **Discord Community:** Join our [Discord Server](https://discord.gg/msCh4Ue8P3) for support, discussions, and updates.
+- **Hosted Version:** Sign up for the managed platform at [app.ekko.zone](https://app.ekko.zone).
 
 ## License
 
